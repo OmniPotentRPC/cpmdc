@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Plane-wave scaffold reference - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Python API" href="python.html" /><link rel="prev" title="C ABI reference" href="c-abi.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/pwscale.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/reference/pwscale.html"/>
+  <meta property="og:title" content="Plane-wave scaffold reference"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#availability">Availability</a></li>
+<li><a class="reference internal" href="#conventions">Conventions</a><ul>
+<li><a class="reference internal" href="#the-sum-that-is-evaluated">The sum that is evaluated</a></li>
+<li><a class="reference internal" href="#how-work-is-split">How work is split</a></li>
+<li><a class="reference internal" href="#agreement">Agreement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#status-codes-and-constants">Status codes and constants</a></li>
+<li><a class="reference internal" href="#types">Types</a><ul>
+<li><a class="reference internal" href="#cpmdc-pwscale-problem"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_problem</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-stats"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_stats</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-mpi-bind"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#functions">Functions</a><ul>
+<li><a class="reference internal" href="#cpmdc-pwscale-fill-geometry"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_fill_geometry</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-within"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-sample-check"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-eval"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-eval-mpi"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code></a></li>
+<li><a class="reference internal" href="#binding">Binding</a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-mpi-bind-create"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-eval-mpi-bound"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-mpi-bind-free"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-cuda-compiled"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-cuda-device"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-pwscale-eval-cuda"><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tests">Tests</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/reference/pwscale.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Plane-wave scaffold reference</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/reference/pwscale.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/reference/pwscale.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/reference/pwscale.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/reference/pwscale.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/reference/pwscale.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="plane-wave-scaffold-reference">
+<h1>Plane-wave scaffold reference<a class="headerlink" href="#plane-wave-scaffold-reference" title="Link to this heading">¶</a></h1>
+<p>The plane-wave scaffold is declared in <code class="docutils literal notranslate"><span class="pre">include/cpmdc_pwscale.h</span></code> and
+implemented in <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale.c</span></code> (CPU and MPI),
+<code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> (CUDA), and <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda_stub.c</span></code>
+(the CUDA calls of a build without CUDA).
+It evaluates one structure-factor sum on a synthetic plane-wave grid so that
+threads, ranks, and a GPU can be timed and compared on the same arithmetic.
+It is separate from the embed force call and the reference potential, and sits
+outside the C ABI of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (see the <a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a>):
+the functions use plain C linkage, the header stays in <code class="docutils literal notranslate"><span class="pre">include/</span></code> and is used
+from the source tree, and <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports only the functions of <code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code>
+and <code class="docutils literal notranslate"><span class="pre">cpmdc_features.h</span></code>.
+The <a class="reference internal" href="../howto/pwscale-ranks.html"><span class="doc">rank how-to</span></a> shows how to time it.</p>
+<section id="availability">
+<h2>Availability<a class="headerlink" href="#availability" title="Link to this heading">¶</a></h2>
+<p>The scaffold is off in the default build.
+<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code> builds <code class="docutils literal notranslate"><span class="pre">libcpmdc_pwscale.a</span></code>, a static library that is not
+installed, together with the <code class="docutils literal notranslate"><span class="pre">cpmdc-pwscale</span></code> harness and the <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> test
+suite; it needs OpenMP.
+Programs of the source tree include <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale.h</span></code> and link that archive.
+All functions have C linkage, and the header compiles as C and as C++.
+None of them writes <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>; the return code is the whole report.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Needs MPI in the build</p></th>
+<th class="head"><p>Needs CUDA in the build</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_fill_geometry</span></code></p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code></p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code></p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code></p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code></p></td>
+<td><p>yes, else <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code></p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code></p></td>
+<td><p>yes, else <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code></p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code></p></td>
+<td><p>yes, else <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code></p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code></p></td>
+<td><p>compiled in both; does nothing without MPI</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code></p></td>
+<td><p>no</p></td>
+<td><p>answers 1 with CUDA, 0 without</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code></p></td>
+<td><p>no</p></td>
+<td><p>finds a device only with CUDA</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code></p></td>
+<td><p>no</p></td>
+<td><p>yes, else <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOCUDA</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>“MPI in the build” means that Meson found the MPI C compiler wrapper and passed
+<code class="docutils literal notranslate"><span class="pre">-DCPMDC_PWSCALE_HAVE_MPI=1</span></code> to <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale.c</span></code>.
+“CUDA in the build” means <code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale_cuda=true</span></code>: Meson then needs <code class="docutils literal notranslate"><span class="pre">nvcc</span></code>,
+compiles the kernel for <code class="docutils literal notranslate"><span class="pre">sm_70</span></code>, and links <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> in
+place of the stub.
+A CUDA build on a host without a device still returns
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOCUDA</span></code> from <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code>.</p>
+</section>
+<section id="conventions">
+<h2>Conventions<a class="headerlink" href="#conventions" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Topic</p></th>
+<th class="head"><p>Rule</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>positions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code>, Bohr, <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> values, atom-major: x0, y0, z0, x1, y1, z1, …</p></td>
+</tr>
+<tr class="row-odd"><td><p>atomic numbers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">natoms</span></code> values; each is used as a weight and is not range-checked</p></td>
+</tr>
+<tr class="row-even"><td><p>forces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code>, Hartree per Bohr, <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> values in the layout of the positions</p></td>
+</tr>
+<tr class="row-odd"><td><p>energy</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code> in <code class="docutils literal notranslate"><span class="pre">stats-&gt;energy_h</span></code>, Hartree</p></td>
+</tr>
+<tr class="row-even"><td><p>time</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code> seconds from a monotonic clock (CUDA: event time)</p></td>
+</tr>
+<tr class="row-odd"><td><p>ownership</p></td>
+<td><p>the caller owns every array and every <code class="docutils literal notranslate"><span class="pre">problem</span></code> and <code class="docutils literal notranslate"><span class="pre">stats</span></code> struct; no call keeps a pointer past its return</p></td>
+</tr>
+<tr class="row-even"><td><p>scratch</p></td>
+<td><p>calls allocate their scratch and release it before they return; <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code> is the one exception, see <a class="reference internal" href="#binding">Binding</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stats</span></code></p></td>
+<td><p>when not <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, a call zeroes it first, so it holds zeros after an error</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">forces</span></code></p></td>
+<td><p>an evaluation overwrites the whole array; it does not add to it</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>no call keeps state between calls except through a <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind</span></code>, and one binding serves one call at a time</p></td>
+</tr>
+<tr class="row-even"><td><p>OpenMP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code> and the MPI calls turn OpenMP dynamic adjustment off with <code class="docutils literal notranslate"><span class="pre">omp_set_dynamic(0)</span></code> for the calling thread</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="the-sum-that-is-evaluated">
+<h3>The sum that is evaluated<a class="headerlink" href="#the-sum-that-is-evaluated" title="Link to this heading">¶</a></h3>
+<p>A problem has <code class="docutils literal notranslate"><span class="pre">natoms</span></code> atoms in a cubic cell of edge <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">npw</span></code> plane
+waves.
+Let <code class="docutils literal notranslate"><span class="pre">n</span></code> be the smallest odd integer with <code class="docutils literal notranslate"><span class="pre">n^3</span> <span class="pre">&gt;=</span> <span class="pre">npw</span></code>.
+Plane wave <code class="docutils literal notranslate"><span class="pre">k</span></code>, for <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">k</span> <span class="pre">&lt;</span> <span class="pre">npw</span></code>, has the integer indices
+<code class="docutils literal notranslate"><span class="pre">ix</span> <span class="pre">=</span> <span class="pre">k</span> <span class="pre">mod</span> <span class="pre">n</span> <span class="pre">-</span> <span class="pre">n/2</span></code>, <code class="docutils literal notranslate"><span class="pre">iy</span> <span class="pre">=</span> <span class="pre">(k</span> <span class="pre">/</span> <span class="pre">n)</span> <span class="pre">mod</span> <span class="pre">n</span> <span class="pre">-</span> <span class="pre">n/2</span></code>, and <code class="docutils literal notranslate"><span class="pre">iz</span> <span class="pre">=</span> <span class="pre">k</span> <span class="pre">/</span> <span class="pre">n^2</span> <span class="pre">-</span> <span class="pre">n/2</span></code>
+(integer division), and the wave vector
+<code class="docutils literal notranslate"><span class="pre">G</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">pi</span> <span class="pre">/</span> <span class="pre">cell_bohr</span> <span class="pre">*</span> <span class="pre">(ix,</span> <span class="pre">iy,</span> <span class="pre">iz)</span></code> in inverse Bohr.
+So the plane waves are the first <code class="docutils literal notranslate"><span class="pre">npw</span></code> cells of an <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> box,
+x running fastest; the box is cut short when <code class="docutils literal notranslate"><span class="pre">npw</span></code> is not a cube.
+With <code class="docutils literal notranslate"><span class="pre">G2</span> <span class="pre">=</span> <span class="pre">|G|^2</span></code> and the position <code class="docutils literal notranslate"><span class="pre">r</span></code> of an atom of atomic number <code class="docutils literal notranslate"><span class="pre">Z</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">w</span><span class="p">(</span><span class="n">G</span><span class="p">)</span>     <span class="o">=</span> <span class="mi">4</span> <span class="n">pi</span> <span class="o">/</span> <span class="n">G2</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">G2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="n">alpha</span><span class="p">))</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">G2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="n">sigma</span><span class="o">^</span><span class="mi">2</span><span class="p">))</span>
+</span><span data-line="2"><span class="n">energy</span>   <span class="o">=</span> <span class="nb">sum</span> <span class="n">over</span> <span class="n">G</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">atoms</span> <span class="n">a</span><span class="p">:</span>  <span class="n">Z_a</span> <span class="o">*</span> <span class="n">w</span><span class="p">(</span><span class="n">G</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">G</span> <span class="o">.</span> <span class="n">r_a</span><span class="p">)</span>
+</span><span data-line="3"><span class="n">force_a</span>  <span class="o">=</span> <span class="nb">sum</span> <span class="n">over</span> <span class="n">G</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>           <span class="n">Z_a</span> <span class="o">*</span> <span class="n">w</span><span class="p">(</span><span class="n">G</span><span class="p">)</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">G</span> <span class="o">.</span> <span class="n">r_a</span><span class="p">)</span> <span class="o">*</span> <span class="n">G</span>
+</span></pre></div>
+</div>
+<p>The term <code class="docutils literal notranslate"><span class="pre">G</span> <span class="pre">=</span> <span class="pre">0</span></code> is visited and adds nothing.
+It is visited only when the box that <code class="docutils literal notranslate"><span class="pre">npw</span></code> cuts holds the origin.
+With <code class="docutils literal notranslate"><span class="pre">G</span></code> in inverse Bohr, <code class="docutils literal notranslate"><span class="pre">alpha</span></code> is in inverse Bohr squared and <code class="docutils literal notranslate"><span class="pre">sigma</span></code> in
+inverse Bohr; the code does not check units.</p>
+</section>
+<section id="how-work-is-split">
+<h3>How work is split<a class="headerlink" href="#how-work-is-split" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code> gives each worker a contiguous run of plane waves and
+every atom; <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code> gives each worker every plane wave and a
+contiguous run of atoms.
+Piece <code class="docutils literal notranslate"><span class="pre">i</span></code> of <code class="docutils literal notranslate"><span class="pre">p</span></code> over <code class="docutils literal notranslate"><span class="pre">m</span></code> items covers <code class="docutils literal notranslate"><span class="pre">[i</span> <span class="pre">*</span> <span class="pre">m</span> <span class="pre">/</span> <span class="pre">p,</span> <span class="pre">(i</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">m</span> <span class="pre">/</span> <span class="pre">p)</span></code>.
+Workers are the OpenMP threads of one call, and in the MPI calls the ranks of
+the communicator, each with its own OpenMP team.
+With the plane-wave split every thread keeps a private force vector, and the
+vectors are summed in thread order.
+With the atom split threads write disjoint force entries.</p>
+</section>
+<section id="agreement">
+<h3>Agreement<a class="headerlink" href="#agreement" title="Link to this heading">¶</a></h3>
+<p>A parallel or MPI result agrees with the serial one when
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code> accepts the energy and every force component,
+with the tolerance <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code>, and the visit counts are equal.
+Bitwise equality is claimed only in the case below.
+For a fixed rank count and thread count, every rank holds the same bytes and
+repeated runs give the same bytes, because the partial sums are added in rank
+order and thread order.
+The CUDA path adds with <code class="docutils literal notranslate"><span class="pre">atomicAdd</span></code> on doubles, so its sum order is not fixed.</p>
+</section>
+</section>
+<section id="status-codes-and-constants">
+<h2>Status codes and constants<a class="headerlink" href="#status-codes-and-constants" title="Link to this heading">¶</a></h2>
+<p>Every function that returns <code class="docutils literal notranslate"><span class="pre">int</span></code> status returns one of these, except the
+predicates <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code>, which return 1 or 0.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Constant</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code></p></td>
+<td><p>0</p></td>
+<td><p>the call succeeded</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code></p></td>
+<td><p>-1</p></td>
+<td><p>a pointer is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, a problem value is out of range, <code class="docutils literal notranslate"><span class="pre">dist</span></code> is unknown, <code class="docutils literal notranslate"><span class="pre">nthreads</span></code> is above 4096, <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code> is wrong, scratch allocation failed, or an MPI call or another rank failed</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code></p></td>
+<td><p>-2</p></td>
+<td><p>the build has no MPI</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOCUDA</span></code></p></td>
+<td><p>-3</p></td>
+<td><p>the build has no CUDA, or the host has no CUDA device</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_CUDA</span></code></p></td>
+<td><p>-4</p></td>
+<td><p>a CUDA allocation or kernel launch failed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOFFTW</span></code></p></td>
+<td><p>-5</p></td>
+<td><p>returned by the FFT timing driver <code class="docutils literal notranslate"><span class="pre">bench/pwscale_fft.c</span></code> when built without FFTW, when <code class="docutils literal notranslate"><span class="pre">fftw_init_threads()</span></code> fails, or when FFTW plan creation fails; no function of this header returns it</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code></p></td>
+<td><p>0</p></td>
+<td><p>split the plane-wave loop</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code></p></td>
+<td><p>1</p></td>
+<td><p>split the atom loop</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1e-8</span></code></p></td>
+<td><p>relative tolerance of agreement: a gap passes when it is at most <code class="docutils literal notranslate"><span class="pre">RTOL</span> <span class="pre">*</span> <span class="pre">max(1,</span> <span class="pre">fabs(got),</span> <span class="pre">fabs(reference))</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Codes are negative so that one rank’s failure can be taken as the minimum
+over ranks.</p>
+</section>
+<section id="types">
+<h2>Types<a class="headerlink" href="#types" title="Link to this heading">¶</a></h2>
+<section id="cpmdc-pwscale-problem">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_problem</span></code><a class="headerlink" href="#cpmdc-pwscale-problem" title="Link to this heading">¶</a></h3>
+<p>One problem.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code> and the MPI calls reject it with <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code>
+unless every limit below holds; a <code class="docutils literal notranslate"><span class="pre">NaN</span></code> fails the three positive tests.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code> applies the same tests except the upper limits.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code> copies it, so the caller’s struct may go away
+after the call.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Unit</p></th>
+<th class="head"><p>Allowed values</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">natoms</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>atoms</p></td>
+<td><p>1 to 1000000</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">npw</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>plane waves</p></td>
+<td><p>1 to 100000000</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>Bohr</p></td>
+<td><p>greater than 0; the cell is a cube of this edge</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>inverse Bohr squared</p></td>
+<td><p>greater than 0</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sigma</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>inverse Bohr</p></td>
+<td><p>greater than 0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-pwscale-stats">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_stats</span></code><a class="headerlink" href="#cpmdc-pwscale-stats" title="Link to this heading">¶</a></h3>
+<p>Timers and counts of one evaluation.
+Every field is zero after an error.
+The CPU calls set the fields below; the CUDA call differs where noted.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Unit</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">energy_h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>Hartree</p></td>
+<td><p>the energy of the sum</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seconds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>s</p></td>
+<td><p>wall time of the evaluated region; see each function</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">h2d_seconds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>s</p></td>
+<td><p>host-to-device copy time; 0 on the CPU path</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">d2h_seconds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>s</p></td>
+<td><p>device-to-host time; 0 on the CPU path</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">g_visited</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">long</span> <span class="pre">long</span></code></p></td>
+<td><p>plane waves</p></td>
+<td><p>plane waves visited, <code class="docutils literal notranslate"><span class="pre">npw</span></code> in every successful CPU call</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">atom_visits</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">long</span> <span class="pre">long</span></code></p></td>
+<td><p>visits</p></td>
+<td><p>one per atom for each visited plane wave with <code class="docutils literal notranslate"><span class="pre">G</span> <span class="pre">!=</span> <span class="pre">0</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alloc_bytes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">long</span> <span class="pre">long</span></code></p></td>
+<td><p>bytes</p></td>
+<td><p>scratch counted by the call: per-thread partials (and private force vectors with the plane-wave split); the MPI calls add the buffers of the binding; CUDA counts the device buffers</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">workers</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>threads</p></td>
+<td><p>the OpenMP team that ran, from <code class="docutils literal notranslate"><span class="pre">omp_get_num_threads</span></code>, which can be smaller than <code class="docutils literal notranslate"><span class="pre">nthreads</span></code>; 1 on CUDA</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mpi_ranks</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>ranks</p></td>
+<td><p>the communicator size, 1 for <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code>; the CUDA call leaves it at 0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-pwscale-mpi-bind">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind</span></code><a class="headerlink" href="#cpmdc-pwscale-mpi-bind" title="Link to this heading">¶</a></h3>
+<p>An opaque handle declared as <code class="docutils literal notranslate"><span class="pre">typedef</span> <span class="pre">struct</span> <span class="pre">cpmdc_pwscale_mpi_bind</span> <span class="pre">cpmdc_pwscale_mpi_bind</span></code>.
+It exists only in a build with MPI; without MPI a pointer of this type is always
+<code class="docutils literal notranslate"><span class="pre">NULL</span></code>.
+See <a class="reference internal" href="#binding">Binding</a> for what it holds.</p>
+</section>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">void</span> <span class="pre">cpmdc_pwscale_fill_geometry(const</span> <span class="pre">cpmdc_pwscale_problem</span> <span class="pre">*prob,</span> <span class="pre">double</span> <span class="pre">*positions_bohr,</span> <span class="pre">int</span> <span class="pre">*atomic_numbers)</span></code></p></td>
+<td><p>a deterministic geometry</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_within(double</span> <span class="pre">got,</span> <span class="pre">double</span> <span class="pre">ref)</span></code></p></td>
+<td><p>1 when the two values agree under <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_sample_check(double</span> <span class="pre">got_energy,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*got_forces,</span> <span class="pre">double</span> <span class="pre">ref_energy,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*ref_forces,</span> <span class="pre">int</span> <span class="pre">n3,</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">g_got,</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">g_ref,</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">a_got,</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">a_ref,</span> <span class="pre">double</span> <span class="pre">*max_abs_dE,</span> <span class="pre">double</span> <span class="pre">*max_abs_dF,</span> <span class="pre">int</span> <span class="pre">*counts_match)</span></code></p></td>
+<td><p>1 when a sample agrees with the reference, with the gaps</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_eval(const</span> <span class="pre">cpmdc_pwscale_problem</span> <span class="pre">*prob,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*positions_bohr,</span> <span class="pre">const</span> <span class="pre">int</span> <span class="pre">*atomic_numbers,</span> <span class="pre">double</span> <span class="pre">*forces_h_bohr,</span> <span class="pre">int</span> <span class="pre">nthreads,</span> <span class="pre">int</span> <span class="pre">dist,</span> <span class="pre">cpmdc_pwscale_stats</span> <span class="pre">*stats)</span></code></p></td>
+<td><p>a status code, forces and stats</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_eval_mpi(const</span> <span class="pre">cpmdc_pwscale_problem</span> <span class="pre">*prob,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*positions_bohr,</span> <span class="pre">const</span> <span class="pre">int</span> <span class="pre">*atomic_numbers,</span> <span class="pre">double</span> <span class="pre">*forces_h_bohr,</span> <span class="pre">int</span> <span class="pre">nthreads,</span> <span class="pre">int</span> <span class="pre">dist,</span> <span class="pre">cpmdc_pwscale_stats</span> <span class="pre">*stats,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*comm,</span> <span class="pre">size_t</span> <span class="pre">comm_bytes)</span></code></p></td>
+<td><p>a status code, forces and stats, the same on every rank</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_mpi_bind_create(const</span> <span class="pre">cpmdc_pwscale_problem</span> <span class="pre">*prob,</span> <span class="pre">int</span> <span class="pre">dist,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*comm,</span> <span class="pre">size_t</span> <span class="pre">comm_bytes,</span> <span class="pre">cpmdc_pwscale_mpi_bind</span> <span class="pre">**out)</span></code></p></td>
+<td><p>a status code and a binding in <code class="docutils literal notranslate"><span class="pre">\*out</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind</span> <span class="pre">*bind,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*positions_bohr,</span> <span class="pre">const</span> <span class="pre">int</span> <span class="pre">*atomic_numbers,</span> <span class="pre">double</span> <span class="pre">*forces_h_bohr,</span> <span class="pre">int</span> <span class="pre">nthreads,</span> <span class="pre">cpmdc_pwscale_stats</span> <span class="pre">*stats)</span></code></p></td>
+<td><p>a status code, forces and stats, the same on every rank</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">void</span> <span class="pre">cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind</span> <span class="pre">*bind)</span></code></p></td>
+<td><p>nothing</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_cuda_compiled(void)</span></code></p></td>
+<td><p>1 when the CUDA scaffold is built in</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_cuda_device(char</span> <span class="pre">*name,</span> <span class="pre">int</span> <span class="pre">namelen)</span></code></p></td>
+<td><p>1 when a CUDA device exists, and its name</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_pwscale_eval_cuda(const</span> <span class="pre">cpmdc_pwscale_problem</span> <span class="pre">*prob,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*positions_bohr,</span> <span class="pre">const</span> <span class="pre">int</span> <span class="pre">*atomic_numbers,</span> <span class="pre">double</span> <span class="pre">*forces_h_bohr,</span> <span class="pre">cpmdc_pwscale_stats</span> <span class="pre">*stats)</span></code></p></td>
+<td><p>a status code, forces and stats</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="cpmdc-pwscale-fill-geometry">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_fill_geometry</span></code><a class="headerlink" href="#cpmdc-pwscale-fill-geometry" title="Link to this heading">¶</a></h3>
+<p>Fills <code class="docutils literal notranslate"><span class="pre">positions_bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">atomic_numbers</span></code> for atoms <code class="docutils literal notranslate"><span class="pre">i</span> <span class="pre">=</span> <span class="pre">0</span> <span class="pre">..</span> <span class="pre">natoms</span> <span class="pre">-</span> <span class="pre">1</span></code>,
+with <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">1</span></code>:
+the position is <code class="docutils literal notranslate"><span class="pre">(fmod(0.11</span> <span class="pre">s,</span> <span class="pre">0.73),</span> <span class="pre">fmod(0.17</span> <span class="pre">s,</span> <span class="pre">0.71),</span> <span class="pre">fmod(0.23</span> <span class="pre">s,</span> <span class="pre">0.69))</span></code>
+times <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> and the atomic number is <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">mod</span> <span class="pre">8</span></code>.
+Every position is inside the cell.
+The arrays depend only on <code class="docutils literal notranslate"><span class="pre">natoms</span></code> and <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> of <code class="docutils literal notranslate"><span class="pre">prob</span></code>.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prob</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">natoms</span></code> and <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> are read; <code class="docutils literal notranslate"><span class="pre">npw</span></code>, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, and <code class="docutils literal notranslate"><span class="pre">sigma</span></code> are ignored</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">positions_bohr</span></code></p></td>
+<td><p>out</p></td>
+<td><p>caller buffer of <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">atomic_numbers</span></code></p></td>
+<td><p>out</p></td>
+<td><p>caller buffer of <code class="docutils literal notranslate"><span class="pre">natoms</span></code> ints</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>If any pointer is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, or <code class="docutils literal notranslate"><span class="pre">natoms</span></code> is below 1, nothing is written.
+There is no return value.</p>
+</section>
+<section id="cpmdc-pwscale-within">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code><a class="headerlink" href="#cpmdc-pwscale-within" title="Link to this heading">¶</a></h3>
+<p>Returns 1 when <code class="docutils literal notranslate"><span class="pre">|got</span> <span class="pre">-</span> <span class="pre">ref|</span> <span class="pre">&lt;=</span> <span class="pre">CPMDC_PWSCALE_RTOL</span> <span class="pre">*</span> <span class="pre">max(1,</span> <span class="pre">|got|,</span> <span class="pre">|ref|)</span></code>, else 0.
+The scale is the larger magnitude of the two values and never below 1.
+A <code class="docutils literal notranslate"><span class="pre">NaN</span></code> in either argument returns 0.</p>
+</section>
+<section id="cpmdc-pwscale-sample-check">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code><a class="headerlink" href="#cpmdc-pwscale-sample-check" title="Link to this heading">¶</a></h3>
+<p>Compares one finished sample with the serial reference.
+<code class="docutils literal notranslate"><span class="pre">got_forces</span></code> and <code class="docutils literal notranslate"><span class="pre">ref_forces</span></code> each hold <code class="docutils literal notranslate"><span class="pre">n3</span> <span class="pre">=</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles in Hartree per
+Bohr.
+The energies are in Hartree.
+<code class="docutils literal notranslate"><span class="pre">g_got</span></code> and <code class="docutils literal notranslate"><span class="pre">g_ref</span></code> are the plane-wave visit counts, <code class="docutils literal notranslate"><span class="pre">a_got</span></code> and <code class="docutils literal notranslate"><span class="pre">a_ref</span></code> the
+atom-visit counts.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">max_abs_dE</span></code></p></td>
+<td><p>out</p></td>
+<td><p>the absolute energy gap <code class="docutils literal notranslate"><span class="pre">fabs(got_energy</span> <span class="pre">-</span> <span class="pre">ref_energy)</span></code>, not relative</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">max_abs_dF</span></code></p></td>
+<td><p>out</p></td>
+<td><p>the largest absolute force gap over the <code class="docutils literal notranslate"><span class="pre">n3</span></code> values, not relative</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">counts_match</span></code></p></td>
+<td><p>out</p></td>
+<td><p>1 when <code class="docutils literal notranslate"><span class="pre">g_got</span> <span class="pre">==</span> <span class="pre">g_ref</span></code> and <code class="docutils literal notranslate"><span class="pre">a_got</span> <span class="pre">==</span> <span class="pre">a_ref</span></code>, else 0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Returns 1 only when <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code> accepts the energy and every force
+component and <code class="docutils literal notranslate"><span class="pre">\*counts_match</span></code> is 1.
+It returns 0 and writes nothing when <code class="docutils literal notranslate"><span class="pre">got_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">ref_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">max_abs_dE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">max_abs_dF</span></code>, or <code class="docutils literal notranslate"><span class="pre">counts_match</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, or <code class="docutils literal notranslate"><span class="pre">n3</span></code> is below 1.
+The three outputs are written on every other call, including a failing one.</p>
+</section>
+<section id="cpmdc-pwscale-eval">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code><a class="headerlink" href="#cpmdc-pwscale-eval" title="Link to this heading">¶</a></h3>
+<p>Evaluates the sum on one rank with <code class="docutils literal notranslate"><span class="pre">nthreads</span></code> OpenMP threads.
+No MPI is involved, so this works in every build.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prob</span></code></p></td>
+<td><p>in</p></td>
+<td><p>must hold the limits of the <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_problem</span></code> section</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">positions_bohr</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles, Bohr</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">atomic_numbers</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">natoms</span></code> ints</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code></p></td>
+<td><p>out</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles, Hartree per Bohr; zeroed, then filled</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nthreads</span></code></p></td>
+<td><p>in</p></td>
+<td><p>OpenMP team size; a value below 1 means 1, and 1 is the serial loop</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dist</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code> or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stats</span></code></p></td>
+<td><p>out</p></td>
+<td><p>may be <code class="docutils literal notranslate"><span class="pre">NULL</span></code>; see the <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_stats</span></code> section</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code>, or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code> when a pointer other than
+<code class="docutils literal notranslate"><span class="pre">stats</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, the problem is out of range, <code class="docutils literal notranslate"><span class="pre">dist</span></code> is unknown, <code class="docutils literal notranslate"><span class="pre">nthreads</span></code> is
+above 4096, or scratch allocation fails.
+<code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> is untouched for an argument error found before the evaluation,
+and is zero when the team fails.
+On success <code class="docutils literal notranslate"><span class="pre">stats-&gt;seconds</span></code> covers scratch allocation, the arithmetic, and the
+ordered sum, and <code class="docutils literal notranslate"><span class="pre">stats-&gt;mpi_ranks</span></code> is 1.</p>
+</section>
+<section id="cpmdc-pwscale-eval-mpi">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code><a class="headerlink" href="#cpmdc-pwscale-eval-mpi" title="Link to this heading">¶</a></h3>
+<p>Evaluates the sum on every rank of one communicator and gives every rank the
+whole result.
+It binds a problem, runs one bound call, and frees the binding, on every call.
+It is the one-shot form of <a class="reference internal" href="#binding">Binding</a>.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prob</span></code>, <code class="docutils literal notranslate"><span class="pre">positions_bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">atomic_numbers</span></code></p></td>
+<td><p>in</p></td>
+<td><p>the same on every rank, with the layout of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code>; each rank passes the whole geometry</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code></p></td>
+<td><p>out</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles on every rank; every rank receives the summed forces</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nthreads</span></code></p></td>
+<td><p>in</p></td>
+<td><p>OpenMP team size inside each rank</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dist</span></code></p></td>
+<td><p>in</p></td>
+<td><p>the split across ranks: contiguous plane waves or contiguous atoms</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stats</span></code></p></td>
+<td><p>out</p></td>
+<td><p>may be <code class="docutils literal notranslate"><span class="pre">NULL</span></code>; <code class="docutils literal notranslate"><span class="pre">mpi_ranks</span></code> is the communicator size</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">comm</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NULL</span></code> for <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code>, else a pointer to an <code class="docutils literal notranslate"><span class="pre">MPI_Comm</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code> when <code class="docutils literal notranslate"><span class="pre">comm</span></code> is not <code class="docutils literal notranslate"><span class="pre">NULL</span></code>; ignored when it is</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The call is collective over the communicator.
+Every rank receives the partials of every rank and adds them in rank order, so
+every rank ends with the same bytes.
+<code class="docutils literal notranslate"><span class="pre">stats-&gt;seconds</span></code> runs from the entry of the bound call to the end of the
+rank-ordered sum, the Allgather included; the binding step before it is not
+timed.
+<code class="docutils literal notranslate"><span class="pre">stats-&gt;alloc_bytes</span></code> holds <code class="docutils literal notranslate"><span class="pre">(ranks</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">(3</span> <span class="pre">*</span> <span class="pre">natoms</span> <span class="pre">+</span> <span class="pre">4)</span></code> doubles of exchange
+buffers plus the scratch of this rank’s team.</p>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code>, <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> in a build without MPI
+(with <code class="docutils literal notranslate"><span class="pre">stats</span></code> zeroed), or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code>.
+The pointers and the problem are checked on the calling rank before any
+collective, so a rank that fails that check returns at once without joining.
+If every rank passes the same bad argument, every rank returns
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code>; if only some ranks do, the others wait in the
+collective of the binding step.
+A caller whose ranks can fail on their own binds first and uses the bound call,
+which reports such a failure on every rank.</p>
+</section>
+<section id="binding">
+<h3>Binding<a class="headerlink" href="#binding" title="Link to this heading">¶</a></h3>
+<p>A binding holds a copy of the problem, <code class="docutils literal notranslate"><span class="pre">dist</span></code>, the rank and size of the
+communicator, the handle of the communicator, and the buffers of the exchange
+(<code class="docutils literal notranslate"><span class="pre">(ranks</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">(3</span> <span class="pre">*</span> <span class="pre">natoms</span> <span class="pre">+</span> <span class="pre">4)</span></code> doubles).
+It saves the checks and allocation of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> on every step.
+The caller owns a binding from a successful <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code> until
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code>.
+The communicator is not copied, only its handle, so it must outlive the binding.
+The bound calls overwrite the buffers of the binding, so one binding serves one
+call at a time.</p>
+</section>
+<section id="cpmdc-pwscale-mpi-bind-create">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code><a class="headerlink" href="#cpmdc-pwscale-mpi-bind-create" title="Link to this heading">¶</a></h3>
+<p>Binds a problem to a communicator.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prob</span></code></p></td>
+<td><p>in</p></td>
+<td><p>the problem, the same on every rank; copied</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dist</span></code></p></td>
+<td><p>in</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code> or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code>, the same on every rank</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">comm</span></code>, <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code></p></td>
+<td><p>in</p></td>
+<td><p>as for <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">out</span></code></p></td>
+<td><p>out</p></td>
+<td><p>receives the binding, or <code class="docutils literal notranslate"><span class="pre">NULL</span></code> on every failure</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The call is collective: it runs one <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code> that checks that every rank
+holds a valid problem and buffers, and that <code class="docutils literal notranslate"><span class="pre">npw</span></code>, <code class="docutils literal notranslate"><span class="pre">natoms</span></code>, and <code class="docutils literal notranslate"><span class="pre">dist</span></code> match
+across ranks.
+<code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, and <code class="docutils literal notranslate"><span class="pre">sigma</span></code> must match as well, but they are not compared.
+On failure after that collective every rank returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code> and
+<code class="docutils literal notranslate"><span class="pre">\*out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>.
+Three failures come before the collective and do not join it:
+<code class="docutils literal notranslate"><span class="pre">out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code> differs from <code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">NULL</span></code>
+<code class="docutils literal notranslate"><span class="pre">comm</span></code>, and a rank or size query of the communicator fails.
+A build without MPI returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> and sets <code class="docutils literal notranslate"><span class="pre">\*out</span></code> to <code class="docutils literal notranslate"><span class="pre">NULL</span></code>
+when <code class="docutils literal notranslate"><span class="pre">out</span></code> is not <code class="docutils literal notranslate"><span class="pre">NULL</span></code>.</p>
+</section>
+<section id="cpmdc-pwscale-eval-mpi-bound">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code><a class="headerlink" href="#cpmdc-pwscale-eval-mpi-bound" title="Link to this heading">¶</a></h3>
+<p>One force call on a binding.
+It has the arguments and the result of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> for the problem
+and <code class="docutils literal notranslate"><span class="pre">dist</span></code> of the binding, without <code class="docutils literal notranslate"><span class="pre">prob</span></code>, <code class="docutils literal notranslate"><span class="pre">dist</span></code>, <code class="docutils literal notranslate"><span class="pre">comm</span></code>, and <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code>.
+The geometry arrays are per call.</p>
+<p>The call is collective over the bound communicator and runs one
+<code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code> of each rank’s return code, visit counts, energy, and forces.
+A failure on one rank, such as a missing array, a team that fails, or
+<code class="docutils literal notranslate"><span class="pre">nthreads</span></code> above 4096, is seen by every rank, and every rank returns the lowest
+(most negative) code any rank produced; <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> is untouched then.
+A <code class="docutils literal notranslate"><span class="pre">NULL</span></code> <code class="docutils literal notranslate"><span class="pre">bind</span></code> returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code> at once, without the collective.
+A build without MPI returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> and zeroes <code class="docutils literal notranslate"><span class="pre">stats</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">stats-&gt;g_visited</span></code> is <code class="docutils literal notranslate"><span class="pre">npw</span></code> with either split, <code class="docutils literal notranslate"><span class="pre">stats-&gt;atom_visits</span></code> is the sum
+over ranks, <code class="docutils literal notranslate"><span class="pre">stats-&gt;workers</span></code> is this rank’s team, and <code class="docutils literal notranslate"><span class="pre">stats-&gt;mpi_ranks</span></code> is the
+communicator size.</p>
+</section>
+<section id="cpmdc-pwscale-mpi-bind-free">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code><a class="headerlink" href="#cpmdc-pwscale-mpi-bind-free" title="Link to this heading">¶</a></h3>
+<p>Releases a binding and its buffers.
+The call is local and not collective, and it leaves the communicator alone.
+A <code class="docutils literal notranslate"><span class="pre">NULL</span></code> pointer is accepted and does nothing.
+The pointer is invalid afterwards.
+Without MPI the function does nothing.</p>
+</section>
+<section id="cpmdc-pwscale-cuda-compiled">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code><a class="headerlink" href="#cpmdc-pwscale-cuda-compiled" title="Link to this heading">¶</a></h3>
+<p>Returns 1 when the build compiled <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code>, else 0.
+It does not look for a device.</p>
+</section>
+<section id="cpmdc-pwscale-cuda-device">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code><a class="headerlink" href="#cpmdc-pwscale-cuda-device" title="Link to this heading">¶</a></h3>
+<p>Reports whether a CUDA device exists and names device 0.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Argument</p></th>
+<th class="head"><p>Direction</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p>out</p></td>
+<td><p>may be <code class="docutils literal notranslate"><span class="pre">NULL</span></code>; else a buffer of <code class="docutils literal notranslate"><span class="pre">namelen</span></code> chars that receives the device name as a NUL-terminated string, cut to fit, and an empty string when there is no device</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">namelen</span></code></p></td>
+<td><p>in</p></td>
+<td><p>size of <code class="docutils literal notranslate"><span class="pre">name</span></code> in chars; <code class="docutils literal notranslate"><span class="pre">name</span></code> is not written when it is 0 or less</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Returns 1 when at least one device exists, else 0.
+A build without CUDA always returns 0 and writes an empty string.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code> uses device 0.</p>
+</section>
+<section id="cpmdc-pwscale-eval-cuda">
+<h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code><a class="headerlink" href="#cpmdc-pwscale-eval-cuda" title="Link to this heading">¶</a></h3>
+<p>Evaluates the sum on CUDA device 0, with one thread per plane wave.
+The arguments are those of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval</span></code> without <code class="docutils literal notranslate"><span class="pre">nthreads</span></code> and <code class="docutils literal notranslate"><span class="pre">dist</span></code>,
+and the result is the same sum in the same units; <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> holds
+<code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> doubles.</p>
+<p>Returns:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Code</p></th>
+<th class="head"><p>When</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code></p></td>
+<td><p>the evaluation ran</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code></p></td>
+<td><p>a pointer other than <code class="docutils literal notranslate"><span class="pre">stats</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, or <code class="docutils literal notranslate"><span class="pre">natoms</span></code>, <code class="docutils literal notranslate"><span class="pre">npw</span></code>, <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, or <code class="docutils literal notranslate"><span class="pre">sigma</span></code> is not positive</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOCUDA</span></code></p></td>
+<td><p>the build has no CUDA, or no device exists</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_CUDA</span></code></p></td>
+<td><p>a device allocation failed, or the kernel launch reported an error</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A missing build or device writes no timing: <code class="docutils literal notranslate"><span class="pre">stats</span></code> stays zeroed.
+On success <code class="docutils literal notranslate"><span class="pre">stats-&gt;seconds</span></code> is the event time from before the host-to-device
+copies to after the device-to-host copies and the synchronization, so it contains
+the copy times.
+<code class="docutils literal notranslate"><span class="pre">h2d_seconds</span></code> covers the position and atomic-number copies; <code class="docutils literal notranslate"><span class="pre">d2h_seconds</span></code> runs
+from the end of the kernel launch to the end of the call, so it covers the
+copies back and any kernel time that is still running.
+<code class="docutils literal notranslate"><span class="pre">g_visited</span></code> is <code class="docutils literal notranslate"><span class="pre">npw</span></code>, <code class="docutils literal notranslate"><span class="pre">workers</span></code> is 1, and <code class="docutils literal notranslate"><span class="pre">mpi_ranks</span></code> stays 0.
+After <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_CUDA</span></code> the contents of <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> are unspecified.</p>
+</section>
+</section>
+<section id="tests">
+<h2>Tests<a class="headerlink" href="#tests" title="Link to this heading">¶</a></h2>
+<p>Builds with <code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code> run the <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> suite:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Test</p></th>
+<th class="head"><p>What it checks</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-agreement</span></code>, also under 2, 4, and 8 ranks</p></td>
+<td><p>threads and ranks against the serial loop, and the energy against an independent sum</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-oracle</span></code></p></td>
+<td><p>the independent sum in <code class="docutils literal notranslate"><span class="pre">tests/pwscale_oracle.py</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-collectives-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-4</span></code></p></td>
+<td><p>the collectives of one call, counted through the PMPI shim, and the bytes of the result</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-mpi-fault</span></code></p></td>
+<td><p>that a failure on one rank is reported on every rank; <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_MPI_FAULT</span></code> injects it (see the <a class="reference internal" href="environment.html"><span class="doc">environment reference</span></a>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-logger</span></code></p></td>
+<td><p>that a timed row carries its own gaps and that a poisoned sample does not pass</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-fft-fail</span></code></p></td>
+<td><p>that FFT allocation and planning failures return an error instead of using an incomplete plan</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pwscale-cuda-include</span></code></p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">nvcc</span></code> target in <code class="docutils literal notranslate"><span class="pre">meson.build</span></code>, read as text, holds the include directory and the CUDA source name</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">reference-contract</span></code> test fails when a function, type, constant, or struct
+field of the header is missing from this page.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="c-abi.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">C ABI reference</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="python.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Python API</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

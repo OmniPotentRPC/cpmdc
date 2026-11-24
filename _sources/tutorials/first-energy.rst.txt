@@ -3,10 +3,11 @@ First energy and forces through the C API
 =========================================
 
 
-This tutorial starts from a fresh checkout and ends with the energy and forces of a water molecule from the ``cpmdc`` C application programming interface (API).
-You first run it against the default build, which needs no OpenCPMD, and
-then against a build that links OpenCPMD, where the same program returns a
-BLYP (Becke, Lee, Yang, Parr) density functional energy.
+This tutorial starts from a fresh checkout and ends with the energy and forces
+of a water molecule from the ``cpmdc`` C application programming interface (API).
+You first run it against the default build, which needs no OpenCPMD, and then
+against a build that links OpenCPMD, where the same program returns a BLYP
+(Becke, Lee, Yang, Parr) density functional energy.
 
 Build the default library
 -------------------------
@@ -20,8 +21,9 @@ Clone the repository and build it with the checked-in Pixi environment:
     pixi run test-stub
     export CPMDC=$PWD
 
-The last lines of the test run report ``Fail: 0``.
-The build directory ``build/`` now contains ``libcpmdc.so`` and the example program ``example_host_step``.
+The last lines of the test run report no failures.
+The build directory ``build/`` now contains ``libcpmdc.so`` and the example program
+``example_host_step``.
 ``CPMDC`` remembers the checkout for the commands below.
 
 Describe the method and the geometry
@@ -90,8 +92,8 @@ Encode both into the binary form the C API reads:
 Run the example host
 --------------------
 
-``example_host_step`` creates a session from the first file, evaluates the
-second, and prints a summary:
+``example_host_step`` creates a session from the first file, evaluates the second,
+and prints a summary:
 
 .. code:: bash
 
@@ -100,14 +102,15 @@ second, and prints a summary:
 .. code:: text
 
     energy_h=0.958703877646
-    potential_result_size_bytes=816
+    potential_result_size_bytes=792
     message=ok
     ener_com_etot=0.958703877646
     ener_com_ekin=0.000000000000
     ener_com_exc=0.000000000000
     ener_com_eht=0.000000000000
 
-The default build evaluates a deterministic reference function instead of density functional theory.
+The default build evaluates a deterministic reference function instead of
+density functional theory.
 That function is a harmonic well scaled by the atomic numbers.
 Its numbers exercise the API and mean nothing physically, which is why the
 energy is positive and the components other than ``etot`` are zero.
@@ -116,8 +119,8 @@ Write your own host
 -------------------
 
 Save this program as ``first_forces.c``.
-It creates a session, evaluates one ``ForceInput``, and prints the energy and
-the force on each atom:
+It creates a session, evaluates one ``ForceInput``, and prints the energy and the
+force on each atom:
 
 .. code:: c
 
@@ -177,7 +180,8 @@ the force on each atom:
     }
 
 The link step comes next.
-The default build links the Message Passing Interface (MPI) library whenever Meson finds one.
+The default build links the Message Passing Interface (MPI) library whenever
+Meson finds one.
 The Pixi environment provides OpenMPI, so ``libcpmdc.so`` needs ``libmpi``.
 Compile with the MPI C wrapper and link with the MPI Fortran wrapper.
 The Fortran wrapper adds the MPI library and the Fortran runtime for ``libcpmdc``.
@@ -191,32 +195,33 @@ The Fortran wrapper adds the MPI library and the Fortran runtime for ``libcpmdc`
 
 .. code:: text
 
-    cpmdc/0.4.0 available=0
+    cpmdc/0.6.0 available=0
     energy_h=0.95870388
     force[0] =  -0.053992  -0.053992  -0.055259
     force[1] =  -0.006749  -0.007771  -0.006116
     force[2] =  -0.006749  -0.005727  -0.006116
 
 ``available=0`` means this library is not linked to OpenCPMD.
-The energy in that transcript is the reference spring, a harmonic function of the positions, and it is not a plane-wave total energy.
+The energy in that transcript is the reference spring, a harmonic function of
+the positions, and it is not a plane-wave total energy.
 
-``cpmdc_session_calculate_forces()`` returns the energy in Hartree and the
-forces in Hartree/Bohr, whatever units the ``ForceInput`` names; the units of
-the message apply to the serialized ``PotentialResult`` path.
+``cpmdc_session_calculate_forces()`` returns the energy in Hartree and the forces
+in Hartree/Bohr, whatever units the ``ForceInput`` names; the units of the message
+apply to the serialized ``PotentialResult`` path.
 
 Switch to OpenCPMD
 ------------------
 
-The same program and the same two messages now run against the Car-Parrinello Molecular Dynamics (CPMD) code itself.
-Three things change: the library, the pseudopotential files, and one
-environment variable.
+The same program and the same two messages now run against the Car-Parrinello
+Molecular Dynamics (CPMD) code itself.
+Three things change: the library, the pseudopotential files, and one environment
+variable.
 
 1. Build a patched OpenCPMD archive with ``-fPIC``, as the
    :doc:`archive how-to <../howto/opencpmd-archive>` describes, into
    ``/path/to/opencpmd-build``.
 
-2. Link ``cpmdc`` against it, with the MPI compiler wrappers that built
-   OpenCPMD:
+2. Link ``cpmdc`` against it, with the MPI compiler wrappers that built OpenCPMD:
 
    .. code:: bash
 
@@ -226,11 +231,11 @@ environment variable.
        meson compile -C build-cpmd
        cd ../cpmdc-tutorial
 
-   When OpenCPMD was built with OpenMP and FFTW3, pass the same libraries to
-   the link, for example with
-   ``LDFLAGS="-fopenmp -lfftw3_omp -lfftw3"`` in front of ``meson setup``.
+When OpenCPMD was built with OpenMP and FFTW3, pass the same libraries to the
+link, for example with ``LDFLAGS="-fopenmp -lfftw3_omp -lfftw3"`` in front of
+``meson setup``.
 
-3. Fetch the two pseudopotentials from the OpenCPMD regression tests:
+1. Fetch the two pseudopotentials from the OpenCPMD regression tests:
 
    .. code:: bash
 
@@ -247,29 +252,36 @@ Relink the program against the new library and run it on one rank:
     OMP_NUM_THREADS=1 ./first_forces_live water.params.bin water.step.bin
 
 The program prints its version line, now with ``available=1``.
-CPMD then prints its usual output, which ends with the self-consistent field (SCF) iterations and the energy breakdown.
+CPMD then prints its usual output, which ends with the self-consistent field
+(SCF) iterations and the energy breakdown.
 The program prints the energy and forces last:
 
 .. code:: text
 
-    cpmdc/0.3.0 available=1
+    cpmdc/0.6.0 available=1
      ...
      NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
-       1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.65
+       1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58
      ...
-      13  4.451E-06   6.419E-07     -17.055717   -1.354E-08      0.61
+      13  4.114E-06   6.390E-07     -17.055834   -1.331E-08      0.58
      ...
-     (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
+     (K+E1+L+N+X)           TOTAL ENERGY =          -17.05583351 A.U.
      ...
-    energy_h=-17.05571670
-    force[0] =   0.000000   0.000000   0.022496
-    force[1] =  -0.000000   0.012514  -0.011962
-    force[2] =   0.000000  -0.012514  -0.011962
+    energy_h=-17.05583351
+    force[0] =   0.000000   0.000000   0.023856
+    force[1] =  -0.000000   0.012501  -0.011928
+    force[2] =  -0.000000  -0.012501  -0.011928
 
-The SCF reached -17.05571670 Hartree at iteration 13.
-The forces are those of an off-equilibrium water geometry: zero along ``x``,
-the direction normal to the molecular plane, and mirror-symmetric in ``y``.
-The ``x`` components round to zero at six decimals, and one keeps its minus sign.
+The SCF reached -17.05583351 Hartree at iteration 13.
+The forces are those of an off-equilibrium water geometry: zero along ``x``, the
+direction normal to the molecular plane, and mirror-symmetric in ``y``.
+The ``x`` components round to zero at six decimals, and two keep their minus sign.
+They also sum to zero: cpmdc moves the molecule to the middle of its isolated
+cell before each evaluation and removes the net force the fixed cell would
+otherwise add;
+:doc:`atoms in an isolated cell <../explanation/isolated-cells>` explains
+why, and :doc:`the environment reference <../reference/environment>` lists
+the ``CPMDC_RECENTER`` settings.
 The iteration timings in the ``TCPU`` column depend on the machine.
 
 What you built
@@ -285,11 +297,11 @@ A library force call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or
 ``GEOMETRY.xyz``.
 The pseudopotential directory is unchanged.
 To evaluate many geometries, call ``cpmdc_session_calculate_forces()`` again on
-the same session: every call after the first starts from the orbitals of the
-previous one.
-A new session with the same functional, deck, cell, and elemental composition
-starts from those orbitals too, including when the atomic numbers are
-reordered.
+the same session. A call starts from the previous orbitals when the
+functional, deck, cell, cutoff, charge, multiplicity, and elemental
+composition match.
+A new session with that same basis starts from those orbitals too, including
+when the atomic numbers are reordered.
 The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
-minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each
-SCF over several ranks.
+minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each SCF
+over several ranks.

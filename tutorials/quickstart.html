@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Quickstart - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Install and build" href="../howto/install.html" /><link rel="prev" title="Minimise a structure from eOn through rgpot" href="eon-rgpot.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build and test cpmdc - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/tutorials/quickstart.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -23,7 +23,7 @@
     
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://cpmdc.rgoswami.me/tutorials/quickstart.html"/>
-  <meta property="og:title" content="Quickstart"/>
+  <meta property="og:title" content="Build and test cpmdc"/>
     <meta name="twitter:card" content="summary"/>
   <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
@@ -109,23 +109,28 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-lside-inner md:sticky">
       <div class="sy-scrollbar p-6">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -209,19 +226,7 @@ data-aria-dark="Switch to auto color mode">
     <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
       <i class="i-lucide close"></i>
     </button>
-    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
-<li><a class="reference internal" href="#default-build">Default Build</a></li>
-<li><a class="reference internal" href="#common-paths">Common Paths</a></li>
-<li><a class="reference internal" href="#work-loop">Work Loop</a></li>
-<li><a class="reference internal" href="#what-to-read-after-the-first-run">What To Read After The First Run</a></li>
-<li><a class="reference internal" href="#run-the-host-example">Run The Host Example</a></li>
-<li><a class="reference internal" href="#test-selection">Test Selection</a></li>
-<li><a class="reference internal" href="#session-suites">Session Suites</a></li>
-<li><a class="reference internal" href="#opencpmd-archive-build">OpenCPMD Archive Build</a></li>
-<li><a class="reference internal" href="#common-failures">Common Failures</a></li>
-<li><a class="reference internal" href="#cap-n-proto-fixtures">Cap&#8217;n Proto Fixtures</a></li>
-</ul>
-</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
   <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
     <iconify-icon icon="simple-icons:github"></iconify-icon>
@@ -260,7 +265,7 @@ data-aria-dark="Switch to auto color mode">
         <span>/</span>
         <meta itemprop="position" content="1" />
       </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
-        <strong itemprop="name">Quickstart</strong>
+        <strong itemprop="name">Build and test cpmdc</strong>
         <meta itemprop="position" content="2" />
       </li></ol>
     <div class="xl:hidden ml-1">
@@ -308,308 +313,12 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </div><article class="yue dark-code" role="main">
-          <section id="quickstart">
-<h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading">¶</a></h1>
-<section id="default-build">
-<h2>Default Build<a class="headerlink" href="#default-build" title="Link to this heading">¶</a></h2>
-<p>The default build is the first check for this repository.
-The build compiles the parser, generated Cap’n Proto readers, shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>, feature
-table, session runtime, and deterministic reference evaluator.
-No OpenCPMD checkout is needed.</p>
-<p>Install Meson, Ninja, Cap’n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>test-stub
-</span></pre></div>
-</div>
-<p>The equivalent explicit commands are:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span>
-</span><span data-line="2">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
-</span><span data-line="3">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>--print-errorlogs
-</span></pre></div>
-</div>
-<p>The pass condition is a successful Meson run covering parser, ABI, feature
-inventory, session lifecycle, result sizing, unit conversion, and
-reference-evaluator E2E tests.</p>
-</section>
-<section id="common-paths">
-<h2>Common Paths<a class="headerlink" href="#common-paths" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Path</p></th>
-<th class="head"><p>Commands</p></th>
-<th class="head"><p>Expected coverage</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Full default suite</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">build</span> <span class="pre">-Dwith_tests=true</span></code>; <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">compile</span> <span class="pre">-C</span> <span class="pre">build</span></code>; <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>parser, ABI, feature inventory, sessions, E2E reference evaluator</p></td>
-</tr>
-<tr class="row-odd"><td><p>cmocka/parser focus</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">cmocka</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>Cap’n Proto decode, deck rendering, feature table checks</p></td>
-</tr>
-<tr class="row-even"><td><p>session E2E focus</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">e2e</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>one-shot calls, session calls, topology rejection, unit conversion</p></td>
-</tr>
-<tr class="row-odd"><td><p>docs</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">docbld</span></code></p></td>
-<td><p>Org export, generated C API pages, Sphinx HTML</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="work-loop">
-<h2>Work Loop<a class="headerlink" href="#work-loop" title="Link to this heading">¶</a></h2>
-<p>Build once, then iterate with focused tests.
-Use the table above to pick the smallest command that exercises the layer you
-changed, then run the default suite when the focused command passes.</p>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Step</p></th>
-<th class="head"><p>Command</p></th>
-<th class="head"><p>Use it when</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Configure or reconfigure</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">build</span> <span class="pre">-Dwith_tests=true</span></code> or <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">--reconfigure</span> <span class="pre">build</span></code></p></td>
-<td><p>Reconfigure only when build definitions change, dependencies change, or the build directory does not exist</p></td>
-</tr>
-<tr class="row-odd"><td><p>Compile after C, Fortran, or schema edits</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">compile</span> <span class="pre">-C</span> <span class="pre">build</span></code></p></td>
-<td><p>The changed code affects compiled targets or generated Cap’n Proto readers</p></td>
-</tr>
-<tr class="row-even"><td><p>Run a focused guard</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">&lt;test-name&gt;</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>One inventory, ABI, parser, session, or docs contract names the changed behavior</p></td>
-</tr>
-<tr class="row-odd"><td><p>Run the default suite</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>Run the full suite before publishing a change</p></td>
-</tr>
-<tr class="row-even"><td><p>Build docs</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">sphinxbld</span></code></p></td>
-<td><p>Public prose, org sources, API headers, or generated RST changed</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code> rebuilds stale targets before running tests, so most source edits
-do not need a separate configure step.</p>
-<p>This configuration compiles the vendored <code class="docutils literal notranslate"><span class="pre">capnp-c</span></code> runtime, generates C readers
-for <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>, and runs cmocka suites:</p>
-<dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">stub</span></code></dt><dd><p><code class="docutils literal notranslate"><span class="pre">tests/test_stub_abi.c</span></code></p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">abi</span></code></dt><dd><p>exported header and feature-discovery surface</p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">cmocka</span></code> / <code class="docutils literal notranslate"><span class="pre">capnp</span></code></dt><dd><p>structured <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck rendering</p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">params</span></code> / <code class="docutils literal notranslate"><span class="pre">inventory</span></code></dt><dd><p>schema field coverage and CPMD catalog feature IDs</p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">socket</span></code></dt><dd><p><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> sizing and session <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> buffer contract</p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">e2e</span></code></dt><dd><p>one-shot and session calls through the deterministic reference evaluator</p>
-</dd>
-</dl>
-<p>cmocka is resolved through pkg-config.
-The parser tests use Cap’n Proto text fixtures encoded by the <code class="docutils literal notranslate"><span class="pre">capnp</span></code> CLI
-(<code class="docutils literal notranslate"><span class="pre">tests/encode_capnp.py</span></code>).</p>
-<p>The standalone stub target is different from the default shared engine:
-<code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> only provides linkable symbols and reports
-<code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>.
-The default shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> also returns <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>, because that call means OpenCPMD is linked.
-Session tests still run on the reference evaluator.</p>
-</section>
-<section id="what-to-read-after-the-first-run">
-<h2>What To Read After The First Run<a class="headerlink" href="#what-to-read-after-the-first-run" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Need</p></th>
-<th class="head"><p>Page</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Compute an energy and forces from your own C program</p></td>
-<td><p><a class="reference internal" href="first-energy.html"><span class="doc">First energy and forces</span></a></p></td>
-</tr>
-<tr class="row-odd"><td><p>Call the C ABI from a host process</p></td>
-<td><p><a class="reference internal" href="../howto/embedding.html"><span class="doc">Embedding cpmdc</span></a> and <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a></p></td>
-</tr>
-<tr class="row-even"><td><p>Choose structured <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields</p></td>
-<td><p><a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a> and <a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">CPMD option mapping</span></a></p></td>
-</tr>
-<tr class="row-odd"><td><p>Understand sessions, units, and topology</p></td>
-<td><p><a class="reference internal" href="../explanation/architecture.html"><span class="doc">Architecture</span></a></p></td>
-</tr>
-<tr class="row-even"><td><p>Link against a real OpenCPMD archive</p></td>
-<td><p><a class="reference internal" href="../howto/opencpmd-archive.html"><span class="doc">OpenCPMD archive</span></a> and <a class="reference internal" href="#opencpmd-archive-build">OpenCPMD Archive Build</a> below</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="run-the-host-example">
-<h2>Run The Host Example<a class="headerlink" href="#run-the-host-example" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">examples/host_step.c</span></code> is a minimal C host for the public ABI.
-It reads one serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and one serialized <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> file,
-creates a <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, sizes the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> output, evaluates one
-step, and prints the result summary.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>example-host-step<span class="w"> </span>--print-errorlogs
-</span></pre></div>
-</div>
-<p>The example output has this shape:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">energy_h=...
-</span><span data-line="2">potential_result_size_bytes=...
-</span><span data-line="3">message=...
-</span></pre></div>
-</div>
-<p>The Meson test feeds the example from the same generated fixture binaries used
-by the E2E suites.
-Those fixture binaries are produced from <code class="docutils literal notranslate"><span class="pre">tests/cpmd_params_parser.capnp.txt</span></code>
-or <code class="docutils literal notranslate"><span class="pre">tests/water_blyp_params.capnp.txt</span></code> and
-<code class="docutils literal notranslate"><span class="pre">tests/force_input_step_a.capnp.txt</span></code>, depending on whether the build links
-OpenCPMD archives.</p>
-</section>
-<section id="test-selection">
-<h2>Test Selection<a class="headerlink" href="#test-selection" title="Link to this heading">¶</a></h2>
-<p>Use the smallest suite that exercises the layer you changed:</p>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Change</p></th>
-<th class="head"><p>Command</p></th>
-<th class="head"><p>Pass condition</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Parser, feature inventory, or C ABI</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>all configured tests pass</p></td>
-</tr>
-<tr class="row-odd"><td><p>Deck rendering or Cap’n Proto fixtures</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">cmocka</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>cmocka render suites pass</p></td>
-</tr>
-<tr class="row-even"><td><p>Session lifecycle, topology, or units</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">e2e</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>single-point and optimizer-session tests pass</p></td>
-</tr>
-<tr class="row-odd"><td><p>Public documentation</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">sphinxbld</span></code></p></td>
-<td><p>Sphinx build succeeds</p></td>
-</tr>
-<tr class="row-even"><td><p>Org-to-RST refresh</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">mkrst</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">docs/source/*.rst</span></code> is regenerated from the org sources and is not committed</p></td>
-</tr>
-<tr class="row-odd"><td><p>OpenCPMD archive link</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY</span> <span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build-cpmd</span> <span class="pre">--print-errorlogs</span></code></p></td>
-<td><p>default tests plus live water parity pass</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">--print-errorlogs</span></code> is preferred because cmocka assertion output and
-OpenCPMD diagnostics stay attached to the failed test.</p>
-</section>
-<section id="session-suites">
-<h2>Session Suites<a class="headerlink" href="#session-suites" title="Link to this heading">¶</a></h2>
-<p>The embed shell includes a deterministic harmonic evaluator so single-point and
-multi-step session paths work without linking OpenCPMD archives.
-Real PW-DFT evaluation replaces that evaluator when archives are wired.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>--suite<span class="w"> </span>e2e<span class="w"> </span>--print-errorlogs
-</span><span data-line="2"><span class="c1"># or</span>
-</span><span data-line="3">pixi<span class="w"> </span>run<span class="w"> </span>test-e2e
-</span></pre></div>
-</div>
-<dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">e2e-single-point</span></code></dt><dd><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code> + <code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code> on one
-<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> (HO-like geometry).</p>
-</dd>
-<dt><code class="docutils literal notranslate"><span class="pre">e2e-optimizer-session</span></code></dt><dd><p>one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, three geometry steps (A, B, then A again),
-forces on B, topology rejection, then a second session for species change.</p>
-</dd>
-</dl>
-</section>
-<section id="opencpmd-archive-build">
-<h2>OpenCPMD Archive Build<a class="headerlink" href="#opencpmd-archive-build" title="Link to this heading">¶</a></h2>
-<p>The default build emits <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> for dlopen consumers such as rgpot.
-Passing a tree path links that same C ABI surface against <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">CPMD_ROOT</span><span class="o">=</span>/path/to/OpenCPMD/CPMD
-</span><span data-line="2"><span class="nb">export</span><span class="w"> </span><span class="nv">CPMDC_PSEUDO_DIR</span><span class="o">=</span>/path/to/Regtests/tests/PP_LIBRARY
-</span><span data-line="3">meson<span class="w"> </span>setup<span class="w"> </span>build-cpmd<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">  </span>-Dwith_cpmd<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-</span><span data-line="5"><span class="w">  </span>-Dcpmd_root<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CPMD_ROOT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span data-line="6"><span class="w">  </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span>
-</span><span data-line="7">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build-cpmd
-</span><span data-line="8">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build-cpmd<span class="w"> </span>--print-errorlogs
-</span></pre></div>
-</div>
-<p>The OpenCPMD tree must contain <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code> and <code class="docutils literal notranslate"><span class="pre">obj/timetag.o</span></code> from a
-completed executable build, patched and compiled with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> as the
-<a class="reference internal" href="../howto/opencpmd-archive.html"><span class="doc">archive how-to</span></a> describes.
-If the params use pseudopotential library tokens such as <code class="docutils literal notranslate"><span class="pre">O_MT_BLYP.psp</span></code>, set
-<code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> to the directory containing those files before running real
-backend tests or embedding the library.</p>
-<p>The live build runs the same public C ABI as the default build.
-When <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> is enabled, water Cap’n Proto parity tests are added and
-the long E2E tests exercise the linked OpenCPMD archive.</p>
-</section>
-<section id="common-failures">
-<h2>Common Failures<a class="headerlink" href="#common-failures" title="Link to this heading">¶</a></h2>
-<p>These checks usually identify environment problems before code changes are
-needed:</p>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Symptom</p></th>
-<th class="head"><p>Check</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">with_cpmd</span> <span class="pre">requires</span> <span class="pre">...</span> <span class="pre">lib/libcpmd.a</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMD_ROOT</span></code> points at a completed OpenCPMD build tree with <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>OpenCPMD cannot find <code class="docutils literal notranslate"><span class="pre">O_MT_BLYP.psp</span></code> or <code class="docutils literal notranslate"><span class="pre">H_CVB_BLYP.psp</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> points at the regtest <code class="docutils literal notranslate"><span class="pre">PP_LIBRARY</span></code> or the params use absolute pseudopotential paths</p></td>
-</tr>
-<tr class="row-even"><td><p>A session reports a topology change</p></td>
-<td><p>the same <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> received a different atom count or elemental composition; a reordering stays on the session</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code></p></td>
-<td><p>call <code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></code> and allocate at least that many bytes</p></td>
-</tr>
-<tr class="row-even"><td><p>Unit parsing fails</p></td>
-<td><p>use supported length/energy strings such as <code class="docutils literal notranslate"><span class="pre">angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">eV</span></code>, and <code class="docutils literal notranslate"><span class="pre">hartree</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">capnp</span> <span class="pre">encode</span></code> fails on a fixture</p></td>
-<td><p>re-run the command against <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code> and the intended root type, either <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="cap-n-proto-fixtures">
-<h2>Cap’n Proto Fixtures<a class="headerlink" href="#cap-n-proto-fixtures" title="Link to this heading">¶</a></h2>
-<p>Encode a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> text message the same way tests do:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">mkdir<span class="w"> </span>-p<span class="w"> </span>tutorial-work
-</span><span data-line="2">capnp<span class="w"> </span>encode<span class="w"> </span>schema/Potentials.capnp<span class="w"> </span>CPMDParams<span class="w"> </span><span class="se">\</span>
-</span><span data-line="3"><span class="w">  </span>&lt;<span class="w"> </span>tests/cpmd_params_parser.capnp.txt<span class="w"> </span>&gt;<span class="w"> </span>tutorial-work/cpmd_params.bin
-</span><span data-line="4">capnp<span class="w"> </span>encode<span class="w"> </span>schema/Potentials.capnp<span class="w"> </span>ForceInput<span class="w"> </span><span class="se">\</span>
-</span><span data-line="5"><span class="w">  </span>&lt;<span class="w"> </span>tests/force_input_step_a.capnp.txt<span class="w"> </span>&gt;<span class="w"> </span>tutorial-work/force_input.bin
-</span></pre></div>
-</div>
-<p>Pass those buffers to <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code> and
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> from C, Python (<code class="docutils literal notranslate"><span class="pre">pycapnp</span></code>), or <code class="docutils literal notranslate"><span class="pre">rgpot</span></code>.</p>
-</section>
+          <meta http-equiv="refresh" content="0; url=../howto/quickstart.html"><section id="build-and-test-cpmdc">
+<h1>Build and test cpmdc<a class="headerlink" href="#build-and-test-cpmdc" title="Link to this heading">¶</a></h1>
+<p>This page moved to <a class="reference internal" href="../howto/quickstart.html"><span class="doc">Build and test cpmdc</span></a> under
+the how-to guides.
+The suite list there names the stub tests, including <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and
+<code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code> on four ranks when MPI is found.</p>
 </section>
 
         </article><button class="back-to-top" type="button">
@@ -617,21 +326,7 @@ needed:</p>
     <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
   </svg>
   <span>Back to top</span>
-</button><div class="navigation flex print:hidden"><div class="navigation-prev">
-    <a href="eon-rgpot.html">
-      <i class="i-lucide chevron-left"></i>
-      <div class="page-info">
-        <span>Previous</span><div class="title">Minimise a structure from eOn through rgpot</div></div>
-    </a>
-  </div><div class="navigation-next">
-    <a href="../howto/install.html">
-      <div class="page-info">
-        <span>Next</span>
-        <div class="title">Install and build</div>
-      </div>
-      <i class="i-lucide chevron-right"></i>
-    </a>
-  </div></div></div>
+</button><div class="navigation flex print:hidden"></div></div>
     </div>
   </main>
 </div>
@@ -719,7 +414,7 @@ needed:</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install and build - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" /><link rel="prev" title="Quickstart" href="../tutorials/quickstart.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install and build - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build and test cpmdc" href="quickstart.html" /><link rel="prev" title="Minimise a structure from eOn through rgpot" href="../tutorials/eon-rgpot.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/install.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -213,10 +230,10 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#what-gets-built">What gets built</a></li>
 <li><a class="reference internal" href="#requirements">Requirements</a></li>
 <li><a class="reference internal" href="#build-the-default-library">Build the default library</a></li>
-<li><a class="reference internal" href="#meson-options">Meson options</a></li>
 <li><a class="reference internal" href="#build-against-opencpmd">Build against OpenCPMD</a></li>
 <li><a class="reference internal" href="#install">Install</a></li>
-<li><a class="reference internal" href="#pixi-tasks">Pixi tasks</a></li>
+<li><a class="reference internal" href="#install-the-python-package">Install the Python package</a></li>
+<li><a class="reference internal" href="#build-the-docs">Build the docs</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -336,8 +353,9 @@ The build has two modes, selected by the Meson option <code class="docutils lite
 </table>
 </div>
 <p>Both modes export the same symbols.
-A third target, <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code>, is a link-only placeholder: every call
-fails and <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code> returns 0.
+A third target,
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code>, is a link-only placeholder: every call fails and <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code>
+returns 0.
 The tests use it to check the ABI without a working evaluator.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -353,7 +371,7 @@ The tests use it to check the ABI without a working evaluator.</p>
 <td><p>the C ABI from <code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>public headers</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc/cpmdc.h</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_features.h</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_restart.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc/cpmdc.h</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_features.h</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_export.h</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_restart.h</span></code></p></td>
 <td><p>declarations for hosts</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_restart.a</span></code></p></td>
@@ -375,6 +393,9 @@ The tests use it to check the ABI without a working evaluator.</p>
 </tbody>
 </table>
 </div>
+<p>The optional tools (<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, the LAMMPS plugin, and <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code>)
+are listed with the options that build them in the
+<a class="reference internal" href="../reference/build-options.html"><span class="doc">build reference</span></a>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.</p>
 </section>
 <section id="requirements">
@@ -391,7 +412,7 @@ Without Pixi, install the same set from your package manager:</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Meson, Ninja</p></td>
-<td><p>Meson 1.5.2 or newer, Ninja 1.11 or newer</p></td>
+<td><p>Meson 1.5.2 or newer, below 2; Ninja 1.11 or newer, below 2</p></td>
 <td><p>every build</p></td>
 </tr>
 <tr class="row-odd"><td><p>Cap’n Proto (<code class="docutils literal notranslate"><span class="pre">capnp</span></code> compiler)</p></td>
@@ -402,32 +423,45 @@ Without Pixi, install the same set from your package manager:</p>
 <td><p>any recent GCC and gfortran</p></td>
 <td><p>every build</p></td>
 </tr>
-<tr class="row-odd"><td><p>pkg-config</p></td>
-<td><p>2.5.1 or newer</p></td>
+<tr class="row-odd"><td><p>C++ compiler and Rust (<code class="docutils literal notranslate"><span class="pre">cargo</span></code>)</p></td>
+<td><p>Rust 1.70 or newer, below 2</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">minimage</span></code> subproject</p></td>
+</tr>
+<tr class="row-even"><td><p>pkg-config</p></td>
+<td><p>2.5.1 or newer, below 3</p></td>
 <td><p>dependency lookup</p></td>
 </tr>
-<tr class="row-even"><td><p>Python 3</p></td>
-<td><p>3.10 or newer</p></td>
+<tr class="row-odd"><td><p>Python 3</p></td>
+<td><p>3.10 or newer, below 4</p></td>
 <td><p>build helpers and tests</p></td>
 </tr>
+<tr class="row-even"><td><p>ASE, pytest, i-PI</p></td>
+<td><p>ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">python-api</span></code> and <code class="docutils literal notranslate"><span class="pre">python-pytest</span></code> tests</p></td>
+</tr>
 <tr class="row-odd"><td><p>cmocka</p></td>
-<td><p>1.1.7 or newer</p></td>
+<td><p>1.1.7 or newer, below 3</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">-Dwith_tests=true</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>MPI with Fortran bindings, BLAS and LAPACK</p></td>
-<td><p>OpenMPI 4.1 to 5, OpenBLAS 0.3</p></td>
+<td><p>OpenMPI 4.1 or newer, below 6; OpenBLAS 0.3.34 or newer, below 0.4</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>FFTW3</p></td>
-<td><p>optional</p></td>
+<td><p>3.3.11 or newer, below 4; optional</p></td>
 <td><p>linked when OpenCPMD was configured with FFTW3</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Meson fetches three subprojects on the first <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span></code>: the C Cap’n Proto
-runtime (<code class="docutils literal notranslate"><span class="pre">c-capnproto</span></code>), the shared schema (<code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code>, pinned in
-<code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>), and <code class="docutils literal notranslate"><span class="pre">capnp-fortran</span></code>.
+<p>CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
+<code class="docutils literal notranslate"><span class="pre">bench/constant_cutoff_npt.py</span> <span class="pre">run</span></code> needs ASE 3.27 for <code class="docutils literal notranslate"><span class="pre">LangevinBAOAB</span></code>.
+Its <code class="docutils literal notranslate"><span class="pre">start</span></code> command draws Maxwell-Boltzmann momenta with <code class="docutils literal notranslate"><span class="pre">thermalize_momenta</span></code>
+on ASE 3.29 and with <code class="docutils literal notranslate"><span class="pre">MaxwellBoltzmannDistribution</span></code> on earlier releases.</p>
+<p>The C Cap’n Proto runtime (<code class="docutils literal notranslate"><span class="pre">c-capnproto</span></code>) is vendored in <code class="docutils literal notranslate"><span class="pre">subprojects/</span></code>.
+Meson fetches three subprojects on the first <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span></code>: the shared schema
+(<code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code>, pinned in <code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>),
+<code class="docutils literal notranslate"><span class="pre">capnp-fortran</span></code>, and <code class="docutils literal notranslate"><span class="pre">minimage</span></code>; <code class="docutils literal notranslate"><span class="pre">-Dwith_readcon=true</span></code> adds <code class="docutils literal notranslate"><span class="pre">readcon-core</span></code>.
 On a machine without network access, download them first where the network is
 available:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>subprojects<span class="w"> </span>download
@@ -444,47 +478,15 @@ available:</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">test-stub</span></code> configures <code class="docutils literal notranslate"><span class="pre">build/</span></code> with tests on, compiles, and runs the Meson
 suite.
-A healthy run ends with every test reported <code class="docutils literal notranslate"><span class="pre">OK</span></code> and <code class="docutils literal notranslate"><span class="pre">Fail:</span> <span class="pre">0</span></code>.
+A healthy run reports no failures.
 The same steps without Pixi:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span>
 </span><span data-line="2">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
 </span><span data-line="3">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>--print-errorlogs
 </span></pre></div>
 </div>
-</section>
-<section id="meson-options">
-<h2>Meson options<a class="headerlink" href="#meson-options" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Option</p></th>
-<th class="head"><p>Type</p></th>
-<th class="head"><p>Default</p></th>
-<th class="head"><p>Effect</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">with_tests</span></code></p></td>
-<td><p>boolean</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
-<td><p>build the cmocka suites, contract checks, and <code class="docutils literal notranslate"><span class="pre">example_host_step</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">with_cpmd</span></code></p></td>
-<td><p>boolean</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
-<td><p>link OpenCPMD instead of the reference evaluator</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code></p></td>
-<td><p>string</p></td>
-<td><p>empty</p></td>
-<td><p>OpenCPMD build tree holding <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code>, <code class="docutils literal notranslate"><span class="pre">obj/</span></code>, and <code class="docutils literal notranslate"><span class="pre">src/</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> only takes effect together with a non-empty <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code>.
-Configuration stops when <code class="docutils literal notranslate"><span class="pre">DIR/lib/libcpmd.a</span></code> or <code class="docutils literal notranslate"><span class="pre">DIR/obj/timetag.o</span></code> is missing.
-OpenCPMD keeps <code class="docutils literal notranslate"><span class="pre">timetag</span></code> outside the archive, and <code class="docutils literal notranslate"><span class="pre">header</span></code> calls it.</p>
+<p>The <a class="reference internal" href="../reference/build-options.html"><span class="doc">build reference</span></a> lists every Meson
+option, installed artifact, and Pixi task.</p>
 </section>
 <section id="build-against-opencpmd">
 <h2>Build against OpenCPMD<a class="headerlink" href="#build-against-opencpmd" title="Link to this heading">¶</a></h2>
@@ -497,9 +499,15 @@ With the archive in place:</p>
 </span><span data-line="4"><span class="w">  </span>-Dcpmd_root<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CPMD_ROOT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span data-line="5"><span class="w">  </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span>
 </span><span data-line="6">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build-cpmd
-</span><span data-line="7">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build-cpmd<span class="w"> </span>--print-errorlogs
+</span><span data-line="7"><span class="nb">export</span><span class="w"> </span><span class="nv">CPMDC_PSEUDO_DIR</span><span class="o">=</span>/path/to/PP_LIBRARY
+</span><span data-line="8">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build-cpmd<span class="w"> </span>--print-errorlogs
 </span></pre></div>
 </div>
+<p>Configuration stops when
+<code class="docutils literal notranslate"><span class="pre">$CPMD_ROOT/lib/libcpmd.a</span></code> or <code class="docutils literal notranslate"><span class="pre">$CPMD_ROOT/obj/timetag.o</span></code> is missing.
+The live tests run OpenCPMD, which reads the pseudopotentials from
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> (see the
+<a class="reference internal" href="../reference/environment.html"><span class="doc">environment reference</span></a>).</p>
 <p>The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS when
 OpenBLAS is absent), FFTW3 when found, <code class="docutils literal notranslate"><span class="pre">libgfortran</span></code>, and <code class="docutils literal notranslate"><span class="pre">libquadmath</span></code>.
 When OpenCPMD was built with MPI compiler wrappers, configure with the same
@@ -519,68 +527,62 @@ wrappers so both sides agree on one MPI:</p>
 <p>The last command prints the project version, which Meson reads from
 <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
 Hosts that load the library at run time, such as <code class="docutils literal notranslate"><span class="pre">rgpot</span></code>, look for it through
-<code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>; see the <a class="reference internal" href="../reference/environment.html"><span class="doc">environment
-reference</span></a>.</p>
+<code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>; see the
+<a class="reference internal" href="../reference/environment.html"><span class="doc">environment reference</span></a>.</p>
+<p>Installed shared libraries and plugins that need another library from the
+prefix record a run path relative to their own file: <code class="docutils literal notranslate"><span class="pre">$ORIGIN</span></code> on Linux and
+<code class="docutils literal notranslate"><span class="pre">&#64;loader_path</span></code> on macOS. <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> sets an empty install run path, because
+it does not load another library from the prefix; toolchain directories
+Meson already recorded, such as the one for <code class="docutils literal notranslate"><span class="pre">libgfortran</span></code>, stay.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> records <code class="docutils literal notranslate"><span class="pre">$ORIGIN</span></code> (its own directory). The LAMMPS plugin
+is installed one directory deeper, in <code class="docutils literal notranslate"><span class="pre">lib/cpmdc</span></code>, and records <code class="docutils literal notranslate"><span class="pre">$ORIGIN/..</span></code>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> records the normalised relative path from the resolved
+<code class="docutils literal notranslate"><span class="pre">bindir</span></code> to the resolved <code class="docutils literal notranslate"><span class="pre">libdir</span></code>. <code class="docutils literal notranslate"><span class="pre">-Dbindir=.</span></code>, absolute <code class="docutils literal notranslate"><span class="pre">bindir</span></code> and
+<code class="docutils literal notranslate"><span class="pre">libdir</span></code> under the prefix, a nested <code class="docutils literal notranslate"><span class="pre">libdir</span></code>, and a path that contains
+<code class="docutils literal notranslate"><span class="pre">..</span></code> or a trailing slash still open <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
+Meson keeps a build-tree run path only on uninstalled binaries. After
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">install</span></code>, an installed <code class="docutils literal notranslate"><span class="pre">.so</span></code> or <code class="docutils literal notranslate"><span class="pre">.dylib</span></code> does not point at the build
+tree or at the prefix path used for that install, so the tree can be moved
+and <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> still opens <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.</p>
 </section>
-<section id="pixi-tasks">
-<h2>Pixi tasks<a class="headerlink" href="#pixi-tasks" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Task</p></th>
-<th class="head"><p>Environment</p></th>
-<th class="head"><p>Runs</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test-stub</span></code></p></td>
-<td><p>default</p></td>
-<td><p>configure <code class="docutils literal notranslate"><span class="pre">build/</span></code>, compile, full Meson suite</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test-cmocka</span></code></p></td>
-<td><p>default</p></td>
-<td><p>the <code class="docutils literal notranslate"><span class="pre">cmocka</span></code> suite only</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test-e2e</span></code></p></td>
-<td><p>default</p></td>
-<td><p>the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> suite only (single point and optimizer session)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test-stub-sanitize</span></code></p></td>
-<td><p>default</p></td>
-<td><p>full suite in <code class="docutils literal notranslate"><span class="pre">build-sanitize/</span></code> under AddressSanitizer and UndefinedBehaviorSanitizer</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fortran-lint</span></code></p></td>
-<td><p>default</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">fprettify</span> <span class="pre">--diff</span></code> over <code class="docutils literal notranslate"><span class="pre">src/*.f90</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prek</span></code>, <code class="docutils literal notranslate"><span class="pre">prek-install</span></code>, <code class="docutils literal notranslate"><span class="pre">prek-validate</span></code></p></td>
-<td><p>default</p></td>
-<td><p>pre-commit hooks from <code class="docutils literal notranslate"><span class="pre">prek.toml</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lychee</span></code></p></td>
-<td><p>default</p></td>
-<td><p>link check over README, <code class="docutils literal notranslate"><span class="pre">docs/orgmode</span></code>, and news fragments</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">release-assert</span></code>, <code class="docutils literal notranslate"><span class="pre">version-sync</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-draft</span></code>, <code class="docutils literal notranslate"><span class="pre">release-cog-dry</span></code></p></td>
-<td><p>default</p></td>
-<td><p>release metadata checks, and <code class="docutils literal notranslate"><span class="pre">version.txt</span></code> copies</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mkrst</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
-<td><p>export <code class="docutils literal notranslate"><span class="pre">docs/orgmode</span></code> to <code class="docutils literal notranslate"><span class="pre">docs/source</span></code> RST</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">doxybuild</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
-<td><p>Doxygen XML and Doxyrest pages for the public headers</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sphinxbld</span></code>, <code class="docutils literal notranslate"><span class="pre">docbld</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">mkrst</span></code>, <code class="docutils literal notranslate"><span class="pre">doxybuild</span></code>, then the Sphinx HTML site in <code class="docutils literal notranslate"><span class="pre">docs/build</span></code></p></td>
-</tr>
-</tbody>
-</table>
+<section id="install-the-python-package">
+<h2>Install the Python package<a class="headerlink" href="#install-the-python-package" title="Link to this heading">¶</a></h2>
+<p>Release tags publish wheels for Linux x86<sub>64</sub>  and aarch64 (manylinux<sub>2</sub>  <sub>28</sub>) and
+macOS arm64 (macOS 15 or newer).
+One wheel per platform serves CPython 3.10 and newer; CI tests 3.10 to 3.13.
+The <code class="docutils literal notranslate"><span class="pre">ase</span></code> extra installs ASE for <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cpmdc[ase]&quot;</span>
+</span><span data-line="2">python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import cpmdc; print(cpmdc.find_library())&quot;</span>
+</span></pre></div>
 </div>
-<p>Run a docs task with <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">docbld</span></code>.
+<p>The second command prints the <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> inside the installed package.
+That library is the default build: the reference evaluator, without OpenCPMD and
+without MPI, so <code class="docutils literal notranslate"><span class="pre">Session.available()</span></code> is false.
+The wheel carries <code class="docutils literal notranslate"><span class="pre">libgfortran</span></code> and <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>.
+A periodic cell needs no other tool: the package encodes each step as
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> itself.
+The <code class="docutils literal notranslate"><span class="pre">capnp</span></code> command is needed only to encode a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> text file, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc.find_schema()</span></code> returns the schema to encode it against.
+The <code class="docutils literal notranslate"><span class="pre">test</span></code> extra adds pytest for <code class="docutils literal notranslate"><span class="pre">tests/python</span></code>.
+To evaluate with OpenCPMD, build <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> with
+<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code> and set <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> to it; the variable takes precedence
+over the copy in the wheel.</p>
+<p>On other platforms pip builds the sdist.
+That needs the C, C++, and Fortran compilers, Rust (<code class="docutils literal notranslate"><span class="pre">cargo</span></code>, for the <code class="docutils literal notranslate"><span class="pre">minimage</span></code>
+subproject), the <code class="docutils literal notranslate"><span class="pre">capnp</span></code> command, and network access for the Meson subprojects.
+The same build from a checkout:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;.[ase]&quot;</span>
+</span></pre></div>
+</div>
+</section>
+<section id="build-the-docs">
+<h2>Build the docs<a class="headerlink" href="#build-the-docs" title="Link to this heading">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span>docs<span class="w"> </span>docbld
+</span></pre></div>
+</div>
+<p>The <a class="reference internal" href="../reference/build-options.html"><span class="doc">build reference</span></a> lists the other
+Pixi tasks.
 The published site is <a class="reference external" href="https://cpmdc.rgoswami.me">cpmdc.rgoswami.me</a>.</p>
 </section>
 </section>
@@ -591,16 +593,16 @@ The published site is <a class="reference external" href="https://cpmdc.rgoswami
   </svg>
   <span>Back to top</span>
 </button><div class="navigation flex print:hidden"><div class="navigation-prev">
-    <a href="../tutorials/quickstart.html">
+    <a href="../tutorials/eon-rgpot.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">Quickstart</div></div>
+        <span>Previous</span><div class="title">Minimise a structure from eOn through rgpot</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="opencpmd-archive.html">
+    <a href="quickstart.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Build the OpenCPMD archive for embedding</div>
+        <div class="title">Build and test cpmdc</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -692,7 +694,7 @@ The published site is <a class="reference external" href="https://cpmdc.rgoswami
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

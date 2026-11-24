@@ -1,0 +1,497 @@
+=======================
+cpmdc inside MD engines
+=======================
+
+
+This page explains why GROMACS reaches cpmdc through its CP2K
+QM/MM interface, reports runs of that route on OpenCPMD, and compares the cost per step of the LAMMPS and GROMACS routes. The steps are in :doc:`Run GROMACS on cpmdc forces <../howto/gromacs>` and :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`; the conventions are in the :doc:`GROMACS <../reference/gromacs>` and :doc:`LAMMPS <../reference/lammps>`
+interface references.
+
+Why the GROMACS CP2K interface
+------------------------------
+
+GROMACS offers four ways to bring outside forces into ``mdrun``.
+The choice was made from the GROMACS 2024 to 2026 sources and manuals and the
+MiMiC papers:
+
+.. table::
+
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Route                                                    | Coupling                                              | What rules it in or out                                                                                                                                                                                                                                                                                                                                                                                                 |
+    +==========================================================+=======================================================+=========================================================================================================================================================================================================================================================================================================================================================================================================================+
+    | CP2K QM/MM interface (``GMX_CP2K``)                      | in process, one C call per step                       | GROMACS integrates; energy enters ``Quantum En.`` (``F_EQM``) and so the potential and the conserved energy; positions, box, and forces in double precision in a double build. Chosen                                                                                                                                                                                                                                   |
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | MiMiC (``GMX_MIMIC``, ``integrator = mimic``)            | two MPI programs over the MiMiC communication library | built for CPMD, but CPMD is the server that integrates and GROMACS a client that returns MM forces (``src/gromacs/mimic/communicator.cpp``); electrostatic embedding is computed against CPMD's density on its grid. A MiMiC client of cpmdc would need CPMD's integrator and MiMiC's embedding inside a session, which the C ABI does not expose, and GROMACS' ``mimic`` integrator reports no kinetic or total energy |
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | neural-network potential (``GMX_NNPOT``, 2025 and later) | in process, a TorchScript model                       | ``src/gromacs/applied_forces/nnpot/torchmodel.cpp`` casts positions and box to ``float32``, so no model can match a double reference to 1e-10; it adds no virial                                                                                                                                                                                                                                                        |
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | PLUMED (native in 2025)                                  | in process                                            | the bias forces and virial reach GROMACS, but ``plumedforceprovider.cpp`` never adds the bias energy to GROMACS' energy terms, so the potential and NVE checks would miss it                                                                                                                                                                                                                                            |
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | i-PI                                                     | socket                                                | GROMACS has no i-PI client                                                                                                                                                                                                                                                                                                                                                                                              |
+    +----------------------------------------------------------+-------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+MiMiC couples CPMD to GROMACS with electrostatic embedding and scales to
+thousands of cores [1, 2], through the MiMiC communication library [3]; it is
+the route for an MPI-launched CPMD that integrates.
+For GROMACS integrating on cpmdc forces, the CP2K interface is the one
+in-process route that carries the energy, the forces, and the box at full
+precision, and it is the one built and tested here.
+
+OpenCPMD in GROMACS
+-------------------
+
+``bench/gromacs_opencpmd.py`` runs GROMACS on the OpenCPMD backend: one BLYP water (the deck of ``tests/water_blyp_params.capnp.txt``,
+50 Ry, Hockney, orbital convergence 1e-7) at the centre of the deck's 1 nm cell,
+among 26 flexible TIP3P waters in a 1.8 nm box, with ``CELL NONE``, mechanical
+embedding with the TIP3P charges on the QM atoms, PME for MM-MM, and NVE at 0.25
+fs from 300 K velocities.
+It runs the same system with every water classical as a control, and fails
+unless ``md_cp2k.out`` reports the ``opencpmd`` backend.
+
+.. code:: bash
+
+    meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=$CPMD_ROOT
+    meson compile -C build-cpmd
+    scripts/ci/build_gromacs_cpmdc.sh 2025.5 $GMX_PREFIX build-cpmd/tools/gromacs mpi
+    python bench/gromacs_opencpmd.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
+      --pseudo-dir $CPMD_ROOT/../Regtests/tests/PP_LIBRARY --ranks 4,1 --steps 200
+
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open MPI
+5.0.10, OpenBLAS), OpenCPMD with Open MPI, ``QM_RANKS ALL``, 200 steps (50 fs);
+the 4-rank run shared the machine with other jobs:
+
+.. table::
+
+    +----------------------------+------------------+----------+---------------------------+----------------------------+---------+
+    | Run                        | Drift, kJ/mol/ps | Per atom | Largest excursion, kJ/mol | Kinetic energy std, kJ/mol | Wall, s |
+    +============================+==================+==========+===========================+============================+=========+
+    | OpenCPMD QM water, 4 ranks |            0.768 |  0.00948 |                     1.274 |                      28.81 |  1079.5 |
+    +----------------------------+------------------+----------+---------------------------+----------------------------+---------+
+    | OpenCPMD QM water, 1 rank  |            0.768 |  0.00948 |                     1.274 |                      28.81 |  2194.0 |
+    +----------------------------+------------------+----------+---------------------------+----------------------------+---------+
+    | all classical, 1 rank      |            0.697 |  0.00861 |                     1.292 |                      28.94 | \       |
+    +----------------------------+------------------+----------+---------------------------+----------------------------+---------+
+
+The step-0 QM energy is -17.055716980795 Hartree; ``CPMDCCalculator`` gives
+-17.05571697 for the same water.
+The total energy oscillates by about 1.3 kJ/mol as 105 kJ/mol of kinetic energy
+goes into the flexible O-H bonds; the classical control shows the same, and
+halving the time step divides it by four, so it is leap-frog's error, not the QM
+forces'.
+Over 50 fs the QM water adds 0.07 kJ/mol/ps to the drift of the control.
+
+Between rank counts the QM energy at step 0 agrees to 1.3e-9
+kJ/mol and the total energy over the run to 2.4e-5 kJ/mol, but the QM atom
+forces differ by 1e-5 kJ/mol/nm at step 0 and 2e-3 at step 200, about 2e-6 of
+the largest force: OpenCPMD distributes its plane waves over the ranks, its sums
+run in a different order, and its SCF stops at a slightly different point.
+A tighter orbital convergence does not shrink that difference: at 1e-9 the
+step-0 oxygen forces of 1 and 2 ranks differ by 5e-4 kJ/mol/nm.
+With ``QM_RANKS 1`` the QM calculation runs on rank 0 alone, and 4 ranks match 1
+rank to 3e-13 kJ/mol/nm in the forces and 7e-12 kJ/mol in the total energy over
+10 steps, at the cost of the SCF time of one rank.
+For 1e-10 agreement with a one-rank run, use ``QM_RANKS 1``.
+
+Stress
+~~~~~~
+
+``tests/python/test_gromacs_opencpmd.py`` compares
+``cp2k_get_stress_tensor()`` with ASE's central difference of the library's own energy under strains of the cell, at orbital convergence 1e-8, when ``CPMDC_GROMACS_LIB`` is an OpenCPMD build and ``CPMDC_PSEUDO_DIR``
+is set.
+With ``CELL PERIODIC`` (``tests/water_blyp_periodic_params.capnp.txt``) the strain
+is 1e-6: each strained cell is a new setup at the deck's cutoff, and in the
+triclinic cell a strain of 1e-4 already takes plane waves across the cutoff.
+With ``CELL NONE`` and the mechanical embedding the strain is 1e-5.
+One run, 1 rank, in eV/Angstrom\ :sup:`3`\:
+
+.. table::
+
+    +-----------------------------------+------------------------+--------------------+--------+
+    | Case                              | Largest stress element | Largest difference |  Ratio |
+    +===================================+========================+====================+========+
+    | ``CELL PERIODIC``, 1 nm cube      |               1.889e-2 |           9.703e-9 | 5.1e-7 |
+    +-----------------------------------+------------------------+--------------------+--------+
+    | ``CELL PERIODIC``, triclinic      |               1.927e-2 |           7.553e-9 | 3.9e-7 |
+    +-----------------------------------+------------------------+--------------------+--------+
+    | ``CELL NONE`` in TIP3P, cube      |               2.545e-4 |          5.875e-10 | 2.3e-6 |
+    +-----------------------------------+------------------------+--------------------+--------+
+    | ``CELL NONE`` in TIP3P, triclinic |               2.545e-4 |           3.096e-9 | 1.2e-5 |
+    +-----------------------------------+------------------------+--------------------+--------+
+
+The test allows 1e-6 of the largest element with ``CELL PERIODIC``, where the
+stress also matches ``CPMDCCalculator`` to 1e-7, and 3e-5 with ``CELL NONE``, where
+the difference shrinks as the strain squared.
+
+NPT
+~~~
+
+``bench/gromacs_opencpmd_npt.py`` runs NPT on the system above, v-rescale at 300 K
+and isotropic C-rescale (or ``--pcoupl Parrinello-Rahman``) at 1 bar with ``tau-p``
+0.5 ps, compressibility 4.5e-5
+/bar, and 0.5 fs steps, once with the QM water and once all classical. The deck predicts the orbitals with ASPC of order 4 at orbital convergence 1e-6. ``--lattice 4 --spacing 0.31 --minimize`` replaces the 27 waters at 0.14 g/cm\ :sup:`3` 
+by 64 at 1.00 g/cm\ :sup:`3`  in a 1.24 nm box, relaxed classically first:
+
+.. code:: bash
+
+    python bench/gromacs_opencpmd_npt.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
+      --ranks 8 --pseudo-dir $CPMD_ROOT/../Regtests/tests/PP_LIBRARY --steps 30000 \
+      --lattice 4 --spacing 0.31 --minimize --workdir npt --json npt.json
+    python bench/gromacs_opencpmd_npt.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
+      --classical-only --steps 2000000 --lattice 4 --spacing 0.31 --minimize \
+      --workdir npt-long --json npt-long.json
+    python bench/npt_block_average.py npt.json --reference npt-long.json \
+      --output bench/results/gromacs_npt_crescale_64w.org
+
+The first command writes the energy frames of both runs, every 10 steps, to
+``npt.json``; the second runs the classical control alone for 1 ns, which takes
+minutes; the third discards each run's equilibration, block-averages the rest,
+and writes the tables below.
+The JSON files and the run directories stay out of the repository; for the run
+below, ``bench/results/gromacs_npt_crescale_64w_blocks.csv`` and
+``_windows.csv`` hold the block averages and window means at full precision, and ``_runs.json``
+the per-run summaries and arguments of both JSON files without their frames or
+paths.
+
+64 waters over 15 ps
+^^^^^^^^^^^^^^^^^^^^
+
+One run on the 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open MPI
+5.0.10, OpenBLAS) with the virial patch, OpenCPMD with Open MPI, the QM water on
+8 ranks with ``QM_RANKS ALL`` and nothing else on the machine beyond seconds of
+analysis; the classical controls run on 1 rank.
+The library recentres the QM water in its cluster cell on every call
+(``CPMDC_RECENTER`` in
+:doc:`environment variables <../reference/environment>`).
+The QM run took 19875 s of wall time by ``md.log``, 0.66 s per step.
+It reported the ``opencpmd`` backend and the stress on the first request, and
+``md.log`` has no missing-stress line.
+
+``bench/npt_block_average.py`` discards, for each run, the latest start in its
+first half that maximises the number of uncorrelated frames after it (Chodera,
+J. Chem. Theory Comput. 12, 1799 (2016)) over volume, density and pressure, and
+at least four ``tau-p``, 2 ps.
+The error is the Flyvbjerg-Petersen standard error of the mean at the coarsest
+blocking level with at least 8 blocks.
+Generated into ``bench/results/gromacs_npt_crescale_64w.org``:
+
+.. table::
+
+    +-----------------+------------+---------------+-------------+-----------------------+--------------------------+---------------+---------+
+    | Run             | Length, ps | Discarded, ps | Frames used | Volume, nm\ :sup:`3`  | Density, kg/m\ :sup:`3`  | Pressure, bar | Wall, s |
+    +=================+============+===============+=============+=======================+==========================+===============+=========+
+    | QM water        |         15 |             2 |        2601 | 2.0574 +- 0.01635     | 931.4 +- 7.34            | 310 +- 127.7  |   19875 |
+    +-----------------+------------+---------------+-------------+-----------------------+--------------------------+---------------+---------+
+    | classical       |         15 |          2.09 |        2583 | 2.1151 +- 0.01813     | 906.3 +- 7.65            | 180 +- 166.4  |       2 |
+    +-----------------+------------+---------------+-------------+-----------------------+--------------------------+---------------+---------+
+    | classical, long |       1000 |             2 |      199601 | 2.0885 +- 0.00791     | 918.5 +- 3.41            | -13 +- 26.0   |     165 |
+    +-----------------+------------+---------------+-------------+-----------------------+--------------------------+---------------+---------+
+
+.. table::
+
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | Run             | Observable               | Detected start, ps |     Std | Blocks | Block, ps |   Error | Its uncertainty | Error at half the block |
+    +=================+==========================+====================+=========+========+===========+=========+=================+=========================+
+    | QM water        | Volume, nm\ :sup:`3`     |              0.895 | 0.06132 |     10 |      1.28 | 0.01635 |         0.00385 |                 0.01209 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | QM water        | Density, kg/m\ :sup:`3`  |              0.905 |   27.72 |     10 |      1.28 |    7.34 |            1.73 |                    5.45 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | QM water        | Pressure, bar            |                  0 |  4015.9 |     10 |      1.28 |   127.7 |            30.1 |                   129.2 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical       | Volume, nm\ :sup:`3`     |               2.09 | 0.07342 |     10 |      1.28 | 0.01813 |         0.00427 |                 0.01400 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical       | Density, kg/m\ :sup:`3`  |              2.085 |   31.31 |     10 |      1.28 |    7.65 |            1.80 |                    5.95 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical       | Pressure, bar            |                  0 |  4053.9 |     10 |      1.28 |   166.4 |            39.2 |                   141.7 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical, long | Volume, nm\ :sup:`3`     |                  0 | 0.09338 |     12 |     81.92 | 0.00791 |         0.00169 |                 0.00633 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical, long | Density, kg/m\ :sup:`3`  |                  0 |   40.39 |     12 |     81.92 |    3.41 |            0.73 |                    2.75 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+    | classical, long | Pressure, bar            |                  0 |  4053.8 |     12 |     81.92 |    26.0 |             5.5 |                    22.2 |
+    +-----------------+--------------------------+--------------------+---------+--------+-----------+---------+-----------------+-------------------------+
+
+The standard error of the mean against the block length:
+
+.. table::
+
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | Run             | Observable               | 0.005 ps | 0.02 ps | 0.08 ps | 0.32 ps | 1.28 ps | 5.12 ps | 20.48 ps | 81.92 ps |
+    +=================+==========================+==========+=========+=========+=========+=========+=========+==========+==========+
+    | QM water        | Volume, nm\ :sup:`3`     |  0.00120 | 0.00239 | 0.00470 | 0.00906 | 0.01635 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | QM water        | Density, kg/m\ :sup:`3`  |     0.54 |    1.08 |    2.12 |    4.09 |    7.34 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | QM water        | Pressure, bar            |     78.8 |    68.4 |    94.0 |   122.8 |   127.7 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical       | Volume, nm\ :sup:`3`     |  0.00144 | 0.00288 | 0.00567 | 0.01096 | 0.01813 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical       | Density, kg/m\ :sup:`3`  |     0.62 |    1.23 |    2.42 |    4.67 |    7.65 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical       | Pressure, bar            |     79.8 |    69.9 |    94.9 |   128.5 |   166.4 | \       | \        | \        |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical, long | Volume, nm\ :sup:`3`     |  0.00021 | 0.00042 | 0.00082 | 0.00160 | 0.00290 | 0.00449 | 0.00574  | 0.00791  |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical, long | Density, kg/m\ :sup:`3`  |     0.09 |    0.18 |    0.36 |    0.69 |    1.25 | 1.93    | 2.48     | 3.41     |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+    | classical, long | Pressure, bar            |      9.1 |     7.8 |    10.5 |    13.3 |    15.7 | 18.6    | 19.4     | 26.0     |
+    +-----------------+--------------------------+----------+---------+---------+---------+---------+---------+----------+----------+
+
+Means over 1 ps windows of the 15 ps runs, and over 100 ps windows of the 1 ns
+control:
+
+.. table::
+
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    | Window, ps | QM water volume, nm\ :sup:`3`  | QM water density, kg/m\ :sup:`3`  | QM water pressure, bar | classical volume, nm\ :sup:`3`  | classical density, kg/m\ :sup:`3`  | classical pressure, bar |
+    +============+================================+===================================+========================+=================================+====================================+=========================+
+    |        0-1 |                         1.9327 |                             991.0 |                    382 |                          1.8323 |                             1045.5 |                    1468 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        1-2 |                         2.0219 |                             947.9 |                    467 |                          1.9413 |                              987.6 |                     808 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        2-3 |                         2.0670 |                             926.6 |                    718 |                          2.0407 |                              938.8 |                     705 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        3-4 |                         2.0012 |                             956.9 |                   -125 |                          2.1113 |                              907.3 |                     -47 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        4-5 |                         2.0387 |                             939.3 |                    -86 |                          2.1439 |                              893.3 |                      47 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        5-6 |                         2.0632 |                             928.5 |                    -60 |                          2.1097 |                              907.7 |                     610 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        6-7 |                         2.1410 |                             894.4 |                    -72 |                          2.0417 |                              938.1 |                    1160 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        7-8 |                         2.0905 |                             916.0 |                    533 |                          2.1404 |                              895.0 |                     268 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |        8-9 |                         2.0121 |                             951.7 |                    601 |                          2.0582 |                              930.4 |                     323 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |       9-10 |                         2.0207 |                             947.9 |                    459 |                          2.0923 |                              916.2 |                     328 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |      10-11 |                         1.9867 |                             964.5 |                   1316 |                          2.2428 |                              854.0 |                   -1022 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |      11-12 |                         2.1576 |                             887.5 |                     23 |                          2.2045 |                              868.7 |                    -331 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |      12-13 |                         2.0573 |                             931.2 |                    187 |                          2.1490 |                              891.0 |                    -626 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |      13-14 |                         2.0316 |                             942.5 |                    766 |                          2.0378 |                              939.7 |                     496 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+    |      14-15 |                         2.0777 |                             921.7 |                   -233 |                          2.1130 |                              906.4 |                     426 |
+    +------------+--------------------------------+-----------------------------------+------------------------+---------------------------------+------------------------------------+-------------------------+
+
+.. table::
+
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    | Window, ps | classical, long volume, nm\ :sup:`3`  | classical, long density, kg/m\ :sup:`3`  | classical, long pressure, bar |
+    +============+=======================================+==========================================+===============================+
+    |      0-100 |                                2.0861 |                                    919.5 |                           -77 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    100-200 |                                2.0948 |                                    915.5 |                           -42 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    200-300 |                                2.0549 |                                    933.0 |                            74 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    300-400 |                                2.1034 |                                    912.7 |                           -32 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    400-500 |                                2.0714 |                                    925.7 |                           -38 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    500-600 |                                2.0436 |                                    938.5 |                           191 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    600-700 |                                2.1212 |                                    904.5 |                          -107 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    700-800 |                                2.0871 |                                    918.7 |                            37 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |    800-900 |                                2.1180 |                                    905.6 |                          -109 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+    |   900-1000 |                                2.1017 |                                    912.7 |                           -14 |
+    +------------+---------------------------------------+------------------------------------------+-------------------------------+
+
+The classical box has settled: over 1 ns its pressure, -13 +- 26 bar, matches
+the 1 bar of the barostat, and its density, 918.5 +- 3.4
+kg/m\ :sup:`3`\, is that of this flexible TIP3P with 0.55 nm cut-offs in a 64-water box. Its blocking error still grows from 20 to 82 ps blocks, so that error is a lower bound too; it puts the statistical inefficiency of the volume at 7.2 ps, and the volume of 64 waters fluctuates by 0.09 nm\ :sup:`3`\, so a 15 ps run holds few independent samples. The 15 ps control, 906.3 +- 7.7 kg/m\ :sup:`3`\,
+is 1.5 errors from it; its 1 ps window means of the volume span 0.20 nm\ :sup:`3`  from 2
+ps on.
+
+The QM run, 931.4 +- 7.3 kg/m\ :sup:`3`\, is 1.6 combined errors above the 1 ns control.
+From 2 ps on its 1 ps window means of the volume span 0.17 nm\ :sup:`3`\, 1.99 to 2.16
+nm\ :sup:`3`\, without a trend: the last window, 2.078 nm\ :sup:`3`\, lies inside the range of the
+first ones, and the box ends at 2.044 nm\ :sup:`3`\.
+Its blocking error, like that of the 15 ps control, still grows at the largest
+block, so it is a lower bound, and the mean pressure, 310 +- 128 bar, is 2.4 of
+those errors from 1 bar.
+The barostat follows the pressure GROMACS reports: the least-squares slope of
+the change of ln V from one frame to the next against the pressure is 1.049
+times compressibility x 5 fs / ``tau-p`` with the QM water and 1.005 times in the
+control.
+From 1 ps on, the 1 ps window means of ``Quantum En.`` lie within 15.5
+kJ/mol of each other, without a step. GROMACS' conserved energy drifts by 191.5 kJ/mol/ps
+with the QM water and 181.5 in the control, so the drift is not from the QM
+water.
+The final ``md.gro`` puts the QM oxygen at (0.511, 0.455, 0.892) nm, 0.44 nm from
+where it started after the minimisation, with its nearest oxygens 0.269, 0.281
+and 0.299 nm away, against 0.274, 0.283 and 0.304 nm for the same water in the
+control.
+
+Before recentring
+:::::::::::::::::
+
+The first run of these commands, on a library that kept the QM region's absolute
+position in its cell, gave the QM water 844.6 +- 14.3
+kg/m\ :sup:`3`  (2.2761 +- 0.0390 nm\ :sup:`3`\, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm\ :sup:`3`  for 6 ps, then grew to 2.5 nm\ :sup:`3`  by 13 ps while the pressure turned more negative, and its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell. A water diffuses half a nanometre or more in 15 ps, as the one above did. ``bench/cluster_drift_scan.py``
+moves a BLYP water towards a face of the deck's 10 Angstrom Hockney cell;
+``bench/results/cluster_drift_scan.org`` has the tables. On that library the
+energy moves by -3.9e-5 Hartree with the outer hydrogen 3 Angstrom from the
+face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and -8.4e-3 at 0.5 Angstrom
+past it, where the net force is 0.17 Hartree/Bohr.
+The trace of ``sum x (x) f`` goes from +0.049 Hartree at the centre to +0.093 at 1
+Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between those two is 1300
+bar on a 2.1 nm\ :sup:`3`  box, against the -13 +- 26 bar of the control, and past the
+face it is +3.2 Hartree.
+The barostat scales coordinates about the origin, so a growing box also moves a
+QM water that is off the origin towards a face.
+With recentring every one of those positions gives the energy of the centred
+water to 1.1e-14 Hartree and its forces to 3.4e-14 Hartree/Bohr, the forces sum
+to zero, and the trace is 0.062214 Hartree at all of them.
+
+2 ps runs
+^^^^^^^^^
+
+One run of each system, C-rescale, 4000 steps (2 ps), the QM water on 4 ranks
+with ``QM_RANKS ALL``, both systems at once; the classical control runs on 1 rank.
+Means and standard deviations of the energy frames, every 10 steps, over the
+second picosecond:
+
+.. table::
+
+    +-----------+-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+    | System    | Run       | Volume, nm\ :sup:`3`  | Density, kg/m\ :sup:`3`  | Pressure, bar | Temperature, K | Volume at 0 and 2 ps, nm\ :sup:`3`  |
+    +===========+===========+=======================+==========================+===============+================+=====================================+
+    | 27 waters | QM water  | 5.946 (0.054)         | 135.8 (1.2)              | 45 (664)      | 311.5 (24.7)   | 5.832, 5.853                        |
+    +-----------+-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+    | 27 waters | classical | 6.022 (0.063)         | 134.2 (1.4)              | 170 (805)     | 329.1 (32.5)   | 5.832, 6.261                        |
+    +-----------+-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+
+Both QM runs reported the ``opencpmd`` backend and the stress on the first
+request, and ``md.log`` has no missing-stress line.
+GROMACS' conserved energy, which includes the thermostat and barostat work,
+drifts by 13.9 kJ/mol/ps with the QM water and 11.1 without in the 27-water
+system.
+The 64-water runs of this length, which the 15 ps runs above replace, had not
+settled.
+Each QM run took 6907 s, 1.73 s per step.
+
+With ``--pcoupl Parrinello-Rahman --tau-p 2.0 --steps 2000`` on the 64 waters,
+beside a one-rank job for part of the time, the QM run took 2891 s.
+Over the second half picosecond:
+
+.. table::
+
+    +-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+    | Run       | Volume, nm\ :sup:`3`  | Density, kg/m\ :sup:`3`  | Pressure, bar | Temperature, K | Volume at 0 and 1 ps, nm\ :sup:`3`  |
+    +===========+=======================+==========================+===============+================+=====================================+
+    | QM water  | 1.967 (0.006)         | 973.4 (2.9)              | -21 (2957)    | 273.3 (14.2)   | 1.907, 1.978                        |
+    +-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+    | classical | 2.015 (0.043)         | 950.5 (20.0)             | 323 (3048)    | 294.6 (12.6)   | 1.907, 2.099                        |
+    +-----------+-----------------------+--------------------------+---------------+----------------+-------------------------------------+
+
+Both runs start near 205 K, as the 300 K velocities flow into the minimised
+structure; in 1 ps the thermostat has brought the classical run near 300 K but
+not yet the QM run, which the 15 ps C-rescale run above reaches within its
+second picosecond.
+
+Overhead per step
+-----------------
+
+LAMMPS routes
+~~~~~~~~~~~~~
+
+``bench/lammps_routes.py`` integrates two water molecules in a 9 Angstrom cubic
+box (``metal``, NVE) through each route and reports the median wall time per step
+over fresh repeats, with the raw values.
+With the reference evaluator this is coupling overhead: an OpenCPMD step adds
+the same SCF time to every route.
+
+.. code:: bash
+
+    python bench/lammps_routes.py --build build --steps 2000 --repeats 7
+
+One run on an 8-core Xeon virtual machine with LAMMPS 22 Jul 2025 from the pip
+wheel and i-PI 3.3.1:
+
+.. table::
+
+    +--------------------------------------------------------------------+-------------------------------+
+    | Route                                                              | Median, microseconds per step |
+    +====================================================================+===============================+
+    | ``Session.calculate_au`` in a Python loop, no integrator           |                           7.4 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | LAMMPS with ``pair_style zero``, no cpmdc                          |                          0.65 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | ``pair_style cpmdc``                                               |                           7.1 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | ``FixExternal``                                                    |                            87 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | ``FixExternal`` through ASE's ``SocketServer`` and ``cpmdc-ipi-c`` |                           253 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | i-PI with ``cpmdc-ipi-c``                                          |                           231 |
+    +--------------------------------------------------------------------+-------------------------------+
+    | i-PI with ``cpmdc-ipi-c`` and LAMMPS ``fix ipi``                   |                           318 |
+    +--------------------------------------------------------------------+-------------------------------+
+
+The in-process routes time ``run`` inside one process; the i-PI routes use i-PI's
+own per-step timing, so no route counts process startup.
+The GROMACS table below times GROMACS on the same system beside
+``pair_style cpmdc``.
+
+GROMACS routes
+~~~~~~~~~~~~~~
+
+``bench/gromacs_routes.py`` integrates the system of ``bench/lammps_routes.py``, two
+water molecules in a 0.9 nm cube on the reference evaluator with the periodic
+deck, NVE at 0.25 fs, through GROMACS and through LAMMPS.
+GROMACS runs twice, for 1000 and 1000 + ``STEPS`` steps, and the per-step time is
+the difference of md.log's wall times over ``STEPS``, so startup and the first
+evaluation cancel.
+
+.. code:: bash
+
+    CPMDC_GMX=gmx_d python bench/gromacs_routes.py --build build --steps 20000 --repeats 7
+
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, thread-MPI,
+one rank, one OpenMP thread) and LAMMPS 22 Jul 2025 from the pip wheel, 20000
+steps, 7 repeats:
+
+.. table::
+
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+    | Route                                                    | Median, microseconds per step | Raw                                       |
+    +==========================================================+===============================+===========================================+
+    | ``Session.calculate_au`` in a Python loop, no integrator |                          5.95 | 6.00 5.91 5.92 5.91 6.05 6.02 5.95        |
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+    | LAMMPS with ``pair_style zero``, no cpmdc                |                          0.48 | 0.48 0.49 0.49 0.48 0.50 0.48 0.48        |
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+    | LAMMPS with ``pair_style cpmdc``                         |                         10.43 | 10.46 10.45 10.43 10.41 10.46 10.42 10.40 |
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+    | GROMACS, QM/MM off, no interactions                      |                          1.55 | 1.50 1.60 1.55 1.55 1.50 1.50 1.65        |
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+    | GROMACS with ``libcpmdc_gromacs``, both waters QM        |                          4.50 | 4.50 4.55 4.50 4.65 4.50 4.60 4.50        |
+    +----------------------------------------------------------+-------------------------------+-------------------------------------------+
+
+Over the engine alone, cpmdc adds 2.95 microseconds per step to GROMACS and 9.95
+to LAMMPS; both include the reference evaluation itself. md.log prints wall
+times to 1 ms, which resolves 0.05 microseconds per step over 20000 steps.
+An OpenCPMD step adds the same SCF time to every route.
+
+References
+----------
+
+1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher, P.
+   Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale Modeling
+   in Computational Chemistry", *J. Chem. Theory Comput.* **15**, 3810-3823
+   (2019),
+   `doi:10.1021/acs.jctc.9b00093 <https://doi.org/10.1021/acs.jctc.9b00093>`_.
+
+2. V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti, P.
+   Carloni, U. Rothlisberger, "Extreme Scalability of DFT-Based QM/MM MD
+   Simulations Using MiMiC", *J. Chem. Theory Comput.* **15**, 5601-5613 (2019),
+   `doi:10.1021/acs.jctc.9b00424 <https://doi.org/10.1021/acs.jctc.9b00424>`_.
+
+3. MCL, the MiMiC Communication Library,
+   `gitlab.com/MiMiC-projects/CommLib <https://gitlab.com/MiMiC-projects/CommLib>`_;
+   GROMACS manual,
+   `MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations <https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html>`_.

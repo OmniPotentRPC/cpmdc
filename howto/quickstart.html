@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build and test cpmdc - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" /><link rel="prev" title="Install and build" href="install.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/quickstart.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/quickstart.html"/>
+  <meta property="og:title" content="Build and test cpmdc"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#goal">Goal</a></li>
+<li><a class="reference internal" href="#build-and-run-the-default-suite">Build and run the default suite</a></li>
+<li><a class="reference internal" href="#work-loop">Work Loop</a></li>
+<li><a class="reference internal" href="#run-the-host-example">Run the host example</a></li>
+<li><a class="reference internal" href="#encode-cap-n-proto-fixtures">Encode Cap&#8217;n Proto fixtures</a></li>
+<li><a class="reference internal" href="#build-against-opencpmd">Build against OpenCPMD</a></li>
+<li><a class="reference internal" href="#read-next">Read next</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/quickstart.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Build and test cpmdc</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/howto/quickstart.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/howto/quickstart.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/howto/quickstart.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/quickstart.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/quickstart.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="build-and-test-cpmdc">
+<h1>Build and test cpmdc<a class="headerlink" href="#build-and-test-cpmdc" title="Link to this heading">¶</a></h1>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
+<p>Build the default library from a checkout, run its tests, and pick the smallest
+test for a change.
+No OpenCPMD checkout is needed.</p>
+</section>
+<section id="build-and-run-the-default-suite">
+<h2>Build and run the default suite<a class="headerlink" href="#build-and-run-the-default-suite" title="Link to this heading">¶</a></h2>
+<p>The default build compiles the parser, the generated Cap’n Proto readers, the
+shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>, the feature table, the session runtime, and the deterministic
+reference evaluator.</p>
+<p>Install Meson, Ninja, Cap’n Proto, cmocka, C and Fortran compilers, and
+pkg-config with your system package manager, or use the checked-in Pixi
+environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>test-stub
+</span></pre></div>
+</div>
+<p>The equivalent explicit commands are:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span>
+</span><span data-line="2">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
+</span><span data-line="3">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>--print-errorlogs
+</span></pre></div>
+</div>
+<p>The run passes when every configured test passes: parser, ABI, feature
+inventory, session lifecycle, result sizing, unit conversion, and the
+reference-evaluator E2E tests.
+The tests that need OpenCPMD report <code class="docutils literal notranslate"><span class="pre">SKIP</span></code>.</p>
+</section>
+<section id="work-loop">
+<h2>Work Loop<a class="headerlink" href="#work-loop" title="Link to this heading">¶</a></h2>
+<p>Build once, then iterate with focused tests.
+Pick the smallest command that exercises the layer you changed, then run the
+default suite when the focused command passes.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Change</p></th>
+<th class="head"><p>Command</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Build definitions or dependencies</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">--reconfigure</span> <span class="pre">build</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>One named contract, such as an inventory, ABI, or docs test</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">&lt;test-name&gt;</span> <span class="pre">--print-errorlogs</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Deck rendering or Cap’n Proto fixtures</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">cmocka</span> <span class="pre">--print-errorlogs</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Session lifecycle, topology, or units</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">e2e</span> <span class="pre">--print-errorlogs</span></code> or <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-e2e</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Public prose, Org sources, or API headers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">sphinxbld</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>The link to an OpenCPMD archive</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY</span> <span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build-cpmd</span> <span class="pre">--print-errorlogs</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Anything, before publishing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--print-errorlogs</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Reconfigure only when build definitions change, dependencies change, or the
+build directory does not exist.
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code> rebuilds stale targets before it runs, so a source edit needs no
+separate <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">compile</span></code>.
+Run the full suite before publishing a change.
+<code class="docutils literal notranslate"><span class="pre">--print-errorlogs</span></code> keeps cmocka assertion output and OpenCPMD diagnostics
+attached to the failed test.
+The <a class="reference internal" href="../contributing/index.html"><span class="doc">contributing guide</span></a> lists the test behind
+each contract.</p>
+<p><a class="reference internal" href="../reference/build-options.html"><span class="doc">Build options, artifacts, and Pixi tasks</span></a>
+lists the Meson test suites and the tests in each.
+The stub suite includes <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code>, which
+run on four ranks when MPI is found.</p>
+</section>
+<section id="run-the-host-example">
+<h2>Run the host example<a class="headerlink" href="#run-the-host-example" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">examples/host_step.c</span></code> is a minimal C host for the public ABI.
+It reads one serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and one serialized <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> file,
+creates a <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, sizes the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> output, evaluates one
+step, and prints the result summary.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>example-host-step<span class="w"> </span>--print-errorlogs
+</span></pre></div>
+</div>
+<p>The example output has this shape:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">energy_h=...
+</span><span data-line="2">potential_result_size_bytes=...
+</span><span data-line="3">message=...
+</span></pre></div>
+</div>
+<p>The Meson test feeds the example from the fixture binaries of the E2E suites,
+encoded from
+<code class="docutils literal notranslate"><span class="pre">tests/cpmd_params_parser.capnp.txt</span></code>, or <code class="docutils literal notranslate"><span class="pre">tests/water_blyp_params.capnp.txt</span></code> in
+a build that links OpenCPMD, and <code class="docutils literal notranslate"><span class="pre">tests/force_input_step_a.capnp.txt</span></code>.</p>
+</section>
+<section id="encode-cap-n-proto-fixtures">
+<h2>Encode Cap’n Proto fixtures<a class="headerlink" href="#encode-cap-n-proto-fixtures" title="Link to this heading">¶</a></h2>
+<p>Encode a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> text message the same way the tests do:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">mkdir<span class="w"> </span>-p<span class="w"> </span>tutorial-work
+</span><span data-line="2">capnp<span class="w"> </span>encode<span class="w"> </span>schema/Potentials.capnp<span class="w"> </span>CPMDParams<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>&lt;<span class="w"> </span>tests/cpmd_params_parser.capnp.txt<span class="w"> </span>&gt;<span class="w"> </span>tutorial-work/cpmd_params.bin
+</span><span data-line="4">capnp<span class="w"> </span>encode<span class="w"> </span>schema/Potentials.capnp<span class="w"> </span>ForceInput<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">  </span>&lt;<span class="w"> </span>tests/force_input_step_a.capnp.txt<span class="w"> </span>&gt;<span class="w"> </span>tutorial-work/force_input.bin
+</span></pre></div>
+</div>
+<p>Pass those buffers to <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> from C or <code class="docutils literal notranslate"><span class="pre">rgpot</span></code>.
+The Python package takes the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and builds each <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>
+itself; see <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a>.</p>
+</section>
+<section id="build-against-opencpmd">
+<h2>Build against OpenCPMD<a class="headerlink" href="#build-against-opencpmd" title="Link to this heading">¶</a></h2>
+<p>The same C ABI links against a patched OpenCPMD archive instead of the reference
+evaluator.
+Build the archive as the <a class="reference internal" href="opencpmd-archive.html"><span class="doc">archive how-to</span></a>
+describes, then follow <a class="reference internal" href="install.html"><span class="doc">the install how-to</span></a> to
+configure <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code> with <code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code>.
+With <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> the water Cap’n Proto parity tests are added and the long
+E2E tests run the linked archive.
+When a build or a call fails, see
+<a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>.</p>
+</section>
+<section id="read-next">
+<h2>Read next<a class="headerlink" href="#read-next" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Need</p></th>
+<th class="head"><p>Page</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute an energy and forces from your own C program</p></td>
+<td><p><a class="reference internal" href="../tutorials/first-energy.html"><span class="doc">First energy and forces</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Call the C ABI from a host process</p></td>
+<td><p><a class="reference internal" href="embedding.html"><span class="doc">Embedding cpmdc</span></a> and the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Choose structured <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields</p></td>
+<td><p><a class="reference internal" href="write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a> and the <a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">CPMD option mapping</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Understand sessions, units, and topology</p></td>
+<td><p><a class="reference internal" href="../explanation/architecture.html"><span class="doc">Architecture</span></a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="install.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Install and build</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="opencpmd-archive.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Build the OpenCPMD archive for embedding</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

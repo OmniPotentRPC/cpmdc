@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Troubleshooting - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="C ABI reference" href="../reference/c-abi.html" /><link rel="prev" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Troubleshooting - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="C ABI reference" href="../reference/c-abi.html" /><link rel="prev" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/troubleshooting.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -213,6 +230,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#energies">Energies</a><ul>
 <li><a class="reference internal" href="#the-energy-is-off-by-about-2-ev-from-a-hand-written-deck">The energy is off by about 2 eV from a hand-written deck</a></li>
 <li><a class="reference internal" href="#the-system-is-treated-as-isolated">The system is treated as isolated</a></li>
+<li><a class="reference internal" href="#the-energy-of-a-cluster-depends-on-where-its-atoms-are">The energy of a cluster depends on where its atoms are</a></li>
 <li><a class="reference internal" href="#the-energy-changes-when-only-the-cell-changes">The energy changes when only the cell changes</a></li>
 </ul>
 </li>
@@ -221,11 +239,13 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#cpmd-stopgm-during-embed-scf"><code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">stopgm</span> <span class="pre">during</span> <span class="pre">embed</span> <span class="pre">SCF</span></code></a></li>
 <li><a class="reference internal" href="#topology-change-requires-a-new-session"><code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code></a></li>
 <li><a class="reference internal" href="#potentialresult-buffer-too-small"><code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code></a></li>
+<li><a class="reference internal" href="#invalid-forceinput-result-units"><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">ForceInput</span> <span class="pre">result</span> <span class="pre">units</span></code></a></li>
 <li><a class="reference internal" href="#cpmd-embed-not-available"><code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">embed</span> <span class="pre">not</span> <span class="pre">available</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#forces">Forces</a><ul>
 <li><a class="reference internal" href="#forces-are-all-zero-with-a-finite-energy">Forces are all zero with a finite energy</a></li>
+<li><a class="reference internal" href="#forces-on-atoms-with-nonlocal-projectors-are-wrong-inside-a-host-program">Forces on atoms with nonlocal projectors are wrong inside a host program</a></li>
 <li><a class="reference internal" href="#ranks-disagree-about-forces-under-mpirun">Ranks disagree about forces under mpirun</a></li>
 <li><a class="reference internal" href="#mpirun-reports-an-abnormal-termination-at-exit">mpirun reports an abnormal termination at exit</a></li>
 </ul>
@@ -234,6 +254,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#with-cpmd-requires-dir-lib-libcpmd-a"><code class="docutils literal notranslate"><span class="pre">with_cpmd</span> <span class="pre">requires</span> <span class="pre">DIR/lib/libcpmd.a</span></code></a></li>
 <li><a class="reference internal" href="#link-fails-with-r-x86-64-pc32-against-libcpmd-a">Link fails with <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> against <code class="docutils literal notranslate">a</span></code></a></li>
 <li><a class="reference internal" href="#cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals"><code class="docutils literal notranslate">F90</span></code> fails to compile on <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code></a></li>
+<li><a class="reference internal" href="#capnp-encode-rejects-a-message"><code class="docutils literal notranslate"><span class="pre">capnp</span> <span class="pre">encode</span></code> rejects a message</a></li>
 <li><a class="reference internal" href="#cpmd-cannot-find-o-mt-blyp-psp">CPMD cannot find <code class="docutils literal notranslate">psp</span></code></a></li>
 <li><a class="reference internal" href="#a-library-force-call-writes-no-restart-files">A library force call writes no restart files</a></li>
 <li><a class="reference internal" href="#a-preview-buffer-is-shorter-than-the-method-deck">A preview buffer is shorter than the method deck</a></li>
@@ -354,8 +375,8 @@ In <code class="docutils literal notranslate"><span class="pre">inputBlocks</spa
 keyword, <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>, or a zero box.
 A typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section that leaves <code class="docutils literal notranslate"><span class="pre">symmetry</span></code> at 0 still adds the Hockney
 solver, including when the box has a positive volume.
-A message with no <code class="docutils literal notranslate"><span class="pre">system</span></code> section takes its symmetry from the box on the
-force call.</p>
+A message with no <code class="docutils literal notranslate"><span class="pre">system</span></code> section takes its symmetry from the box on the force
+call.</p>
 <p><strong>Fix:</strong> write <code class="docutils literal notranslate"><span class="pre">symmetry</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code> when the system is periodic, and
 <code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code> when it is isolated on purpose.
 In eOn, pass the whole message through <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code> instead of the
@@ -364,6 +385,19 @@ A scalar message with a positive cell is periodic.
 Put <code class="docutils literal notranslate"><span class="pre">poissonSolver</span> <span class="pre">=</span> <span class="pre">&quot;HOCKNEY&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">symmetry</span> <span class="pre">=</span> <span class="pre">0</span></code> in the message when the
 molecule is isolated.</p>
 </section>
+<section id="the-energy-of-a-cluster-depends-on-where-its-atoms-are">
+<h3>The energy of a cluster depends on where its atoms are<a class="headerlink" href="#the-energy-of-a-cluster-depends-on-where-its-atoms-are" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER=off</span></code> on an isolated deck.
+The deck’s cell has its origin at a corner and a fixed size, so atoms near a
+face, or outside the cell, put density across the face: the energy moves, by up
+to 8e-2 Hartree for one water, the forces gain a net force, and a virial built
+from <code class="docutils literal notranslate"><span class="pre">sum</span> <span class="pre">x</span> <span class="pre">(x)</span> <span class="pre">f</span></code> shifts by the position times that force.</p>
+<p><strong>Fix:</strong> leave <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> unset (<code class="docutils literal notranslate"><span class="pre">mass</span></code>), or set it to <code class="docutils literal notranslate"><span class="pre">geometry</span></code>, which
+moves the atoms to the middle of the cell on each call.
+Set <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER_MARGIN</span></code> to the clearance the density needs, for example 3
+Angstrom, to make a cell that is too small for the region fail instead (see
+<a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>).</p>
+</section>
 <section id="the-energy-changes-when-only-the-cell-changes">
 <h3>The energy changes when only the cell changes<a class="headerlink" href="#the-energy-changes-when-only-the-cell-changes" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> a cell that differs from the previous call’s cell makes the next call
@@ -371,7 +405,10 @@ cold: <code class="docutils literal notranslate"><span class="pre">cpmdc</span><
 The energy is then that of a fresh SCF in the new cell.</p>
 <p><strong>Fix:</strong> none needed when the cell change is intended.
 Keep <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> identical between steps when the cell is fixed; a
-difference above 1e-8 Angstrom in any component counts as a change.</p>
+difference above 1e-8 Angstrom in any component counts as a change.
+A constant-cutoff deck under <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> keeps the plane waves and the
+orbitals of the setup cell through a small change instead, so its energy moves
+smoothly with the cell between setups.</p>
 </section>
 </section>
 <section id="failed-calls">
@@ -381,8 +418,8 @@ difference above 1e-8 Angstrom in any component counts as a change.</p>
 <p><strong>Cause:</strong> the SCF stopped at <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> before reaching the orbital convergence
 threshold.
 OpenCPMD computes ionic forces only for converged orbitals, so the forces of
-such a call are zero, which a caller would read as a stationary point;
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reports the call as failed instead, with <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>.
+such a call are zero, which a caller would read as a stationary point; <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
+reports the call as failed instead, with <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>.
 Without <code class="docutils literal notranslate"><span class="pre">maxIter</span></code> in the message the OpenCPMD path inserts <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code>.</p>
 <p>The same message has one other cause visible before the SCF starts:</p>
 <div class="table-wrapper docutils container">
@@ -400,42 +437,43 @@ Without <code class="docutils literal notranslate"><span class="pre">maxIter</sp
 </table>
 </div>
 <p><strong>Fix:</strong> raise <code class="docutils literal notranslate"><span class="pre">maxIter</span></code>, or switch the optimiser (see
-<a class="reference internal" href="wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>); otherwise put
-that element’s pseudopotential in the message, or use an element the built-in
-table knows.</p>
+<a class="reference internal" href="wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>); otherwise put that
+element’s pseudopotential in the message, or use an element the built-in table
+knows.</p>
 <p>A missing pseudopotential directory is a different message.
-When neither <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> nor <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code> names a directory,
-<code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> say so.</p>
+When neither <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> nor
+<code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code> names a directory, <code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>
+say so.</p>
 <p>Atoms of one element need not be contiguous in <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>.
 CPMD keeps one species block per element.
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> places the step’s positions into those blocks and copies the forces
-back into <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> order.
-A step whose atomic numbers do not match the species counts still fails, and
-the message names the species blocks rather than <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> places the step’s positions into those blocks and copies the forces back
+into <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> order.
+A step whose atomic numbers do not match the species counts still fails, and the
+message names the species blocks rather than <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>.</p>
 </section>
 <section id="cpmd-stopgm-during-embed-scf">
 <h3><code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">stopgm</span> <span class="pre">during</span> <span class="pre">embed</span> <span class="pre">SCF</span></code><a class="headerlink" href="#cpmd-stopgm-during-embed-scf" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> CPMD called <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>, its fatal-error routine, inside the call.
 With <code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code> in the archive, <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> calls
 <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>.
-While an evaluation is armed the catch records the stop code and returns 1,
-so <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returns to its caller, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> instead of
-ending the host.
-CPMD writes its reason to a <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file in the working directory
-of that moment.
-That is <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, or <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code> when no permanent directory is set,
-or the host working directory.</p>
+While an evaluation is armed the catch records the stop code and returns 1, so
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returns to its caller, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> instead of ending
+the host.
+CPMD writes its reason to a <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file in the working directory of
+that moment.
+That is <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, or <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code> when no permanent directory is set, or
+the host working directory.</p>
 <p><strong>Fix:</strong> read the <code class="docutils literal notranslate"><span class="pre">LocalError</span></code> file in that directory.
 The wavefunction, forces, and module state of that call are undefined.
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and the warm cell, and the next call on
-the same session sets CPMD up again.
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and the warm cell, and the next call on the
+same session sets CPMD up again.
 With more than one MPI rank, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> aborts the other ranks, which would
 otherwise stay blocked in the call <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returned from.</p>
 </section>
 <section id="topology-change-requires-a-new-session">
 <h3><code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code><a class="headerlink" href="#topology-change-requires-a-new-session" title="Link to this heading">¶</a></h3>
-<p><strong>Cause:</strong> the first successful step of a session fixes the atom count and the
-elemental composition.
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology after an evaluation call
+passes its argument checks and collective orbital preflight.
 A later step with a different count or composition is refused before CPMD runs.
 A reordering of the same elements stays on the session.</p>
 <p><strong>Fix:</strong> create a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> for a different composition.
@@ -448,29 +486,59 @@ A different elemental composition runs setup.</p>
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> writes the required size to the size argument and does not evaluate.</p>
 <p><strong>Fix:</strong> allocate <code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></code> bytes.</p>
 </section>
+<section id="invalid-forceinput-result-units">
+<h3><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">ForceInput</span> <span class="pre">result</span> <span class="pre">units</span></code><a class="headerlink" href="#invalid-forceinput-result-units" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> the <code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code> or <code class="docutils literal notranslate"><span class="pre">energyUnit</span></code> of the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> is not a unit
+string <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> knows.
+The call fails before it evaluates.</p>
+<p><strong>Fix:</strong> use one of the unit strings of the
+<a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a>, such as <code class="docutils literal notranslate"><span class="pre">angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">bohr</span></code>,
+<code class="docutils literal notranslate"><span class="pre">eV</span></code>, or <code class="docutils literal notranslate"><span class="pre">hartree</span></code>; case does not matter.</p>
+</section>
 <section id="cpmd-embed-not-available">
 <h3><code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">embed</span> <span class="pre">not</span> <span class="pre">available</span></code><a class="headerlink" href="#cpmd-embed-not-available" title="Link to this heading">¶</a></h3>
-<p><strong>Cause:</strong> the library was finalized with <code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code>, or the session
-could not apply its configuration.</p>
-<p><strong>Fix:</strong> call <code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code> only at shutdown; check the message with
-<code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> for a rendering failure.</p>
+<p><strong>Cause:</strong> the library was finalized with <code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code>, or the session could
+not apply its configuration.</p>
+<p><strong>Fix:</strong> call
+<code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code> only at shutdown; check the message with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> for
+a rendering failure.
+After a finalize, a session evaluation that repeats the step the session stored
+last still returns 0 from its cache, so only a new step fails with this text.
+The link stub never evaluates; its text is
+<code class="docutils literal notranslate"><span class="pre">OpenCPMD</span> <span class="pre">embed</span> <span class="pre">not</span> <span class="pre">available</span> <span class="pre">in</span> <span class="pre">cpmdc</span> <span class="pre">stub</span></code> followed by the function’s name in
+parentheses, and linking <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> instead fixes it.</p>
 </section>
 </section>
 <section id="forces">
 <h2>Forces<a class="headerlink" href="#forces" title="Link to this heading">¶</a></h2>
 <section id="forces-are-all-zero-with-a-finite-energy">
 <h3>Forces are all zero with a finite energy<a class="headerlink" href="#forces-are-all-zero-with-a-finite-energy" title="Link to this heading">¶</a></h3>
-<p><strong>Cause:</strong> the OpenCPMD archive lacks <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code>, so <code class="docutils literal notranslate"><span class="pre">fion</span></code>
-is deallocated before <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads it.</p>
+<p><strong>Cause:</strong> the OpenCPMD archive lacks <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code>, so <code class="docutils literal notranslate"><span class="pre">fion</span></code> is
+deallocated before <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads it.</p>
 <p><strong>Fix:</strong> apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and rebuild the archive (see
 <a class="reference internal" href="opencpmd-archive.html"><span class="doc">building the archive</span></a>).
-A symmetric cluster at a stationary geometry also gives zero forces; displace
-an atom to tell the two apart.</p>
+A symmetric cluster at a stationary geometry also gives zero forces; displace an
+atom to tell the two apart.</p>
+</section>
+<section id="forces-on-atoms-with-nonlocal-projectors-are-wrong-inside-a-host-program">
+<h3>Forces on atoms with nonlocal projectors are wrong inside a host program<a class="headerlink" href="#forces-on-atoms-with-nonlocal-projectors-are-wrong-inside-a-host-program" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> the host exports its own BLAS or LAPACK.
+OpenCPMD’s calls to <code class="docutils literal notranslate"><span class="pre">dgemm_</span></code> and the rest bind to the first definition in the
+process, which is then the host’s, not the BLAS <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links.
+A GROMACS built with its bundled BLAS and LAPACK (<code class="docutils literal notranslate"><span class="pre">-DGMX_EXTERNAL_BLAS=OFF</span></code>) is
+one: inside its <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> the force on the oxygen of a BLYP water came out as
+-2.79 Hartree/Bohr along z instead of +0.0223, while the energy and the hydrogen
+forces, which have no nonlocal part, were unchanged.</p>
+<p><strong>Fix:</strong> build the host against the BLAS <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> with <code class="docutils literal notranslate"><span class="pre">dgemm_</span> <span class="pre">resolves</span> <span class="pre">to</span> <span class="pre">.../libgromacs...</span></code> when OpenCPMD is linked, and <code class="docutils literal notranslate"><span class="pre">scripts/ci/build_gromacs_cpmdc.sh</span></code>
+builds GROMACS against the BLAS of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (see
+<a class="reference internal" href="gromacs.html"><span class="doc">GROMACS</span></a>).</p>
 </section>
 <section id="ranks-disagree-about-forces-under-mpirun">
 <h3>Ranks disagree about forces under mpirun<a class="headerlink" href="#ranks-disagree-about-forces-under-mpirun" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> only CPMD’s parent rank holds the calculator’s forces.</p>
-<p><strong>Fix:</strong> broadcast the parent rank’s result (see <a class="reference internal" href="mpi.html"><span class="doc">running under mpirun</span></a>).</p>
+<p><strong>Fix:</strong> broadcast the parent rank’s result (see
+<a class="reference internal" href="mpi.html"><span class="doc">running under mpirun</span></a>).</p>
 </section>
 <section id="mpirun-reports-an-abnormal-termination-at-exit">
 <h3>mpirun reports an abnormal termination at exit<a class="headerlink" href="#mpirun-reports-an-abnormal-termination-at-exit" title="Link to this heading">¶</a></h3>
@@ -484,20 +552,28 @@ ranks still running when one exits without <code class="docutils literal notrans
 <section id="with-cpmd-requires-dir-lib-libcpmd-a">
 <h3><code class="docutils literal notranslate"><span class="pre">with_cpmd</span> <span class="pre">requires</span> <span class="pre">DIR/lib/libcpmd.a</span></code><a class="headerlink" href="#with-cpmd-requires-dir-lib-libcpmd-a" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> does not point at a completed OpenCPMD build tree.</p>
-<p><strong>Fix:</strong> pass the <code class="docutils literal notranslate"><span class="pre">-DEST</span></code> directory of the OpenCPMD build, which holds <code class="docutils literal notranslate"><span class="pre">lib/</span></code>,
-<code class="docutils literal notranslate"><span class="pre">obj/</span></code>, and <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p>
+<p><strong>Fix:</strong> pass the <code class="docutils literal notranslate"><span class="pre">-DEST</span></code> directory of the OpenCPMD build, which holds
+<code class="docutils literal notranslate"><span class="pre">lib/</span></code>, <code class="docutils literal notranslate"><span class="pre">obj/</span></code>, and <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p>
 </section>
 <section id="link-fails-with-r-x86-64-pc32-against-libcpmd-a">
 <h3>Link fails with <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> against <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code><a class="headerlink" href="#link-fails-with-r-x86-64-pc32-against-libcpmd-a" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> OpenCPMD was compiled without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>.</p>
-<p><strong>Fix:</strong> use <code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code>, which adds <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to
-<code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>, and rebuild the archive.</p>
+<p><strong>Fix:</strong> use <code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code>, which adds <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code>
+and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>, and rebuild the archive.</p>
 </section>
 <section id="cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals">
 <h3><code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> fails to compile on <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code><a class="headerlink" href="#cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> the archive’s module files come from an unpatched tree.</p>
-<p><strong>Fix:</strong> apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code>,
-then rebuild with <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code>.</p>
+<p><strong>Fix:</strong> apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code>, then rebuild with
+<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code>.</p>
+</section>
+<section id="capnp-encode-rejects-a-message">
+<h3><code class="docutils literal notranslate"><span class="pre">capnp</span> <span class="pre">encode</span></code> rejects a message<a class="headerlink" href="#capnp-encode-rejects-a-message" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> the text names a field that is not in the schema, or it is encoded
+against the wrong root type.</p>
+<p><strong>Fix:</strong> encode against <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code> with the root type the text
+holds, <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>; the error names the field it could not
+find.</p>
 </section>
 <section id="cpmd-cannot-find-o-mt-blyp-psp">
 <h3>CPMD cannot find <code class="docutils literal notranslate"><span class="pre">O_MT_BLYP.psp</span></code><a class="headerlink" href="#cpmd-cannot-find-o-mt-blyp-psp" title="Link to this heading">¶</a></h3>
@@ -505,34 +581,39 @@ then rebuild with <code class="docutils literal notranslate"><span class="pre">t
 CPMD takes <code class="docutils literal notranslate"><span class="pre">argv[2]</span></code> as its pseudopotential library whenever the process has
 more than one argument, so a host with command-line arguments cannot rely on
 <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code>.
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> works around that by changing into the directory while it reads the pseudopotential files.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> works around that by changing into the directory while it reads the
+pseudopotential files.</p>
 <p><strong>Fix:</strong> <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">CPMDC_PSEUDO_DIR=/path/to/pseudopotentials</span></code>.</p>
 </section>
 <section id="a-library-force-call-writes-no-restart-files">
 <h3>A library force call writes no restart files<a class="headerlink" href="#a-library-force-call-writes-no-restart-files" title="Link to this heading">¶</a></h3>
-<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> run at the end of an SCF unless the embed
-flag is false.
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> run at the end of an SCF unless the embed flag is
+false.
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> sets that flag false before every force call.</p>
 <p><strong>Fix:</strong> expect no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code> from
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code>.
-<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes those files in <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, otherwise <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>,
-otherwise the working directory.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes those files in <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, otherwise <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>, otherwise
+the working directory.</p>
 </section>
 <section id="a-preview-buffer-is-shorter-than-the-method-deck">
 <h3>A preview buffer is shorter than the method deck<a class="headerlink" href="#a-preview-buffer-is-shorter-than-the-method-deck" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> the embed path keeps the rendered method deck at the length of that
-text. A preview or a config read whose buffer is shorter than the text returns
-an error and does not write a shortened deck.</p>
-<p><strong>Fix:</strong> size the caller buffer from the rendered text, or read the full deck
-from <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>.</p>
+text.
+A preview or a config read whose buffer is shorter than the text returns an
+error and does not write a shortened deck.</p>
+<p><strong>Fix:</strong> size the caller buffer from the rendered text, or read the full deck from
+<code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>.</p>
 </section>
 </section>
 <section id="report-a-new-problem">
 <h2>Report a new problem<a class="headerlink" href="#report-a-new-problem" title="Link to this heading">¶</a></h2>
-<p>Open an issue on the <a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a> when no entry above matches.
+<p>Open an issue on the
+<a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a> when no
+entry above matches.
 Questions go there too.</p>
 <p>Print the version and the build options that choose the code path.
-Replace <code class="docutils literal notranslate"><span class="pre">build</span></code> with your build directory, then run this command in the source tree.</p>
+Replace <code class="docutils literal notranslate"><span class="pre">build</span></code> with your build directory, then run this command in the source
+tree.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>introspect<span class="w"> </span>build<span class="w"> </span>--projectinfo<span class="w"> </span>--buildoptions<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;</span>
 </span><span data-line="2"><span class="s1">import json, sys</span>
 </span><span data-line="3"><span class="s1">info = json.load(sys.stdin)</span>
@@ -544,7 +625,7 @@ Replace <code class="docutils literal notranslate"><span class="pre">build</span
 </span></pre></div>
 </div>
 <p>The default build prints:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cpmdc</span> <span class="mf">0.4.0</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cpmdc</span> <span class="mf">0.6.0</span>
 </span><span data-line="2"><span class="n">with_cpmd</span> <span class="o">=</span> <span class="kc">False</span>
 </span><span data-line="3"><span class="n">cpmd_root</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 </span><span data-line="4"><span class="n">with_readcon</span> <span class="o">=</span> <span class="kc">False</span>
@@ -553,9 +634,12 @@ Replace <code class="docutils literal notranslate"><span class="pre">build</span
 <p>Put these items in the report:</p>
 <ol class="arabic simple">
 <li><p>the output of that command;</p></li>
-<li><p>the deck that <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> wrote for the failing call (see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>);</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> for a failed call, or the <code class="docutils literal notranslate"><span class="pre">--print-errorlogs</span></code> output for a failed test;</p></li>
-<li><p>the <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file, when the call stopped with <code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">stopgm</span> <span class="pre">during</span> <span class="pre">embed</span> <span class="pre">SCF</span></code>.</p></li>
+<li><p>the deck that <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> wrote for the failing call (see
+<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> for a failed call, or the
+<code class="docutils literal notranslate"><span class="pre">--print-errorlogs</span></code> output for a failed test;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file, when the call stopped with
+<code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">stopgm</span> <span class="pre">during</span> <span class="pre">embed</span> <span class="pre">SCF</span></code>.</p></li>
 </ol>
 </section>
 </section>
@@ -667,7 +751,7 @@ Replace <code class="docutils literal notranslate"><span class="pre">build</span
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

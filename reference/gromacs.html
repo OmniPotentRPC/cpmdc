@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GROMACS interface reference - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="LAMMPS interface reference" href="lammps.html" /><link rel="prev" title="Python API" href="python.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/gromacs.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/reference/gromacs.html"/>
+  <meta property="og:title" content="GROMACS interface reference"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#input-file">Input file</a></li>
+<li><a class="reference internal" href="#units">Units</a></li>
+<li><a class="reference internal" href="#cell-and-positions">Cell and positions</a></li>
+<li><a class="reference internal" href="#embedding">Embedding</a></li>
+<li><a class="reference internal" href="#qm-virial">QM virial</a></li>
+<li><a class="reference internal" href="#several-ranks">Several ranks</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/reference/gromacs.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">GROMACS interface reference</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/reference/gromacs.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/reference/gromacs.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/reference/gromacs.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/reference/gromacs.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/reference/gromacs.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="gromacs-interface-reference">
+<h1>GROMACS interface reference<a class="headerlink" href="#gromacs-interface-reference" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> answers the libcp2k C API of GROMACS’ CP2K QM/MM interface with <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>
+calls. <a class="reference internal" href="../howto/gromacs.html"><span class="doc">Run GROMACS on cpmdc forces</span></a> builds GROMACS
+against it and sets up a run.</p>
+<section id="input-file">
+<h2>Input file<a class="headerlink" href="#input-file" title="Link to this heading">¶</a></h2>
+<p>The file is CP2K input in form, because grompp checks it for <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code>, <code class="docutils literal notranslate"><span class="pre">RUN_TYPE</span> <span class="pre">ENERGY_FORCE</span></code>, <code class="docutils literal notranslate"><span class="pre">COORD_FILE_FORMAT</span> <span class="pre">PDB</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CHARGE_EXTENDED</span> <span class="pre">TRUE</span></code>, and <code class="docutils literal notranslate"><span class="pre">COORD_FILE_NAME</span></code> and refuses <code class="docutils literal notranslate"><span class="pre">&#64;INCLUDE</span></code>.
+GROMACS stores it in the <code class="docutils literal notranslate"><span class="pre">.tpr</span></code>, writes it out at <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> as <code class="docutils literal notranslate"><span class="pre">md_cp2k.inp</span></code> with
+the name of the PDB file it generates, and passes both to the library.
+The PDB file gives each atom’s element, whether it is QM or MM, and each MM
+atom’s charge.
+The cpmdc settings are a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside <code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code>:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PARAMS</span> <span class="pre">path</span></code></p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message; a relative path is relative to <code class="docutils literal notranslate"><span class="pre">mdrun</span></code>’s directory. Required</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code></p></td>
+<td><p>send the GROMACS box as the cell; the default when every atom is QM</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code></p></td>
+<td><p>send no cell, so the deck’s cell holds the QM region; the default with MM atoms</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code></p></td>
+<td><p>add the QM-MM Coulomb energy and forces of <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code> and the MM charges</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">NONE</span></code></p></td>
+<td><p>add nothing; allowed only when no MM atom carries a charge</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span> <span class="pre">q</span> <span class="pre">...</span></code></p></td>
+<td><p>one classical charge per QM atom, in index-group order; required by <code class="docutils literal notranslate"><span class="pre">MECHANICAL</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EWALD_RCUT</span> <span class="pre">r</span></code></p></td>
+<td><p>real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EWALD_PRECISION</span> <span class="pre">p</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">erfc(alpha</span> <span class="pre">rcut)</span> <span class="pre">=</span> <span class="pre">p</span></code>, and the reciprocal cutoff <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">alpha</span> <span class="pre">sqrt(-ln</span> <span class="pre">p)</span></code>; default 10<sup>-8</sup>  as assigned in <code class="docutils literal notranslate"><span class="pre">tools/gromacs/cpmdc_gromacs.c</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code></p></td>
+<td><p>under an MPI GROMACS, every rank of <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> takes part in one cpmdc calculator; the default</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code></p></td>
+<td><p>rank 0 alone runs the QM calculation, the other ranks wait for its result</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Everything outside <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> is checked and otherwise ignored: the method is the
+<code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck, not CP2K’s <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>.
+GROMACS’ generated input (<code class="docutils literal notranslate"><span class="pre">qmmethod</span> <span class="pre">=</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>) has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section
+and is refused.</p>
+<p>The library writes one log, the CP2K output file GROMACS names (<code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code>):
+the cpmdc version, the atom counts, the cell and embedding modes, the number of
+ranks and of QM ranks, the Ewald parameters in Bohr, and, for the first step,
+the backend (<code class="docutils literal notranslate"><span class="pre">opencpmd</span></code>, or <code class="docutils literal notranslate"><span class="pre">reference</span></code> for the evaluator of a build without
+OpenCPMD) and the QM and QM-MM energies.
+A refused input or a failed step prints <code class="docutils literal notranslate"><span class="pre">cpmdc-gromacs:</span></code> and the reason to
+stderr and to that log and stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> with status 1, because the libcp2k API
+returns no errors.</p>
+</section>
+<section id="units">
+<h2>Units<a class="headerlink" href="#units" title="Link to this heading">¶</a></h2>
+<p>cpmdc works in Bohr and Hartree; GROMACS in nm, kJ/mol, and ps. GROMACS’ QM/MM
+module converts with its own constants from
+<code class="docutils literal notranslate"><span class="pre">src/gromacs/math/units.h</span></code> (CODATA 2018), so the library receives Bohr and returns Hartree and Hartree/Bohr.
+<code class="docutils literal notranslate"><span class="pre">cpmdc.gromacs</span></code> reproduces the factors bit for bit:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>GROMACS</p></th>
+<th class="head"><p>cpmdc</p></th>
+<th class="head"><p>Factor</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>length</p></td>
+<td><p>nm</p></td>
+<td><p>Bohr</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BOHR_TO_NM</span></code> = 0.0529177210903</p></td>
+</tr>
+<tr class="row-odd"><td><p>energy</p></td>
+<td><p>kJ/mol</p></td>
+<td><p>Hartree</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HARTREE_TO_KJ_PER_MOL</span></code> = 2625.4996394798673</p></td>
+</tr>
+<tr class="row-even"><td><p>force</p></td>
+<td><p>kJ/(mol nm)</p></td>
+<td><p>Hartree/Bohr</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM</span></code> = 49614.752589206466</p></td>
+</tr>
+<tr class="row-odd"><td><p>virial</p></td>
+<td><p>kJ/mol, <code class="docutils literal notranslate"><span class="pre">-0.5</span> <span class="pre">sum</span> <span class="pre">r</span> <span class="pre">(x)</span> <span class="pre">f</span></code></p></td>
+<td><p>Hartree, stress times volume</p></td>
+<td><p>-0.5 <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_KJ_PER_MOL</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>QM-MM Coulomb</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ONE_4PI_EPS0</span></code> kJ nm/(mol e<sup>2</sup>)</p></td>
+<td><p>e<sup>2</sup>/Bohr = 1</p></td>
+<td><p>the charges are used as they are</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cell-and-positions">
+<h2>Cell and positions<a class="headerlink" href="#cell-and-positions" title="Link to this heading">¶</a></h2>
+<p>GROMACS sends every atom, QM and MM, each step, after putting each into the box.
+GROMACS 2024 and 2025 send the box as
+<code class="docutils literal notranslate"><span class="pre">box_d[3</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">j]</span> <span class="pre">=</span> <span class="pre">box[j][i]</span></code>, and GROMACS 2026 as <code class="docutils literal notranslate"><span class="pre">box_d[3</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">j]</span> <span class="pre">=</span> <span class="pre">box[i][j]</span></code>,
+one lattice vector after the other, which is CP2K’s layout.
+GROMACS’ box is lower triangular, so the two differ only in where the zeros are,
+and the library reads either back as one lattice vector per row, the layout of
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>; any triclinic shape GROMACS accepts passes
+through.</p>
+<p>A wrapped atom jumps by a lattice vector.
+The library unwraps the QM atoms against their positions of the previous step,
+nearest image, so each follows a continuous path and wavefunction extrapolation
+sees smooth steps.
+With <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code> the first step also puts every QM atom at the nearest image of
+the first one, so the QM region starts whole.
+With <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code> cpmdc moves the QM region to the middle of the deck’s cell on
+every step, by its centre of mass, and removes the net force the cell would
+leave (<code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> in
+<a class="reference internal" href="environment.html"><span class="doc">environment variables</span></a>), so the QM energy
+and forces do not depend on where the region has diffused to.
+The cell must still hold the region with room for its density;
+<code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER_MARGIN</span></code> makes a step fail when an atom comes closer to a face
+than that.</p>
+</section>
+<section id="embedding">
+<h2>Embedding<a class="headerlink" href="#embedding" title="Link to this heading">¶</a></h2>
+<p>GROMACS’ CP2K interface assumes electrostatic embedding: grompp zeroes the
+charges of the QM atoms, removes the bonds, angles, and dihedrals within the QM
+group, excludes QM-QM Lennard-Jones, and keeps QM-MM Lennard-Jones and the
+bonded terms that cross the boundary.
+The QM-MM Coulomb interaction is then the QM program’s job [1].</p>
+<p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> provides mechanical embedding.
+<code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code> adds the Coulomb energy of fixed point charges on the QM
+atoms, <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>, with the MM charges of the PDB file, and its forces on both
+sides:</p>
+<ul class="simple">
+<li><p>a periodic box: an Ewald sum with the conventions of GROMACS’ PME, the
+real-space term <code class="docutils literal notranslate"><span class="pre">erfc(alpha</span> <span class="pre">r)/r</span></code> over every image within <code class="docutils literal notranslate"><span class="pre">rcut</span></code>, the
+reciprocal term over <code class="docutils literal notranslate"><span class="pre">k</span></code> up to the cutoff above, and the neutralizing
+background <code class="docutils literal notranslate"><span class="pre">-pi</span> <span class="pre">Q_QM</span> <span class="pre">Q_MM</span> <span class="pre">/</span> <span class="pre">(V</span> <span class="pre">alpha^2)</span></code> of a non-neutral QM or MM part; the
+QM-QM and MM-MM sums are not included, since GROMACS’ PME already has MM-MM
+and the QM charges are zero in GROMACS;</p></li>
+<li><p>no box: the direct sum.</p></li>
+</ul>
+<p>The returned energy is the QM energy plus that Coulomb energy; both appear in
+<code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">En.</span></code>.
+An MD step adds <code class="docutils literal notranslate"><span class="pre">O(N_k</span> <span class="pre">(N_QM</span> <span class="pre">+</span> <span class="pre">N_MM))</span></code> work for the reciprocal sum.</p>
+<p>Not implemented:</p>
+<ul class="simple">
+<li><p>electrostatic embedding: the MM charges do not polarize the QM density.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> takes no external potential, so
+<code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">ELECTROSTATIC</span></code> is refused;</p></li>
+<li><p>link atoms across a QM-MM covalent bond; <code class="docutils literal notranslate"><span class="pre">&amp;LINK</span></code> sections are refused;</p></li>
+<li><p>a relative dielectric constant other than 1 in the QM-MM sum;</p></li>
+<li><p>PDB charges have six decimals, the precision of GROMACS’ file.</p></li>
+</ul>
+</section>
+<section id="qm-virial">
+<h2>QM virial<a class="headerlink" href="#qm-virial" title="Link to this heading">¶</a></h2>
+<p>GROMACS adds the
+QM/MM forces through its <code class="docutils literal notranslate"><span class="pre">ForceWithVirial</span></code> buffer, whose forces enter the virial only through <code class="docutils literal notranslate"><span class="pre">addVirialContribution()</span></code>, and the released QM/MM
+module never calls it (the GROMACS manual notes the missing virial [1]), so an
+unpatched GROMACS reports a pressure without the QM and QM-MM terms.
+The patch makes the module call libcp2k’s <code class="docutils literal notranslate"><span class="pre">cp2k_get_stress_tensor()</span></code> on each
+step that needs the virial, on the main rank only, since GROMACS sums the virial
+over ranks, and add</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">Xi</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">V</span> <span class="o">*</span> <span class="n">HARTREE_TO_KJ_PER_MOL</span>
+</span></pre></div>
+</div>
+<p>in
+kJ/mol, GROMACS’ <code class="docutils literal notranslate"><span class="pre">-0.5</span> <span class="pre">sum</span> <span class="pre">r</span> <span class="pre">(x)</span> <span class="pre">f</span></code> convention. <code class="docutils literal notranslate"><span class="pre">sigma</span></code> is CP2K’s stress, column-major, in Hartree/Bohr<sup>3</sup>,
+positive under compression; <code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">V</span></code> is the virial
+<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">-dE/d(strain)</span></code> of the <a class="reference internal" href="c-abi.html"><span class="doc">C ABI</span></a> and ASE’s
+stress is <code class="docutils literal notranslate"><span class="pre">-sigma</span></code>.
+<code class="docutils literal notranslate"><span class="pre">V</span></code> is the box volume in Bohr<sup>3</sup>.
+With no kinetic energy, GROMACS’ pressure is then <code class="docutils literal notranslate"><span class="pre">sigma</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> returns the strain derivative of the energy it returned, for
+a symmetric strain that moves every atom with the box:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code>: cpmdc’s stress for the cell, from
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code>: the symmetric part of <code class="docutils literal notranslate"><span class="pre">sum</span> <span class="pre">x</span> <span class="pre">(x)</span> <span class="pre">f</span></code> over the QM atoms.
+The QM forces sum to zero, since cpmdc removes the net force of the isolated
+cell, so the sum does not depend on the origin of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+Without that (<code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER=off</span></code>) a QM region at <code class="docutils literal notranslate"><span class="pre">X</span></code> with net force <code class="docutils literal notranslate"><span class="pre">F</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">(x)</span> <span class="pre">F</span></code>, which grows as the region drifts and as the barostat scales it away
+from the origin.
+The grid still leaves a small torque, and a symmetric strain does not see the
+antisymmetric part;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code> with a box: plus the strain derivative of the QM-MM
+Ewald sum, its real-space, reciprocal, and background terms.</p></li>
+</ul>
+<p>It reports the stress as unavailable with no box (<code class="docutils literal notranslate"><span class="pre">pbc</span> <span class="pre">=</span> <span class="pre">no</span></code>), and with
+<code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code> when cpmdc computes no stress: an isolated deck, or
+<code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code>.
+The patched GROMACS then writes once to <code class="docutils literal notranslate"><span class="pre">md.log</span></code> that the QM program returned no
+stress tensor, and the pressure lacks the QM terms; <code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code> logs the
+outcome of the first request.</p>
+</section>
+<section id="several-ranks">
+<h2>Several ranks<a class="headerlink" href="#several-ranks" title="Link to this heading">¶</a></h2>
+<p>A GROMACS built with <code class="docutils literal notranslate"><span class="pre">-DGMX_MPI=ON</span></code> calls <code class="docutils literal notranslate"><span class="pre">cp2k_create_force_env_comm</span></code> on every
+rank, with the Fortran handle of its simulation communicator, and then each step
+sends every rank the positions of all atoms and reads the forces of its home
+atoms back.
+GROMACS refuses separate PME ranks with QM/MM, so every rank of that
+communicator makes each call and the library can use collectives on it.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> is built with MPI when Meson finds MPI for C, the same MPI
+GROMACS is built with, and then:</p>
+<ul class="simple">
+<li><p>duplicates the communicator, so cpmdc’s traffic and error handler stay off
+GROMACS’ own;</p></li>
+<li><p>reads the input and the PDB file on rank 0 and broadcasts the atom counts, the
+QM atoms, and the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message;</p></li>
+<li><p>hands the duplicate to cpmdc with
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code> before the first session, with every rank as one calculator (<code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code>),
+or <code class="docutils literal notranslate"><span class="pre">MPI_COMM_SELF</span></code> on rank 0 (<code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code>).
+It does so on one rank too: GROMACS has started MPI, and OpenCPMD sets up a
+communicator only when it starts MPI itself;</p></li>
+<li><p>each step broadcasts rank 0’s positions and box, so every QM rank evaluates
+identical input whatever GROMACS’ decomposition, adds the embedding on rank 0,
+and broadcasts rank 0’s energy and forces.</p></li>
+</ul>
+<p>The forces GROMACS reads are therefore identical on every rank, and domain
+decomposition changes which rank applies a force, not its value, including for
+QM molecules whose atoms sit in different domains.
+With <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code>, or the reference evaluator, the QM forces are those of a
+one-rank run; with OpenCPMD on several ranks they differ from them by the order
+of its parallel sums (see
+<a class="reference internal" href="../explanation/md-engines.html"><span class="doc">the OpenCPMD runs</span></a>).
+GROMACS reads the energy on its main rank only, so <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">En.</span></code> counts it once.</p>
+<p>A library built without MPI stops a <code class="docutils literal notranslate"><span class="pre">cp2k_create_force_env_comm</span></code> call with the
+reason.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p>GROMACS manual,
+<a class="reference external" href="https://manual.gromacs.org/2025.5/reference-manual/special/qmmm.html">Hybrid Quantum-Classical simulations (QM/MM) with CP2K interface</a>;
+source <code class="docutils literal notranslate"><span class="pre">src/gromacs/applied_forces/qmmm/</span></code> of GROMACS 2024.6, 2025.5, and
+2026.4.</p></li>
+</ol>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="python.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Python API</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="lammps.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">LAMMPS interface reference</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

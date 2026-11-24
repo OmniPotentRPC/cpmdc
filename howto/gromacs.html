@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run GROMACS on cpmdc forces - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run under mpirun" href="mpi.html" /><link rel="prev" title="Run LAMMPS on cpmdc forces" href="lammps.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/gromacs.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/gromacs.html"/>
+  <meta property="og:title" content="Run GROMACS on cpmdc forces"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#build">Build</a></li>
+<li><a class="reference internal" href="#set-up-a-run">Set up a run</a></li>
+<li><a class="reference internal" href="#pressure-and-npt">Pressure and NPT</a></li>
+<li><a class="reference internal" href="#several-ranks">Several ranks</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/gromacs.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Run GROMACS on cpmdc forces</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/howto/gromacs.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/howto/gromacs.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/howto/gromacs.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/gromacs.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/gromacs.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="run-gromacs-on-cpmdc-forces">
+<h1>Run GROMACS on cpmdc forces<a class="headerlink" href="#run-gromacs-on-cpmdc-forces" title="Link to this heading">¶</a></h1>
+<p>GROMACS can integrate on cpmdc energies and forces in process, for a QM group
+that is part of the system or all of it.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> implements the libcp2k C API that GROMACS’ CP2K QM/MM interface calls, and answers each call with one <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>
+of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>. GROMACS links it in place of
+CP2K, so <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> needs no extra process and no socket. Energies and forces need
+no change to GROMACS’ source; the QM virial, and so the pressure and NPT, needs
+a short patch to GROMACS’ QM/MM module (see <a class="reference internal" href="#pressure-and-npt">Pressure and NPT</a>).</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Route</p></th>
+<th class="head"><p>GROMACS side</p></th>
+<th class="head"><p>Needs</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code></p></td>
+<td><p>the CP2K QM/MM interface, <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-*</span></code> mdp options</p></td>
+<td><p>GROMACS 2024 or later built with <code class="docutils literal notranslate"><span class="pre">-DGMX_DOUBLE=ON</span> <span class="pre">-DGMX_CP2K=ON</span></code> against cpmdc’s <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The <a class="reference internal" href="../reference/gromacs.html"><span class="doc">GROMACS interface reference</span></a> lists the
+input keys, units, cell, embedding, and virial conventions, and <a class="reference internal" href="../explanation/md-engines.html"><span class="doc">cpmdc inside MD engines</span></a>
+explains why this route and reports runs on OpenCPMD.</p>
+<p>The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the three
+call the same libcp2k functions, and 2026 adds <code class="docutils literal notranslate"><span class="pre">cp2k_get_positions</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cp2k_get_version</span></code>, which the library provides.
+The MPI build, the installed library, the OpenCPMD backend, and the virial patch
+were checked with 2025.5; the 2024.6 and 2026.4 patches apply and their QM/MM
+sources compile.</p>
+<section id="build">
+<h2>Build<a class="headerlink" href="#build" title="Link to this heading">¶</a></h2>
+<p>Meson builds <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs.so</span></code> with <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_gromacs_shim=auto</span></code>,
+the default; it is off for the Python wheel build) and writes
+<code class="docutils literal notranslate"><span class="pre">build/tools/gromacs/pkgconfig/libcp2k.pc</span></code>, which points GROMACS at the library
+and at <code class="docutils literal notranslate"><span class="pre">tools/gromacs/libcp2k.h</span></code>.
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">install</span></code> puts the library in <code class="docutils literal notranslate"><span class="pre">LIBDIR</span></code>, the header in
+<code class="docutils literal notranslate"><span class="pre">include/cpmdc/gromacs</span></code>, and the <code class="docutils literal notranslate"><span class="pre">.pc</span></code> file in <code class="docutils literal notranslate"><span class="pre">LIBDIR/cpmdc/gromacs/pkgconfig</span></code>,
+apart from cpmdc’s own <code class="docutils literal notranslate"><span class="pre">cpmdc.pc</span></code>, so that <code class="docutils literal notranslate"><span class="pre">libcp2k</span></code> is found only where asked
+for.</p>
+<p>GROMACS’
+<code class="docutils literal notranslate"><span class="pre">cmake/gmxManageCP2K.cmake</span></code> requires <code class="docutils literal notranslate"><span class="pre">CP2K_DIR</span></code>, prepends <code class="docutils literal notranslate"><span class="pre">CP2K_DIR/pkgconfig</span></code>
+to <code class="docutils literal notranslate"><span class="pre">PKG_CONFIG_PATH</span></code>, and reads <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> there, so pass the directory above
+<code class="docutils literal notranslate"><span class="pre">pkgconfig</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">patch</span></code> line adds the QM virial; <code class="docutils literal notranslate"><span class="pre">qmmm-virial-2024.patch</span></code> is for 2024.6 and
+2025.5, <code class="docutils literal notranslate"><span class="pre">qmmm-virial-2026.patch</span></code> for 2026.4.
+Without it GROMACS builds and runs NVE and NVT as before:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
+</span><span data-line="2">patch<span class="w"> </span>-p1<span class="w"> </span>-d<span class="w"> </span>gromacs-2025.5<span class="w"> </span>&lt;<span class="w"> </span>tools/gromacs/patches/qmmm-virial-2024.patch
+</span><span data-line="3">cmake<span class="w"> </span>-S<span class="w"> </span>gromacs-2025.5<span class="w"> </span>-B<span class="w"> </span>build-gmx<span class="w"> </span>-G<span class="w"> </span>Ninja<span class="w"> </span>-DGMX_DOUBLE<span class="o">=</span>ON<span class="w"> </span>-DGMX_MPI<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">  </span>-DGMX_CP2K<span class="o">=</span>ON<span class="w"> </span>-DCP2K_DIR<span class="o">=</span><span class="nv">$PWD</span>/build/tools/gromacs
+</span><span data-line="5">cmake<span class="w"> </span>--build<span class="w"> </span>build-gmx<span class="w"> </span>--target<span class="w"> </span>install
+</span></pre></div>
+</div>
+<p>From an installed cpmdc:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$PWD</span>/build/prefix<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
+</span><span data-line="2">meson<span class="w"> </span>install<span class="w"> </span>-C<span class="w"> </span>build
+</span><span data-line="3"><span class="nv">cp2k_dir</span><span class="o">=</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/prefix<span class="w"> </span>-path<span class="w"> </span><span class="s1">&#39;*/cpmdc/gromacs/pkgconfig/libcp2k.pc&#39;</span><span class="k">)</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span><span class="k">)</span>
+</span><span data-line="4">patch<span class="w"> </span>-p1<span class="w"> </span>-d<span class="w"> </span>gromacs-2025.5<span class="w"> </span>&lt;<span class="w"> </span>tools/gromacs/patches/qmmm-virial-2024.patch
+</span><span data-line="5">cmake<span class="w"> </span>-S<span class="w"> </span>gromacs-2025.5<span class="w"> </span>-B<span class="w"> </span>build-gmx<span class="w"> </span>-G<span class="w"> </span>Ninja<span class="w"> </span>-DGMX_DOUBLE<span class="o">=</span>ON<span class="w"> </span>-DGMX_MPI<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">  </span>-DGMX_CP2K<span class="o">=</span>ON<span class="w"> </span>-DCP2K_DIR<span class="o">=</span><span class="nv">$cp2k_dir</span>
+</span></pre></div>
+</div>
+<p>The installed <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> gives <code class="docutils literal notranslate"><span class="pre">-L</span></code>, <code class="docutils literal notranslate"><span class="pre">-Wl,-rpath</span></code> and the two libraries in
+<code class="docutils literal notranslate"><span class="pre">Libs</span></code>, and <code class="docutils literal notranslate"><span class="pre">-I</span></code> for <code class="docutils literal notranslate"><span class="pre">include/cpmdc/gromacs</span></code> in <code class="docutils literal notranslate"><span class="pre">Cflags</span></code>, so any pkg-config
+consumer compiles, links and runs against it with no further flags.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> records <code class="docutils literal notranslate"><span class="pre">$ORIGIN</span></code> on Linux and <code class="docutils literal notranslate"><span class="pre">&#64;loader_path</span></code> on macOS, so
+it opens <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> from its own directory after the prefix is moved. The
+installed library does not keep the build tree or the original prefix in
+<code class="docutils literal notranslate"><span class="pre">RPATH</span></code> or <code class="docutils literal notranslate"><span class="pre">RUNPATH</span></code>.
+GROMACS takes only the library names, directories, and include directories from
+it, not the <code class="docutils literal notranslate"><span class="pre">-Wl,-rpath</span></code>; it finds the library at run time because it records
+the directories it linked from as its run path
+(<code class="docutils literal notranslate"><span class="pre">CMAKE_INSTALL_RPATH_USE_LINK_PATH</span></code>).
+Either way <code class="docutils literal notranslate"><span class="pre">libgromacs</span></code> names the build tree or the prefix it was built against,
+and a GROMACS built against one does not follow the library to the other.</p>
+<p><code class="docutils literal notranslate"><span class="pre">scripts/ci/build_gromacs_cpmdc.sh</span> <span class="pre">VERSION</span> <span class="pre">PREFIX</span> <span class="pre">CP2K_DIR</span> <span class="pre">[thread-mpi|mpi]</span></code> downloads a pinned GROMACS release, checks its SHA-256, applies the virial patch for that release, builds it this way (<code class="docutils literal notranslate"><span class="pre">mpi</span></code>: <code class="docutils literal notranslate"><span class="pre">-DGMX_MPI=ON</span></code>
+with <code class="docutils literal notranslate"><span class="pre">mpicc</span></code>, <code class="docutils literal notranslate"><span class="pre">mpicxx</span></code> and <code class="docutils literal notranslate"><span class="pre">mpifort</span></code> from <code class="docutils literal notranslate"><span class="pre">PATH</span></code>), and checks that <code class="docutils literal notranslate"><span class="pre">libgromacs</span></code>
+resolves <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> to the <code class="docutils literal notranslate"><span class="pre">libdir</span></code> of that <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code>.</p>
+<p>With OpenCPMD linked, GROMACS must use the BLAS and LAPACK <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links:
+GROMACS’ bundled ones (<code class="docutils literal notranslate"><span class="pre">-DGMX_EXTERNAL_BLAS=OFF</span></code>) export <code class="docutils literal notranslate"><span class="pre">dgemm_</span></code> and the rest
+from <code class="docutils literal notranslate"><span class="pre">libgromacs</span></code>, OpenCPMD’s calls bind to them, and its nonlocal
+pseudopotential forces come out wrong (see <a class="reference internal" href="troubleshooting.html"><span class="doc">Troubleshooting</span></a>).
+The script passes <code class="docutils literal notranslate"><span class="pre">-DGMX_EXTERNAL_BLAS=ON</span> <span class="pre">-DGMX_EXTERNAL_LAPACK=ON</span></code> and the BLAS
+of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> when <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links one, and
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> when it finds <code class="docutils literal notranslate"><span class="pre">dgemm_</span></code> in <code class="docutils literal notranslate"><span class="pre">libgromacs</span></code> with
+OpenCPMD linked.</p>
+<p>Build GROMACS in double precision.
+Its QM/MM module stores cpmdc’s forces as <code class="docutils literal notranslate"><span class="pre">real</span></code>, which is <code class="docutils literal notranslate"><span class="pre">float</span></code> in a
+mixed-precision build, and the 1e-10 agreement below holds only for <code class="docutils literal notranslate"><span class="pre">gmx_d</span></code>.</p>
+</section>
+<section id="set-up-a-run">
+<h2>Set up a run<a class="headerlink" href="#set-up-a-run" title="Link to this heading">¶</a></h2>
+<p>The QM group is an index group; <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmmethod</span> <span class="pre">=</span> <span class="pre">INPUT</span></code> makes grompp take
+the cpmdc settings from the file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code>:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">qmmm-cp2k-active      = true
+</span><span data-line="2">qmmm-cp2k-qmgroup     = QM
+</span><span data-line="3">qmmm-cp2k-qmmethod    = INPUT
+</span><span data-line="4">qmmm-cp2k-qmcharge    = 0
+</span><span data-line="5">qmmm-cp2k-qmmultiplicity = 1
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.gromacs.write_qmi()</span></code> writes that file; <code class="docutils literal notranslate"><span class="pre">qmi_input()</span></code> returns its text:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.gromacs</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_qmi</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="n">write_qmi</span><span class="p">(</span><span class="s2">&quot;cpmdc.inp&quot;</span><span class="p">,</span> <span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="n">embedding</span><span class="o">=</span><span class="s2">&quot;MECHANICAL&quot;</span><span class="p">,</span>
+</span><span data-line="4">          <span class="n">qm_charges</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">0.834</span><span class="p">,</span> <span class="mf">0.417</span><span class="p">,</span> <span class="mf">0.417</span><span class="p">])</span>
+</span></pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">gmx_d<span class="w"> </span>grompp<span class="w"> </span>-f<span class="w"> </span>md.mdp<span class="w"> </span>-c<span class="w"> </span>conf.gro<span class="w"> </span>-p<span class="w"> </span>topol.top<span class="w"> </span>-n<span class="w"> </span>index.ndx<span class="w"> </span>-qmi<span class="w"> </span>cpmdc.inp<span class="w"> </span>-o<span class="w"> </span>md.tpr
+</span><span data-line="2">gmx_d<span class="w"> </span>mdrun<span class="w"> </span>-deffnm<span class="w"> </span>md<span class="w"> </span>-ntmpi<span class="w"> </span><span class="m">1</span>
+</span></pre></div>
+</div>
+<p>The file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code> holds a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside
+<code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code>: <code class="docutils literal notranslate"><span class="pre">PARAMS</span></code> names the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message, <code class="docutils literal notranslate"><span class="pre">CELL</span></code> and <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span></code> choose the cell and the QM-MM Coulomb term, <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>
+gives the QM atoms’ classical charges, and <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span></code> the ranks of an MPI
+GROMACS.
+The <a class="reference internal" href="../reference/gromacs.html"><span class="doc">reference</span></a> lists every key and what the
+library writes to <code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code>.
+GROMACS’ own generated input (<code class="docutils literal notranslate"><span class="pre">qmmethod</span> <span class="pre">=</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>) has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code>
+section and is refused.</p>
+</section>
+<section id="pressure-and-npt">
+<h2>Pressure and NPT<a class="headerlink" href="#pressure-and-npt" title="Link to this heading">¶</a></h2>
+<p>NPT works with a GROMACS patched as in <a class="reference internal" href="#build">Build</a>.
+The QM virial is the full tensor, in a cubic or triclinic box, so C-rescale,
+Parrinello-Rahman, and the other barostats see the QM part of the pressure
+whatever coupling type they use; the runs in <a class="reference internal" href="../explanation/md-engines.html"><span class="doc">the OpenCPMD runs</span></a>
+use isotropic C-rescale and Parrinello-Rahman.</p>
+<p>An unpatched GROMACS reports a pressure without the QM and QM-MM terms.
+The <a class="reference internal" href="../reference/gromacs.html"><span class="doc">reference</span></a> gives the virial the library
+returns in each cell mode, and when it reports none.</p>
+<p>An NPT mdp adds the barostat to the QM/MM settings above, for example:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">integrator       = md
+</span><span data-line="2">tcoupl           = v-rescale
+</span><span data-line="3">tc-grps          = System
+</span><span data-line="4">tau-t            = 0.1
+</span><span data-line="5">ref-t            = 300
+</span><span data-line="6">pcoupl           = C-rescale
+</span><span data-line="7">pcoupltype       = isotropic
+</span><span data-line="8">tau-p            = 0.5
+</span><span data-line="9">ref-p            = 1.0
+</span><span data-line="10">compressibility  = 4.5e-5
+</span></pre></div>
+</div>
+<p>Two cautions:</p>
+<ul class="simple">
+<li><p>with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code>, each new box is a new setup of the deck at its cutoff,
+so the plane-wave basis changes with the box.
+OpenCPMD’s stress is the derivative at a fixed basis and carries the Pulay
+stress of that cutoff, so set <code class="docutils literal notranslate"><span class="pre">constantCutoff</span> <span class="pre">=</span> <span class="pre">[A,</span> <span class="pre">sigma,</span> <span class="pre">E0]</span></code> in the
+<code class="docutils literal notranslate"><span class="pre">system</span></code> section of the message for a periodic NPT run, as <a class="reference internal" href="constant-cutoff.html"><span class="doc">relax a cell at a constant cutoff</span></a>
+shows;</p></li>
+<li><p>with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code> the deck’s cell has to hold the QM region and its density,
+not the region’s path: cpmdc centres the region in it on each step.</p></li>
+</ul>
+</section>
+<section id="several-ranks">
+<h2>Several ranks<a class="headerlink" href="#several-ranks" title="Link to this heading">¶</a></h2>
+<p>A thread-MPI GROMACS runs
+QM/MM on one rank: pass <code class="docutils literal notranslate"><span class="pre">-ntmpi</span> <span class="pre">1</span></code>, because GROMACS refuses more thread-MPI ranks with QM/MM.</p>
+<p>For more ranks, build GROMACS with
+<code class="docutils literal notranslate"><span class="pre">-DGMX_MPI=ON</span></code> against the MPI that <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> links
+(<code class="docutils literal notranslate"><span class="pre">scripts/ci/build_gromacs_cpmdc.sh</span></code> with <code class="docutils literal notranslate"><span class="pre">mpi</span></code>), and do not ask for separate
+PME ranks, which GROMACS refuses with QM/MM.
+Then choose <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code>, the default, runs one cpmdc calculator on every rank of
+<code class="docutils literal notranslate"><span class="pre">mdrun</span></code>; with OpenCPMD the forces differ from a one-rank run by the order of
+its parallel sums;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code> runs the QM calculation on rank 0 alone and matches a one-rank
+run to 1e-10, at the SCF time of one rank.</p></li>
+</ul>
+<p>A <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> built without MPI stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> on an MPI GROMACS with the
+reason.
+The <a class="reference internal" href="../reference/gromacs.html"><span class="doc">reference</span></a> describes how the library
+shares each step across the ranks.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="lammps.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Run LAMMPS on cpmdc forces</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="mpi.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Run under mpirun</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

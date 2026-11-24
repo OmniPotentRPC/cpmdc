@@ -4,25 +4,64 @@ Call cpmdc from Python
 
 
 The Python package in ``python/cpmdc`` is a handle around one ``CPMDCSession``.
-It loads ``libcpmdc`` with ``ctypes``. Positions are Angstrom.
-``Session`` returns Hartree and Hartree/Bohr, the native units of the C ABI.
+It loads ``libcpmdc`` with ``ctypes``.
+Positions are Angstrom.
+``Session`` returns the native units of the C ABI: Hartree for energies and
+Hartree per Bohr for forces.
 ``Potential`` returns eV and eV/Angstrom so an rgpot calculator can call
 ``evaluate`` and ``caps`` without importing cpmdc's ASE module.
+``CPMDCCalculator`` in ``cpmdc.ase`` is an ASE calculator over the same session.
+``Session.calculate_au`` takes Bohr and returns the virial as well, and
+``cpmdc.lammps`` drives LAMMPS with it (see
+:doc:`Run LAMMPS on cpmdc forces <lammps>`).
 
 Load the library
 ----------------
 
-Set ``CPMDC_LIBRARY`` to the shared library, or pass the path to ``Session``.
-The search is the rgpot order: an explicit path, then ``CPMDC_LIBRARY``,
-``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``.
-A periodic cell is encoded as ``ForceInput``, so set ``CPMDC_SCHEMA`` to
-``schema/Potentials.capnp`` or pass that path as ``schema``.
+``pip install "cpmdc[ase]"`` installs the package with its own ``libcpmdc`` and
+schema; the :doc:`install page <install>` lists the wheels.
+The wheel's library is the reference evaluator, a harmonic well about the
+origin, so ``Session.available()`` is false until ``CPMDC_LIBRARY`` names an
+OpenCPMD build.
+From a checkout, set ``CPMDC_LIBRARY`` to ``build/libcpmdc.so`` and ``PYTHONPATH`` to
+``python``, or pass the library path as ``library``.
+The search is the rgpot order: an explicit path, then
+``CPMDC_LIBRARY``, ``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``, then the wheel's
+library, then ``libcpmdc`` from the dynamic linker, then ``build/libcpmdc.so`` in
+the working directory.
+An environment variable counts only when it names an existing file.
+A periodic cell needs nothing more: the package encodes each step as a
+``ForceInput`` message itself.
+
+Make a parameters file
+----------------------
+
+Every session starts from a serialized ``CPMDParams`` message.
+:doc:`Write a CPMDParams message <write-cpmdparams>` explains the text
+form.
+The ``capnp`` command encodes it against ``schema/Potentials.capnp``;
+``find_schema`` returns the copy in the wheel, or ``CPMDC_SCHEMA`` when set.
+These commands encode the cluster and the periodic water messages of a checkout
+at ``$CPMDC`` into the working directory:
+
+.. code:: bash
+
+    schema=$(python3 -c "import cpmdc; print(cpmdc.find_schema())")
+    capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_params.capnp.txt" > water.params.bin
+    capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_periodic_params.capnp.txt" > water.periodic.bin
+
+The first message is an isolated molecule (``SYMMETRY 0`` and the Hockney Poisson
+solver).
+The second is a simple cubic cell (``SYMMETRY 1``), which gives a stress tensor.
+
+Evaluate a step
+---------------
 
 .. code:: python
 
     from cpmdc import Session
 
-    with Session(open("water.params.bin", "rb").read(), library="build/libcpmdc.so") as session:
+    with Session("water.params.bin") as session:
         done = session.energy_forces(
             [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]],
             [8, 1, 1],
@@ -30,60 +69,55 @@ A periodic cell is encoded as ``ForceInput``, so set ``CPMDC_SCHEMA`` to
     print(done.energy_h, done.forces_h_bohr)
 
 An empty buffer, a message that is not ``CPMDParams``, a missing library, a
-non-finite coordinate, or an atomic number outside 1..118 raises
-``CpmdcError`` or ``ValueError``. None of those calls abort the process.
+non-finite coordinate, or an atomic number outside 1..118 raises ``CPMDCError`` or
+``ValueError``.
+None of those calls abort the process.
+A call on a closed ``Session`` raises ``CPMDCError``.
+``CpmdcError``, the name of that class up to 0.4.0, still works but warns with
+``DeprecationWarning``; catch ``CPMDCError`` instead.
 ``find_library`` and ``find_schema`` resolve the two paths.
-``HARTREE_TO_EV`` and ``BOHR_TO_ANGSTROM`` are the conversion constants from
-the C sources. ``forces_to_ev_per_angstrom`` and
-``stress_to_ev_per_angstrom3`` apply them.
-``Evaluation`` is the native result: ``energy_h``, ``forces_h_bohr``, and
-``stress_h_bohr3`` when a periodic cell was computed.
+``HARTREE_TO_EV`` and ``BOHR_TO_ANGSTROM`` are the conversion constants from the C
+sources.
+``forces_to_ev_per_angstrom``, ``stress_to_ev_per_angstrom3``, and
+``dipole_to_e_angstrom`` apply them.
+``Evaluation`` is the native result:
+``energy_h``, ``forces_h_bohr``, optional ``stress_h_bohr3``, and optional
+``dipole_e_bohr``.
+A session is not shared across threads, because the C library keeps the active
+calculator in process globals.
+The ``schema`` argument of ``Session``, ``Potential``, and ``CPMDCCalculator`` is
+deprecated and ignored, and passing it warns with ``DeprecationWarning``.
 
 Use it as an rgpot provider
 ---------------------------
 
-``Potential.evaluate(positions, numbers, box)`` returns ``energy`` in eV,
-``forces`` in eV/Angstrom, and ``stress`` as nine row-major eV/Angstrom\ :sup:`3`\
-components when the library computed a tensor.
+``Potential.evaluate(positions, numbers, box)`` returns ``energy`` in eV, ``forces``
+in eV/Angstrom, and ``stress`` as nine row-major eV/Angstrom\ :sup:`3`  components when the
+library computed a tensor.
+It returns ``dipole`` as three e\*Angstrom components only when OpenCPMD recomputed
+the molecular moment for that step.
 ``Potential.caps`` returns ``stress=True`` and ``energies=False``.
-An rgpot ``RgpotCalculator`` accepts any object with those two methods, so
-this provider can sit behind it.
+It returns ``dipole=True`` only when the evaluator can produce a dipole: never for
+the reference evaluator, and for OpenCPMD until an evaluation comes back
+without one, because a deck without ``DIPOLE DYNAMICS`` or ``PROP / DIPOLE MOMENT BERRY`` produces none.
+The Berry-phase dipole exists only for a neutral periodic cell and only modulo
+the lattice quantum, so it can jump by a lattice vector between geometries.
+An rgpot ``RgpotCalculator`` accepts any object with those two methods, so this
+provider can sit behind it.
 
 .. code:: python
 
     from cpmdc import Potential
 
-    with Potential(open("water.params.bin", "rb").read()) as pot:
+    with Potential("water.params.bin") as pot:
         print(pot.caps())
         print(pot.evaluate([[0.0, 0.0, 0.0], [0.0, 0.0, 0.98]], [8, 1]))
 
-Use it as an ASE calculator
----------------------------
+Use it from ASE
+---------------
 
-``CPMDCCalculator`` is an ASE ``Calculator``. Energy and free energy are eV
-and are the same value. Forces are eV/Angstrom. Stress, when the cell is
-fully periodic, is Voigt order ``(xx, yy, zz, yz, xz, xy)`` in eV/Angstrom\ :sup:`3`\.
-A cluster omits the cell. A mixed periodic flag raises ``ValueError`` and
-names the open axes.
-
-The smallest program is ``examples/python/ase_energy.py``. The
-:doc:`ASE tutorial <../tutorials/ase-energy>` runs it.
-``examples/python/energy.py`` is the same step without ASE, in Hartree.
-
-The reference harmonic well drawn by ``docs/render_reference_well.py`` is
-the shape of an isolated one-atom step at a 70 Ry cutoff:
-
-.. figure:: /_static/reference-well.svg
-   :alt: Reference harmonic well, energy against displacement
-
-   Reference well for one hydrogen atom. The script writes this figure
-   from the evaluator formula.
-
-The curve is zero at the origin and rises on both sides.
-
-One session, one composition
-----------------------------
-
-The first successful step fixes the atom count and the elemental
-composition. A later step with a different composition needs a new
-``Session``. The handle is not shared across threads.
+``cpmdc.ase.CPMDCCalculator(params, library=None)`` is an ASE calculator over the
+same library, in eV and Angstrom.
+:doc:`Use cpmdc as an ASE calculator <ase>` shows it on a molecule, on a
+periodic cell, and in relaxations, and lists its properties, units, caching
+rules, working directory, and errors.

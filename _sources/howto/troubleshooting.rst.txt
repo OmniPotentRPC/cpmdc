@@ -32,8 +32,8 @@ The system is treated as isolated
 keyword, ``POISSON SOLVER HOCKNEY``, or a zero box.
 A typed ``system`` section that leaves ``symmetry`` at 0 still adds the Hockney
 solver, including when the box has a positive volume.
-A message with no ``system`` section takes its symmetry from the box on the
-force call.
+A message with no ``system`` section takes its symmetry from the box on the force
+call.
 
 **Fix:** write ``symmetry`` and ``cell`` when the system is periodic, and
 ``poissonSolver`` when it is isolated on purpose.
@@ -42,6 +42,21 @@ scalar keys (see :doc:`the eOn tutorial <../tutorials/eon-rgpot>`).
 A scalar message with a positive cell is periodic.
 Put ``poissonSolver = "HOCKNEY"`` or ``symmetry = 0`` in the message when the
 molecule is isolated.
+
+The energy of a cluster depends on where its atoms are
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Cause:** ``CPMDC_RECENTER=off`` on an isolated deck.
+The deck's cell has its origin at a corner and a fixed size, so atoms near a
+face, or outside the cell, put density across the face: the energy moves, by up
+to 8e-2 Hartree for one water, the forces gain a net force, and a virial built
+from ``sum x (x) f`` shifts by the position times that force.
+
+**Fix:** leave ``CPMDC_RECENTER`` unset (``mass``), or set it to ``geometry``, which
+moves the atoms to the middle of the cell on each call.
+Set ``CPMDC_RECENTER_MARGIN`` to the clearance the density needs, for example 3
+Angstrom, to make a cell that is too small for the region fail instead (see
+:doc:`environment variables <../reference/environment>`).
 
 The energy changes when only the cell changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,6 +68,9 @@ The energy is then that of a fresh SCF in the new cell.
 **Fix:** none needed when the cell change is intended.
 Keep ``ForceInput.box`` identical between steps when the cell is fixed; a
 difference above 1e-8 Angstrom in any component counts as a change.
+A constant-cutoff deck under ``CPMDC_CELL_IN_PLACE`` keeps the plane waves and the
+orbitals of the setup cell through a small change instead, so its energy moves
+smoothly with the cell between setups.
 
 Failed calls
 ------------
@@ -63,8 +81,8 @@ Failed calls
 **Cause:** the SCF stopped at ``MAXITER`` before reaching the orbital convergence
 threshold.
 OpenCPMD computes ionic forces only for converged orbitals, so the forces of
-such a call are zero, which a caller would read as a stationary point;
-``cpmdc`` reports the call as failed instead, with ``ok == 0``.
+such a call are zero, which a caller would read as a stationary point; ``cpmdc``
+reports the call as failed instead, with ``ok == 0``.
 Without ``maxIter`` in the message the OpenCPMD path inserts ``MAXITER 40``.
 
 The same message has one other cause visible before the SCF starts:
@@ -78,20 +96,21 @@ The same message has one other cause visible before the SCF starts:
     +--------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------+
 
 **Fix:** raise ``maxIter``, or switch the optimiser (see
-:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise put
-that element's pseudopotential in the message, or use an element the built-in
-table knows.
+:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise put that
+element's pseudopotential in the message, or use an element the built-in table
+knows.
 
 A missing pseudopotential directory is a different message.
-When neither ``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names a directory,
-``CPMDCResult.message`` and ``cpmdc_last_error()`` say so.
+When neither ``CPMDC_PSEUDO_DIR`` nor
+``CPMD_PP_LIBRARY_PATH`` names a directory, ``CPMDCResult.message`` and ``cpmdc_last_error()``
+say so.
 
 Atoms of one element need not be contiguous in ``ForceInput``.
 CPMD keeps one species block per element.
-``cpmdc`` places the step's positions into those blocks and copies the forces
-back into ``ForceInput`` order.
-A step whose atomic numbers do not match the species counts still fails, and
-the message names the species blocks rather than ``MAXITER``.
+``cpmdc`` places the step's positions into those blocks and copies the forces back
+into ``ForceInput`` order.
+A step whose atomic numbers do not match the species counts still fails, and the
+message names the species blocks rather than ``MAXITER``.
 
 ``CPMD stopgm during embed SCF``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,26 +118,26 @@ the message names the species blocks rather than ``MAXITER``.
 **Cause:** CPMD called ``stopgm``, its fatal-error routine, inside the call.
 With ``opencpmd_stopgm_return.patch`` in the archive, ``stopgm`` calls
 ``cpmd_stopgm_hook``.
-While an evaluation is armed the catch records the stop code and returns 1,
-so ``stopgm`` returns to its caller, and ``cpmdc`` returns ``ok == 0`` instead of
-ending the host.
-CPMD writes its reason to a ``LocalError-*.log`` file in the working directory
-of that moment.
-That is ``permanentDir``, or ``scratchDir`` when no permanent directory is set,
-or the host working directory.
+While an evaluation is armed the catch records the stop code and returns 1, so
+``stopgm`` returns to its caller, and ``cpmdc`` returns ``ok == 0`` instead of ending
+the host.
+CPMD writes its reason to a ``LocalError-*.log`` file in the working directory of
+that moment.
+That is ``permanentDir``, or ``scratchDir`` when no permanent directory is set, or
+the host working directory.
 
 **Fix:** read the ``LocalError`` file in that directory.
 The wavefunction, forces, and module state of that call are undefined.
-``cpmdc`` drops the stored orbitals and the warm cell, and the next call on
-the same session sets CPMD up again.
+``cpmdc`` drops the stored orbitals and the warm cell, and the next call on the
+same session sets CPMD up again.
 With more than one MPI rank, ``cpmdc`` aborts the other ranks, which would
 otherwise stay blocked in the call ``stopgm`` returned from.
 
 ``topology change requires a new session``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Cause:** the first successful step of a session fixes the atom count and the
-elemental composition.
+**Cause:** ``session_accept_topology`` fixes the topology after an evaluation call
+passes its argument checks and collective orbital preflight.
 A later step with a different count or composition is refused before CPMD runs.
 A reordering of the same elements stays on the session.
 
@@ -134,14 +153,31 @@ A different elemental composition runs setup.
 
 **Fix:** allocate ``cpmdc_potential_result_size_for_force_input()`` bytes.
 
+``invalid ForceInput result units``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Cause:** the ``lengthUnit`` or ``energyUnit`` of the ``ForceInput`` is not a unit
+string ``cpmdc`` knows.
+The call fails before it evaluates.
+
+**Fix:** use one of the unit strings of the
+:doc:`C ABI reference <../reference/c-abi>`, such as ``angstrom``, ``bohr``,
+``eV``, or ``hartree``; case does not matter.
+
 ``CPMD embed not available``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Cause:** the library was finalized with ``cpmdc_finalize()``, or the session
-could not apply its configuration.
+**Cause:** the library was finalized with ``cpmdc_finalize()``, or the session could
+not apply its configuration.
 
-**Fix:** call ``cpmdc_finalize()`` only at shutdown; check the message with
-``CPMDC_DECK_OUT`` for a rendering failure.
+**Fix:** call
+``cpmdc_finalize()`` only at shutdown; check the message with ``CPMDC_DECK_OUT`` for
+a rendering failure.
+After a finalize, a session evaluation that repeats the step the session stored
+last still returns 0 from its cache, so only a new step fails with this text.
+The link stub never evaluates; its text is
+``OpenCPMD embed not available in cpmdc stub`` followed by the function's name in
+parentheses, and linking ``libcpmdc`` instead fixes it.
 
 Forces
 ------
@@ -149,20 +185,37 @@ Forces
 Forces are all zero with a finite energy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Cause:** the OpenCPMD archive lacks ``opencpmd_embed_rwfopt.patch``, so ``fion``
-is deallocated before ``cpmdc`` reads it.
+**Cause:** the OpenCPMD archive lacks ``opencpmd_embed_rwfopt.patch``, so ``fion`` is
+deallocated before ``cpmdc`` reads it.
 
 **Fix:** apply the patches in ``tools/`` and rebuild the archive (see
 :doc:`building the archive <opencpmd-archive>`).
-A symmetric cluster at a stationary geometry also gives zero forces; displace
-an atom to tell the two apart.
+A symmetric cluster at a stationary geometry also gives zero forces; displace an
+atom to tell the two apart.
+
+Forces on atoms with nonlocal projectors are wrong inside a host program
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Cause:** the host exports its own BLAS or LAPACK.
+OpenCPMD's calls to ``dgemm_`` and the rest bind to the first definition in the
+process, which is then the host's, not the BLAS ``libcpmdc`` links.
+A GROMACS built with its bundled BLAS and LAPACK (``-DGMX_EXTERNAL_BLAS=OFF``) is
+one: inside its ``mdrun`` the force on the oxygen of a BLYP water came out as
+-2.79 Hartree/Bohr along z instead of +0.0223, while the energy and the hydrogen
+forces, which have no nonlocal part, were unchanged.
+
+**Fix:** build the host against the BLAS ``libcpmdc`` links.
+``libcpmdc_gromacs`` stops ``mdrun`` with ``dgemm_ resolves to .../libgromacs...`` when OpenCPMD is linked, and ``scripts/ci/build_gromacs_cpmdc.sh``
+builds GROMACS against the BLAS of ``libcpmdc`` (see
+:doc:`GROMACS <gromacs>`).
 
 Ranks disagree about forces under mpirun
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Cause:** only CPMD's parent rank holds the calculator's forces.
 
-**Fix:** broadcast the parent rank's result (see :doc:`running under mpirun <mpi>`).
+**Fix:** broadcast the parent rank's result (see
+:doc:`running under mpirun <mpi>`).
 
 mpirun reports an abnormal termination at exit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -180,24 +233,34 @@ Build and link
 
 **Cause:** ``cpmd_root`` does not point at a completed OpenCPMD build tree.
 
-**Fix:** pass the ``-DEST`` directory of the OpenCPMD build, which holds ``lib/``,
-``obj/``, and ``src/``.
+**Fix:** pass the ``-DEST`` directory of the OpenCPMD build, which holds
+``lib/``, ``obj/``, and ``src/``.
 
 Link fails with ``R_X86_64_PC32`` against ``libcpmd.a``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Cause:** OpenCPMD was compiled without ``-fPIC``.
 
-**Fix:** use ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC``, which adds ``-fPIC`` to
-``FFLAGS`` and ``CFLAGS``, and rebuild the archive.
+**Fix:** use ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC``, which adds ``-fPIC`` to ``FFLAGS``
+and ``CFLAGS``, and rebuild the archive.
 
 ``cpmd_embed_c_api.F90`` fails to compile on ``embed_set_warm_orbitals``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Cause:** the archive's module files come from an unpatched tree.
 
-**Fix:** apply ``opencpmd_embed_rwfopt.patch``,
-then rebuild with ``tools/rebuild_opencpmd_embed.sh``.
+**Fix:** apply ``opencpmd_embed_rwfopt.patch``, then rebuild with
+``tools/rebuild_opencpmd_embed.sh``.
+
+``capnp encode`` rejects a message
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Cause:** the text names a field that is not in the schema, or it is encoded
+against the wrong root type.
+
+**Fix:** encode against ``schema/Potentials.capnp`` with the root type the text
+holds, ``CPMDParams`` or ``ForceInput``; the error names the field it could not
+find.
 
 CPMD cannot find ``O_MT_BLYP.psp``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -206,40 +269,45 @@ CPMD cannot find ``O_MT_BLYP.psp``
 CPMD takes ``argv[2]`` as its pseudopotential library whenever the process has
 more than one argument, so a host with command-line arguments cannot rely on
 ``CPMD_PP_LIBRARY_PATH``.
-``cpmdc`` works around that by changing into the directory while it reads the pseudopotential files.
+``cpmdc`` works around that by changing into the directory while it reads the
+pseudopotential files.
 
 **Fix:** ``export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials``.
 
 A library force call writes no restart files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Cause:** ``zhwwf`` and ``geofile`` run at the end of an SCF unless the embed
-flag is false.
+**Cause:** ``zhwwf`` and ``geofile`` run at the end of an SCF unless the embed flag is
+false.
 ``libcpmdc`` sets that flag false before every force call.
 
 **Fix:** expect no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz`` from
 ``cpmdc_session_calculate_forces`` or ``cpmdc_session_energy_forces``.
-``cpmd.x`` writes those files in ``permanentDir``, otherwise ``scratchDir``,
-otherwise the working directory.
+``cpmd.x`` writes those files in ``permanentDir``, otherwise ``scratchDir``, otherwise
+the working directory.
 
 A preview buffer is shorter than the method deck
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Cause:** the embed path keeps the rendered method deck at the length of that
-text. A preview or a config read whose buffer is shorter than the text returns
-an error and does not write a shortened deck.
+text.
+A preview or a config read whose buffer is shorter than the text returns an
+error and does not write a shortened deck.
 
-**Fix:** size the caller buffer from the rendered text, or read the full deck
-from ``CPMDC_DECK_OUT``.
+**Fix:** size the caller buffer from the rendered text, or read the full deck from
+``CPMDC_DECK_OUT``.
 
 Report a new problem
 --------------------
 
-Open an issue on the `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_ when no entry above matches.
+Open an issue on the
+`GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_ when no
+entry above matches.
 Questions go there too.
 
 Print the version and the build options that choose the code path.
-Replace ``build`` with your build directory, then run this command in the source tree.
+Replace ``build`` with your build directory, then run this command in the source
+tree.
 
 .. code:: bash
 
@@ -256,7 +324,7 @@ The default build prints:
 
 ::
 
-    cpmdc 0.4.0
+    cpmdc 0.6.0
     with_cpmd = False
     cpmd_root = ''
     with_readcon = False
@@ -265,8 +333,11 @@ Put these items in the report:
 
 1. the output of that command;
 
-2. the deck that ``CPMDC_DECK_OUT`` wrote for the failing call (see :doc:`debugging a deck <debug-deck>`);
+2. the deck that ``CPMDC_DECK_OUT`` wrote for the failing call (see
+   :doc:`debugging a deck <debug-deck>`);
 
-3. ``CPMDCResult.message`` or ``cpmdc_last_error()`` for a failed call, or the ``--print-errorlogs`` output for a failed test;
+3. ``CPMDCResult.message`` or ``cpmdc_last_error()`` for a failed call, or the
+   ``--print-errorlogs`` output for a failed test;
 
-4. the ``LocalError-*.log`` file, when the call stopped with ``CPMD stopgm during embed SCF``.
+4. the ``LocalError-*.log`` file, when the call stopped with
+   ``CPMD stopgm during embed SCF``.

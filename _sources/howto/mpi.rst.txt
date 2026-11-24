@@ -7,9 +7,9 @@ Run under mpirun
 Goal
 ----
 
-Run a host that embeds ``cpmdc`` on several MPI (Message Passing Interface)
-ranks, so that CPMD parallelises each self-consistent field (SCF) calculation
-over the ranks, and keep every rank's view of the result consistent.
+Run a host that embeds ``cpmdc`` on several MPI (Message Passing Interface) ranks,
+so that CPMD parallelises each self-consistent field (SCF) calculation over the
+ranks, and keep every rank's view of the result consistent.
 This page needs an OpenCPMD build of ``cpmdc``; the default build runs the
 reference evaluator on each rank independently.
 
@@ -29,9 +29,9 @@ The rules
    ``CPMDC_RANK_CONSENSUS=1`` is set, as the section on sharing the parent's
    result describes.
    In a 4-rank water single point all four printed the parent's energy and
-   forces, but in a 4-rank dimer search, where every rank also ran the
-   host's optimizer, rank 1 took 3 steps on different curvatures while rank 0
-   took 5, and only rank 0's results matched an independent ``cpmd.x`` run.
+   forces, but in a 4-rank dimer search, where every rank also ran the host's
+   optimizer, rank 1 took 3 steps on different curvatures while rank 0 took 5,
+   and only rank 0's results matched an independent ``cpmd.x`` run.
 
 4. Keep one ``CPMDCSession`` per calculator.
 
@@ -58,7 +58,7 @@ Several calculators in one job
 ``ranks_per_calc`` consecutive ranks.
 Each group becomes one CPMD calculator with its own communicator and its own
 wavefunction, running the same deck.
-Call it on every rank, once, before the first evaluation:
+Call it on every rank, before the first evaluation:
 
 .. code:: c
 
@@ -84,27 +84,75 @@ Call it on every rank, once, before the first evaluation:
       return 0;
     }
 
+How the ranks are divided
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``ranks_per_calc`` is the number of ranks in each group.
+The world size must be a multiple of it.
+``cpmdc`` makes no group of a different size: there is no remainder group and no
+smaller last group.
+A world size that is not a multiple, such as 6 ranks with ``ranks_per_calc`` 4, or
+a ``ranks_per_calc`` above the world size, is refused on every rank and nothing is
+split.
+
+The groups are consecutive blocks of world ranks.
+Group ``g`` holds world ranks ``g * ranks_per_calc`` to
+``(g + 1) * ranks_per_calc - 1``, and there are ``world_size / ranks_per_calc``
+groups.
+With 16 ranks and ``ranks_per_calc`` 4, group 0 is ranks 0 to 3, group 1 is ranks
+4 to 7, and so on.
+A rank's group index is ``world_rank / ranks_per_calc``, with integer division,
+and its rank inside the group is ``world_rank % ranks_per_calc``.
+The group's first rank, world rank ``group * ranks_per_calc``, is its parent rank.
+
 .. table::
 
-    +-------------------------+--------------------------------------------------------------------------------------------+
-    | Argument or result      | Meaning                                                                                    |
-    +=========================+============================================================================================+
-    | ``ranks_per_calc > 0``  | ranks per calculator; the world size must be a multiple of it                              |
-    +-------------------------+--------------------------------------------------------------------------------------------+
-    | ``ranks_per_calc <= 0`` | one calculator over the whole world                                                        |
-    +-------------------------+--------------------------------------------------------------------------------------------+
-    | return value ``>= 0``   | index of this rank's calculator, ``world_rank / ranks_per_calc``                           |
-    +-------------------------+--------------------------------------------------------------------------------------------+
-    | return value ``-1``     | the split was refused, or the library has no CPMD backend (the default build and the stub) |
-    +-------------------------+--------------------------------------------------------------------------------------------+
+    +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Argument or result      | Meaning                                                                                                                                                           |
+    +=========================+===================================================================================================================================================================+
+    | ``ranks_per_calc > 0``  | ranks per calculator; the world size must be a multiple of it                                                                                                     |
+    +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``ranks_per_calc <= 0`` | the world size is used: one calculator over every rank                                                                                                            |
+    +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | return value ``>= 0``   | index of this rank's calculator: ``world_rank / ranks_per_calc``, or 0 when ``ranks_per_calc <= 0``                                                               |
+    +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | return value ``-1``     | the world size is not a multiple of ``ranks_per_calc``, ``MPI_Comm_split`` returned an error, or the library has no CPMD backend (the default build and the stub) |
+    +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-A second call returns the same index without splitting again.
-The group's first rank, world rank ``group * ranks_per_calc``, is its parent
-rank.
+A call that returns -1 for the world size splits nothing, and a later call with
+a valid value can still split.
+``cpmdc_last_error()`` gives the reason.
+
+Calls after the first
+~~~~~~~~~~~~~~~~~~~~~
+
+The first call that is not refused splits ``MPI_COMM_WORLD``.
+A later call does not split again, also when the communicator in use came from
+``cpmdc_adopt_calculator_comm`` instead of an earlier bind.
+It still checks its own ``ranks_per_calc`` as above, and it returns
+``world_rank / ranks_per_calc`` for that value.
+That is the index of the group in use only when the value is the same as the
+one that made the split.
+A value that does not divide the world size, or is above it, returns -1 on
+every rank, as it does on the first call, and the split already in use stays as
+it was.
+
+MPI start
+~~~~~~~~~
+
+On an OpenCPMD build, ``cpmdc_bind_calculator`` calls ``MPI_Init`` when MPI is not
+running, before it looks at ``ranks_per_calc``, so the call starts MPI even when
+it then refuses the value.
+``cpmdc`` starts MPI only in OpenCPMD builds.
+The default build, which runs the reference evaluator, and the link stub never
+call ``MPI_Init``.
+In those builds ``cpmdc_bind_calculator`` returns -1 without calling MPI, and
+``cpmdc_adopt_calculator_comm`` returns -1 while MPI is not running, so the host
+has to start MPI itself.
 ``cpmdc`` remembers the split in ``embed_calculator_bound``.
-``mp_start`` assigns ``mp_comm_world`` only when CPMD itself calls ``MPI_Init``,
-and ``cpmdc_bind_calculator`` has already initialised MPI and stored the
-calculator communicator by the time setup reaches ``mp_start``.
+``mp_start`` assigns ``mp_comm_world`` only when CPMD itself calls ``MPI_Init``, and
+``cpmdc_bind_calculator`` has already initialised MPI and stored the calculator
+communicator by the time setup reaches ``mp_start``.
 
 A communicator the host already split
 -------------------------------------
@@ -127,12 +175,11 @@ A different size returns -1, and ``cpmdc_last_error()`` names both numbers.
 Zero or less skips that check.
 The same positive ``ranks_per_calc`` on every rank gives every group the same
 size, and the calculator indices are then unique.
-The group must be one aligned block of ``size`` consecutive world ranks,
-starting at a multiple of ``size``.
-The calculator index is the lowest world rank in that block, divided by
-``size``.
-Any other layout returns -1 on every rank of the group, and
-``cpmdc_last_error()`` says the communicator is not an aligned block.
+The group must be one aligned block of ``size`` consecutive world ranks, starting
+at a multiple of ``size``.
+The calculator index is the lowest world rank in that block, divided by ``size``.
+Any other layout returns -1 on every rank of the group, and ``cpmdc_last_error()``
+says the communicator is not an aligned block.
 Reversing the key order inside an aligned block does not change the index.
 A striped split is refused: world ranks 0 and 2 in one group of size 2, and
 ranks 1 and 3 in the other, would otherwise both receive index 0.
@@ -150,15 +197,18 @@ split, and the caller of bind cannot free that one.
 ``cpmdc_bind_calculator`` remains the split for a host that has not split.
 That split still runs once per process.
 
-A later adopt replaces the communicator when no ``CPMDCSession`` exists.
-Destroy every session first.
-If any rank of the group has a live session, every rank returns -1,
-``cpmdc_last_error()`` says a session is live, and the stored communicator
-stays as it was.
-That refusal is the same collective as the index, so one rank does not
-return while another waits.
-The index is the same rule for 1 group of 4 ranks, 2 groups of 2, and 4
-groups of 1.
+A later adopt replaces the communicator when no live ``CPMDCSession`` has started
+an evaluation.
+A session that was created but has not evaluated does not block it. rgpot
+creates its session before it binds calculator groups, and relies on this.
+To replace the communicator after an evaluation, destroy every session first.
+If any rank of the group has a live session that has evaluated, every rank
+returns -1, ``cpmdc_last_error()`` says a session has evaluated, and the stored
+communicator stays as it was.
+That refusal is the same collective as the index, so one rank does not return
+while another waits.
+The index is the same rule for 1 group of 4 ranks, 2 groups of 2, and 4 groups
+of 1.
 
 Share the parent's result
 -------------------------
@@ -175,24 +225,22 @@ With one calculator over the whole world, broadcast from world rank 0:
     }
     MPI_Bcast(buf, 1 + 3 * N_ATOMS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-With several calculators, each group's parent broadcasts inside its group, and
-a host that needs every group's result on every rank broadcasts once per
-group over ``MPI_COMM_WORLD``.
-An optimizer that runs on every rank must step from the broadcast values;
-ranks that step from their own copies drift apart after the first step.
+With several calculators, each group's parent broadcasts inside its group, and a
+host that needs every group's result on every rank broadcasts once per group
+over ``MPI_COMM_WORLD``.
+An optimizer that runs on every rank must step from the broadcast values; ranks
+that step from their own copies drift apart after the first step.
 
 Inside one calculator, ``CPMDC_RANK_CONSENSUS=1`` does this broadcast in the
-library, so every rank of the calculator returns the parent's energy and
-forces:
+library, so every rank of the calculator returns the parent's energy and forces:
 
 .. code:: bash
 
     mpirun -np 16 -x CPMDC_RANK_CONSENSUS=1 ./host params.bin step.bin
 
 ``-x`` is the Open MPI flag that exports a variable to every rank.
-After an evaluation, ``cpmdc_last_rank_spread()`` reports the largest energy
-and gradient difference from the parent before the broadcast, and the rank
-count:
+After an evaluation, ``cpmdc_last_rank_spread()`` reports the largest energy and
+gradient difference from the parent before the broadcast, and the rank count:
 
 .. code:: c
 
@@ -206,8 +254,8 @@ Both differences are 0 when the ranks agreed bit for bit.
 One session per calculator
 --------------------------
 
-The OpenCPMD module state and the stored orbitals belong to the process, not
-to a ``CPMDCSession``.
+The OpenCPMD module state and the stored orbitals belong to the process, not to
+a ``CPMDCSession``.
 A second session keeps those orbitals when its functional, deck, cutoff, cell,
 charge, multiplicity, and elemental composition match.
 A different method or composition drops them on the next evaluation.
@@ -217,15 +265,15 @@ separate calculators, one session each.
 Finalize MPI
 ------------
 
-CPMD calls ``MPI_Init`` during its setup, and nothing in ``cpmdc`` calls
-``MPI_Finalize``.
+CPMD calls
+``MPI_Init`` during its setup, and nothing in ``cpmdc`` calls ``MPI_Finalize``.
 Open MPI 5 treats a rank that exits without ``MPI_Finalize`` as an abnormal
 termination and kills the ranks still running; ``mpirun`` then reports a rank
 "exiting improperly" and lists a missing finalize among the reasons.
 Call ``MPI_Finalize`` on every rank, after ``cpmdc_finalize()``, as the example
 above does.
-When the host cannot restructure its exit path, register a handler with
-``atexit`` that calls ``MPI_Finalize`` when ``MPI_Initialized`` reports true and
+When the host cannot restructure its exit path, register a handler with ``atexit``
+that calls ``MPI_Finalize`` when ``MPI_Initialized`` reports true and
 ``MPI_Finalized`` reports false.
 
 Threads
@@ -233,5 +281,5 @@ Threads
 
 CPMD also runs OpenMP threads inside each rank when OpenCPMD was built with
 ``-omp``.
-Set ``OMP_NUM_THREADS`` per rank so that ranks times threads matches the cores
-the job holds.
+Set ``OMP_NUM_THREADS`` per rank so that ranks times threads matches the cores the
+job holds.

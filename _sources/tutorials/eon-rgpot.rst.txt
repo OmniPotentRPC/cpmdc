@@ -6,34 +6,104 @@ Minimise a structure from eOn through rgpot
 This tutorial relaxes the water molecule of the
 :doc:`first tutorial <first-energy>` with eOn's minimiser, with every force
 call going through ``rgpot`` into ``libcpmdc`` inside the ``eonclient`` process.
-It reuses ``water.params.bin`` from that tutorial and the OpenCPMD build of
-``libcpmdc`` in ``$CPMDC/build-cpmd``.
+It reuses ``water.params.bin`` from that tutorial and runs against either build
+of ``libcpmdc`` that the tutorial made: the default build in ``$CPMDC/build``, and
+the OpenCPMD build in ``$CPMDC/build-cpmd``.
+The default build evaluates the reference well, finishes in about a second, and
+needs no OpenCPMD and no pseudopotentials.
+The OpenCPMD build computes a BLYP energy and takes about a minute.
+Each build has its own transcript below.
+Run every command in the Pixi shell that the first tutorial opened.
 
 What connects to what
 ---------------------
 
-eOn's ``RGPOT`` potential loads rgpot's ``CPMDPot``, which opens ``libcpmdc.so``
-with ``dlopen`` and keeps one ``CPMDCSession`` for the life of the client.
-eOn hands each geometry to ``CPMDPot``, ``CPMDPot`` turns it into a ``ForceInput``,
-and ``cpmdc`` runs the SCF in the same process, starting every call after the
-first from the previous orbitals.
+eOn's ``RGPOT`` potential loads rgpot's ``CPMDPot``, which opens ``libcpmdc.so`` with
+``dlopen`` and keeps one ``CPMDCSession`` for the life of the client. eOn hands each
+geometry to ``CPMDPot``, ``CPMDPot`` turns it into a ``ForceInput``, and ``cpmdc`` runs
+the SCF in the same process, starting every call after the first from the
+previous orbitals.
 The method comes from a ``CPMDParams`` message file that eOn reads through
 ``[RgpotPot] params_path``.
 
 You need an ``eonclient`` built with RGPOT support whose ``[RgpotPot]`` section
 reads ``params_path``; eOn lists the key under ``RgpotPot`` in ``eon/config.yaml``.
-Without ``params_path``, eOn builds ``CPMDParams`` from four scalar keys
-(``functional``, ``cutoff_ry``, ``charge``, ``multiplicity``).
-A positive cell is then periodic: symmetry 1 when the edges are equal,
-symmetry 8 when they are not, and ``CELL VECTORS`` with no symmetry line when
-the box is tilted.
+Without
+``params_path``, eOn builds ``CPMDParams`` from four scalar keys (``functional``, ``cutoff_ry``,
+``charge``, ``multiplicity``).
+A positive cell is then periodic: symmetry 1 when the edges are equal, symmetry
+8 when they are not, and ``CELL VECTORS`` with no symmetry line when the box is
+tilted.
 A zero cell stays ``SYMMETRY 0`` with the Hockney solver.
 To keep a molecule isolated, the message has to ask for it.
 This run uses ``water.params.bin``, which sets ``poissonSolver = "HOCKNEY"``, and
 stays isolated.
 
+Build eonclient
+---------------
+
+This section builds rgpot and eOn into one prefix with the compilers and
+libraries of cpmdc's Pixi environment. eOn's own ``pixi.toml`` does not load under
+Pixi 0.84.2: its task ``mkeon`` depends on an environment ``eon`` that the file does
+not define. cpmdc's environment has no Eigen, and eOn needs Eigen 3.4.
+Install it as a separate Pixi environment:
+
+.. code:: bash
+
+    pixi global install 'eigen>=3.4,<3.5'
+
+Work in the directory that holds the cpmdc checkout and ``cpmdc-tutorial``:
+
+.. code:: bash
+
+    cd "$CPMDC/.."
+    export EON_PREFIX=$PWD/eon-prefix
+    export PKG_CONFIG_PATH=$EON_PREFIX/lib/pkgconfig:$CONDA_PREFIX/lib/pkgconfig:$HOME/.pixi/envs/eigen/share/pkgconfig
+
+``$CONDA_PREFIX/lib/pkgconfig`` is on the list because Meson can pick a system
+``pkg-config`` that does not search the Pixi environment.
+Build rgpot with MPI and install it:
+
+.. code:: bash
+
+    git clone https://github.com/OmniPotentRPC/rgpot.git
+    cd rgpot
+    git checkout 5fec533f
+    meson setup bbdir --prefix="$EON_PREFIX" --libdir=lib \
+      -Dwith_rpc=true -Dwith_mpi=enabled -Dwith_fortran_pots=enabled \
+      -Dwith_expr=true -Dwith_tests=false
+    meson install -C bbdir
+    cd ..
+
+``with_rpc`` builds ``CPMDPot``.
+``with_mpi`` builds ``librgpot_mpi``, which rgpot loads only when the client runs
+under ``mpirun``. eOn's configure stops when the installed rgpot has no Fortran
+potentials.
+``with_expr`` matches the rgpot that eOn builds when it finds none installed.
+Then build eOn against the installed rgpot:
+
+.. code:: bash
+
+    git clone https://github.com/TheochemUI/eOn.git eon
+    cd eon
+    git checkout 579738a93
+    meson setup bbdir --prefix="$EON_PREFIX" --libdir=lib -Dwith_mpi=enabled
+    meson install -C bbdir
+    cd ..
+    export PATH=$EON_PREFIX/bin:$PATH
+
+Meson reports ``rgpot found: YES 3.7.0`` and uses the installed rgpot instead of
+its own copy.
+``-Dwith_mpi=enabled`` makes eOn build ``librgpot_pot_mpi``, which starts MPI for the calculator groups and ends it at exit. eOn builds that library when ``rgpot.pc`` defines ``RGPOT_HAS_MPI`` or when its own ``with_mpi``
+is on. rgpot 5fec533f puts the define in ``rgpot-mpi.pc`` instead, so ``with_mpi``
+is the switch that works here.
+The same ``eonclient`` runs on one rank without ``mpirun``.
+
 Prepare the run directory
 -------------------------
+
+Start in the directory that holds ``cpmdc-tutorial``, the one ``cd "$CPMDC/.."``
+chose above:
 
 .. code:: bash
 
@@ -90,55 +160,321 @@ Save the eOn settings as ``config.ini``:
 Run the minimisation
 --------------------
 
-Point rgpot at the library and CPMD at the pseudopotentials, then start the
-client:
+``eonclient`` finds ``libcpmdc.so`` through the environment.
+rgpot tries ``[RgpotPot] engine_path`` first, then ``CPMDC_LIBRARY``,
+``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``, then ``libcpmdc.so`` on the loader
+path.
+Run the client once on each build, in the ``eon-water`` directory.
+The second run overwrites ``min.con``, ``results.dat``, and ``run.log`` of the first.
+
+Run on the default build
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reference evaluator reads no pseudopotentials, so ``CPMDC_LIBRARY`` is the
+only variable to set:
+
+.. code:: bash
+
+    export CPMDC_LIBRARY=$CPMDC/build/libcpmdc.so
+    eonclient > run.log
+    sed -n '/^RgpotPot:/,/^Final Energy:/p' run.log
+
+The ``sed`` command prints eOn's own lines of the run, from the line that names
+the backend to the final energy.
+The lines before it name the eOn version, the build time, the host, and the
+process; the lines after it are timings.
+The transcript is under Default build in the next section.
+
+Run on OpenCPMD
+~~~~~~~~~~~~~~~
+
+Point CPMD at the pseudopotentials as well:
 
 .. code:: bash
 
     export CPMDC_LIBRARY=$CPMDC/build-cpmd/libcpmdc.so
     export CPMDC_PSEUDO_DIR=$PWD/../cpmdc-tutorial/Regtests/tests/PP_LIBRARY
     export OMP_NUM_THREADS=1
-    eonclient
+    eonclient > run.log
+    grep -E '^\[Matter\]|^Minimization|^Final Energy' run.log
 
-rgpot tries ``[RgpotPot] engine_path`` first, then ``CPMDC_LIBRARY``,
-``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``, then ``libcpmdc.so`` on the
-loader path.
-CPMD writes its output for each force call to the client's standard output.
-The first call starts from atomic orbitals; later calls start from the
-previous call's orbitals and need fewer SCF iterations.
+CPMD writes its output for each force call to the client's standard output, so
+``run.log`` holds it, and the ``grep`` keeps only the lines of eOn's minimiser.
+The first call starts from atomic orbitals; later calls start from the previous
+call's orbitals and need fewer SCF iterations.
+This ``awk`` command prints the call number, the number of SCF iterations, and the
+converged energy in Hartree of each force call:
 
-When the run ends, the directory holds:
+.. code:: bash
+
+    awk '/^ NFI/ {ncall++; scf=1}
+         NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/ {iters[ncall]=$1}
+         /TOTAL ENERGY/ && scf {e[ncall]=$(NF-1); scf=0}
+         END {for (i=1;i<=ncall;i++) printf "%d %d %s\n", i, iters[i], e[i]}' run.log
+
+The transcripts are under OpenCPMD build in the next section.
+
+When a run ends, the directory holds:
 
 .. table::
 
-    +-----------------+---------------------------------------------------------------------------------------------------+
-    | File            | Contents                                                                                          |
-    +=================+===================================================================================================+
-    | ``min.con``     | the relaxed structure                                                                             |
-    +-----------------+---------------------------------------------------------------------------------------------------+
-    | ``results.dat`` | the termination status, the potential name, the number of force calls, and the final energy in eV |
-    +-----------------+---------------------------------------------------------------------------------------------------+
+    +-----------------+---------------------------------------------------------------------------------------------------------------------+
+    | File            | Contents                                                                                                            |
+    +=================+=====================================================================================================================+
+    | ``min.con``     | the relaxed structure                                                                                               |
+    +-----------------+---------------------------------------------------------------------------------------------------------------------+
+    | ``results.dat`` | the termination status, the potential name, the number of force calls, the final energy in eV, and build provenance |
+    +-----------------+---------------------------------------------------------------------------------------------------------------------+
+    | ``run.log``     | the standard output of the client                                                                                   |
+    +-----------------+---------------------------------------------------------------------------------------------------------------------+
 
-eOn works in eV and Angstrom; rgpot converts from the Hartree and
-Hartree/Bohr values that ``cpmdc`` returns.
+eOn works in eV and Angstrom; rgpot converts from the Hartree and Hartree/Bohr
+values that ``cpmdc`` returns.
+
+Expected output
+---------------
+
+These versions produced the output below:
+
+.. table::
+
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | Component         | Version                                                                                                    |
+    +===================+============================================================================================================+
+    | cpmdc             | 0.6.0, this tree                                                                                           |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | OpenCPMD          | ``062582b`` with the patches of the :doc:`archive how-to <../howto/opencpmd-archive>`, OpenCPMD build only |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | rgpot             | ``5fec533f``, version 3.7.0                                                                                |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | eOn               | ``579738a93``, version 3.6.0                                                                               |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | OpenCPMD Regtests | ``b2b2c64``, OpenCPMD build only                                                                           |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+    | Toolchain         | Pixi 0.84.2, GCC 14.3.0, Open MPI 5.0.10, Cap'n Proto 1.4.0, OpenBLAS 0.3.34, Eigen 3.4.0                  |
+    +-------------------+------------------------------------------------------------------------------------------------------------+
+
+Every transcript below comes from a run of the commands above on one rank, in a
+fresh clone of this tree, with the builds above.
+A repeat run printed the same digits in both builds.
+Built with the same options and the same eOn commit, rgpot ``84119ca2``, the head
+of its ``develop`` branch when this page was written, gave the same force-call
+counts and final energies in both builds.
+Each ``[Matter]`` row lists the iteration, the step size in Angstrom, the force
+norm in eV per Angstrom, and the energy in eV.
+eOn's ``[Optimizer]`` defaults apply: the conjugate-gradient optimiser stops
+when the force norm falls below ``converged_force``, 0.01, and moves no atom
+more than ``max_move``, 0.2 Angstrom, in one step.
+Both runs made one force call before the first iteration and two per iteration.
+
+Default build
+~~~~~~~~~~~~~
+
+This is the default build of ``libcpmdc``, so the energies come from the
+reference well and mean nothing physically, as in the
+:doc:`first tutorial <first-energy>`.
+The minimisation took 39 iterations and 79 force calls.
+The step stayed at the 0.2 Angstrom limit for the first 37 iterations.
+The sed command printed:
+
+.. code:: text
+
+    RgpotPot: in-process rgpot backend=cpmdc (dlopen: libnwchemc/libcpmdc/librgpot_metatomic_engine/librgpot_xtb_engine)
+
+    Beginning minimization of pos.con
+    [Matter] Iter        Step size       ||Force||           Energy
+    [Matter]          0     0.00000e+00         3.48307e+00       26.08766
+    [Matter]          1     2.00000e-01         3.38674e+00       25.24609
+    [Matter]          2     2.00000e-01         3.29041e+00       24.42812
+    [Matter]          3     2.00000e-01         3.19408e+00       23.63374
+    [Matter]          4     2.00000e-01         3.09775e+00       22.86295
+    [Matter]          5     2.00000e-01         3.00143e+00       22.11574
+    [Matter]          6     2.00000e-01         2.90510e+00       21.39213
+    [Matter]          7     2.00000e-01         2.80878e+00       20.69212
+    [Matter]          8     2.00000e-01         2.71246e+00       20.01569
+    [Matter]          9     2.00000e-01         2.61613e+00       19.36284
+    [Matter]         10     2.00000e-01         2.51981e+00       18.73359
+    [Matter]         11     2.00000e-01         2.42350e+00       18.12793
+    [Matter]         12     2.00000e-01         2.32718e+00       17.54585
+    [Matter]         13     2.00000e-01         2.23086e+00       16.98736
+    [Matter]         14     2.00000e-01         2.13455e+00       16.45245
+    [Matter]         15     2.00000e-01         2.03824e+00       15.94113
+    [Matter]         16     2.00000e-01         1.94193e+00       15.45339
+    [Matter]         17     2.00000e-01         1.84563e+00       14.98923
+    [Matter]         18     2.00000e-01         1.74933e+00       14.54866
+    [Matter]         19     2.00000e-01         1.65303e+00       14.13166
+    [Matter]         20     2.00000e-01         1.55674e+00       13.73824
+    [Matter]         21     2.00000e-01         1.46045e+00       13.36839
+    [Matter]         22     2.00000e-01         1.36417e+00       13.02211
+    [Matter]         23     2.00000e-01         1.26790e+00       12.69941
+    [Matter]         24     2.00000e-01         1.17164e+00       12.40026
+    [Matter]         25     2.00000e-01         1.07539e+00       12.12468
+    [Matter]         26     2.00000e-01         9.79156e-01       11.87265
+    [Matter]         27     2.00000e-01         8.82941e-01       11.64417
+    [Matter]         28     2.00000e-01         7.86753e-01       11.43922
+    [Matter]         29     2.00000e-01         6.90600e-01       11.25780
+    [Matter]         30     2.00000e-01         5.94499e-01       11.09989
+    [Matter]         31     2.00000e-01         4.98475e-01       10.96546
+    [Matter]         32     2.00000e-01         4.02578e-01       10.85448
+    [Matter]         33     2.00000e-01         3.06912e-01       10.76688
+    [Matter]         34     2.00000e-01         2.11759e-01       10.70257
+    [Matter]         35     2.00000e-01         1.18220e-01       10.66131
+    [Matter]         36     2.00000e-01         3.86948e-02       10.64237
+    [Matter]         37     2.00000e-01         1.89431e-02       10.63485
+    [Matter]         38     5.94011e-02         1.84349e-02       10.63409
+    [Matter]         39     1.08875e-01         8.63448e-03       10.63288
+    Minimization converged within tolerence
+    Saving result to min.con
+    Final Energy: 10.632884054053248
+
+``results.dat`` held:
+
+.. code:: text
+
+    0 termination_reason
+    GOOD termination_reason_text
+    minimization job_type
+    RGPOT potential_type
+    79 total_force_calls
+    1.063288405405e+01 potential_energy
+    CG optimizer
+    2.936321000000e-03 time_seconds
+    3.616900000000e-02 user_time
+    1.085080000000e-01 system_time
+    cg optimizer_backend
+    eon.optimizer.v1 optimizer_provenance_schema
+    eon.compatibility.v1 compatibility_schema
+    3 compatibility_readcon_spec_version
+    0.14.9 compatibility_readcon_min_version
+    0.2.3 compatibility_eon_schema_min_version
+    1.10.4 compatibility_rgpycrumbs_min_version
+    1.9.17 compatibility_chemparseplot_min_version
+    eon engine_id
+    3.6.0 engine_version
+    579738a93 engine_build_identity
+    rgpot rgpot_name
+    eon.rgpot.v1 rgpot_schema
+    3.2.0 rgpot_version
+
+The final energy is 10.63288405405 eV and the final force norm is
+8.63448e-03 eV/Angstrom.
+The three timing lines depend on the machine.
+``engine_build_identity`` is the eOn commit.
+``rgpot_version`` is a constant compiled into eOn (``rgpot_pin``), not the version
+of the rgpot it loaded, which was 3.7.0.
+In ``min.con`` the oxygen sits at x = y = 0.8918 and z = 0.8439 Angstrom, and the
+hydrogens at x = 7.0541, z = 6.6675, with y = 7.0874 and 7.0208, to four
+decimals.
+
+OpenCPMD build
+~~~~~~~~~~~~~~
+
+This is the OpenCPMD build of ``libcpmdc`` with the BLYP method of the first
+tutorial.
+The minimisation took 3 iterations and made 7 force calls.
+The ``grep`` command printed:
+
+.. code:: text
+
+    [Matter] Iter        Step size       ||Force||           Energy
+    [Matter]          0     0.00000e+00         1.75603e+00     -464.11287
+    [Matter]          1     1.35315e-02         8.45598e-02     -464.13004
+    [Matter]          2     2.70625e-03         4.15519e-02     -464.13018
+    [Matter]          3     3.32617e-04         2.69863e-03     -464.13019
+    Minimization converged within tolerence
+    Final Energy: -464.13019449531726
+
+The first row is the first tutorial's geometry: -464.11287 eV is the
+-17.05583351 Hartree of that tutorial.
+The awk command printed one row per force call:
+
+.. code:: text
+
+    1 13 -17.05583351
+    2 9 -17.05631020
+    3 9 -17.05646428
+    4 8 -17.05646043
+    5 7 -17.05646968
+    6 9 -17.05633805
+    7 9 -17.05647005
+
+The first call took 13 SCF iterations.
+The six later calls took 7 to 9 iterations each.
+``results.dat`` held:
+
+.. code:: text
+
+    0 termination_reason
+    GOOD termination_reason_text
+    minimization job_type
+    RGPOT potential_type
+    7 total_force_calls
+    -4.641301944953e+02 potential_energy
+    CG optimizer
+    8.509133488000e+01 time_seconds
+    4.737227300000e+01 user_time
+    1.179850000000e+01 system_time
+    cg optimizer_backend
+    eon.optimizer.v1 optimizer_provenance_schema
+    eon.compatibility.v1 compatibility_schema
+    3 compatibility_readcon_spec_version
+    0.14.9 compatibility_readcon_min_version
+    0.2.3 compatibility_eon_schema_min_version
+    1.10.4 compatibility_rgpycrumbs_min_version
+    1.9.17 compatibility_chemparseplot_min_version
+    eon engine_id
+    3.6.0 engine_version
+    579738a93 engine_build_identity
+    rgpot rgpot_name
+    eon.rgpot.v1 rgpot_schema
+    3.2.0 rgpot_version
+
+The final energy is -464.1301944953 eV.
+The three timing lines depend on the machine, and so does the SCF time in
+``run.log``.
+In ``min.con`` the oxygen sits at z = 5.1332 Angstrom and the hydrogens at y =
+5.7620 and 4.2380, z = 4.5229.
+
+What to expect
+~~~~~~~~~~~~~~
+
+- Default build: the run is deterministic arithmetic.
+  Expect ``GOOD``, 39 iterations, 79 force calls, and a final energy within
+  1e-6 eV of 10.63288405405.
+
+- OpenCPMD build: expect ``GOOD``, a final force norm below 0.01 eV/Angstrom, and
+  a final energy within 1e-4 eV of -464.1301944953.
+  The test below does not compare SCF iteration counts or timings.
+
+- A run that stops with a termination status other than 0, prints no
+  ``[Matter]`` rows, or reports an energy outside these bounds did not
+  reproduce this page.
+
+``tests/test_tutorials_run.py`` runs this page's ``pos.con`` and ``config.ini`` through
+``eonclient`` and compares ``results.dat`` and the ``[Matter]`` rows with the transcript
+for the build under test: the default-build transcript for a default library,
+and the OpenCPMD transcript for a library that links OpenCPMD when
+``CPMDC_PSEUDO_DIR`` is set.
+It skips this check when no ``eonclient`` is on ``PATH``; set ``EONCLIENT`` to the
+path of one to run it.
 
 Change the method
 -----------------
 
-Edit ``water.params.txt``, encode it again, and rerun; eOn needs no other
-change:
+Edit ``water.params.txt``, encode it again, and rerun; eOn needs no other change:
 
 .. code:: bash
 
     capnp encode "$CPMDC/schema/Potentials.capnp" CPMDParams \
       < ../cpmdc-tutorial/water.params.txt > water.params.bin
 
-To see what CPMD receives, set ``CPMDC_DECK_OUT=$PWD/deck.inp`` before
-``eonclient`` (see :doc:`debugging a deck <../howto/debug-deck>`).
+To see what CPMD receives, set
+``CPMDC_DECK_OUT=$PWD/deck.inp`` before ``eonclient`` (see :doc:`debugging
+a deck <../howto/debug-deck>`).
 For a periodic system or a larger cluster, write the message as the
 :doc:`CPMDParams how-to <../howto/write-cpmdparams>` shows, and choose the
-optimiser for warm starts with the :doc:`optimiser
-how-to <../howto/wavefunction-optimiser>`.
+optimiser for warm starts with the
+:doc:`optimiser how-to <../howto/wavefunction-optimiser>`.
 
 Run on several ranks
 --------------------
@@ -149,8 +485,25 @@ Start ``eonclient`` under ``mpirun`` to let CPMD spread each SCF over the ranks:
 
     mpirun -np 4 eonclient
 
-Every rank runs the whole client.
-Only CPMD's parent rank holds the calculator's result, so the client must take
-each result from that rank and must finalize MPI at exit; check that your eOn
-and rgpot builds do both, as :doc:`running under mpirun <../howto/mpi>`
-explains, before trusting a multi-rank run.
+Every rank runs the whole client. rgpot binds the four ranks into one calculator
+and hands its communicator to ``cpmdc_adopt_calculator_comm()``.
+Only CPMD's parent rank holds the calculator's result. eOn broadcasts that
+result to every rank, and rgpot finalizes MPI at exit.
+:doc:`Running under mpirun <../howto/mpi>` explains these rules.
+
+With the build above and the same files, CPMD split each SCF over four
+processors, and only the parent rank printed.
+Each call took as many SCF iterations as on one rank.
+``results.dat`` again reported ``GOOD`` and 7 force calls, with
+``-4.641301944941e+02 potential_energy``, 1.2e-9 eV from the one-rank energy.
+``mpirun`` returned 0.
+
+Before cpmdc accepted an adopt while a session had not evaluated yet, every rank
+stopped here, because rgpot creates its session before it binds the ranks:
+
+.. code:: text
+
+    eonclient: fatal error: RGPOT(cpmdc): ranks_per_image=0 does not divide the MPI world into calculator groups
+
+With rgpot and eOn built without MPI, the four ranks finished the minimisation,
+but they exited without ``MPI_Finalize`` and ``mpirun`` returned 1.

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>The MPI model - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="SIMD paths and dispatch" href="simd-paths.html" /><link rel="prev" title="Wavefunction state between calls" href="wavefunction-state.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>The MPI model - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Atoms in an isolated cell" href="isolated-cells.html" /><link rel="prev" title="Wavefunction state between calls" href="wavefunction-state.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/mpi-model.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -307,8 +324,8 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="the-mpi-model">
 <h1>The MPI model<a class="headerlink" href="#the-mpi-model" title="Link to this heading">¶</a></h1>
-<p>CPMD is an MPI program: one SCF is spread over the ranks of a communicator,
-and one of those ranks, the parent, owns input and output.
+<p>CPMD is an MPI program: one SCF is spread over the ranks of a communicator, and
+one of those ranks, the parent, owns input and output.
 Embedding it in a host that is itself started under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> raises three
 questions: which ranks form one CPMD calculation, which rank’s result counts,
 and who ends MPI.
@@ -317,43 +334,50 @@ This page explains the answers <code class="docutils literal notranslate"><span 
 <h2>Every rank is a copy of the host<a class="headerlink" href="#every-rank-is-a-copy-of-the-host" title="Link to this heading">¶</a></h2>
 <p>Under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>, each rank runs the whole host program, and each rank’s copy of
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> calls into its own copy of CPMD.
-CPMD’s collective operations tie those copies together: an SCF can only
-advance when every rank of its communicator takes part.
-So every rank must make the same <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> calls, with the same messages, in
-the same order.
+CPMD’s collective operations tie those copies together: an SCF can only advance
+when every rank of its communicator takes part.
+So every rank must make the same <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> calls, with the same messages, in the
+same order.
 A rank that skips a call, or evaluates a different geometry, leaves the others
 waiting inside CPMD.</p>
 </section>
 <section id="the-communicator-cpmd-uses">
 <h2>The communicator CPMD uses<a class="headerlink" href="#the-communicator-cpmd-uses" title="Link to this heading">¶</a></h2>
-<p>cpmdc has no <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code> option.
-The engine takes MPI from the CPMD archive it is linked into.</p>
+<p>An OpenCPMD build (<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code>) takes MPI from the CPMD archive it is
+linked into, and always needs it.
+The <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code> option only decides whether the default library, the reference
+evaluator, links MPI.</p>
 <p>OpenCPMD keeps its world communicator in <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>.
 <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> assigns that variable only when CPMD itself calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>.
-When MPI is already running, <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> leaves <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> as the host
-set it.</p>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator(ranks_per_calc)</span></code> initialises MPI when it is not
-running, then splits <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> with <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>, colour
+When MPI is already running, <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> leaves <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> as the host set
+it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator(ranks_per_calc)</span></code> initialises MPI when it is not running,
+then splits <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> with <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>, colour
 <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code> and key <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">mod</span> <span class="pre">ranks_per_calc</span></code>, and
 installs the new communicator as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> before <code class="docutils literal notranslate"><span class="pre">mp_start</span></code>.
 Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
-The split happens once per process.
-<code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, a module variable in <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api</span></code>, records
-it, and a second bind only reports the group index.
+The split happens at most once per process.
+<code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, a module variable in <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api</span></code>, records it,
+and a second bind does not split again.
+It returns <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code> for its own value, or -1 when that
+value does not divide the world size or is above it, and the communicator
+already stored stays as it was.
 A host that already holds the calculator communicator calls
 <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> instead.
 That call reads rank and size from the adopted communicator, copies it into
-<code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> on an OpenCPMD build, and does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
-<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>.
+<code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> on an OpenCPMD build, and does not call
+<code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>.
 <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies the stored handle back out.
-A null communicator, a size that is not <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> when that argument
-is positive, MPI that has not been initialised, or a build without MPI
-returns -1.
+A null communicator, a size that is not <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> when that argument is
+positive, MPI that has not been initialised, or a build without MPI returns -1.
 The text is <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>.
-A later adopt replaces the communicator when no <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> exists.
-If any rank of the group has a live session, every rank returns -1 and leaves
-the handle alone.</p>
+A later adopt replaces the communicator when no live <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> has started
+an evaluation.
+A session that was created but has not evaluated holds no CPMD state, so it does
+not block the adopt.
+If any rank of the group has a live session that has evaluated, every rank
+returns -1 and leaves the handle alone.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -385,29 +409,30 @@ the handle alone.</p>
 </section>
 <section id="the-adopted-index">
 <h2>The adopted index<a class="headerlink" href="#the-adopted-index" title="Link to this heading">¶</a></h2>
-<p>The calculator index is the lowest <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> rank of the group divided
-by the adopted size.
+<p>The calculator index is the lowest <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> rank of the group divided by
+the adopted size.
 The group must be one aligned block of that many consecutive world ranks,
 starting at a multiple of the size.
 Any other layout returns -1 on every rank of the group.
 Indices are unique when every group has the same size.
 Passing the same <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> on every rank enforces that size.
-A striped split of 4 ranks into groups {0, 2} and {1, 3} is refused: both
-have size 2 and lowest ranks 0 and 1, so both would have been index 0.
+A striped split of 4 ranks into groups {0, 2} and {1, 3} is refused: both have
+size 2 and lowest ranks 0 and 1, so both would have been index 0.
 Reversing the key order inside an aligned block does not change the index.
 One group of 4, two groups of 2, and four groups of 1 are the same rule.
 The <a class="reference internal" href="../howto/mpi.html"><span class="doc">mpirun how-to</span></a> shows the call.
-<a class="reference external" href="https://rgpot.rgoswami.me">rgpot</a> is the host that loads this library and
-may already have split the ranks; its group contract is the
+<a class="reference external" href="https://rgpot.rgoswami.me">rgpot</a> is the host that loads this library and may
+already have split the ranks; its group contract is the
 <a class="reference external" href="https://rgpot.rgoswami.me/reference/mpi.html">rgpot MPI reference</a>.</p>
-<p>Open MPI’s Fortran handle for <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> is 0, and <code class="docutils literal notranslate"><span class="pre">MPI_COMM_NULL</span></code> is a different value.
+<p>Open MPI’s Fortran handle for <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> is 0, and <code class="docutils literal notranslate"><span class="pre">MPI_COMM_NULL</span></code> is a
+different value.
 The stored handle uses that numbering, so 0 means the world communicator.
 The index is the lowest world rank of an aligned block divided by that size.
-cpmdc does not make the SCF energy or the forces bitwise identical across
-rank counts.
-Those reductions run inside OpenCPMD (<code class="docutils literal notranslate"><span class="pre">mp_sum</span></code> is <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code>, the FFT
-plane split follows the rank count, and OpenMP <code class="docutils literal notranslate"><span class="pre">REDUCTION</span></code> clauses run inside
-the archive).
+cpmdc does not make the SCF energy or the forces bitwise identical across rank
+counts.
+Those reductions run inside OpenCPMD (<code class="docutils literal notranslate"><span class="pre">mp_sum</span></code> is <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code>, the FFT plane
+split follows the rank count, and OpenMP <code class="docutils literal notranslate"><span class="pre">REDUCTION</span></code> clauses run inside the
+archive).
 A single point at one rank and at two ranks can be compared by the maximum
 absolute deviation of the energy and of the forces.
 That comparison is a report, not a bitwise claim.</p>
@@ -456,20 +481,20 @@ They agreed with the parent in a 4-rank water single point.
 Over the many steps of a search they need not: in a 4-rank dimer search where
 every rank also ran the host’s optimiser, the ranks’ paths diverged, and only
 rank 0’s results matched the file route.
-The robust rule is that the host takes the parent’s result and broadcasts it,
-so every rank’s optimiser steps from the same numbers.
-The MPI standard gives the same advice: an application that needs a
-reproducible result computes it at one process and broadcasts it
+The robust rule is that the host takes the parent’s result and broadcasts it, so
+every rank’s optimiser steps from the same numbers.
+The MPI standard gives the same advice: an application that needs a reproducible
+result computes it at one process and broadcasts it
 (<a class="reference external" href="https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report/node130.htm">MPI 4.1, section 6.9.1</a>).
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> does not broadcast by default.
-<code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> makes it broadcast inside each calculator: after
-each evaluation, rank 0 of the calculator communicator sends its energy,
-gradient, and result snapshots to the other ranks of that communicator.
+<code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> makes it broadcast inside each calculator: after each
+evaluation, rank 0 of the calculator communicator sends its energy, gradient,
+and result snapshots to the other ranks of that communicator.
 <code class="docutils literal notranslate"><span class="pre">cpmdc_last_rank_spread()</span></code> reports how far the other ranks were from those
 values, which is the size of the disagreement the broadcast removed.
-A host that needs every calculator’s result on every world rank still
-broadcasts across calculators, because only the host knows which of its
-communicators should receive them.</p>
+A host that needs every calculator’s result on every world rank still broadcasts
+across calculators, because only the host knows which of its communicators
+should receive them.</p>
 </section>
 <section id="one-session-per-calculator">
 <h2>One session per calculator<a class="headerlink" href="#one-session-per-calculator" title="Link to this heading">¶</a></h2>
@@ -477,8 +502,8 @@ communicators should receive them.</p>
 rank.
 A calculator therefore evaluates one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.
 A second session in the same process keeps the stored orbitals when the
-functional, deck, cutoff, cell, charge, multiplicity, and elemental
-composition match.
+functional, deck, cutoff, cell, charge, multiplicity, and elemental composition
+match.
 Switching to a different method or composition drops them on the next
 evaluation.
 Independent calculations belong on separate calculators: one per image of a
@@ -486,25 +511,25 @@ nudged elastic band, one per end of a dimer.</p>
 </section>
 <section id="who-ends-mpi">
 <h2>Who ends MPI<a class="headerlink" href="#who-ends-mpi" title="Link to this heading">¶</a></h2>
-<p>CPMD calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> in its setup when MPI is not running yet, and
-<code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> does the same.
-Neither <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> nor the patched CPMD calls <code class="docutils literal notranslate"><span class="pre">MPI_Finalize</span></code>: in a host, the
-host decides when MPI ends, and a library that finalized MPI would break a
-host that still needs it.
+<p>CPMD calls
+<code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> in its setup when MPI is not running yet, and <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code>
+does the same.
+Neither <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> nor the patched CPMD calls <code class="docutils literal notranslate"><span class="pre">MPI_Finalize</span></code>: in a host, the host
+decides when MPI ends, and a library that finalized MPI would break a host that
+still needs it.
 The host has to finalize on every rank before exit.
 Open MPI 5 counts a rank that exits without it as an abnormal termination and
 kills the others, which in a 4-rank single point killed rank 0 before it had
 written its result.
-<code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code> marks the library finalized and leaves MPI alone for the
-same reason.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code> marks the library finalized and leaves MPI alone for the same
+reason.</p>
 </section>
 <section id="threads-inside-ranks">
 <h2>Threads inside ranks<a class="headerlink" href="#threads-inside-ranks" title="Link to this heading">¶</a></h2>
 <p>An OpenCPMD build with OpenMP adds threads inside each rank.
-Ranks, threads, and calculators multiply: 16 cores can hold one calculator of
-16 single-threaded ranks, four calculators of four ranks, or other
-combinations, set with <code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">-np</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>.
+Ranks, threads, and calculators multiply: 16 cores can hold one calculator of 16
+single-threaded ranks, four calculators of four ranks, or other combinations,
+set with <code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">-np</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code>, and <code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>.
 The <a class="reference internal" href="../howto/mpi.html"><span class="doc">mpirun how-to</span></a> shows the calls.</p>
 </section>
 </section>
@@ -521,10 +546,10 @@ The <a class="reference internal" href="../howto/mpi.html"><span class="doc">mpi
         <span>Previous</span><div class="title">Wavefunction state between calls</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="simd-paths.html">
+    <a href="isolated-cells.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">SIMD paths and dispatch</div>
+        <div class="title">Atoms in an isolated cell</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -616,7 +641,7 @@ The <a class="reference internal" href="../howto/mpi.html"><span class="doc">mpi
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -36,11 +36,13 @@ Detailed Documentation
 
 PROP-style property snapshot after a successful evaluation.
 
-* dipole[3]: OpenCPMD ``ddippdipole`` (a.u.) when linked; PEF zeros
+* dipole[3]: OpenCPMD molecular dipole (electron Bohr) for the current geometry when ``dipole_count == 3``
 
-* polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
+* polarizability[9]: always zeros, with count 9; no build computes it
 
-* hessian[]: nuclear gradient dE/dR packed as [natoms\*3] (full Hessian needs dedicated PROP/Hessian run; gradient is always available after force eval)
+* hessian[]: deprecated name of the nuclear gradient dE/dR packed as [n_atoms\*3]. Use :ref:`cpmdc_last_gradient() <doxid-cpmdc_8h_1adb7640bfa6ef86e8f509e91fd5dfcf7e>` or :ref:`cpmdc_session_last_gradient() <doxid-cpmdc_8h_1aafd3421da0bedb4742331d904dcb9cdb>` instead. A full Hessian needs a dedicated PROP/Hessian run.
+
+The fixed legacy array limits evaluations to 1365 atoms. libcpmdc rejects a larger system instead of truncating its gradient.
 
 Fields
 ------
@@ -63,7 +65,7 @@ Non-zero when the snapshot was written.
 
 	size_t hessian_count
 
-Number of doubles copied into ``hessian``.
+Deprecated: number of doubles copied into ``hessian``.
 
 .. index:: pair: variable; hessian
 .. _doxid-struct_c_p_m_d_c_property_snapshot_1af26b4dd2e4fbde6ebf3605d6eb778f2e:
@@ -73,7 +75,9 @@ Number of doubles copied into ``hessian``.
 
 	double hessian[4096]
 
-Nuclear gradient dE/dR, packed as ``natoms * 3``.
+Deprecated: nuclear gradient dE/dR.
+
+Use the gradient accessors.
 
 .. index:: pair: variable; dipole_count
 .. _doxid-struct_c_p_m_d_c_property_snapshot_1af22f800017ca74f8ac3d58766c0c7d7e:
@@ -93,7 +97,7 @@ Number of doubles copied into ``dipole``.
 
 	double dipole[3]
 
-OpenCPMD ``ddippdipole`` in atomic units, or zeros for a reference PEF.
+Molecular dipole in electron Bohr; meaningful only when count is 3.
 
 .. index:: pair: variable; polarizability_count
 .. _doxid-struct_c_p_m_d_c_property_snapshot_1aa375aea8f4d2476b4d3e8857e1c1e128:
@@ -113,5 +117,5 @@ Number of doubles copied into ``polarizability``.
 
 	double polarizability[9]
 
-Polarizability when PROP is available; otherwise zeros.
+Always zeros: no build computes the polarizability.
 

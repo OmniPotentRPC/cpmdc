@@ -1,0 +1,115 @@
+==========================
+LAMMPS interface reference
+==========================
+
+
+Both routes of :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`,
+``cpmdc.lammps.FixExternal`` and ``pair_style cpmdc``, pass the same numbers to
+LAMMPS.
+The Python class adapts ``cpmdc.Session`` to the standard rgpot Python potential
+protocol and delegates its LAMMPS mechanics to ``rgpot.lammps.FixExternal``.
+The plugin remains cpmdc's compiled, LAMMPS-specific route.
+This page gives their units, the cell and positions they send, and the virial
+they return.
+
+Units
+-----
+
+cpmdc works in Bohr and Hartree.
+Both routes convert with the constants of ``python/cpmdc`` (CODATA 2018, with the
+thermochemical calorie, 4.184 J, for ``real``):
+
+.. table::
+
+    +------------------+-------------------------------+--------------------------------------+---------------------+----------+----------+
+    | LAMMPS ``units`` | Length per Bohr               | Energy per Hartree                   | Forces              | Virial   | Pressure |
+    +==================+===============================+======================================+=====================+==========+==========+
+    | ``metal``        | ``BOHR_TO_ANGSTROM`` Angstrom | ``HARTREE_TO_EV`` eV                 | eV/Angstrom         | eV       | bar      |
+    +------------------+-------------------------------+--------------------------------------+---------------------+----------+----------+
+    | ``real``         | ``BOHR_TO_ANGSTROM`` Angstrom | ``HARTREE_TO_KCAL_PER_MOL`` kcal/mol | kcal/(mol Angstrom) | kcal/mol | atm      |
+    +------------------+-------------------------------+--------------------------------------+---------------------+----------+----------+
+    | ``electron``     | 1 Bohr                        | 1 Hartree                            | Hartree/Bohr        | Hartree  | Pa       |
+    +------------------+-------------------------------+--------------------------------------+---------------------+----------+----------+
+
+Any other unit style is refused before the first step with an error that names
+the three; ``FixExternal`` raises ``ValueError``.
+LAMMPS converts the virial to pressure with its own ``nktv2p``.
+
+Cell and positions
+------------------
+
+LAMMPS keeps a restricted triclinic box: ``a`` along x, ``b`` in the xy plane. cpmdc
+takes one lattice vector per row of a row-major 3 by 3 cell, so the cell sent is
+
+.. table::
+
+    +-------+------------------+------------------------+
+    | Row   | LAMMPS           | ``domain->h``          |
+    +=======+==================+========================+
+    | ``a`` | ``(lx, 0, 0)``   | ``(h[0], 0, 0)``       |
+    +-------+------------------+------------------------+
+    | ``b`` | ``(xy, ly, 0)``  | ``(h[5], h[1], 0)``    |
+    +-------+------------------+------------------------+
+    | ``c`` | ``(xz, yz, lz)`` | ``(h[4], h[3], h[2])`` |
+    +-------+------------------+------------------------+
+
+with ``lx = xhi - xlo`` and the tilt factors ``xy``, ``xz``, ``yz``.
+An orthogonal box is the case with zero tilts.
+The positions are LAMMPS' Cartesian coordinates unwrapped with the image flags,
+``x + ix a + iy b + iz c``, so each atom follows a continuous path across the
+boundaries and wavefunction extrapolation sees smooth steps.
+The box origin ``(xlo, ylo, zlo)`` is not subtracted.
+A box with all three axes periodic sends the cell; a box with none sends no
+cell, and the ``CPMDParams`` deck sets the box.
+A box with some axes periodic and others not is refused; ``FixExternal`` raises
+``ValueError``.
+
+Atom IDs
+--------
+
+Both routes gather the system and order their call to cpmdc by increasing atom
+ID. IDs must be positive and unique, but need not be the consecutive integers
+1 through N: deleting atoms without compression leaves holes that are
+preserved while each force is returned to its original atom.
+
+Changing the atoms' elemental composition, including by ``delete_atoms ... compress no`` or ``fix evaporate``, closes the current cpmdc session before the next
+evaluation and opens a new session for the changed topology. An unchanged
+composition continues on the existing session.
+
+Virial and pressure
+-------------------
+
+cpmdc returns the virial ``W = -dE/d(strain)`` in Hartree.
+LAMMPS' global virial of a pair style or of ``fix_modify virial yes`` has the same
+sign and units of energy, ``W = sum r f`` for a pair potential, so both routes
+pass ``W`` times the energy factor, symmetrized, as ``xx yy zz xy xz yz``.
+The pressure LAMMPS prints is then ``P = (sum m v v + W) / V`` in its pressure
+units; a compressed cell has a positive diagonal of ``W`` and a positive pressure.
+``fix npt`` and ``fix nph`` use it as they use any pair virial.
+``compute pressure NULL virial`` reports the virial part alone, ``W / V`` in
+pressure units.
+
+Per-atom quantities
+-------------------
+
+Forces are per atom, and both routes return them for every atom.
+The energy and the virial are totals of the whole system, and ``pair_style cpmdc``
+splits neither:
+
+- A density functional energy is a functional of the electron density, not a sum
+  of terms that belong to atoms, so any per-atom share of it would be a choice of
+  partition, not a result of cpmdc.
+
+- The virial ``-dE/d(strain)`` is a derivative with respect to the cell. It holds
+  kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts that are not
+  ``sum r f`` over atoms, so it has no per-atom form that adds up to the pressure.
+
+``pair_style cpmdc`` therefore refuses a run in which a compute asks for a split:
+``compute pe/atom``, ``compute stress/atom``, or ``compute centroid/stress/atom``, with
+any keywords, even one that is never printed.
+The error ``pair_style cpmdc computes no per-atom energy or virial (compute ID)``
+names the compute and comes from ``init_style``, before the first evaluation.
+``uncompute ID`` removes the request.
+``FixExternal`` hands LAMMPS one energy and one virial and sets no per-atom values,
+so ``compute pe/atom`` and ``compute stress/atom`` take nothing from it.
+Per-atom forces work with every compute, for example ``compute property/atom fx fy fz``.

@@ -10,138 +10,79 @@ Goal
 Produce an OpenCPMD build tree whose ``lib/libcpmd.a`` can be linked into the
 shared ``libcpmdc.so`` and evaluated repeatedly from one host process.
 A stock OpenCPMD archive does not work inside a host: ``libcpmdc`` imports
-routines that only the patches add, the shared link stops on code built
-without ``-fPIC``, and the unpatched SCF driver drops the forces and the
-orbitals that ``cpmdc`` reads after each call.
+routines that only the patches add, the shared link stops on code built without
+``-fPIC``, and the unpatched SCF driver drops the forces and the orbitals that
+``cpmdc`` reads after each call.
 The patches in ``tools/`` and one compiler flag fix those.
-``opencpmd_c_mem_addrs.patch`` makes ``cGetMemAddrs`` return the address as
-``size_t``.
+``opencpmd_c_mem_addrs.patch`` makes ``cGetMemAddrs`` return the address as ``size_t``.
 GCC 14 rejects the stock return of a pointer from that function.
+``cuda_get_address`` stores the ``size_t`` that function returns.
 
-Patches and what each one is for
---------------------------------
+Patches
+-------
 
 .. table::
 
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Patch                                | File patched                                                                                                      | Without it                                                                                                                                                                                                                      |
-    +======================================+===================================================================================================================+=================================================================================================================================================================================================================================+
-    | ``opencpmd_embed_rinitwf.patch``     | ``src/rinitwf_driver.mod.F90``                                                                                    | a warm call still builds the wavefunction guess and then discards it                                                                                                                                                            |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_embed_geometry.patch``    | ``src/embed_ctrl.mod.F90``, ``src/initrun_driver.mod.F90``, ``src/SOURCES``                                       | ``initrun`` still writes ``GEOMETRY`` after ``embed_set_write_files(.FALSE.)``, and ``rwfopt`` has no ``embed_ctrl`` to read                                                                                                    |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_embed_rwfopt.patch``      | ``src/rwfopt_utils.mod.F90``                                                                                      | ``rwfopt`` deallocates ``fion`` on return and starts every SCF from a fresh guess, and ``cpmd_embed_c_api.F90`` does not compile                                                                                                |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_converged_state.patch``   | ``src/updwf_utils.mod.F90``                                                                                       | the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces; steepest descent with ``iproj <= 1`` also needs its ``gemax`` reset before the convergence check |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_kpoints_inputfile.patch`` | ``src/rkpnt_utils.mod.F90``                                                                                       | the k-point report reads the host's ``argv[1]`` as the input file name and stops with ``STOP 12345`` when it is missing or longer than 80 characters                                                                            |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_stopgm_return.patch``     | ``src/error_handling.mod.F90``                                                                                    | a CPMD stop inside an evaluation takes the ``my_stopall`` path, which OpenCPMD writes to end the run                                                                                                                            |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_tistopgm.patch``          | ``src/timer.mod.F90``                                                                                             | ``tistopgm`` indexes ``trace_depth`` before ``tistart``, while the depth is still ``HUGE(0)``, and the process faults before ``LocalError``                                                                                     |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_c_mem_addrs.patch``       | ``src/c_mem_utils.c``                                                                                             | ``cGetMemAddrs`` returns a ``size_t`` pointer, and GCC 14 stops on that conversion                                                                                                                                              |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_embed_teardown.patch``    | ``src/embed_teardown.mod.F90``, ``src/embed_ctrl.mod.F90``, ``src/SOURCES``, and 32 modules with first-call state | a second setup in one process, after a basis change or a ``stopgm``, stops in ``ratom`` with ``allocation problem`` or faults, because the arrays of the first setup are still allocated                                        |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``opencpmd_embed_extrapolate.patch`` | ``src/embed_ctrl.mod.F90``, ``src/control_test_utils.mod.F90``, ``src/rwfopt_utils.mod.F90``                      | ``EXTRAPOLATE WFN`` in the deck is dropped with a warning, and ``libcpmdc`` does not link, because it reads ``embed_extrapolation_used``                                                                                        |
-    +--------------------------------------+-------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Patch                                                | File patched                                                                                                      | Without it                                                                                                                                                                                                                                                                                                                             |
+    +======================================================+===================================================================================================================+========================================================================================================================================================================================================================================================================================================================================+
+    | ``opencpmd_embed_rinitwf.patch``                     | ``src/rinitwf_driver.mod.F90``                                                                                    | a warm call still builds the wavefunction guess and then discards it                                                                                                                                                                                                                                                                   |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_embed_geometry.patch``                    | ``src/embed_ctrl.mod.F90``, ``src/initrun_driver.mod.F90``, ``src/SOURCES``                                       | ``initrun`` still writes ``GEOMETRY`` after ``embed_set_write_files(.FALSE.)``, and ``rwfopt`` has no ``embed_ctrl`` to read                                                                                                                                                                                                           |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_embed_rwfopt.patch``                      | ``src/rwfopt_utils.mod.F90``                                                                                      | ``rwfopt`` deallocates ``fion`` on return and starts every SCF from a fresh guess, and ``cpmd_embed_c_api.F90`` does not compile                                                                                                                                                                                                       |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_converged_state.patch``                   | ``src/updwf_utils.mod.F90``                                                                                       | the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces; steepest descent with ``iproj <= 1`` also needs its ``gemax`` reset before the convergence check                                                                                                        |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_kpoints_inputfile.patch``                 | ``src/rkpnt_utils.mod.F90``                                                                                       | the k-point report reads the host's ``argv[1]`` as the input file name and stops with ``STOP 12345`` when it is missing or longer than 80 characters                                                                                                                                                                                   |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_stopgm_return.patch``                     | ``src/error_handling.mod.F90``                                                                                    | a CPMD stop inside an evaluation takes the ``my_stopall`` path, which OpenCPMD writes to end the run                                                                                                                                                                                                                                   |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_tistopgm.patch``                          | ``src/timer.mod.F90``                                                                                             | ``tistopgm`` indexes ``trace_depth`` before ``tistart``, while the depth is still ``HUGE(0)``, and the process faults before ``LocalError``                                                                                                                                                                                            |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_c_mem_addrs.patch``                       | ``src/c_mem_utils.c``                                                                                             | ``cGetMemAddrs`` returns a ``size_t`` pointer, and GCC 14 stops on that conversion                                                                                                                                                                                                                                                     |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_embed_teardown.patch``                    | ``src/embed_teardown.mod.F90``, ``src/embed_ctrl.mod.F90``, ``src/SOURCES``, and 34 modules with first-call state | a second setup in one process, after a basis change or a ``stopgm``, stops in ``ratom`` with ``allocation problem`` or faults, because the arrays of the first setup are still allocated                                                                                                                                               |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_embed_extrapolate.patch``                 | ``src/embed_ctrl.mod.F90``, ``src/control_test_utils.mod.F90``, ``src/rwfopt_utils.mod.F90``                      | ``EXTRAPOLATE WFN`` in the deck is dropped with a warning, and ``libcpmdc`` does not link, because it reads ``embed_extrapolation_used``                                                                                                                                                                                               |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_embed_dipole.patch``                      | ``src/wfopts_utils.mod.F90``, ``src/ddipo_utils.mod.F90``                                                         | the in-process wavefunction optimisation never calls ``ddipo``, so ``ddip%pdipole`` is stale and no dipole belongs to the current geometry; ``ddipo_embed`` is the new entry point, and ``ddipo`` keeps its argument list                                                                                                              |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_omp_info.patch``                          | ``src/rggen_utils.mod.F90``                                                                                       | a calculator that spans nodes with unequal numbers of ranks calls ``MPI_Allreduce`` with different counts in the report and can stop before the first electronic iteration                                                                                                                                                             |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_pcg_step.patch`` (optional)               | ``src/pcgrad_driver.mod.F90``                                                                                     | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see :doc:`the optimiser how-to <wavefunction-optimiser>`                                                                                                                                                                                      |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_constant_cutoff_precon.patch`` (optional) | ``src/hesele_utils.mod.F90``                                                                                      | with ``CONSTANT CUTOFF`` the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and ``cpmdc`` falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see :doc:`relaxing a cell at a constant cutoff <constant-cutoff>`                                             |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``opencpmd_atomwf_kpts_ortho.patch``                 | ``src/atomwf_utils.mod.F90``, ``src/gsortho_utils.mod.F90``                                                       | k-point atomic wavefunction initialization with randomized extra states overflows ``zmatat`` because ``gs_ortho_c`` passes ``2*np*n0`` to ``mp_sum`` on a ``COMPLEX(real_8)`` array and ``atomwf`` passes ``zmatat(atwp%nattot, atwp%nattot)`` instead of sizing the orthogonalization scratch to ``(nleft, MAX(atwp%nattot, nleft))`` |
+    +------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-The rwfopt patch publishes ``embed_set_warm_orbitals``,
-``embed_set_need_forces``, ``embed_reset_warm_orbitals``, and
-``embed_set_write_files``.
-Its geometry-aware selector is ``embed_choose_warm_start_metric_v2``.
-The bridge requires that exact versioned procedure in both the Fortran
-module interface and the archive object. An unversioned selector has a
-different calling convention and cannot be substituted, even if a newer
-module file is supplied beside it. A missing versioned symbol requires
-rebuilding the patched archive; copying module files alone is insufficient.
-The geometry patch adds ``embed_ctrl``, which holds ``embed_write_files``
-(default true). Setting it false skips ``geofile`` in ``initrun`` and the
-``zhwwf`` and ``geofile`` writes in ``rwfopt``. ``wrgeof`` still prints coordinates.
-``embed_set_warm_orbitals(.FALSE.)`` frees the saved orbitals.
-``embed_warm_orbitals`` and ``embed_need_forces`` default to false, which is the
-``cpmd.x`` behaviour.
-``rwfopt`` leaves ``fion`` allocated only when ``embed_need_forces`` is true, and
-frees a surviving ``fion`` before its own ``ALLOCATE``.
-It saves ``c0`` only when ``embed_warm_orbitals`` is true and the SCF converged.
-An unconverged pass leaves the previous copy.
-A failed store allocation calls ``stopgm``.
-On the next call it copies that ``c0`` in before ``initrun``.
-``rinitwf`` then returns after the phase factors when ``embed_have_orbitals``
-is true, so the guess does not run.
-A restart read inside ``initrun`` can replace ``c0``, so the same copy is
-applied again after ``initrun`` when the shape still matches, and a different
-shape calls ``stopgm``.
-``rwfopt`` sets ``tfor`` when ``embed_need_forces`` is true.
-The stop patch publishes ``cpmd_stopgm_hook``, a C function pointer.
-``stopgm`` calls it with the stop code passed by value, after writing
-``LocalError-*.log``.
-A nonzero return makes ``stopgm`` return to its caller, and a null pointer
-makes ``stopgm`` call ``my_stopall``.
-The caller then continues past the failed check.
-The wavefunction, ``fion``, and module state of that call are undefined, so
-``cpmdc`` discards the result and sets CPMD up again before the next call.
-``stopgm`` runs only on the ranks that hit the error.
-A host with more than one rank aborts the others, because a rank that
-returns while the rest wait in an MPI call leaves them waiting.
-A standalone ``cpmd.x`` leaves the pointer null and links without ``libcpmdc``.
-While an evaluation is armed, ``libcpmdc`` stores a catch in the pointer.
-The catch records the code and returns 1, and ``cpmdc`` reports the stop as a
-failed call (see :doc:`troubleshooting <troubleshooting>`).
-``cpmdc_embed_catch`` and ``cpmdc_note_stop`` are exported from ``libcpmdc``.
-The calculator split does not need a patch: ``mp_start`` assigns
-``mp_comm_world`` only when CPMD itself calls ``MPI_Init``, and
-``cpmdc_embed_bind_calculator`` initialises MPI and stores its communicator
-before that. A module flag, ``embed_calculator_bound``, makes a second bind
-return the same index.
-The timer patch changes ``tistopgm``.
-``trace_depth`` stays ``HUGE(0)`` until ``tistart``, and without the guard the
-call-stack walk indexes ``trace_names`` from that value, so a ``stopgm`` before
-``tistart`` faults instead of writing ``LocalError``.
-The walk runs only when the depth is inside ``SIZE(tname%trace_names)``.
+The loops below apply every patch but the optional
+``pcg_step`` and ``constant_cutoff_precon``; ``scripts/ci/build_opencpmd.sh`` applies
+them too.
+After that patch, rebuild ``hesele`` and its member of ``lib/libcpmd.a``.
+``tools/rebuild_opencpmd_constant_cutoff.sh`` does both.
+Its one argument is the root of the OpenCPMD tree.
 
-The teardown patch adds the module ``embed_teardown`` and its routine
-``embed_teardown_state``, which ``cpmdc_embed_teardown`` calls.
-It frees the saved orbitals, the communicators ``set_cp_grp`` built, and
-every ``ALLOCATABLE`` module variable and module-variable component that a
-``USE`` reaches, outside the timer, stop, and CUDA device modules.
-It then adds one to ``embed_teardowns`` in ``embed_ctrl``.
-37 routines in those 32 modules keep work on the setup and wavefunction
-optimisation path for their first call behind a ``SAVE`` flag: ``phfac``, ``setbasis``,
-``hf_init``, ``addfftnset``, the density mixers, the symmetry setup, the
-Vanderbilt and core-charge splines, and others.
-Each one compares the count it last saw with ``embed_teardowns``, and on a
-change frees its own ``SAVE`` arrays and runs as the first call again.
-The next setup then gives the energies of a fresh process.
-``tistart`` keeps its state: it executes ``STOP`` on a second call, so the
-embed calls it once per process.
-``cpmd.x`` never tears down, and ``embed_teardowns`` stays 0 there.
-
-The extrapolation patch keeps the ``EXTRAPOLATE WFN`` request that ``control_test`` turns off for every job other than Born-Oppenheimer molecular dynamics.
-``control_test`` copies ``cntl%textrap`` into ``embed_extrap_wfn`` in ``embed_ctrl`` before it does so.
-When that flag is true and a call starts from stored orbitals, ``rwfopt`` passes them to the ``extrapwf`` that the molecular dynamics driver calls between steps.
-That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration.
-``embed_extrapolation_used`` returns how many sets the last prediction combined.
-The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it.
-``cpmd.x`` never sets ``embed_warm_orbitals`` and never takes this path.
-Its molecular dynamics runs are unchanged.
-The :doc:`extrapolation how-to <extrapolate-orbitals>` shows the message and the check.
+:doc:`How the OpenCPMD patches work <../explanation/opencpmd-patches>`
+explains what each patch changes inside CPMD and why ``libcpmdc`` needs it.
 
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are portable
 unified diffs against the files named above.
 Apply ``opencpmd_embed_rinitwf.patch`` before the rwfopt patch.
 ``rwfopt`` reads ``embed_have_orbitals`` from ``rinitwf_driver``.
-Apply ``opencpmd_embed_geometry.patch`` before that rwfopt patch as well:
-``rwfopt`` reads ``embed_ctrl``.
-The rwfopt, converged-state, k-point, stop, and timer patches are the
-commits on `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`_
-(branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to OpenCPMD
-commit ``062582b``.
+Apply ``opencpmd_embed_geometry.patch`` before that rwfopt patch as well: ``rwfopt``
+reads ``embed_ctrl``.
+The rwfopt, converged-state, k-point, stop, and timer patches are the commits on `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`_
+(branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to OpenCPMD commit
+``062582b``.
 Apply ``opencpmd_c_mem_addrs.patch`` with them.
-Apply ``opencpmd_embed_teardown.patch`` after those: it adds to the ``embed_ctrl`` of the geometry patch and calls ``embed_reset_warm_orbitals`` from the rwfopt patch.
-Apply ``opencpmd_embed_extrapolate.patch`` after the teardown patch, whose lines in ``embed_ctrl`` it follows.
-``cuda_get_address`` stores the ``size_t`` that function returns.
+Apply ``opencpmd_embed_teardown.patch`` after those: it adds to the
+``embed_ctrl`` of the geometry patch and calls ``embed_reset_warm_orbitals`` from
+the rwfopt patch.
+Apply ``opencpmd_embed_extrapolate.patch`` after the teardown patch, whose lines
+in ``embed_ctrl`` it follows.
+Apply ``opencpmd_embed_dipole.patch`` after it.
 
 Build a patched tree
 --------------------
@@ -156,7 +97,8 @@ build:
     git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
     for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
              kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-             embed_teardown embed_extrapolate omp_info; do
+             embed_teardown embed_extrapolate embed_dipole omp_info \
+             atomwf_kpts_ortho; do
       patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
     done
 
@@ -164,19 +106,18 @@ The OpenCPMD sample ``LINUX-X86_64-GFORTRAN-MPI`` sets ``LIBS`` to one person's
 library path.
 Copying that file and adding ``-fPIC`` leaves the path in the build.
 ``cpmdc`` ships ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` for the command below.
-It calls ``mpif90`` and ``gcc`` from ``PATH``, adds ``-fPIC`` and
-``-ffp-contract=off`` to ``FFLAGS`` and ``CFLAGS``, and sets ``LIBS`` to
-``-lopenblas``.
+It calls ``mpif90`` and ``gcc`` from ``PATH``, adds ``-fPIC`` and ``-ffp-contract=off`` to
+``FFLAGS`` and ``CFLAGS``, and sets ``LIBS`` to ``-lopenblas``.
 The aarch64 file is ``tools/LINUX-AARCH64-GFORTRAN-MPI-PIC``.
-The section Building OpenCPMD for mixed clusters below says when to
-use each file.
+The section Building OpenCPMD for mixed clusters below says when to use each
+file.
 When ``mpif90`` accepts it, ``FFLAGS`` also gains ``-fallow-argument-mismatch``.
-``mp_bcast_byte`` broadcasts the bytes of its first argument, and one
-procedure calls it with several derived types.
-gfortran 10 and later stop on those calls without the flag.
+``mp_bcast_byte`` broadcasts the bytes of its first argument, and one procedure
+calls it with several derived types. gfortran 10 and later stop on those calls
+without the flag.
 That OpenBLAS build has to export the LAPACK symbols.
-``libcpmdc`` is a shared library; a member of ``libcpmd.a`` compiled without
-``-fPIC`` fails the link with a ``R_X86_64_PC32`` relocation error.
+``libcpmdc`` is a shared library; a member of ``libcpmd.a`` compiled without ``-fPIC``
+fails the link with a ``R_X86_64_PC32`` relocation error.
 Copy the shipped file into the clone, then configure and build:
 
 .. code:: bash
@@ -201,44 +142,62 @@ rebuild only the affected members:
     cd /path/to/opencpmd-source
     for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
              kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-             embed_teardown embed_extrapolate omp_info; do
+             embed_teardown embed_extrapolate embed_dipole omp_info \
+             atomwf_kpts_ortho; do
       patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
     done
     /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
     /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/opencpmd-build
 
-``rebuild_opencpmd_embed.sh`` recompiles the object of the embedding patch, ``error_handling.mod.o``, ``embed_ctrl.mod.o``, ``control_test_utils.mod.o``, ``rinitwf_driver.mod.o``, ``initrun_driver.mod.o``, ``rwfopt_utils.mod.o``, ``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, ``timer.mod.o``, ``c_mem_utils.o``, the 32 modules of the teardown patch, and ``embed_teardown.mod.o`` after them, and ``scex_utils.mod.o`` for the module order, with one Make job, then replaces those members with ``ar r`` and runs ``ranlib``.
-It runs one job because gfortran stores a copy of ``Scex_t`` inside
-``rwfopt_utils.mod``: a parallel rebuild can leave the two module files naming
-different components.
+``rebuild_opencpmd_embed.sh`` recompiles the object of the embedding patch,
+``error_handling.mod.o``, ``embed_ctrl.mod.o``, ``control_test_utils.mod.o``,
+``rinitwf_driver.mod.o``, ``initrun_driver.mod.o``,
+``rwfopt_utils.mod.o``, ``ddipo_utils.mod.o``, ``wfopts_utils.mod.o``,
+``updwf_utils.mod.o``,
+``rkpnt_utils.mod.o``, ``timer.mod.o``, ``c_mem_utils.o``,
+``gsortho_utils.mod.o``, ``atomwf_utils.mod.o``,
+the 34 modules of the teardown patch, and ``embed_teardown.mod.o``
+after them, and ``scex_utils.mod.o`` for the module order, with one Make job, then
+replaces those members with ``ar r`` and runs ``ranlib``.
+``tests/test_opencpmd_embed_objects.py`` fails when a source file in
+``tools/opencpmd_*.patch`` has no object in that list or in the dedicated
+rebuild scripts.
+It runs one job because gfortran stores a copy of
+``Scex_t`` inside ``rwfopt_utils.mod``: a parallel rebuild can leave the two module
+files naming different components.
 It calls ``ar`` directly because the generated Makefile sets ``AR`` without an
 operation letter, so its archive rule does not replace members.
 ``MAKE`` and ``AR`` in the environment override the programs it runs.
 
-``opencpmd_omp_info.patch`` corrects report collectives when one calculator
-spans nodes with unequal numbers of ranks. Every rank uses the I/O node's
-array size; otherwise the report calls ``MPI_Allreduce`` with different counts
-and can stop before the first electronic iteration. The separate
-``rebuild_opencpmd_omp_info.sh`` helper rebuilds ``rggen_utils.mod.o`` and
-replaces that archive member. Relink ``libcpmdc`` against the corrected archive.
+``opencpmd_omp_info.patch`` corrects report collectives when one calculator spans
+nodes with unequal numbers of ranks.
+Every rank uses the I/O node's array size; otherwise the report calls
+``MPI_Allreduce`` with different counts and can stop before the first electronic
+iteration.
+The separate ``rebuild_opencpmd_omp_info.sh`` helper rebuilds ``rggen_utils.mod.o``
+and replaces that archive member.
+Relink ``libcpmdc`` against the corrected archive.
 
-The reporting regression compiles the actual native routine with an MPI
-fixture representing unequal node populations. Inside an allocation with
-at least three ranks, run:
+The reporting regression compiles the actual native routine with an MPI fixture
+representing unequal node populations.
+Inside an allocation with at least three ranks, run:
 
 .. code:: bash
 
     /path/to/cpmdc/tools/check_opencpmd_omp_info.sh /path/to/opencpmd-source /path/to/build/omp-info
 
-The corrected routine exits zero. The unpatched control reports
-``inconsistent native report counts`` and exits nonzero. This checks report
-collectives; energy and force evaluations require their native tests.
+The corrected routine exits zero.
+The unpatched control reports ``inconsistent native report counts`` and exits
+nonzero.
+This checks report collectives; energy and force evaluations require their
+native tests.
 
 Link and check
 --------------
 
 OpenCPMD leaves ``timetag`` out of ``libcpmd.a`` and links ``obj/timetag.o`` into
-``cpmd.x``. ``header`` calls ``timetag``, so the embed link needs that object too.
+``cpmd.x``.
+``header`` calls ``timetag``, so the embed link needs that object too.
 Build it from the configured tree before ``meson setup``:
 
 .. code:: bash
@@ -252,42 +211,41 @@ Build it from the configured tree before ``meson setup``:
     nm -D build-cpmd/libcpmdc.so | grep -c ' T cpmdc_'
 
 The last command counts the exported ``cpmdc_*`` symbols.
-The first evaluation needs the pseudopotential directory in
-``CPMDC_PSEUDO_DIR``; the :doc:`first energy
-tutorial <../tutorials/first-energy>` runs one.
+The export list hides every other symbol of the archives except the MPI Fortran
+sentinels, which must stay global (see :doc:`How the OpenCPMD patches work <../explanation/opencpmd-patches>`).
+A cold evaluation needs the pseudopotential directory in ``CPMDC_PSEUDO_DIR``;
+the :doc:`first energy tutorial <../tutorials/first-energy>` runs one.
 Stress tensors, which ``PotentialResult.stress`` carries for periodic cells, need
-no extra patch: ``cpmdc`` sets ``cntl%tpres`` before the SCF and copies
-``paiu/omega`` afterwards.
-An isolated cell does not set the snapshot. The box has a volume, and CPMD
-does not compute the tensor.
+no extra patch: ``cpmdc`` sets ``cntl%tpres`` before the SCF and copies ``paiu/omega``
+afterwards.
+An isolated cell does not set the snapshot.
+The box has a volume, and CPMD does not compute the tensor.
 
 Building OpenCPMD for mixed clusters
 ------------------------------------
 
-A binary that runs on more than one CPU type must not be built with
-``-xHost``, ``-march=native``, or ``-axCORE-AVX512``.
-``-xHost`` and ``-march=native`` bind the object code to the CPU that
-compiled it.
-``-axCORE-AVX512`` is Intel's multi-target flag, and the binary it
-produces does not run on a non-Intel CPU.
-Stock OpenCPMD files that pass those flags include
-``INTEL-AMD-IFORT-OPENMPI`` and ``INTEL-SKYLAKE-IFORT-OPENMPI``.
+A binary that runs on more than one CPU type must not be built with ``-xHost``,
+``-march=native``, or ``-axCORE-AVX512``.
+``-xHost`` and ``-march=native`` bind the object code to the CPU that compiled it.
+``-axCORE-AVX512`` is Intel's multi-target flag, and the binary it produces does
+not run on a non-Intel CPU.
+Stock OpenCPMD files that pass those flags include ``INTEL-AMD-IFORT-OPENMPI`` and
+``INTEL-SKYLAKE-IFORT-OPENMPI``.
 Do not copy them for a shared cluster.
-One binary per microarchitecture belongs in EESSI
-(Dröge et al., Softw. Pract. Exp. 53, 176 (2023),
-https://doi.org/10.1002/spe.3075).
+One binary per microarchitecture belongs in EESSI (Dröge et al., Softw. Pract.
+Exp. 53, 176 (2023), https://doi.org/10.1002/spe.3075).
 
 ``cpmdc`` ships two configure files that set the instruction set explicitly.
 ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` passes ``-march=x86-64`` on debug and
 release ``FFLAGS`` and ``CFLAGS``.
-GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults
-to x86-64-v3, which includes AVX2 and FMA.
-``tools/LINUX-AARCH64-GFORTRAN-MPI-PIC`` passes ``-march=armv8-a`` on those
-same flags.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to
+x86-64-v3, which includes AVX2 and FMA.
+``tools/LINUX-AARCH64-GFORTRAN-MPI-PIC`` passes ``-march=armv8-a`` on those same
+flags.
 Both add ``-fPIC``, because ``libcpmdc`` is a shared library, and
 ``-ffp-contract=off``.
-``-ffp-contract=off`` stops the compiler from fusing a multiply and an
-add into one instruction.
+``-ffp-contract=off`` stops the compiler from fusing a multiply and an add into
+one instruction.
 That keeps numeric results equal across build targets.
 The same flag is on ``cpmdc`` C and Fortran arguments.
 Copy the file that matches the machine into ``configure/``:
@@ -299,17 +257,17 @@ Copy the file that matches the machine into ``configure/``:
 
 On x86\ :sub:`64`\, use ``LINUX-X86_64-GFORTRAN-MPI-PIC`` in that command instead.
 
-OpenBLAS and FFTW choose their own kernels at run time when they were
-built that way.
-``meson.build`` links OpenBLAS, or FlexiBLAS when that library is
-present, and FFTW3, including ``fftw3_omp`` when it is present.
+OpenBLAS and FFTW choose their own kernels at run time when they were built that
+way.
+``meson.build`` links OpenBLAS, or FlexiBLAS when that library is present, and
+FFTW3, including ``fftw3_omp`` when it is present.
 Check OpenBLAS with ``openblas_get_config()``.
-The returned string contains ``DYNAMIC_ARCH`` when the library selects a
-kernel for the CPU it is running on.
-A build without ``DYNAMIC_ARCH`` can contain one microarchitecture and
-fault on a CPU that lacks it.
+The returned string contains ``DYNAMIC_ARCH`` when the library selects a kernel
+for the CPU it is running on.
+A build without ``DYNAMIC_ARCH`` can contain one microarchitecture and fault on a
+CPU that lacks it.
 Check FFTW in the build's ``config.log`` or the package recipe.
-Runtime selection is on when several SIMD codelet options were enabled
-together, for example ``--enable-sse2``, ``--enable-avx``, ``--enable-avx2``,
-``--enable-avx512``, or ``--enable-neon``.
+Runtime selection is on when several SIMD codelet options were enabled together,
+for example ``--enable-sse2``, ``--enable-avx``, ``--enable-avx2``, ``--enable-avx512``,
+or ``--enable-neon``.
 A library built with only one of those runs only that set.

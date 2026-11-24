@@ -3,20 +3,20 @@ Contributing
 ============
 
 
-Bug reports, fixes, tests, documentation, and new typed keywords for the
-input deck are welcome.
+Bug reports, fixes, tests, documentation, and new typed keywords for the input
+deck are welcome.
 Report a problem or propose a change on the
 `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_.
 Send the change itself as a pull request to the
 `cpmdc repository <https://github.com/OmniPotentRPC/cpmdc>`_ on GitHub.
-The sections below list the checks to run first and the files that each
-kind of change touches.
+The sections below list the checks to run first and the files that each kind of
+change touches.
 
 Development Checks
 ------------------
 
-Run the default parser, socket, and stub checks before changing the ABI,
-schema, renderer, or session runtime:
+Run the default parser, socket, and stub checks before changing the ABI, schema,
+renderer, or session runtime:
 
 .. code:: bash
 
@@ -29,93 +29,214 @@ public change:
 
 .. table::
 
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Contract                                                            | Command                                                                                   |
-    +=====================================================================+===========================================================================================+
-    | Full default ABI and parser suite                                   | ``meson test -C build --print-errorlogs``                                                 |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Cap'n Proto decode and deck rendering                               | ``meson test -C build --suite cmocka --print-errorlogs``                                  |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Session, topology, result sizing, and unit conversion               | ``meson test -C build --suite e2e --print-errorlogs``                                     |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Generated feature inventory                                         | ``meson test -C build feature-inventory --print-errorlogs``                               |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Base ``&CPMD`` keyword inventory                                    | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``                     |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Top-level ``CPMDParams`` feature rows and duplicate inventory lists | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``                     |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Public C ABI inventory                                              | ``meson test -C build cpmd-public-abi-inventory --print-errorlogs``                       |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Stub ABI feature rows                                               | ``meson test -C build stub-abi-symbol-coverage stub-abi --print-errorlogs``               |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Shared library ABI exports                                          | ``meson test -C build shared-dlopen-symbol-coverage shared-dlopen-abi --print-errorlogs`` |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | ``CPMDCpmdSection`` render mappings                                 | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``                     |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Inline option token coverage                                        | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                      |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Typed render field coverage                                         | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``                |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Long-tail directive section coverage                                | ``meson test -C build cpmd-long-tail-section-coverage --print-errorlogs``                 |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Escape-hatch carrier coverage                                       | ``meson test -C build cpmd-escape-hatch-coverage --print-errorlogs``                      |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Embedding docs coverage                                             | ``meson test -C build cpmd-embedding-docs-coverage --print-errorlogs``                    |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Public header docs coverage                                         | ``meson test -C build cpmd-public-header-docs-coverage --print-errorlogs``                |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | Public host example docs                                            | ``meson test -C build examples-documented --print-errorlogs``                             |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | README and quickstart navigation                                    | ``meson test -C build readme-navigation --print-errorlogs``                               |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
-    | OpenCPMD archive build                                              | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs``       |
-    +---------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Contract                                                             | Command                                                                                                             |
+    +======================================================================+=====================================================================================================================+
+    | Full default ABI and parser suite                                    | ``meson test -C build --print-errorlogs``                                                                           |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Cap'n Proto decode and deck rendering                                | ``meson test -C build --suite cmocka --print-errorlogs``                                                            |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Session, topology, result sizing, and unit conversion                | ``meson test -C build --suite e2e --print-errorlogs``                                                               |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Generated feature inventory                                          | ``meson test -C build feature-inventory --print-errorlogs``                                                         |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Base ``&CPMD`` keyword inventory                                     | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``                                               |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Top-level ``CPMDParams`` feature rows and duplicate inventory lists  | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``                                               |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Public C ABI inventory                                               | ``meson test -C build cpmd-public-abi-inventory --print-errorlogs``                                                 |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Stub ABI feature rows                                                | ``meson test -C build stub-abi-symbol-coverage stub-abi --print-errorlogs``                                         |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Shared library ABI exports                                           | ``meson test -C build shared-dlopen-symbol-coverage shared-dlopen-abi --print-errorlogs``                           |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDCpmdSection`` render mappings                                  | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``                                               |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Inline option token coverage                                         | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                                                |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Typed render field coverage                                          | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``                                          |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Long-tail directive section coverage                                 | ``meson test -C build cpmd-long-tail-section-coverage --print-errorlogs``                                           |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Escape-hatch carrier coverage                                        | ``meson test -C build cpmd-escape-hatch-coverage --print-errorlogs``                                                |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Embedding docs coverage                                              | ``meson test -C build cpmd-embedding-docs-coverage --print-errorlogs``                                              |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Public header docs coverage                                          | ``meson test -C build cpmd-public-header-docs-coverage --print-errorlogs``                                          |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Public host example docs                                             | ``meson test -C build examples-documented --print-errorlogs``                                                       |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | README and build-and-test navigation                                 | ``meson test -C build readme-navigation --print-errorlogs``                                                         |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Reference contract of every public name, no hidden names in the docs | ``meson test -C build reference-contract public-api-docs --print-errorlogs``                                        |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | LLM index files match Org sources                                    | ``python3 scripts/generate_llms_txt.py --check`` or ``meson test -C build llms-txt --print-errorlogs``              |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Public inventory JSON coverage report                                | ``python3 scripts/docs_coverage_inventory.py`` or ``meson test -C build docs-coverage-inventory --print-errorlogs`` |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | Every README and Org code block runs, compiles, or names why not     | ``meson test -C build docs-examples --print-errorlogs``                                                             |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+    | OpenCPMD archive build                                               | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs``                                 |
+    +----------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
+
+``scripts/ci/fetch_pseudopotentials.sh pp`` writes the pseudopotentials that suite reads into ``pp``, ``Si_MT_BLYP.psp`` from ``PP_LIBRARY/pseudo``
+included; point ``CPMDC_PSEUDO_DIR`` there.
+On one core the OpenCPMD build runs ``python-pytest`` in about half an hour.
 
 Params render coverage lives under ``tests/cmocka/`` and uses cmocka assertions on
 generated Cap'n Proto types (``read_CPMDParams``, deck substrings) only.
 Session tests use encoded ``CPMDParams`` and ``ForceInput`` fixtures from
 ``tests/*.capnp.txt``.
 ``feature-inventory`` ties the generated JSON inventory to the schema, public
-feature table, docs, public headers, ABI symbol list, and optional
-``CPMD_ROOT`` parser section probe.
+feature table, docs, public headers, ABI symbol list, and optional ``CPMD_ROOT``
+parser section probe.
 ``cpmd-base-keyword-inventory`` requires every base ``&CPMD`` keyword in
 ``schema/inventory/cpmd_cp_keywords.txt`` to resolve to a ``catalog.cpmd.*`` row.
-``cpmd-params-field-inventory`` requires every top-level ``CPMDParams`` schema
-field to resolve to a ``params.*`` feature row and rejects duplicate inventory
-IDs/lists and C feature table duplicates before set comparisons can hide them.
-``cpmd-public-abi-inventory`` requires every public ``cpmdc_*`` header function to
-resolve through ``abi_symbols`` and the feature table, then verifies the native
-``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or shared ``src/cpmdc_features.c``
-implementation that exports it.
-``stub-abi-symbol-coverage`` requires the standalone stub test to assert every
-``abi_symbols`` feature row is present and stub-applicable.
-``shared-dlopen-symbol-coverage`` requires the shared-library ``dlopen`` test to
-load every ``abi_symbols`` entry from ``libcpmdc.so``.
-``cpmd-schema-render-coverage`` and ``cpmd-option-token-coverage`` keep typed
-``CPMDCpmdSection`` fields and fixture inline tokens tied to render coverage.
-``cpmd-typed-render-field-coverage`` requires typed ``cpmd``, ``system``, ``dft``, and
-``atoms`` fields to appear in render fixtures or render assertions.
-``cpmd-long-tail-section-coverage`` requires every ``CPMDDirectiveSection`` union
-arm to appear in the long-tail fixture, render assertions, and option reference.
-``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``, ``set``, and
-``raw`` carriers to stay covered by schema, fixtures, render tests, and option
-docs.
-``cpmd-embedding-docs-coverage`` requires the embedding how-to to name the public
-ABI feature IDs plus the typed, long-tail, and escape-hatch ``CPMDParams``
-carrier IDs used by host authors.
-``cpmd-public-header-docs-coverage`` requires the public header and generated C
-API docs to describe the serialized ``CPMDParams`` input surface.
-``examples-documented`` requires public docs to point at the runnable
-``examples/host_step.c`` host program. ``readme-navigation`` keeps the README and
-quickstart docs focused on entry paths, work-loop labels, and current wording.
+``cpmd-params-field-inventory`` requires every top-level ``CPMDParams`` schema field
+to resolve to a
+``params.*`` feature row and rejects duplicate inventory IDs/lists and C feature table duplicates before set comparisons can hide them. ``cpmd-public-abi-inventory`` requires every public ``cpmdc_*``
+header function to resolve through
+``abi_symbols`` and the feature table, then verifies the native ``src/cpmdc.c``, stub ``src/cpmdc_stub.c``,
+or shared
+``src/cpmdc_features.c`` implementation that exports it. ``stub-abi-symbol-coverage`` requires the standalone stub test to assert every ``abi_symbols`` feature row is present and stub-applicable. ``shared-dlopen-symbol-coverage`` requires the shared-library ``dlopen`` test to load every ``abi_symbols`` entry from ``libcpmdc.so``. ``cpmd-schema-render-coverage`` and ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and fixture inline tokens tied to render coverage. ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``, ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures or render assertions. ``cpmd-long-tail-section-coverage`` requires every ``CPMDDirectiveSection`` union arm to appear in the long-tail fixture, render assertions, and option reference. ``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``, ``set``, and ``raw`` carriers to stay covered by schema, fixtures, render tests, and option docs. ``cpmd-embedding-docs-coverage`` requires the embedding how-to to name the public ABI feature IDs plus the typed, long-tail, and escape-hatch ``CPMDParams`` carrier IDs used by host authors. ``cpmd-public-header-docs-coverage`` requires the public header and generated C API docs to describe the serialized ``CPMDParams`` input surface. ``examples-documented`` requires public docs to point at the runnable ``examples/host_step.c`` host program. ``readme-navigation`` keeps the README and build-and-test how-to focused on entry paths, work-loop labels, and current wording. ``reference-contract`` requires every function, type, enum constant, and macro of ``cpmdc.h``, ``cpmdc_features.h``,
+and
+``cpmdc_restart.h`` in the :doc:`C ABI reference <../reference/c-abi>`, each function with its parameter list in a table row, an ``__all__`` in every ``python/cpmdc`` module that lists its public functions and classes, each of those names and each public member of an exported class in the :doc:`Python reference <../reference/python>`, and no ``cpmdc_``
+name in the README or the Org pages that no public header declares.
+``docs-examples`` classifies every code block of the README and the Org pages.
+It runs the blocks the default build can run, compiles the C fragments against
+``include/``, and lists the rest in ``tests/test_docs_examples.py``: blocks that
+need OpenCPMD in ``OPENCPMD``, whose surrounding text must say so, and the others
+in ``SKIP`` with the tool or input they need.
+Every shell block, run or not, must name meson options, pixi tasks, meson tests
+and suites, repository paths, and build outputs that exist.
+A new block fails the test until it is classified.
+
+GROMACS tests
+-------------
+
+``tests/python/test_gromacs.py`` runs under Meson's ``python-pytest``.
+Without GROMACS it still checks the library through ``ctypes``:
+
+- the unit factors against GROMACS' ``units.h``;
+
+- the energy and forces of the whole system against ``CPMDCCalculator`` to 1e-10,
+  in a cubic and a triclinic box;
+
+- unwrapping across the boundary, and the whole QM region with ``CELL NONE``;
+
+- the mechanical embedding against an independent NumPy Ewald sum in a cubic and
+  a triclinic box, its convergence with the precision, a finite difference of
+  its forces, and the direct sum without a box;
+
+- the stress of ``cp2k_get_stress_tensor()``, as ASE's stress: with
+  ``CELL PERIODIC`` against ``CPMDCCalculator`` to 1e-13 and ASE's central
+  difference under a 1e-6 strain of the cell to 1e-8 of its largest element;
+  with ``CELL NONE``, with and without the mechanical embedding, against the same
+  difference of the library's own energy; each in a cubic and a triclinic box,
+  and the box of GROMACS 2026 read the same as that of 2024;
+
+- no stress without a box or for an isolated periodic deck;
+
+- the error for each refused input.
+
+With ``gmx_d`` from ``CPMDC_GMX`` or on ``PATH``, it also runs ``grompp`` and ``mdrun``:
+
+- one step of two QM waters, the whole system, in a cubic and a triclinic box:
+  ``Quantum En.`` against ``CPMDCCalculator`` to 1e-10 relative and equal to
+  ``Potential``, and the forces to 1e-10 relative, read with ``gmx energy -dp`` and
+  from the double-precision ``.trr``;
+
+- one QM water among three MM waters with PME: ``Quantum En.`` and the QM atom
+  forces against the reference evaluator plus the NumPy Ewald sum;
+
+- 2000 NVE steps of each system: the total energy stays within 2e-3 and 5e-3 of
+  the swing of the potential energy;
+
+- the virial and pressure of step 0 from rest with ``md-vv``, two QM waters in a
+  cubic and a triclinic box: ``Vir`` equals ``0.5 V sigma`` of ``CPMDCCalculator``'s
+  ASE stress to 1e-9 relative, and ``Pres`` equals ``-sigma``;
+
+- one QM water among three MM waters with PME, in a cubic and a triclinic box:
+  each element of ``Vir`` equals half the central difference of ``Potential`` under
+  a 1e-5 strain of the box and positions, to 1e-8 of its largest element, so the
+  QM, QM-MM, and classical terms all enter it;
+
+- generated input, ``EMBEDDING ELECTROSTATIC``, and charged MM atoms without an
+  embedding each stop ``mdrun`` with the reason.
+
+With ``gmx_mpi_d`` from ``CPMDC_GMX_MPI``, a double-precision GROMACS built with
+``-DGMX_MPI=ON``, launched by ``CPMDC_MPIEXEC`` (default ``mpiexec``):
+
+- 20 NVE steps of 64 waters in a 2.4 nm box, one of them QM with its atoms
+  across the periodic boundary in x and y, on 2 and 4 ranks with
+  ``QM_RANKS ALL`` and on 4 with ``QM_RANKS 1``: ``Quantum En.``, ``Potential`` and
+  ``Total Energy`` of every step and the positions and forces of steps 0, 10 and
+  20 match the one-rank run to 1e-10, and the virial and pressure of every step
+  to 1e-9 of their largest element, so the QM virial enters once.
+  The pair list is rebuilt every step without a buffer (``nstlist = 1``,
+  ``verlet-buffer-tolerance = -1``), so that every decomposition sees the same
+  pairs;
+
+- ``-npme 1`` stops ``mdrun`` with GROMACS' refusal of separate PME ranks.
+
+``tests/test_installed_pkgconfig_consumer.py`` builds a libcp2k client from an installed ``libcp2k.pc`` alone and runs it without ``LD_LIBRARY_PATH``. After the prefix is moved it rejects an installed ``.so`` or ``.dylib`` whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.
+
+The CI job ``gromacs-qmmm`` builds GROMACS 2025.5 three ways and fails if any of
+its tests skips:
+
+.. table::
+
+    +---------------+-----------------------------------------------------------------------------------+----------------------------------------------------------------------+
+    | Route         | GROMACS                                                                           | Tests                                                                |
+    +===============+===================================================================================+======================================================================+
+    | ``build``     | thread-MPI, against ``build/tools/gromacs``                                       | the one-rank tests and the Meson suite                               |
+    +---------------+-----------------------------------------------------------------------------------+----------------------------------------------------------------------+
+    | ``installed`` | thread-MPI, against the ``libcp2k.pc`` of ``meson install`` into ``build/prefix`` | the same, with ``libcpmdc`` and ``libcpmdc_gromacs`` from the prefix |
+    +---------------+-----------------------------------------------------------------------------------+----------------------------------------------------------------------+
+    | ``mpi``       | ``-DGMX_MPI=ON`` with the Open MPI of the pixi environment                        | the domain decomposition tests                                       |
+    +---------------+-----------------------------------------------------------------------------------+----------------------------------------------------------------------+
+
+The reference evaluator of a build without OpenCPMD is a well about the origin.
+Two consequences show in the tests: the mdp sets ``comm-mode = None``, because
+removing the centre-of-mass motion of a system with a net external force takes
+energy out of NVE, and the QM/MM NVE run gives the QM hydrogens a small
+Lennard-Jones repulsion, because the well does not bind them to their oxygen.
+An OpenCPMD energy needs neither.
+
+LAMMPS tests
+------------
+
+``tests/python/test_lammps.py`` runs both routes under Meson's ``python-pytest`` and
+checks:
+
+- energy, forces, and virial against ``CPMDCCalculator`` to 1e-10, in a cubic and
+  a triclinic box and without a cell, under ``metal``, ``real``, and ``electron``;
+
+- each of the six virial components against a central difference of the energy
+  under strain on the triclinic box;
+
+- the type-to-element map, unwrapping across the boundary, and ``press`` against
+  the virial trace;
+
+- energy drift of a short NVE run and of the extended energy of an NPT run;
+
+- the error for each refused input and a failed step;
+
+- two ranks against one, under ``mpiexec``.
+
+The module skips with a reason when the ``lammps`` module cannot start, and the
+plugin cases skip when ``cpmdcplugin.so`` is not built.
+The reference evaluator of a build without OpenCPMD is a harmonic well about the
+origin, which is not translation invariant; NPT runs on it need
+``fixedpoint 0 0 0``, which an OpenCPMD energy does not.
 
 Add a typed CPMD keyword
 ------------------------
 
 Use a typed field when a CPMD control has stable structure, affects ordinary
-host inputs, or should be discoverable through ``cpmdc_feature_find()``. Use
-``directives``, ``set``, ``generic``, ``raw``, or ``inputBlocks`` for rare literal deck
-fragments that should stay text.
+host inputs, or should be discoverable through ``cpmdc_feature_find()``.
+Use ``directives``, ``set``, ``generic``, ``raw``, or ``inputBlocks`` for rare literal
+deck fragments that should stay text.
 
 Start from the test surface:
 
@@ -173,40 +294,46 @@ Re-run the focused command, then run:
     meson test -C build --print-errorlogs
     pixi run -e docs sphinxbld
 
-For parser coverage audits, compare OpenCPMD ``control_utils.mod.F90``
-``keyword_contains(line, ...)`` branches against ``catalog.cpmd.*`` rows. Treat
-context-specific branch tokens as covered by their structured parent when the
-schema field renders the accepted deck form, such as ``LBFGS_NTRUST`` for
-``LBFGS NTRUST`` or ``NOSE_IONS_LOCAL`` for ``NOSE IONS LOCAL``.
+For parser coverage audits, compare OpenCPMD
+``control_utils.mod.F90`` ``keyword_contains(line, ...)`` branches against
+``catalog.cpmd.*`` rows.
+Treat context-specific branch tokens as covered by their structured parent when
+the schema field renders the accepted deck form, such as
+``LBFGS_NTRUST`` for ``LBFGS NTRUST`` or ``NOSE_IONS_LOCAL`` for ``NOSE IONS LOCAL``.
 
 Source Layout
 -------------
 
 .. table::
 
-    +------------------------------+--------------------------------------------------------------------+
-    | Path                         | Ownership                                                          |
-    +==============================+====================================================================+
-    | ``schema/Potentials.capnp``  | shared RPC and direct-call wire contract                           |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``include/cpmdc.h``          | public C ABI and session result entry points                       |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``include/cpmdc_features.h`` | runtime feature discovery ABI                                      |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``src/cpmdc_params.c``       | Cap'n Proto decode, effective config, CPMD deck rendering          |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``src/cpmdc.c``              | session lifecycle, topology guard, unit conversion, result writing |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``src/cpmd_embed_c_api.F90`` | Fortran ``iso_c_binding`` bridge and OpenCPMD archive path         |
-    +------------------------------+--------------------------------------------------------------------+
-    | ``tests/``                   | encoded fixtures and C/cmocka contract tests                       |
-    +------------------------------+--------------------------------------------------------------------+
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | Path                                                 | Ownership                                                          |
+    +======================================================+====================================================================+
+    | ``schema/Potentials.capnp``                          | shared RPC and direct-call wire contract                           |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``include/cpmdc.h``                                  | public C ABI and session result entry points                       |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``include/cpmdc_features.h``                         | runtime feature discovery ABI                                      |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``include/cpmdc_export.h``                           | ``CPMDC_API``, the mark on every exported function                 |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``include/cpmdc_restart.h``, ``src/cpmdc_restart.c`` | ``libcpmdc_restart``, the RESTART file reader and writer           |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``src/cpmdc_params.c``                               | Cap'n Proto decode, effective config, CPMD deck rendering          |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``src/cpmdc.c``                                      | session lifecycle, topology guard, unit conversion, result writing |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``src/cpmd_embed_c_api.F90``                         | Fortran ``iso_c_binding`` bridge and OpenCPMD archive path         |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``tests/``                                           | encoded fixtures and C/cmocka contract tests                       |
+    +------------------------------------------------------+--------------------------------------------------------------------+
 
 Documentation
 -------------
 
-Documentation source lives under ``docs/orgmode`` (authoritative prose), with
-light/dark logos in ``docs/source/_static/`` and ``branding/logo/``.
+Documentation source lives under
+``docs/orgmode`` (authoritative prose), with light/dark logos in
+``docs/source/_static/`` and ``branding/logo/``.
 Build docs (exports Org to RST, Doxygen XML, Sphinx HTML with Antics analytics):
 
 .. code:: bash
@@ -221,27 +348,46 @@ Set ``CPMDC_ORG_EXPORT=pandoc`` to export with pandoc instead.
 That path applies ``docs/org-links.lua`` and makes the same ``:doc:`` rewrite.
 Generated ``docs/source/**/*.rst`` is not committed.
 
+When a page moves, leave a short page at the old path that starts with an
+``:orphan:`` export block and links to the new page, as
+``docs/orgmode/tutorials/quickstart.org`` does.
+The old address then keeps working, and ``readme-navigation`` does not ask the
+README to link that page.
+
 Regenerate RST after editing Org sources:
 
 .. code:: bash
 
     pixi run -e docs mkrst
 
+Regenerate the LLM index files (``llms.txt`` and ``llms-full.txt``) after editing
+``docs/orgmode/`` or ``schema/inventory/cpmd_features.json``:
+
+.. code:: bash
+
+    python3 scripts/generate_llms_txt.py
+
+The generator writes deterministic output without timestamps or host paths.
+Verify that committed index files match the sources with
+``python3 scripts/generate_llms_txt.py --check`` or
+``meson test -C build llms-txt --print-errorlogs``; when a file is stale or
+missing, the check names the file, prints the regeneration command above, and
+shows a short unified diff head.
+
 Check the links in the README, the Org sources, and the newsfragments:
 
 .. code:: bash
 
-    pixi run lychee
+    pixi run -e docs lychee
 
-The task runs `lychee <https://lychee.cli.rs>`_ with ``.lychee.toml``,
-which also checks the anchor of a link such as ``README.md#citation``.
-The Pixi environment does not provide lychee, so put it on the path
-first.
+The task runs `lychee <https://lychee.cli.rs>`_ 0.24.2 from the ``docs`` Pixi
+environment with ``.lychee.toml``, which also checks the anchor of a link such as
+``README.md#citation``.
 A link to a file on the ``main`` branch fails until that file lands there.
 
-The Sphinx theme injects ``antics-api.turtletech.us/antics.js`` via
-``docs/source/_templates/partials/extra-head.html``, and the footer credit lives
-in ``docs/source/_templates/partials/site-foot.html`` (same pattern as ``rgpot``).
+The Sphinx theme injects
+``antics-api.turtletech.us/antics.js`` via ``docs/source/_templates/partials/extra-head.html``, and the footer credit lives in ``docs/source/_templates/partials/site-foot.html``
+(same pattern as ``rgpot``).
 
 Release Process
 ---------------

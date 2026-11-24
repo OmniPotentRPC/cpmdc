@@ -26,6 +26,8 @@ Top-level ``CPMDParams`` fields
     +--------------------------+-------------------+---------------------------------------------------------------------------------------------+
     | ``params.charge``        | ``charge``        | System charge                                                                               |
     +--------------------------+-------------------+---------------------------------------------------------------------------------------------+
+    | ``params.hasCharge``     | ``hasCharge``     | Mark ``CPMDParams.charge`` as explicit, including zero                                      |
+    +--------------------------+-------------------+---------------------------------------------------------------------------------------------+
     | ``params.multiplicity``  | ``multiplicity``  | 2S+1; values ``> 1`` imply LSD defaults                                                     |
     +--------------------------+-------------------+---------------------------------------------------------------------------------------------+
     | ``params.task``          | ``task``          | Frontend hint: ``energy``, ``gradient``, ``md``, ``optimize``                               |
@@ -47,11 +49,10 @@ Top-level ``CPMDParams`` fields
     | ``params.inputSections`` | ``inputSections`` | Structured ``CPMDInputSection`` list                                                        |
     +--------------------------+-------------------+---------------------------------------------------------------------------------------------+
 
-The feature-discovery table exposes these as ``params.<field>`` IDs. Structured
-fields use ``params.inputSections.<section>.<field>``, for example
+The feature-discovery table exposes these as ``params.<field>`` IDs.
+Structured fields use ``params.inputSections.<section>.<field>``, for example
 ``params.inputSections.cpmd.maxIter``, ``params.inputSections.dft.hfxScreening``,
-``params.inputSections.system.cell``, and
-``params.inputSections.pimd.directives``.
+``params.inputSections.system.cell``, and ``params.inputSections.pimd.directives``.
 
 Feature ID namespaces
 ---------------------
@@ -79,12 +80,13 @@ Feature IDs separate writable schema fields from parser/catalog capability rows.
     +-----------------------------------+-----------------------------------------------------------------------------------------------------------+
 
 ``catalog.section.SYSTEM`` means the ``&SYSTEM`` deck section is recognized as a
-section kind. Individual ``&SYSTEM`` controls stay under
+section kind.
+Individual ``&SYSTEM`` controls stay under
 ``params.inputSections.system.*`` rather than a separate ``catalog.system.*``
 namespace.
 
-Manual keyword names do not always map to a ``catalog.cpmd.*`` feature ID. Use
-the field namespace when the renderer owns a typed section field:
+Manual keyword names do not always map to a ``catalog.cpmd.*`` feature ID.
+Use the field namespace when the renderer owns a typed section field:
 
 .. table::
 
@@ -102,8 +104,9 @@ the field namespace when the renderer owns a typed section field:
 
 ``FFTW WISDOM`` is not a typed feature row because the OpenCPMD manual source
 comments out that keyword and the parser tree used for inventory probing has no
-matching branch. Use ``inputSections.raw`` or ``inputBlocks`` only for a downstream
-tree that still accepts it.
+matching branch.
+Use ``inputSections.raw`` or ``inputBlocks`` only for a downstream tree that still
+accepts it.
 
 Mapping a CPMD manual line
 --------------------------
@@ -116,9 +119,9 @@ Use this order when turning a CPMD manual line into an ABI input:
    is the writable schema field.
 
 3. Use a ``catalog.cpmd.*`` row for recognized ``&CPMD`` keyword and inline option
-   spellings. These rows are capability/discovery IDs; many render through an
-   existing text field such as ``roksOptions``, ``langevinOptions``, or
-   ``interfaceOptions``.
+   spellings.
+   These rows are capability/discovery IDs; many render through an existing text
+   field such as ``roksOptions``, ``langevinOptions``, or ``interfaceOptions``.
 
 4. Use a ``catalog.section.*`` row only to detect support for a whole OpenCPMD
    section such as ``&PIMD`` or ``&VDW``.
@@ -130,30 +133,38 @@ Examples:
 
 .. table::
 
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
-    | Manual line                           | Writable carrier                               | Discovery row                                                                                            |
-    +=======================================+================================================+==========================================================================================================+
-    | ``ROKS TRIPLET LOCALIZED EXPERT``     | ``roksOptions`` plus ``roksExpertPayload``     | ``catalog.cpmd.ROKS``, ``catalog.cpmd.ROKS_LOCALIZED``, ``catalog.cpmd.ROKS_EXPERT``                     |
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
-    | ``LANGEVIN SMART MOVECM CENTROIDOFF`` | ``langevinOptions`` plus ``langevinParameter`` | ``catalog.cpmd.LANGEVIN_SMART``, ``catalog.cpmd.LANGEVIN_MOVECM``, ``catalog.cpmd.LANGEVIN_CENTROIDOFF`` |
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
-    | ``INTERFACE GMX ESP PCGFIRST``        | ``interfaceOptions``                           | ``catalog.cpmd.INTERFACE_GMX``, ``catalog.cpmd.INTERFACE_ESP``, ``catalog.cpmd.INTERFACE_PCGFIRST``      |
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
-    | ``CENTER MOLECULE ON``                | ``centerMoleculeOn``                           | ``catalog.cpmd.CENTER_MOLECULE_ON``                                                                      |
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
-    | ``BOX WALLS`` in ``&SYSTEM``          | ``system.boxWalls``                            | ``params.inputSections.system.boxWalls``                                                                 |
-    +---------------------------------------+------------------------------------------------+----------------------------------------------------------------------------------------------------------+
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | Manual line                                   | Writable carrier                                            | Discovery row                                                                                                                          |
+    +===============================================+=============================================================+========================================================================================================================================+
+    | ``ROKS TRIPLET LOCALIZED EXPERT``             | ``roksOptions`` plus ``roksExpertPayload``                  | ``catalog.cpmd.ROKS``, ``catalog.cpmd.ROKS_LOCALIZED``, ``catalog.cpmd.ROKS_EXPERT``                                                   |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``LANGEVIN SMART MOVECM CENTROIDOFF``         | ``langevinOptions`` plus ``langevinParameter``              | ``catalog.cpmd.LANGEVIN_SMART``, ``catalog.cpmd.LANGEVIN_MOVECM``, ``catalog.cpmd.LANGEVIN_CENTROIDOFF``                               |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``INTERFACE GMX ESP PCGFIRST``                | ``interfaceOptions``                                        | ``catalog.cpmd.INTERFACE_GMX``, ``catalog.cpmd.INTERFACE_ESP``, ``catalog.cpmd.INTERFACE_PCGFIRST``                                    |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CENTER MOLECULE ON``                        | ``centerMoleculeOn``                                        | ``catalog.cpmd.CENTER_MOLECULE_ON``                                                                                                    |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``BOX WALLS`` in ``&SYSTEM``                  | ``system.boxWalls``                                         | ``params.inputSections.system.boxWalls``                                                                                               |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE``    | ``optimizeGeometryOptions`` plus ``optimizeGeometrySample`` | ``catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL``, ``catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ``, ``catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION`` |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``NOSE IONS ULTRA MASSIVE T0``                | ``noseIonsOptions``                                         | ``catalog.cpmd.NOSE_IONS_ULTRA``, ``catalog.cpmd.NOSE_IONS_MASSIVE``, ``catalog.cpmd.NOSE_IONS_T0``                                    |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``&VDW`` with nested ``EMPIRICAL CORRECTION`` | ``vdw.directives`` and ``vdw.subsections``                  | ``catalog.section.VDW``                                                                                                                |
+    +-----------------------------------------------+-------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
 
 Inventory guardrails
 --------------------
 
 The inventory files are part of the public compatibility contract, not only
-generated lookup data. ``schema/inventory/cpmd_cp_keywords.txt`` lists base
-``&CPMD`` controls that must exist as normalized ``catalog.cpmd.*`` feature rows.
+generated lookup data.
+``schema/inventory/cpmd_cp_keywords.txt`` lists base ``&CPMD`` controls that must
+exist as normalized ``catalog.cpmd.*`` feature rows.
 Punctuation and spaces normalize to underscores, so ``FREE-ENERGY`` maps to
 ``catalog.cpmd.FREE_ENERGY``.
 The JSON inventory carries both ``opencpmd_inscan_sections`` and ``cpmd_sections``;
-they must describe the same OpenCPMD parser section set. ``catalog.section.*``
+they must describe the same OpenCPMD parser section set.
+``catalog.section.*``
 feature rows must be owned by that set and by the checked-in
 ``schema/inventory/opencpmd_sections.txt`` allowlist.
 
@@ -171,33 +182,36 @@ Run the focused inventory guards with:
       cpmd-escape-hatch-coverage \
       --print-errorlogs
 
-``feature-inventory`` cross-checks the JSON inventory against the schema, public
-C feature table, README, and this reference page. When ``CPMD_ROOT`` points at an
-OpenCPMD tree, it also compares parser ``inscan('&SECTION')`` calls with the
-checked-in section inventory.
+``feature-inventory`` cross-checks the JSON inventory against the schema, public C
+feature table, the C ABI reference, and this reference page.
+When ``CPMD_ROOT`` points at an OpenCPMD tree, it also compares parser
+``inscan('&SECTION')`` calls with the checked-in section inventory.
 ``cpmd-base-keyword-inventory`` proves the base keyword list cannot drop a
-``catalog.cpmd.*`` row silently. ``cpmd-params-field-inventory`` requires every
-top-level ``CPMDParams`` schema field to keep a ``params.*`` feature row and
-rejects duplicate inventory IDs/lists and C feature table duplicates before set
-comparisons can hide them.
-``cpmd-public-abi-inventory`` requires every public ``cpmdc_*`` header function to
-resolve through ``abi_symbols`` and the feature table, then verifies the native
+``catalog.cpmd.*`` row silently.
+``cpmd-params-field-inventory`` requires every top-level ``CPMDParams`` schema field
+to keep a ``params.*`` feature row.
+It rejects duplicate inventory IDs/lists and C feature table duplicates before
+set comparisons can hide them.
+``cpmd-public-abi-inventory`` requires every public
+``cpmdc_*`` header function to resolve through ``abi_symbols`` and the feature
+table, then verifies the native
 ``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or shared ``src/cpmdc_features.c``
 implementation that exports it.
 ``stub-abi-symbol-coverage`` requires the standalone stub test to assert every
 ``abi_symbols`` feature row is present and stub-applicable.
 ``shared-dlopen-symbol-coverage`` requires the shared-library ``dlopen`` test to
 load every ``abi_symbols`` entry from ``libcpmdc.so``.
-``cpmd-schema-render-coverage`` requires typed
-``CPMDCpmdSection`` fields to appear in the catalog render fixtures, and
-``cpmd-option-token-coverage`` requires inline option spellings in Cap'n Proto
-fixtures to have render coverage. ``cpmd-typed-render-field-coverage`` requires
-typed ``cpmd``, ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
-or render assertions. ``cpmd-long-tail-section-coverage`` requires every
-``CPMDDirectiveSection`` union arm to appear in the long-tail fixture, render
-assertions, and this reference page. ``cpmd-escape-hatch-coverage`` requires
-``inputBlocks``, ``generic``, ``set``, and ``raw`` carriers to stay covered by schema,
-fixtures, render tests, and this reference page.
+``cpmd-schema-render-coverage`` requires typed ``CPMDCpmdSection`` fields to appear
+in the catalog render fixtures, and ``cpmd-option-token-coverage`` requires inline
+option spellings in Cap'n Proto fixtures to have render coverage.
+``cpmd-typed-render-field-coverage`` requires typed ``cpmd``, ``system``, ``dft``, and
+``atoms`` fields to appear in render fixtures or render assertions.
+``cpmd-long-tail-section-coverage`` requires every ``CPMDDirectiveSection`` union
+arm to appear in the long-tail fixture, render assertions, and this reference
+page.
+``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``, ``set``, and ``raw``
+carriers to stay covered by schema, fixtures, render tests, and this reference
+page.
 
 ``CPMDInputSection`` kinds
 --------------------------
@@ -267,23 +281,55 @@ fixtures, render tests, and this reference page.
 Missing core sections receive minimal defaults from the renderer so a sparse
 ``CPMDParams`` still produces a valid-looking deck for debugging.
 When structured ``dft`` or ``system`` sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
+(functional, cutoff, charge, multiplicity, or zero ``system.charge`` with
+``system.hasCharge`` ``true``), those section values are also the
 effective embed configuration passed through the C ABI.
+The functional, cutoff, charge, and multiplicity lines the renderer writes
+and that configuration follow the same precedence.
+``raw``, ``generic``, and ``set`` sections, ``inputBlocks``, and section ``directives``
+are rendered as given and are not read back into that configuration, so the
+carrier check runs for every set overlay field of a ``common`` overlay,
+whether or not a typed field also sets it, including zero ``charge`` with
+``hasCharge`` ``true``, and a carrier of the same setting
+rejects that field.
+A ``FUNCTIONAL`` directive in a typed ``dft`` section or a ``DFT.FUNCTIONAL`` set
+directive is rejected when the deck is rendered, because the rendered ``&DFT``
+section already carries the functional.
+The same render rejects a ``CUTOFF``, ``CHARGE``, or ``MULTIPLICITY`` directive in
+the typed ``system`` section, and a ``SYSTEM.CUTOFF``, ``SYSTEM.CHARGE``, or
+``SYSTEM.MULTIPLICITY`` set directive.
+``CUTOFF`` is written on every deck, including the default 70 Ry.
+``CHARGE`` is written only when it is not 0 and ``MULTIPLICITY`` only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
+A section value that differs from the schema default (functional ``BLYP``,
+cutoff 70 Ry, charge 0 with ``hasCharge`` ``false``, multiplicity 1) beats the
+top-level field.
+A method field in a typed ``dft`` or ``system`` section that is omitted or holds
+its schema default is unset and does not replace the top-level arm or overlay
+value, so a typed ``system`` charge of 0 with ``hasCharge`` ``false`` is also unset,
+while zero ``system.charge`` with ``system.hasCharge`` ``true`` is explicit.
 For geometry deck rendering, ``atoms.pseudopotentials`` groups ``ForceInput``
-coordinates by element symbol. Explicit pseudopotential entries accept standard
-element symbols and must cover every atomic number present in the step geometry;
-otherwise rendering fails. When no ``atoms`` section is supplied, the renderer
-only provides built-in BLYP pseudopotential defaults for H and O. An explicit
-``atoms`` section may rely on those H/O defaults while still carrying
-``CPMDDirective`` entries for additional ``&ATOMS`` keywords.
+coordinates by element symbol.
+Explicit pseudopotential entries accept standard element symbols and must cover
+every atomic number present in the step geometry; otherwise rendering fails.
+When no ``atoms`` section is supplied, the renderer only provides built-in BLYP
+pseudopotential defaults for H and O. An explicit ``atoms`` section may rely on
+those H/O defaults while still carrying ``CPMDDirective`` entries for additional
+``&ATOMS`` keywords.
 
 Escape hatches
 --------------
 
 Long-tail CPMD keywords go in ``CPMDDirective`` lists or ``subsections`` inside the
 matching typed section, ``CPMDSetDirective`` dotted keys, ``CPMDInputSection.raw``,
-or ``inputBlocks``. ``&VDW`` uses ``subsections`` for nested blocks such as
-``EMPIRICAL CORRECTION``.
+or ``inputBlocks``.
+``&VDW`` uses ``subsections`` for nested blocks such as ``EMPIRICAL CORRECTION``.
 ``set.key`` uses ``SECTION.KEYWORD`` form, for example ``CPMD.PRINT FORCES ON`` or
 ``SYSTEM.POISSON SOLVER HOCKNEY``; non-empty ``set.value`` is emitted on the
 following indented line.
@@ -293,8 +339,8 @@ format.
 Choosing an input carrier
 -------------------------
 
-Use the most structured carrier that represents the deck intent. The usual
-path is:
+Use the most structured carrier that represents the deck intent.
+The usual path is:
 
 1. Put functional, cutoff, charge, multiplicity, task, and embed hints in the
    top-level ``CPMDParams`` fields.
@@ -310,17 +356,19 @@ path is:
 
 .. table::
 
-    +----------------------------------------------------------------------------------+----------------------------+-------------------------------------------------------------------------------+
-    | Requirement                                                                      | Carrier                    | Reason                                                                        |
-    +==================================================================================+============================+===============================================================================+
-    | Supported OpenCPMD ``inscan('&SECTION')`` block                                  | typed section field        | Schema readers, tests, and feature discovery can name the field directly      |
-    +----------------------------------------------------------------------------------+----------------------------+-------------------------------------------------------------------------------+
-    | One extra keyword inside a generated section                                     | ``set``                    | The renderer merges it into the matching section without duplicating defaults |
-    +----------------------------------------------------------------------------------+----------------------------+-------------------------------------------------------------------------------+
-    | Non-catalog section alias with ordinary keyword/argument lines                   | ``generic``                | The section remains structured even when it is not an inventory ID            |
-    +----------------------------------------------------------------------------------+----------------------------+-------------------------------------------------------------------------------+
-    | Existing deck text that must survive byte-for-byte apart from surrounding output | ``raw`` or ``inputBlocks`` | The renderer does not reinterpret the fragment                                |
-    +----------------------------------------------------------------------------------+----------------------------+-------------------------------------------------------------------------------+
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
+    | Requirement                                                                                   | Carrier                                                          | Reason                                                                        |
+    +===============================================================================================+==================================================================+===============================================================================+
+    | Supported OpenCPMD ``inscan('&SECTION')`` block                                               | typed section field                                              | Schema readers, tests, and feature discovery can name the field directly      |
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
+    | Catalog section without typed fields, such as ``&PIMD``, ``&VDW``, ``&LINRES``, or ``&TDDFT`` | the matching section arm with ``directives`` and ``subsections`` | The section kind stays typed while its keywords stay lines                    |
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
+    | One extra keyword inside a generated section                                                  | ``set``                                                          | The renderer merges it into the matching section without duplicating defaults |
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
+    | Non-catalog section alias with ordinary keyword/argument lines                                | ``generic``                                                      | The section remains structured even when it is not an inventory ID            |
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
+    | Existing deck text that must survive byte-for-byte apart from surrounding output              | ``raw`` or ``inputBlocks``                                       | The renderer does not reinterpret the fragment                                |
+    +-----------------------------------------------------------------------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------------+
 
 For example, a compact typed setup with one extra ``&SYSTEM`` keyword looks like:
 
@@ -362,9 +410,10 @@ Catalog section exposure
 ------------------------
 
 The public feature table advertises every OpenCPMD ``inscan('&SECTION')`` name as
-a ``catalog.section.<NAME>`` feature ID. Typed sections have dedicated schema
-arms; every section can still be rendered through ``set``, ``generic``, ``raw``, or
-``inputBlocks`` when a dedicated field is unnecessary.
+a ``catalog.section.<NAME>`` feature ID.
+Typed sections have dedicated schema arms; every section can still be rendered
+through ``set``, ``generic``, ``raw``, or ``inputBlocks`` when a dedicated field is
+unnecessary.
 
 .. table::
 
@@ -425,333 +474,339 @@ arms; every section can still be rendered through ``set``, ``generic``, ``raw``,
 Other structured parameter features
 -----------------------------------
 
-These ``params.inputSections.*`` IDs cover carriers and fields that are not
-single CPMD/DFT catalog keyword rows in the typed tables below.
+These ``params.inputSections.*``
+IDs cover carriers and fields that are not single CPMD/DFT catalog keyword rows
+in the typed tables below.
 
 A ``system.cellVectors`` cell contains nine numbers grouped by lattice vector.
 Typed parameter rendering preserves them on one data line; geometry overrides
-use three vector rows. OpenCPMD accepts either layout in one list-directed
-read. ``CELL VECTORS`` specifies implicit triclinic symmetry, so its deck
-omits the ``SYMMETRY`` line and the default isolated Poisson solver. Combining
-``SYMMETRY`` with ``CELL VECTORS`` is rejected by the native parser. The vector
-qualifier also requires nine values and excludes ``ABSOLUTE`` and ``DEGREE``.
+use three vector rows.
+OpenCPMD accepts either layout in one list-directed read.
+``CELL VECTORS`` specifies implicit triclinic symmetry, so its deck omits the
+``SYMMETRY`` line and the default isolated Poisson solver.
+Combining ``SYMMETRY`` with ``CELL VECTORS`` is rejected by the native parser.
+The vector qualifier also requires nine values and excludes ``ABSOLUTE`` and
+``DEGREE``.
 
 .. table::
 
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | Parameter feature ID                                                  | Field                                            | Deck effect                                                       |
-    +=======================================================================+==================================================+===================================================================+
-    | ``params.inputSections.generic.name``                                 | ``generic.name``                                 | Section name for an arbitrary ``&NAME`` block                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.generic.directives``                           | ``generic.directives``                           | Keyword/value lines inside the generic section                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atom.directives``                              | ``atom.directives``                              | Keyword/value lines inside ``&ATOM``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atom.subsections``                             | ``atom.subsections``                             | Nested blocks inside ``&ATOM``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.symmetry``                              | ``system.symmetry``                              | ``&SYSTEM SYMMETRY``                                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.angstrom``                              | ``system.angstrom``                              | ``&SYSTEM ANGSTROM``                                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cell``                                  | ``system.cell``                                  | ``&SYSTEM CELL``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cellAbsolute``                          | ``system.cellAbsolute``                          | Add ``ABSOLUTE`` to ``&SYSTEM CELL``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cellDegree``                            | ``system.cellDegree``                            | Add ``DEGREE`` to ``&SYSTEM CELL``                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cellVectors``                           | ``system.cellVectors``                           | Add ``VECTORS`` to ``&SYSTEM CELL``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.referenceCell``                         | ``system.referenceCell``                         | ``&SYSTEM REFERENCE CELL``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.referenceCellAbsolute``                 | ``system.referenceCellAbsolute``                 | Add ``ABSOLUTE`` to ``REFERENCE CELL``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.referenceCellDegree``                   | ``system.referenceCellDegree``                   | Add ``DEGREE`` to ``REFERENCE CELL``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.referenceCellVectors``                  | ``system.referenceCellVectors``                  | Add ``VECTORS`` to ``REFERENCE CELL``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.classicalCell``                         | ``system.classicalCell``                         | ``&SYSTEM CLASSICAL CELL``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.classicalCellAbsolute``                 | ``system.classicalCellAbsolute``                 | Add ``ABSOLUTE`` to ``CLASSICAL CELL``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.classicalCellDegree``                   | ``system.classicalCellDegree``                   | Add ``DEGREE`` to ``CLASSICAL CELL``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.isotropicCell``                         | ``system.isotropicCell``                         | ``&SYSTEM ISOTROPIC CELL``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.zFlexibleCell``                         | ``system.zFlexibleCell``                         | ``&SYSTEM ZFLEXIBLE CELL``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.checkSymmetryPrecision``                | ``system.checkSymmetryPrecision``                | ``&SYSTEM CHECK SYMMETRY`` precision                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.checkSymmetryOff``                      | ``system.checkSymmetryOff``                      | ``&SYSTEM CHECK SYMMETRY OFF``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cutOffRy``                              | ``system.cutOffRy``                              | ``&SYSTEM CUTOFF``                                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cutoffShape``                           | ``system.cutoffShape``                           | ``&SYSTEM SPHERICAL/NOSPHERICAL CUTOFF``                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.hfxCutoff``                             | ``system.hfxCutoff``                             | ``&SYSTEM HFX CUTOFF``                                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.scale``                                 | ``system.scale``                                 | ``&SYSTEM SCALE S=<value>``                                       |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.scaleX``                                | ``system.scaleX``                                | ``&SYSTEM SCALE SX=<value>``                                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.scaleY``                                | ``system.scaleY``                                | ``&SYSTEM SCALE SY=<value>``                                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.scaleZ``                                | ``system.scaleZ``                                | ``&SYSTEM SCALE SZ=<value>``                                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.scaleCartesian``                        | ``system.scaleCartesian``                        | Add ``CARTESIAN`` to ``&SYSTEM SCALE``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.charge``                                | ``system.charge``                                | ``&SYSTEM CHARGE``                                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.multiplicity``                          | ``system.multiplicity``                          | ``&SYSTEM MULTIPLICITY``                                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.nSup``                                  | ``system.nSup``                                  | ``&SYSTEM NSUP``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.states``                                | ``system.states``                                | ``&SYSTEM STATES``                                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.occupation``                            | ``system.occupation``                            | ``&SYSTEM OCCUPATION`` values                                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.occupationFixed``                       | ``system.occupationFixed``                       | Add ``FIXED`` to ``&SYSTEM OCCUPATION``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.externalField``                         | ``system.externalField``                         | ``&SYSTEM EXTERNAL FIELD``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.wCut``                                  | ``system.wCut``                                  | ``&SYSTEM WCUT``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.wGauss``                                | ``system.wGauss``                                | ``&SYSTEM WGAUSS`` sigma values                                   |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsFiniteDifference``             | ``system.couplingsFiniteDifference``             | Add ``FD`` to ``&SYSTEM COUPLINGS``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsFiniteDifferenceDisplacement`` | ``system.couplingsFiniteDifferenceDisplacement`` | ``&SYSTEM COUPLINGS FD=`` displacement                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsProductDisplacement``          | ``system.couplingsProductDisplacement``          | ``&SYSTEM COUPLINGS PROD=`` displacement                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinres``                       | ``system.couplingsLinres``                       | Add ``LINRES`` to ``&SYSTEM COUPLINGS``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinresTolerance``              | ``system.couplingsLinresTolerance``              | Add ``TOL=`` to ``COUPLINGS LINRES``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinresNvects``                 | ``system.couplingsLinresNvects``                 | Add ``NVECT=`` to ``COUPLINGS LINRES``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinresSpecify``                | ``system.couplingsLinresSpecify``                | Add ``SPECIFY`` to ``COUPLINGS LINRES``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinresThresholds``             | ``system.couplingsLinresThresholds``             | Add ``THRESHOLDS`` payload to ``COUPLINGS LINRES``                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsLinresBruteForce``             | ``system.couplingsLinresBruteForce``             | Add ``BRUTE FORCE`` to ``COUPLINGS LINRES``                       |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsSurfaces``                     | ``system.couplingsSurfaces``                     | ``&SYSTEM COUPLINGS NSURF=`` surface triples                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.couplingsFiniteDifferenceAtoms``        | ``system.couplingsFiniteDifferenceAtoms``        | ``&SYSTEM COUPLINGS NAT=`` atom list                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cdftDonorAtoms``                        | ``system.cdftDonorAtoms``                        | ``&SYSTEM DONOR`` atom list                                       |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cdftDonorWeights``                      | ``system.cdftDonorWeights``                      | Add ``WMULT`` weights to ``DONOR``                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cdftAcceptorAtoms``                     | ``system.cdftAcceptorAtoms``                     | ``&SYSTEM ACCEPTOR`` atom list                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cdftAcceptorHdasDonors``                | ``system.cdftAcceptorHdasDonors``                | Add ``HDAS`` donor list to ``ACCEPTOR``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cdftAcceptorWeights``                   | ``system.cdftAcceptorWeights``                   | Add ``WMULT`` weights to ``ACCEPTOR``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.pointGroup``                            | ``system.pointGroup``                            | ``&SYSTEM POINT GROUP`` selector line                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.pointGroupMolecule``                    | ``system.pointGroupMolecule``                    | Add ``MOLECULE`` to ``POINT GROUP``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.pointGroupDelta``                       | ``system.pointGroupDelta``                       | ``&SYSTEM POINT GROUP DELTA=`` accuracy                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.lowSpinExcitation``                     | ``system.lowSpinExcitation``                     | ``&SYSTEM LOW SPIN EXCITATION`` options                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.lowSpinExcitationLsets``                | ``system.lowSpinExcitationLsets``                | Add ``LSETS`` to ``LOW SPIN EXCITATION``                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.lowSpinExcitationPenalty``              | ``system.lowSpinExcitationPenalty``              | ``&SYSTEM LOW SPIN EXCITATION PENALTY`` value                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.lseParameters``                         | ``system.lseParameters``                         | ``&SYSTEM LSE PARAMETERS`` lsea/lseb                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.modifiedGoedecker``                     | ``system.modifiedGoedecker``                     | ``&SYSTEM MODIFIED GOEDECKER``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.modifiedGoedeckerParameters``           | ``system.modifiedGoedeckerParameters``           | ``&SYSTEM MODIFIED GOEDECKER PARAMETERS`` lambda values           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.energyProfile``                         | ``system.energyProfile``                         | ``&SYSTEM ENERGY PROFILE``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.densityCutOffRy``                       | ``system.densityCutOffRy``                       | ``&SYSTEM DENSITY CUTOFF``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.densityCutoffNumber``                   | ``system.densityCutoffNumber``                   | ``&SYSTEM DENSITY CUTOFF NUMBER``                                 |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.dual``                                  | ``system.dual``                                  | ``&SYSTEM DUAL``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.constantCutoff``                        | ``system.constantCutoff``                        | ``&SYSTEM CONSTANT CUTOFF``                                       |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.boxWalls``                              | ``system.boxWalls``                              | ``&SYSTEM BOX WALLS``                                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.poissonSolver``                         | ``system.poissonSolver``                         | ``&SYSTEM POISSON SOLVER``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.poissonParameter``                      | ``system.poissonParameter``                      | Optional ``POISSON ... PARAMETER`` value                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.mesh``                                  | ``system.mesh``                                  | ``&SYSTEM MESH``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpoints``                               | ``system.kpoints``                               | ``&SYSTEM KPOINTS`` explicit weighted points                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsScaled``                         | ``system.kpointsScaled``                         | Add ``SCALED`` to ``&SYSTEM KPOINTS``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsOnlyDiagonal``                   | ``system.kpointsOnlyDiagonal``                   | Add ``ONLYDIAG`` to ``&SYSTEM KPOINTS``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsBlock``                          | ``system.kpointsBlock``                          | Add ``BLOCK=`` to ``&SYSTEM KPOINTS``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsBlockAll``                       | ``system.kpointsBlockAll``                       | Add ``ALL`` to ``KPOINTS BLOCK``                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsBlockCalculated``                | ``system.kpointsBlockCalculated``                | Add ``CALCULATED`` to ``KPOINTS BLOCK``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsBlockNoSwap``                    | ``system.kpointsBlockNoSwap``                    | Add ``NOSWAP`` to ``KPOINTS BLOCK``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsMonkhorstPack``                  | ``system.kpointsMonkhorstPack``                  | ``&SYSTEM KPOINTS MONKHORST-PACK`` mesh                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsMonkhorstSymmetrized``           | ``system.kpointsMonkhorstSymmetrized``           | Add ``SYMMETRIZED`` to ``KPOINTS MONKHORST-PACK``                 |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsMonkhorstFull``                  | ``system.kpointsMonkhorstFull``                  | Add ``FULL`` to ``KPOINTS MONKHORST-PACK``                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsMonkhorstKdp``                   | ``system.kpointsMonkhorstKdp``                   | Add ``KDP`` to ``KPOINTS MONKHORST-PACK``                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointsMonkhorstShift``                 | ``system.kpointsMonkhorstShift``                 | Add mesh-line ``SHIFT=`` to ``KPOINTS MONKHORST-PACK``            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.kpointBands``                           | ``system.kpointBands``                           | ``&SYSTEM KPOINTS BANDS`` segments                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.doubleGrid``                            | ``system.doubleGrid``                            | ``&SYSTEM DOUBLE GRID`` ``ON`` or ``OFF``                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.symmetrizeCoordinates``                 | ``system.symmetrizeCoordinates``                 | ``&SYSTEM SYMMETRIZE COORDINATES``                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.tesr``                                  | ``system.tesr``                                  | ``&SYSTEM TESR``                                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.surface``                               | ``system.surface``                               | ``&SYSTEM SURFACE`` direction                                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.polymer``                               | ``system.polymer``                               | ``&SYSTEM POLYMER``                                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.cluster``                               | ``system.cluster``                               | ``&SYSTEM CLUSTER``                                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.pressure``                              | ``system.pressure``                              | ``&SYSTEM PRESSURE``                                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.stressTensor``                          | ``system.stressTensor``                          | ``&SYSTEM STRESS TENSOR``                                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.shockVelocity``                         | ``system.shockVelocity``                         | ``&SYSTEM SHOCK VELOCITY``                                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.system.directives``                            | ``system.directives``                            | Additional ``&SYSTEM`` keyword/value lines                        |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.basis.directives``                             | ``basis.directives``                             | Keyword/value lines inside ``&BASIS``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.basis.subsections``                            | ``basis.subsections``                            | Nested blocks inside ``&BASIS``                                   |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.cpmd.directives``                              | ``cpmd.directives``                              | Additional ``&CPMD`` keyword/value lines                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.dft.directives``                               | ``dft.directives``                               | Additional ``&DFT`` keyword/value lines                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.clas.directives``                              | ``clas.directives``                              | Keyword/value lines inside ``&CLAS``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.clas.subsections``                             | ``clas.subsections``                             | Nested blocks inside ``&CLAS``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.eam.directives``                               | ``eam.directives``                               | Keyword/value lines inside ``&EAM``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.eam.subsections``                              | ``eam.subsections``                              | Nested blocks inside ``&EAM``                                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.exte.directives``                              | ``exte.directives``                              | Keyword/value lines inside ``&EXTE``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.exte.subsections``                             | ``exte.subsections``                             | Nested blocks inside ``&EXTE``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.hardness.directives``                          | ``hardness.directives``                          | Keyword/value lines inside ``&HARDNESS``                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.hardness.subsections``                         | ``hardness.subsections``                         | Nested blocks inside ``&HARDNESS``                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.info.directives``                              | ``info.directives``                              | Keyword/value lines inside ``&INFO``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.info.subsections``                             | ``info.subsections``                             | Nested blocks inside ``&INFO``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.linres.directives``                            | ``linres.directives``                            | Keyword/value lines inside ``&LINRES``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.linres.subsections``                           | ``linres.subsections``                           | Nested blocks inside ``&LINRES``                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.molstates.directives``                         | ``molstates.directives``                         | Keyword/value lines inside ``&MOLSTATES``                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.molstates.subsections``                        | ``molstates.subsections``                        | Nested blocks inside ``&MOLSTATES``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.mts.directives``                               | ``mts.directives``                               | Keyword/value lines inside ``&MTS``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.mts.subsections``                              | ``mts.subsections``                              | Nested blocks inside ``&MTS``                                     |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.nlcc.directives``                              | ``nlcc.directives``                              | Keyword/value lines inside ``&NLCC``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.nlcc.subsections``                             | ``nlcc.subsections``                             | Nested blocks inside ``&NLCC``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.path.directives``                              | ``path.directives``                              | Keyword/value lines inside ``&PATH``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.path.subsections``                             | ``path.subsections``                             | Nested blocks inside ``&PATH``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.pimd.directives``                              | ``pimd.directives``                              | Keyword/value lines inside ``&PIMD``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.pimd.subsections``                             | ``pimd.subsections``                             | Nested blocks inside ``&PIMD``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.potential.directives``                         | ``potential.directives``                         | Keyword/value lines inside ``&POTENTIAL``                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.potential.subsections``                        | ``potential.subsections``                        | Nested blocks inside ``&POTENTIAL``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.prop.directives``                              | ``prop.directives``                              | Keyword/value lines inside ``&PROP``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.prop.subsections``                             | ``prop.subsections``                             | Nested blocks inside ``&PROP``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.ptddft.directives``                            | ``ptddft.directives``                            | Keyword/value lines inside ``&PTDDFT``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.ptddft.subsections``                           | ``ptddft.subsections``                           | Nested blocks inside ``&PTDDFT``                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.resp.directives``                              | ``resp.directives``                              | Keyword/value lines inside ``&RESP``                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.resp.subsections``                             | ``resp.subsections``                             | Nested blocks inside ``&RESP``                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.tddft.directives``                             | ``tddft.directives``                             | Keyword/value lines inside ``&TDDFT``                             |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.tddft.subsections``                            | ``tddft.subsections``                            | Nested blocks inside ``&TDDFT``                                   |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.vdw.directives``                               | ``vdw.directives``                               | Keyword/value lines inside ``&VDW``                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.vdw.subsections``                              | ``vdw.subsections``                              | Nested blocks inside ``&VDW``, including ``EMPIRICAL CORRECTION`` |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.vectors.directives``                           | ``vectors.directives``                           | Keyword/value lines inside ``&VECTORS``                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.vectors.subsections``                          | ``vectors.subsections``                          | Nested blocks inside ``&VECTORS``                                 |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.wavefunction.directives``                      | ``wavefunction.directives``                      | Keyword/value lines inside ``&WAVEFUNCTION``                      |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.wavefunction.subsections``                     | ``wavefunction.subsections``                     | Nested blocks inside ``&WAVEFUNCTION``                            |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.pseudopotentials``                       | ``atoms.pseudopotentials``                       | Pseudopotential entries grouped with ``ForceInput`` coordinates   |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.constraints``                            | ``atoms.constraints``                            | CONSTRAINTS block entries (FIX/DIST/BEND/TORSION)                 |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.isotopes``                               | ``atoms.isotopes``                               | ISOTOPE per-species mass overrides                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.velocities``                             | ``atoms.velocities``                             | VELOCITIES block initial velocities                               |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.dummyAtoms``                             | ``atoms.dummyAtoms``                             | DUMMY ATOMS entries (types 1-4)                                   |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.changeBonds``                            | ``atoms.changeBonds``                            | CHANGE BONDS lines                                                |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.generate``                               | ``atoms.generate``                               | GENERATE COORDINATES flag                                         |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.dft.hubbardU``                                 | ``dft.hubbardU``                                 | Structured HUBBARD U per-species entries                          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.dft.hfxWfcCutoff``                             | ``dft.hfxWfcCutoff``                             | HFX WFC CUTOFF value                                              |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.dft.hfxBlock``                                 | ``dft.hfxBlock``                                 | HFX BLOCK size                                                    |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.dft.hfxDistribution``                          | ``dft.hfxDistribution``                          | HFX DISTRIBUTION scheme                                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.atoms.directives``                             | ``atoms.directives``                             | Additional non-coordinate ``&ATOMS`` keyword/value lines          |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.set.key``                                      | ``set.key``                                      | Dotted ``SECTION.KEYWORD`` merge target                           |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.set.value``                                    | ``set.value``                                    | Optional value emitted under the dotted key                       |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
-    | ``params.inputSections.raw``                                          | ``raw``                                          | Full section text inserted as-is                                  |
-    +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Parameter feature ID                                                  | Field                                            | Deck effect                                                                                                                                                                      |
+    +=======================================================================+==================================================+==================================================================================================================================================================================+
+    | ``params.inputSections.generic.name``                                 | ``generic.name``                                 | Section name for an arbitrary ``&NAME`` block                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.generic.directives``                           | ``generic.directives``                           | Keyword/value lines inside the generic section                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atom.directives``                              | ``atom.directives``                              | Keyword/value lines inside ``&ATOM``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atom.subsections``                             | ``atom.subsections``                             | Nested blocks inside ``&ATOM``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.symmetry``                              | ``system.symmetry``                              | ``&SYSTEM SYMMETRY``                                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.angstrom``                              | ``system.angstrom``                              | ``&SYSTEM ANGSTROM``                                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cell``                                  | ``system.cell``                                  | ``&SYSTEM CELL``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cellAbsolute``                          | ``system.cellAbsolute``                          | Add ``ABSOLUTE`` to ``&SYSTEM CELL``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cellDegree``                            | ``system.cellDegree``                            | Add ``DEGREE`` to ``&SYSTEM CELL``                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cellVectors``                           | ``system.cellVectors``                           | Add ``VECTORS`` to ``&SYSTEM CELL``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.referenceCell``                         | ``system.referenceCell``                         | ``&SYSTEM REFERENCE CELL``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.referenceCellAbsolute``                 | ``system.referenceCellAbsolute``                 | Add ``ABSOLUTE`` to ``REFERENCE CELL``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.referenceCellDegree``                   | ``system.referenceCellDegree``                   | Add ``DEGREE`` to ``REFERENCE CELL``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.referenceCellVectors``                  | ``system.referenceCellVectors``                  | Add ``VECTORS`` to ``REFERENCE CELL``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.classicalCell``                         | ``system.classicalCell``                         | ``&SYSTEM CLASSICAL CELL``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.classicalCellAbsolute``                 | ``system.classicalCellAbsolute``                 | Add ``ABSOLUTE`` to ``CLASSICAL CELL``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.classicalCellDegree``                   | ``system.classicalCellDegree``                   | Add ``DEGREE`` to ``CLASSICAL CELL``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.isotropicCell``                         | ``system.isotropicCell``                         | ``&SYSTEM ISOTROPIC CELL``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.zFlexibleCell``                         | ``system.zFlexibleCell``                         | ``&SYSTEM ZFLEXIBLE CELL``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.checkSymmetryPrecision``                | ``system.checkSymmetryPrecision``                | ``&SYSTEM CHECK SYMMETRY`` precision                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.checkSymmetryOff``                      | ``system.checkSymmetryOff``                      | ``&SYSTEM CHECK SYMMETRY OFF``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cutOffRy``                              | ``system.cutOffRy``                              | ``&SYSTEM CUTOFF``                                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cutoffShape``                           | ``system.cutoffShape``                           | ``&SYSTEM SPHERICAL/NOSPHERICAL CUTOFF``                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.hfxCutoff``                             | ``system.hfxCutoff``                             | ``&SYSTEM HFX CUTOFF``                                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.scale``                                 | ``system.scale``                                 | ``&SYSTEM SCALE S=<value>``                                                                                                                                                      |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.scaleX``                                | ``system.scaleX``                                | ``&SYSTEM SCALE SX=<value>``                                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.scaleY``                                | ``system.scaleY``                                | ``&SYSTEM SCALE SY=<value>``                                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.scaleZ``                                | ``system.scaleZ``                                | ``&SYSTEM SCALE SZ=<value>``                                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.scaleCartesian``                        | ``system.scaleCartesian``                        | Add ``CARTESIAN`` to ``&SYSTEM SCALE``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.charge``                                | ``system.charge``                                | ``&SYSTEM CHARGE``                                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.hasCharge``                             | ``system.hasCharge``                             | Mark ``system.charge`` as explicit, including zero                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.multiplicity``                          | ``system.multiplicity``                          | ``&SYSTEM MULTIPLICITY``                                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.nSup``                                  | ``system.nSup``                                  | ``&SYSTEM NSUP``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.states``                                | ``system.states``                                | ``&SYSTEM STATES``                                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.occupation``                            | ``system.occupation``                            | ``&SYSTEM OCCUPATION`` values                                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.occupationFixed``                       | ``system.occupationFixed``                       | Add ``FIXED`` to ``&SYSTEM OCCUPATION``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.externalField``                         | ``system.externalField``                         | ``&SYSTEM EXTERNAL FIELD``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.wCut``                                  | ``system.wCut``                                  | ``&SYSTEM WCUT``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.wGauss``                                | ``system.wGauss``                                | ``&SYSTEM WGAUSS`` sigma values                                                                                                                                                  |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsFiniteDifference``             | ``system.couplingsFiniteDifference``             | Add ``FD`` to ``&SYSTEM COUPLINGS``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsFiniteDifferenceDisplacement`` | ``system.couplingsFiniteDifferenceDisplacement`` | ``&SYSTEM COUPLINGS FD=`` displacement                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsProductDisplacement``          | ``system.couplingsProductDisplacement``          | ``&SYSTEM COUPLINGS PROD=`` displacement                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinres``                       | ``system.couplingsLinres``                       | Add ``LINRES`` to ``&SYSTEM COUPLINGS``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinresTolerance``              | ``system.couplingsLinresTolerance``              | Add ``TOL=`` to ``COUPLINGS LINRES``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinresNvects``                 | ``system.couplingsLinresNvects``                 | Add ``NVECT=`` to ``COUPLINGS LINRES``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinresSpecify``                | ``system.couplingsLinresSpecify``                | Add ``SPECIFY`` to ``COUPLINGS LINRES``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinresThresholds``             | ``system.couplingsLinresThresholds``             | Add ``THRESHOLDS`` payload to ``COUPLINGS LINRES``                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsLinresBruteForce``             | ``system.couplingsLinresBruteForce``             | Add ``BRUTE FORCE`` to ``COUPLINGS LINRES``                                                                                                                                      |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsSurfaces``                     | ``system.couplingsSurfaces``                     | ``&SYSTEM COUPLINGS NSURF=`` surface triples                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.couplingsFiniteDifferenceAtoms``        | ``system.couplingsFiniteDifferenceAtoms``        | ``&SYSTEM COUPLINGS NAT=`` atom list                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cdftDonorAtoms``                        | ``system.cdftDonorAtoms``                        | ``&SYSTEM DONOR`` atom list                                                                                                                                                      |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cdftDonorWeights``                      | ``system.cdftDonorWeights``                      | Add ``WMULT`` weights to ``DONOR``                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cdftAcceptorAtoms``                     | ``system.cdftAcceptorAtoms``                     | ``&SYSTEM ACCEPTOR`` atom list                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cdftAcceptorHdasDonors``                | ``system.cdftAcceptorHdasDonors``                | Add ``HDAS`` donor list to ``ACCEPTOR``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cdftAcceptorWeights``                   | ``system.cdftAcceptorWeights``                   | Add ``WMULT`` weights to ``ACCEPTOR``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.pointGroup``                            | ``system.pointGroup``                            | ``&SYSTEM POINT GROUP`` selector line                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.pointGroupMolecule``                    | ``system.pointGroupMolecule``                    | Add ``MOLECULE`` to ``POINT GROUP``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.pointGroupDelta``                       | ``system.pointGroupDelta``                       | ``&SYSTEM POINT GROUP DELTA=`` accuracy                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.lowSpinExcitation``                     | ``system.lowSpinExcitation``                     | ``&SYSTEM LOW SPIN EXCITATION`` options                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.lowSpinExcitationLsets``                | ``system.lowSpinExcitationLsets``                | Add ``LSETS`` to ``LOW SPIN EXCITATION``                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.lowSpinExcitationPenalty``              | ``system.lowSpinExcitationPenalty``              | ``&SYSTEM LOW SPIN EXCITATION PENALTY`` value                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.lseParameters``                         | ``system.lseParameters``                         | ``&SYSTEM LSE PARAMETERS`` lsea/lseb                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.modifiedGoedecker``                     | ``system.modifiedGoedecker``                     | ``&SYSTEM MODIFIED GOEDECKER``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.modifiedGoedeckerParameters``           | ``system.modifiedGoedeckerParameters``           | ``&SYSTEM MODIFIED GOEDECKER PARAMETERS`` lambda values                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.energyProfile``                         | ``system.energyProfile``                         | ``&SYSTEM ENERGY PROFILE``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.densityCutOffRy``                       | ``system.densityCutOffRy``                       | ``&SYSTEM DENSITY CUTOFF``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.densityCutoffNumber``                   | ``system.densityCutoffNumber``                   | ``&SYSTEM DENSITY CUTOFF NUMBER``                                                                                                                                                |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.dual``                                  | ``system.dual``                                  | ``&SYSTEM DUAL``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.constantCutoff``                        | ``system.constantCutoff``                        | ``&SYSTEM CONSTANT CUTOFF`` with A, sigma, and E0 in Ry, in that order; rendered only with three values; see :doc:`relax a cell at a constant cutoff <../howto/constant-cutoff>` |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.boxWalls``                              | ``system.boxWalls``                              | ``&SYSTEM BOX WALLS``                                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.poissonSolver``                         | ``system.poissonSolver``                         | ``&SYSTEM POISSON SOLVER``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.poissonParameter``                      | ``system.poissonParameter``                      | Optional ``POISSON ... PARAMETER`` value                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.mesh``                                  | ``system.mesh``                                  | ``&SYSTEM MESH``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpoints``                               | ``system.kpoints``                               | ``&SYSTEM KPOINTS`` explicit weighted points                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsScaled``                         | ``system.kpointsScaled``                         | Add ``SCALED`` to ``&SYSTEM KPOINTS``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsOnlyDiagonal``                   | ``system.kpointsOnlyDiagonal``                   | Add ``ONLYDIAG`` to ``&SYSTEM KPOINTS``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsBlock``                          | ``system.kpointsBlock``                          | Add ``BLOCK=`` to ``&SYSTEM KPOINTS``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsBlockAll``                       | ``system.kpointsBlockAll``                       | Add ``ALL`` to ``KPOINTS BLOCK``                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsBlockCalculated``                | ``system.kpointsBlockCalculated``                | Add ``CALCULATED`` to ``KPOINTS BLOCK``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsBlockNoSwap``                    | ``system.kpointsBlockNoSwap``                    | Add ``NOSWAP`` to ``KPOINTS BLOCK``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsMonkhorstPack``                  | ``system.kpointsMonkhorstPack``                  | ``&SYSTEM KPOINTS MONKHORST-PACK`` mesh                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsMonkhorstSymmetrized``           | ``system.kpointsMonkhorstSymmetrized``           | Add ``SYMMETRIZED`` to ``KPOINTS MONKHORST-PACK``                                                                                                                                |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsMonkhorstFull``                  | ``system.kpointsMonkhorstFull``                  | Add ``FULL`` to ``KPOINTS MONKHORST-PACK``                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsMonkhorstKdp``                   | ``system.kpointsMonkhorstKdp``                   | Add ``KDP`` to ``KPOINTS MONKHORST-PACK``                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointsMonkhorstShift``                 | ``system.kpointsMonkhorstShift``                 | Add mesh-line ``SHIFT=`` to ``KPOINTS MONKHORST-PACK``                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.kpointBands``                           | ``system.kpointBands``                           | ``&SYSTEM KPOINTS BANDS`` segments                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.doubleGrid``                            | ``system.doubleGrid``                            | ``&SYSTEM DOUBLE GRID`` ``ON`` or ``OFF``                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.symmetrizeCoordinates``                 | ``system.symmetrizeCoordinates``                 | ``&SYSTEM SYMMETRIZE COORDINATES``                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.tesr``                                  | ``system.tesr``                                  | ``&SYSTEM TESR``                                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.surface``                               | ``system.surface``                               | ``&SYSTEM SURFACE`` direction                                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.polymer``                               | ``system.polymer``                               | ``&SYSTEM POLYMER``                                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.cluster``                               | ``system.cluster``                               | ``&SYSTEM CLUSTER``                                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.pressure``                              | ``system.pressure``                              | ``&SYSTEM PRESSURE``                                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.stressTensor``                          | ``system.stressTensor``                          | ``&SYSTEM STRESS TENSOR``                                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.shockVelocity``                         | ``system.shockVelocity``                         | ``&SYSTEM SHOCK VELOCITY``                                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.system.directives``                            | ``system.directives``                            | Additional ``&SYSTEM`` keyword/value lines                                                                                                                                       |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.basis.directives``                             | ``basis.directives``                             | Keyword/value lines inside ``&BASIS``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.basis.subsections``                            | ``basis.subsections``                            | Nested blocks inside ``&BASIS``                                                                                                                                                  |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.cpmd.directives``                              | ``cpmd.directives``                              | Additional ``&CPMD`` keyword/value lines                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.dft.directives``                               | ``dft.directives``                               | Additional ``&DFT`` keyword/value lines                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.clas.directives``                              | ``clas.directives``                              | Keyword/value lines inside ``&CLAS``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.clas.subsections``                             | ``clas.subsections``                             | Nested blocks inside ``&CLAS``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.eam.directives``                               | ``eam.directives``                               | Keyword/value lines inside ``&EAM``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.eam.subsections``                              | ``eam.subsections``                              | Nested blocks inside ``&EAM``                                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.exte.directives``                              | ``exte.directives``                              | Keyword/value lines inside ``&EXTE``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.exte.subsections``                             | ``exte.subsections``                             | Nested blocks inside ``&EXTE``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.hardness.directives``                          | ``hardness.directives``                          | Keyword/value lines inside ``&HARDNESS``                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.hardness.subsections``                         | ``hardness.subsections``                         | Nested blocks inside ``&HARDNESS``                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.info.directives``                              | ``info.directives``                              | Keyword/value lines inside ``&INFO``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.info.subsections``                             | ``info.subsections``                             | Nested blocks inside ``&INFO``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.linres.directives``                            | ``linres.directives``                            | Keyword/value lines inside ``&LINRES``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.linres.subsections``                           | ``linres.subsections``                           | Nested blocks inside ``&LINRES``                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.molstates.directives``                         | ``molstates.directives``                         | Keyword/value lines inside ``&MOLSTATES``                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.molstates.subsections``                        | ``molstates.subsections``                        | Nested blocks inside ``&MOLSTATES``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.mts.directives``                               | ``mts.directives``                               | Keyword/value lines inside ``&MTS``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.mts.subsections``                              | ``mts.subsections``                              | Nested blocks inside ``&MTS``                                                                                                                                                    |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.nlcc.directives``                              | ``nlcc.directives``                              | Keyword/value lines inside ``&NLCC``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.nlcc.subsections``                             | ``nlcc.subsections``                             | Nested blocks inside ``&NLCC``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.path.directives``                              | ``path.directives``                              | Keyword/value lines inside ``&PATH``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.path.subsections``                             | ``path.subsections``                             | Nested blocks inside ``&PATH``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.pimd.directives``                              | ``pimd.directives``                              | Keyword/value lines inside ``&PIMD``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.pimd.subsections``                             | ``pimd.subsections``                             | Nested blocks inside ``&PIMD``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.potential.directives``                         | ``potential.directives``                         | Keyword/value lines inside ``&POTENTIAL``                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.potential.subsections``                        | ``potential.subsections``                        | Nested blocks inside ``&POTENTIAL``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.prop.directives``                              | ``prop.directives``                              | Keyword/value lines inside ``&PROP``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.prop.subsections``                             | ``prop.subsections``                             | Nested blocks inside ``&PROP``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.ptddft.directives``                            | ``ptddft.directives``                            | Keyword/value lines inside ``&PTDDFT``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.ptddft.subsections``                           | ``ptddft.subsections``                           | Nested blocks inside ``&PTDDFT``                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.resp.directives``                              | ``resp.directives``                              | Keyword/value lines inside ``&RESP``                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.resp.subsections``                             | ``resp.subsections``                             | Nested blocks inside ``&RESP``                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.tddft.directives``                             | ``tddft.directives``                             | Keyword/value lines inside ``&TDDFT``                                                                                                                                            |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.tddft.subsections``                            | ``tddft.subsections``                            | Nested blocks inside ``&TDDFT``                                                                                                                                                  |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.vdw.directives``                               | ``vdw.directives``                               | Keyword/value lines inside ``&VDW``                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.vdw.subsections``                              | ``vdw.subsections``                              | Nested blocks inside ``&VDW``, including ``EMPIRICAL CORRECTION``                                                                                                                |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.vectors.directives``                           | ``vectors.directives``                           | Keyword/value lines inside ``&VECTORS``                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.vectors.subsections``                          | ``vectors.subsections``                          | Nested blocks inside ``&VECTORS``                                                                                                                                                |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.wavefunction.directives``                      | ``wavefunction.directives``                      | Keyword/value lines inside ``&WAVEFUNCTION``                                                                                                                                     |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.wavefunction.subsections``                     | ``wavefunction.subsections``                     | Nested blocks inside ``&WAVEFUNCTION``                                                                                                                                           |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.pseudopotentials``                       | ``atoms.pseudopotentials``                       | Pseudopotential entries grouped with ``ForceInput`` coordinates                                                                                                                  |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.constraints``                            | ``atoms.constraints``                            | CONSTRAINTS block entries (FIX/DIST/BEND/TORSION)                                                                                                                                |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.isotopes``                               | ``atoms.isotopes``                               | ISOTOPE per-species mass overrides                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.velocities``                             | ``atoms.velocities``                             | VELOCITIES block initial velocities                                                                                                                                              |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.dummyAtoms``                             | ``atoms.dummyAtoms``                             | DUMMY ATOMS entries (types 1-4)                                                                                                                                                  |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.changeBonds``                            | ``atoms.changeBonds``                            | CHANGE BONDS lines                                                                                                                                                               |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.generate``                               | ``atoms.generate``                               | GENERATE COORDINATES flag                                                                                                                                                        |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.dft.hubbardU``                                 | ``dft.hubbardU``                                 | Structured HUBBARD U per-species entries                                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.dft.hfxWfcCutoff``                             | ``dft.hfxWfcCutoff``                             | HFX WFC CUTOFF value                                                                                                                                                             |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.dft.hfxBlock``                                 | ``dft.hfxBlock``                                 | HFX BLOCK size                                                                                                                                                                   |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.dft.hfxDistribution``                          | ``dft.hfxDistribution``                          | HFX DISTRIBUTION scheme                                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.atoms.directives``                             | ``atoms.directives``                             | Additional non-coordinate ``&ATOMS`` keyword/value lines                                                                                                                         |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.set.key``                                      | ``set.key``                                      | Dotted ``SECTION.KEYWORD`` merge target                                                                                                                                          |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.set.value``                                    | ``set.value``                                    | Optional value emitted under the dotted key                                                                                                                                      |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``params.inputSections.raw``                                          | ``raw``                                          | Full section text inserted as-is                                                                                                                                                 |
+    +-----------------------------------------------------------------------+--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Typed ``&CPMD`` controls
 ------------------------
 
 ``CPMDCpmdSection`` exposes these driver controls directly; parser-accepted
-escape-hatch rows use ``directives``. The feature IDs are the stable discovery
-keys returned by ``cpmdc_feature_table()``.
+escape-hatch rows use ``directives``.
+The feature IDs are the stable discovery keys returned by
+``cpmdc_feature_table()``.
 
 .. table::
 
@@ -1811,10 +1866,13 @@ keys returned by ``cpmdc_feature_table()``.
     | ``catalog.cpmd.DCACP``                                   | ``params.inputSections.cpmd.dcacp``                               | ``dcacp``                               | ``DCACP``                                   |
     +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
 
-``EXTRAPOLATE WFN`` renders into every deck that sets ``extrapolateWfnOptions`` or ``extrapolateWfnOrder``.
+``EXTRAPOLATE WFN`` renders into every deck that sets ``extrapolateWfnOptions`` or
+``extrapolateWfnOrder``.
 ``cpmd.x`` applies it in Born-Oppenheimer molecular dynamics only.
-On the in-process route it applies to every call that starts from stored orbitals, when the archive carries ``tools/opencpmd_embed_extrapolate.patch``.
-The :doc:`extrapolation how-to <../howto/extrapolate-orbitals>` shows a message and the check.
+On the in-process route it applies to every call that starts from stored
+orbitals, when the archive carries ``tools/opencpmd_embed_extrapolate.patch``.
+The :doc:`extrapolation how-to <../howto/extrapolate-orbitals>` shows a
+message and the check.
 
 .. table::
 
@@ -1835,9 +1893,9 @@ The :doc:`extrapolation how-to <../howto/extrapolate-orbitals>` shows a message 
 Typed ``&DFT`` controls
 -----------------------
 
-``CPMDDftSection`` exposes common DFT scalars directly. Parser-accepted
-escape-hatch rows use ``directives`` so callers can still discover the catalog ID
-without a dedicated scalar field.
+``CPMDDftSection`` exposes common DFT scalars directly.
+Parser-accepted escape-hatch rows use ``directives`` so callers can still discover
+the catalog ID without a dedicated scalar field.
 
 .. table::
 

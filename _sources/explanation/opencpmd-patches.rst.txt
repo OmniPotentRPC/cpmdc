@@ -1,0 +1,250 @@
+=============================
+How the OpenCPMD patches work
+=============================
+
+
+A stock OpenCPMD runs one job per process and ends it with ``STOP``.
+``libcpmdc`` runs many evaluations in one host process, keeps the orbitals between
+them, and must survive a CPMD error.
+The patches in
+``tools/`` add the hooks for that; the :doc:`archive
+how-to <../howto/opencpmd-archive>` lists them and the order to apply them.
+
+What the patches change
+-----------------------
+
+The rwfopt patch publishes ``embed_set_warm_orbitals``, ``embed_set_need_forces``,
+``embed_reset_warm_orbitals``, and ``embed_set_write_files``.
+Its geometry-aware selector is ``embed_choose_warm_start_metric_v2``.
+The bridge requires that exact versioned procedure in both the Fortran module
+interface and the archive object.
+An unversioned selector has a different calling convention and cannot be
+substituted, even if a newer module file is supplied beside it.
+A missing versioned symbol requires rebuilding the patched archive; copying
+module files alone is insufficient.
+The geometry patch adds ``embed_ctrl``, which holds ``embed_write_files`` (default
+true).
+Setting it false skips ``geofile`` in ``initrun`` and the ``zhwwf`` and ``geofile``
+writes in ``rwfopt``.
+``wrgeof`` still prints coordinates.
+``embed_set_warm_orbitals(.FALSE.)`` frees the saved orbitals.
+``embed_warm_orbitals`` and ``embed_need_forces`` default to false, which is the
+``cpmd.x`` behaviour.
+``rwfopt`` leaves ``fion`` allocated only when ``embed_need_forces`` is true, and
+frees a surviving ``fion`` before its own ``ALLOCATE``.
+It saves ``c0`` only when ``embed_warm_orbitals`` is true and the SCF converged.
+An unconverged pass leaves the previous copy and marks it stale, so a
+later copy from that key is refused.
+When a converged copy was already stored, that pass also empties the
+extrapolation ring. The rwfopt hunk records the stale donor, and
+``opencpmd_embed_extrapolate.patch`` breaks the history on the same branch.
+A failed store allocation calls ``stopgm``.
+On the next call it copies that ``c0`` in before ``initrun``.
+``rinitwf`` then returns after the phase factors when ``embed_have_orbitals`` is
+true, so the guess does not run.
+A restart read inside ``initrun`` can replace ``c0``, so the same copy is applied
+again after ``initrun`` when the shape still matches, and a different shape calls
+``stopgm``.
+``rwfopt`` sets ``tfor`` when ``embed_need_forces`` is true.
+The stop patch publishes ``cpmd_stopgm_hook``, a C function pointer.
+``stopgm`` calls it with the stop code passed by value, after writing
+``LocalError-*.log``.
+A nonzero return makes ``stopgm`` return to its caller, and a null pointer makes
+``stopgm`` call ``my_stopall``.
+The caller then continues past the failed check.
+The wavefunction, ``fion``, and module state of that call are undefined, so
+``cpmdc`` discards the result and sets CPMD up again before the next call.
+``stopgm`` runs only on the ranks that hit the error.
+A host with more than one rank aborts the others, because a rank that returns
+while the rest wait in an MPI call leaves them waiting.
+A standalone ``cpmd.x`` leaves the pointer null and links without ``libcpmdc``.
+While an evaluation is armed, ``libcpmdc`` stores a catch in the pointer.
+The catch records the code and returns 1, and ``cpmdc`` reports the stop as a
+failed call (see :doc:`troubleshooting <../howto/troubleshooting>`).
+The catch and the code it records live in ``src/cpmd_stop_intercept.c``, inside
+``libcpmdc``, and resolve when ``libcpmd.a`` links into it; they are internal and
+not exported.
+A serial build, including the default wheel, does not reference
+``cpmd_stopgm_hook``.
+The reference is compiled only with ``CPMDC_HAS_CPMD``, and on that build it
+stays a weak reference, so an archive without the hook leaves the catch unset.
+An undefined weak reference links on ELF.
+ld64 rejects it, which is why the serial object omits the symbol instead of
+marking the declaration weak or ``weak_import``.
+The calculator split does not need a patch:
+``mp_start`` assigns ``mp_comm_world`` only when CPMD itself calls ``MPI_Init``, and
+``cpmdc_bind_calculator()`` initialises MPI and stores its communicator before
+that.
+A module flag, ``embed_calculator_bound``, stops a second bind from splitting
+again: it returns ``world_rank / ranks_per_calc`` for its own value, or -1 when
+that value does not divide the world size or is above it, and keeps the
+communicator it has.
+The timer patch changes ``tistopgm``.
+``trace_depth`` stays ``HUGE(0)`` until ``tistart``, and without the guard the call-stack walk indexes ``trace_names``
+from that value, so a ``stopgm`` before ``tistart`` faults instead of writing
+``LocalError``.
+The walk runs only when the depth is inside ``SIZE(tname%trace_names)``.
+
+The teardown patch adds the module
+``embed_teardown`` and its routine ``embed_teardown_state``, which ``libcpmdc`` calls
+before a second setup.
+It frees the saved orbitals, the communicators ``set_cp_grp`` built, and every
+``ALLOCATABLE`` module variable and module-variable component that a ``USE``
+reaches, outside the timer, stop, and CUDA device modules.
+It then adds one to ``embed_teardowns`` in ``embed_ctrl``.
+39 routines in those 34 modules keep work on the setup and wavefunction
+optimisation path for their first call behind a ``SAVE`` flag: ``phfac``,
+``setbasis``, ``hf_init``, ``addfftnset``, ``stress``, the density mixers, the symmetry
+setup, the Vanderbilt and core-charge splines, ``localize2``, and others.
+The SCF of a ``DIPOLE DYNAMICS`` deck calls ``localize2``, which keeps its orbital
+maps and dipole matrices in ``SAVE`` arrays sized by the first basis.
+A second evaluation at another cutoff overran them in ``opeigr``.
+Each of these routines compares the count it last saw with ``embed_teardowns``, and on a change
+frees its own ``SAVE`` arrays and runs as the first call again.
+The next setup then gives the energies of a fresh process.
+``tistart`` keeps its state: it executes ``STOP`` on a second call, so the embed
+calls it once per process.
+``cpmd.x`` never tears down, and ``embed_teardowns`` stays 0 there.
+
+The extrapolation patch keeps the ``EXTRAPOLATE WFN`` request that ``control_test``
+turns off for every job other than Born-Oppenheimer molecular dynamics.
+``control_test`` copies ``cntl%textrap`` into ``embed_extrap_wfn`` in ``embed_ctrl``
+before it does so.
+Only the
+I/O rank runs ``control_test``, so ``rwfopt`` broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip ``extrapwf`` and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, ``rwfopt`` passes them to the ``extrapwf`` that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. ``embed_extrapolation_used`` returns how many sets the last prediction combined. The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it. ``cpmd.x`` never sets ``embed_warm_orbitals`` and never takes this path. Its molecular dynamics runs are unchanged. The :doc:`extrapolation
+how-to <../howto/extrapolate-orbitals>` shows the message and the check.
+
+The constant-cutoff patch is optional and changes no physics.
+With ``CONSTANT CUTOFF`` in ``&SYSTEM``, ``kin_energy``, ``vpsi``, and the kinetic
+stress replace G\ :sup:`2`  by G\ :sup:`2`  + A [1 + erf((G\ :sup:`2`  - E0) / sigma)], but ``hesele`` still
+builds the ODIIS preconditioner from G\ :sup:`2`  alone.
+That diagonal underestimates the curvature of the plane waves above E0 by up to
+2A, so ODIIS overshoots on them and stops at its step limit, and ``cpmdc`` falls
+back to PCG.
+The patch adds the same term to the diagonal.
+On the 60 Ry water deck with A = 100, sigma = 4, and E0 = 40 Ry, ODIIS then
+converges in 16 steps, a stress call takes 7.1 s instead of 42.5 s, and the
+energy and the mean stress agree with the PCG result to 1e-6 eV and 2e-7
+eV/Angstrom\ :sup:`3`\.
+A deck without ``CONSTANT CUTOFF`` has A = 0 and keeps the stock diagonal.
+
+Dipoles from repeated SCF calls
+-------------------------------
+
+OpenCPMD does not update ``ddip%pdipole`` in ``wfopts``.
+The ``ddipo`` routine updates that electronic polarization, adds the ionic term,
+and stores the cell-volume-scaled molecular moment in ``dipomod%moment%dmom``.
+The molecular-dynamics and property drivers call ``ddipo`` only on their own
+paths, which cpmdc's direct ``wfopts`` calls do not enter.
+Reading either module after an ordinary in-process evaluation would therefore
+return stale state.
+
+The dipole patch adds an embed-only request to ``wfopts_utils``.
+After a converged periodic Gamma-point, non-broken-symmetry evaluation,
+``wfopts`` calls ``ddipo_embed`` when the deck requests ``DIPOLE DYNAMICS`` or
+``PROP / DIPOLE MOMENT BERRY``.
+``ddipo_embed`` is a new entry point of ``ddipo_utils`` that sets a module flag and
+calls ``ddipo`` with its original argument list.
+The flag forces the dipole matrices to be recomputed even when a Wannier
+sampling interval would reuse them.
+``ddipo`` itself keeps the argument list that its eleven callers (``mdclas``,
+``mdmain``, ``mdshop_cp``, ``mm_mdmain``, ``mm_mdshop_cp``, ``pi_md``, ``pi_npt_cpmd``,
+``prbomd``, ``prcpmd``, ``proppt``, and ``secder_driver``, which calls it at two sites
+for the minimum structure and for the displaced ones) were compiled with, so an
+already built tree needs only ``ddipo_utils`` and ``wfopts_utils`` recompiled, which
+``tools/rebuild_opencpmd_embed.sh`` does.
+``secder_driver`` needs no patch: it passes the same seven arguments, runs only in
+a frequency calculation, which an embedded evaluation never enters, and
+``embed_force_recompute`` stays false there.
+An optional argument on ``ddipo`` would be read by those callers from a
+register they never set.
+It snapshots ``moment%dmom`` and marks that evaluation valid.
+All other evaluations clear validity.
+After an embed teardown, ``ddipo`` frees its saved maps and starts from the new
+basis.
+``cpmd.x`` leaves the embed request false and retains its original call paths.
+
+The electronic part is a Berry-phase quantity.
+The dipole is defined only for a neutral cell, and only modulo the lattice
+quantum: moving one electron through a lattice vector changes it by that
+vector.
+The patch publishes what ``ddipo`` computes and does not unwrap that jump or
+check the net charge.
+
+The k-point orthogonalization patch fixes two heap buffer overflows when ``atomwf``
+initializes a k-point calculation with more electronic states than atomic
+orbitals (``nstate > atwp%nattot``, or ``nsup > atwp%nattot`` or ``nsdown > atwp%nattot``
+under ``LSD``).
+``gs_ortho_c`` fills ``np * n0`` complex entries in ``ovlap2_c`` and then calls
+``mp_sum(smat, 2*np*n0, parai%allgrp)`` on a ``COMPLEX(real_8)`` matrix, which
+dispatches to ``MPI_Allreduce`` with ``MPI_DOUBLE_COMPLEX`` and reads and overwrites
+twice the overlap matrix size.
+Changing that count to ``np*n0`` matches ``rgs_c``.
+In ``atomwf``, passing ``zmatat(atwp%nattot, atwp%nattot)`` to ``gs_ortho_c`` also
+overflows whenever ``nleft > atwp%nattot``, and the ``tlsd2`` spin-up call passes the
+rank-1 slice ``c0(:, atwp%nattot+1, ikind)`` instead of
+``c0(:, atwp%nattot+1:, ikind)``.
+The patch allocates a local ``smat_c(nleft, MAX(atwp%nattot, nleft))`` around each
+``gs_ortho_c`` call and fixes the spin-up slice.
+
+Nuclear forces from repeated SCF calls
+--------------------------------------
+
+A live OpenCPMD link evaluates each geometry with fixed nuclei
+(``OPTIMIZE WAVEFUNCTION``) and then exports nuclear forces from ``coor%fion``, the
+same Born-Oppenheimer force definition as a single-point force evaluation after
+the SCF (self-consistent field).
+
+On the embed path the Fortran bridge always calls
+``embed_set_need_forces(.TRUE.)`` before ``wfopts``.
+The same subroutine calls ``embed_set_write_files(.FALSE.)``, so the force call
+writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz``.
+``cpmd.x`` leaves that flag true.
+OpenCPMD must be patched so ``rwfopt`` sets
+``tfor = (iprint_force == 1) .OR. embed_need_forces``.
+Without that, OpenCPMD zeros ``fion`` after ``forcedr`` when ``tfor`` is false and the
+C force buffer stays all zeros even though the energy is finite.
+``rwfopt`` frees a surviving ``fion`` before its own ``ALLOCATE``, so the bridge's
+``IF (ALLOCATED(fion))`` guard is optional.
+
+Warm calls (same process, same cell, same method, same elemental composition,
+new ``ForceInput`` positions):
+
+1. First force call of the process: cold setup once, from the in-memory deck.
+   The SCF sets ``embed_set_warm_orbitals`` so a converged ``c0`` is stored.
+   Restore does nothing until that copy exists.
+
+2. Later calls, including a new session and a reordering of the same atomic
+   numbers: update ``tau0`` from C arrays, ``phfac``, full SCF from the retained
+   orbitals, no second setup.
+   An unconverged ODIIS pass does not replace the stored ``c0``.
+   The same call then continues once with ``PCG MINIMIZE`` from that previous
+   converged copy, and the call still counts as warm.
+
+3. Every call requests forces through
+   ``embed_set_need_forces`` and keeps the deck's ``MAXITER``; ``tests/test_embed_warm_no_nomore_clamp.py``
+   and ``tests/test_embed_bomd_force_export.py`` guard both.
+
+:doc:`Wavefunction state <wavefunction-state>` explains what makes a call
+cold or warm.
+
+Why the MPI sentinels stay exported
+-----------------------------------
+
+The export list hides every other symbol of the archives except the MPI Fortran
+sentinels: ``USE mpi`` gives OpenCPMD's objects the COMMON blocks behind
+``MPI_IN_PLACE``, ``MPI_BOTTOM``, and ``MPI_STATUS_IGNORE`` (``mpi_fortran_*_`` in Open
+MPI, ``mpipriv1_`` and its siblings in MPICH), and the MPI library recognizes a
+sentinel by the address of its own block.
+Hidden in ``libcpmdc``, they became private copies, and every ``MPI_IN_PLACE``
+collective sent the zeros of that copy instead of the data: with Open MPI 5 the
+first SCF faulted in ``gorder``, after ``my_allgather_i`` had overwritten the
+plane-wave counts with zeros.
+Kept global, they resolve to one block per process.
+The serial library does not link that archive, so those blocks are not in it.
+The ELF version script can name them anyway: a global pattern exports a symbol
+that is present and does not require it.
+ld64's export list requires every literal name to be defined while wildcard
+entries match only defined symbols, so every sentinel uses a wildcard pattern
+(letting either Open MPI or MPICH link) and the macOS list adds them only when
+OpenCPMD is linked.

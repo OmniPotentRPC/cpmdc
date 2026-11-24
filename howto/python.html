@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run under mpirun" href="mpi.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use cpmdc as an ASE calculator" href="ase.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/python.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -211,9 +228,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#load-the-library">Load the library</a></li>
+<li><a class="reference internal" href="#make-a-parameters-file">Make a parameters file</a></li>
+<li><a class="reference internal" href="#evaluate-a-step">Evaluate a step</a></li>
 <li><a class="reference internal" href="#use-it-as-an-rgpot-provider">Use it as an rgpot provider</a></li>
-<li><a class="reference internal" href="#use-it-as-an-ase-calculator">Use it as an ASE calculator</a></li>
-<li><a class="reference internal" href="#one-session-one-composition">One session, one composition</a></li>
+<li><a class="reference internal" href="#use-it-from-ase">Use it from ASE</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -305,20 +323,56 @@ data-aria-dark="Switch to auto color mode">
           <section id="call-cpmdc-from-python">
 <h1>Call cpmdc from Python<a class="headerlink" href="#call-cpmdc-from-python" title="Link to this heading">¶</a></h1>
 <p>The Python package in <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code> is a handle around one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.
-It loads <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> with <code class="docutils literal notranslate"><span class="pre">ctypes</span></code>. Positions are Angstrom.
-<code class="docutils literal notranslate"><span class="pre">Session</span></code> returns Hartree and Hartree/Bohr, the native units of the C ABI.
+It loads <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> with <code class="docutils literal notranslate"><span class="pre">ctypes</span></code>.
+Positions are Angstrom.
+<code class="docutils literal notranslate"><span class="pre">Session</span></code> returns the native units of the C ABI: Hartree for energies and
+Hartree per Bohr for forces.
 <code class="docutils literal notranslate"><span class="pre">Potential</span></code> returns eV and eV/Angstrom so an rgpot calculator can call
-<code class="docutils literal notranslate"><span class="pre">evaluate</span></code> and <code class="docutils literal notranslate"><span class="pre">caps</span></code> without importing cpmdc’s ASE module.</p>
+<code class="docutils literal notranslate"><span class="pre">evaluate</span></code> and <code class="docutils literal notranslate"><span class="pre">caps</span></code> without importing cpmdc’s ASE module.
+<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> in <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> is an ASE calculator over the same session.
+<code class="docutils literal notranslate"><span class="pre">Session.calculate_au</span></code> takes Bohr and returns the virial as well, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc.lammps</span></code> drives LAMMPS with it (see
+<a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>).</p>
 <section id="load-the-library">
 <h2>Load the library<a class="headerlink" href="#load-the-library" title="Link to this heading">¶</a></h2>
-<p>Set <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> to the shared library, or pass the path to <code class="docutils literal notranslate"><span class="pre">Session</span></code>.
-The search is the rgpot order: an explicit path, then <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>,
-<code class="docutils literal notranslate"><span class="pre">RGPOT_CPMDC_ENGINE</span></code>, and <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMD_ENGINE</span></code>.
-A periodic cell is encoded as <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, so set <code class="docutils literal notranslate"><span class="pre">CPMDC_SCHEMA</span></code> to
-<code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code> or pass that path as <code class="docutils literal notranslate"><span class="pre">schema</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;cpmdc[ase]&quot;</span></code> installs the package with its own <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> and
+schema; the <a class="reference internal" href="install.html"><span class="doc">install page</span></a> lists the wheels.
+The wheel’s library is the reference evaluator, a harmonic well about the
+origin, so <code class="docutils literal notranslate"><span class="pre">Session.available()</span></code> is false until <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> names an
+OpenCPMD build.
+From a checkout, set <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> to <code class="docutils literal notranslate"><span class="pre">build/libcpmdc.so</span></code> and <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code> to
+<code class="docutils literal notranslate"><span class="pre">python</span></code>, or pass the library path as <code class="docutils literal notranslate"><span class="pre">library</span></code>.
+The search is the rgpot order: an explicit path, then
+<code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMDC_ENGINE</span></code>, and <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMD_ENGINE</span></code>, then the wheel’s
+library, then <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> from the dynamic linker, then <code class="docutils literal notranslate"><span class="pre">build/libcpmdc.so</span></code> in
+the working directory.
+An environment variable counts only when it names an existing file.
+A periodic cell needs nothing more: the package encodes each step as a
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> message itself.</p>
+</section>
+<section id="make-a-parameters-file">
+<h2>Make a parameters file<a class="headerlink" href="#make-a-parameters-file" title="Link to this heading">¶</a></h2>
+<p>Every session starts from a serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.
+<a class="reference internal" href="write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a> explains the text
+form.
+The <code class="docutils literal notranslate"><span class="pre">capnp</span></code> command encodes it against <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>;
+<code class="docutils literal notranslate"><span class="pre">find_schema</span></code> returns the copy in the wheel, or <code class="docutils literal notranslate"><span class="pre">CPMDC_SCHEMA</span></code> when set.
+These commands encode the cluster and the periodic water messages of a checkout
+at <code class="docutils literal notranslate"><span class="pre">$CPMDC</span></code> into the working directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">schema</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import cpmdc; print(cpmdc.find_schema())&quot;</span><span class="k">)</span>
+</span><span data-line="2">capnp<span class="w"> </span>encode<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$schema</span><span class="s2">&quot;</span><span class="w"> </span>CPMDParams<span class="w"> </span>&lt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/tests/water_blyp_params.capnp.txt&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>water.params.bin
+</span><span data-line="3">capnp<span class="w"> </span>encode<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$schema</span><span class="s2">&quot;</span><span class="w"> </span>CPMDParams<span class="w"> </span>&lt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/tests/water_blyp_periodic_params.capnp.txt&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>water.periodic.bin
+</span></pre></div>
+</div>
+<p>The first message is an isolated molecule (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and the Hockney Poisson
+solver).
+The second is a simple cubic cell (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>), which gives a stress tensor.</p>
+</section>
+<section id="evaluate-a-step">
+<h2>Evaluate a step<a class="headerlink" href="#evaluate-a-step" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
 </span><span data-line="2">
-</span><span data-line="3"><span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">library</span><span class="o">=</span><span class="s2">&quot;build/libcpmdc.so&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+</span><span data-line="3"><span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
 </span><span data-line="4">    <span class="n">done</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">energy_forces</span><span class="p">(</span>
 </span><span data-line="5">        <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]],</span>
 </span><span data-line="6">        <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
@@ -327,56 +381,55 @@ A periodic cell is encoded as <code class="docutils literal notranslate"><span c
 </span></pre></div>
 </div>
 <p>An empty buffer, a message that is not <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, a missing library, a
-non-finite coordinate, or an atomic number outside 1..118 raises
-<code class="docutils literal notranslate"><span class="pre">CpmdcError</span></code> or <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. None of those calls abort the process.
+non-finite coordinate, or an atomic number outside 1..118 raises <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> or
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
+None of those calls abort the process.
+A call on a closed <code class="docutils literal notranslate"><span class="pre">Session</span></code> raises <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code>.
+<code class="docutils literal notranslate"><span class="pre">CpmdcError</span></code>, the name of that class up to 0.4.0, still works but warns with
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>; catch <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> instead.
 <code class="docutils literal notranslate"><span class="pre">find_library</span></code> and <code class="docutils literal notranslate"><span class="pre">find_schema</span></code> resolve the two paths.
-<code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code> and <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> are the conversion constants from
-the C sources. <code class="docutils literal notranslate"><span class="pre">forces_to_ev_per_angstrom</span></code> and
-<code class="docutils literal notranslate"><span class="pre">stress_to_ev_per_angstrom3</span></code> apply them.
-<code class="docutils literal notranslate"><span class="pre">Evaluation</span></code> is the native result: <code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">stress_h_bohr3</span></code> when a periodic cell was computed.</p>
+<code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code> and <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> are the conversion constants from the C
+sources.
+<code class="docutils literal notranslate"><span class="pre">forces_to_ev_per_angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">stress_to_ev_per_angstrom3</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">dipole_to_e_angstrom</span></code> apply them.
+<code class="docutils literal notranslate"><span class="pre">Evaluation</span></code> is the native result:
+<code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code>, optional <code class="docutils literal notranslate"><span class="pre">stress_h_bohr3</span></code>, and optional
+<code class="docutils literal notranslate"><span class="pre">dipole_e_bohr</span></code>.
+A session is not shared across threads, because the C library keeps the active
+calculator in process globals.
+The <code class="docutils literal notranslate"><span class="pre">schema</span></code> argument of <code class="docutils literal notranslate"><span class="pre">Session</span></code>, <code class="docutils literal notranslate"><span class="pre">Potential</span></code>, and <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> is
+deprecated and ignored, and passing it warns with <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>.</p>
 </section>
 <section id="use-it-as-an-rgpot-provider">
 <h2>Use it as an rgpot provider<a class="headerlink" href="#use-it-as-an-rgpot-provider" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">Potential.evaluate(positions,</span> <span class="pre">numbers,</span> <span class="pre">box)</span></code> returns <code class="docutils literal notranslate"><span class="pre">energy</span></code> in eV,
-<code class="docutils literal notranslate"><span class="pre">forces</span></code> in eV/Angstrom, and <code class="docutils literal notranslate"><span class="pre">stress</span></code> as nine row-major eV/Angstrom<sup>3</sup>components when the library computed a tensor.
+<p><code class="docutils literal notranslate"><span class="pre">Potential.evaluate(positions,</span> <span class="pre">numbers,</span> <span class="pre">box)</span></code> returns <code class="docutils literal notranslate"><span class="pre">energy</span></code> in eV, <code class="docutils literal notranslate"><span class="pre">forces</span></code>
+in eV/Angstrom, and <code class="docutils literal notranslate"><span class="pre">stress</span></code> as nine row-major eV/Angstrom<sup>3</sup>  components when the
+library computed a tensor.
+It returns <code class="docutils literal notranslate"><span class="pre">dipole</span></code> as three e*Angstrom components only when OpenCPMD recomputed
+the molecular moment for that step.
 <code class="docutils literal notranslate"><span class="pre">Potential.caps</span></code> returns <code class="docutils literal notranslate"><span class="pre">stress=True</span></code> and <code class="docutils literal notranslate"><span class="pre">energies=False</span></code>.
-An rgpot <code class="docutils literal notranslate"><span class="pre">RgpotCalculator</span></code> accepts any object with those two methods, so
-this provider can sit behind it.</p>
+It returns <code class="docutils literal notranslate"><span class="pre">dipole=True</span></code> only when the evaluator can produce a dipole: never for
+the reference evaluator, and for OpenCPMD until an evaluation comes back
+without one, because a deck without <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> produces none.
+The Berry-phase dipole exists only for a neutral periodic cell and only modulo
+the lattice quantum, so it can jump by a lattice vector between geometries.
+An rgpot <code class="docutils literal notranslate"><span class="pre">RgpotCalculator</span></code> accepts any object with those two methods, so this
+provider can sit behind it.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Potential</span>
 </span><span data-line="2">
-</span><span data-line="3"><span class="k">with</span> <span class="n">Potential</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span> <span class="k">as</span> <span class="n">pot</span><span class="p">:</span>
+</span><span data-line="3"><span class="k">with</span> <span class="n">Potential</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">pot</span><span class="p">:</span>
 </span><span data-line="4">    <span class="nb">print</span><span class="p">(</span><span class="n">pot</span><span class="o">.</span><span class="n">caps</span><span class="p">())</span>
 </span><span data-line="5">    <span class="nb">print</span><span class="p">(</span><span class="n">pot</span><span class="o">.</span><span class="n">evaluate</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">]],</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">]))</span>
 </span></pre></div>
 </div>
 </section>
-<section id="use-it-as-an-ase-calculator">
-<h2>Use it as an ASE calculator<a class="headerlink" href="#use-it-as-an-ase-calculator" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> is an ASE <code class="docutils literal notranslate"><span class="pre">Calculator</span></code>. Energy and free energy are eV
-and are the same value. Forces are eV/Angstrom. Stress, when the cell is
-fully periodic, is Voigt order <code class="docutils literal notranslate"><span class="pre">(xx,</span> <span class="pre">yy,</span> <span class="pre">zz,</span> <span class="pre">yz,</span> <span class="pre">xz,</span> <span class="pre">xy)</span></code> in eV/Angstrom<sup>3</sup>.
-A cluster omits the cell. A mixed periodic flag raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> and
-names the open axes.</p>
-<p>The smallest program is <code class="docutils literal notranslate"><span class="pre">examples/python/ase_energy.py</span></code>. The
-<a class="reference internal" href="../tutorials/ase-energy.html"><span class="doc">ASE tutorial</span></a> runs it.
-<code class="docutils literal notranslate"><span class="pre">examples/python/energy.py</span></code> is the same step without ASE, in Hartree.</p>
-<p>The reference harmonic well drawn by <code class="docutils literal notranslate"><span class="pre">docs/render_reference_well.py</span></code> is
-the shape of an isolated one-atom step at a 70 Ry cutoff:</p>
-<figure class="align-default" id="id1">
-<img alt="Reference harmonic well, energy against displacement" src="../_images/reference-well.svg" />
-<figcaption>
-<p><span class="caption-text">Reference well for one hydrogen atom. The script writes this figure
-from the evaluator formula.</span><a class="headerlink" href="#id1" title="Link to this image">¶</a></p>
-</figcaption>
-</figure>
-<p>The curve is zero at the origin and rises on both sides.</p>
-</section>
-<section id="one-session-one-composition">
-<h2>One session, one composition<a class="headerlink" href="#one-session-one-composition" title="Link to this heading">¶</a></h2>
-<p>The first successful step fixes the atom count and the elemental
-composition. A later step with a different composition needs a new
-<code class="docutils literal notranslate"><span class="pre">Session</span></code>. The handle is not shared across threads.</p>
+<section id="use-it-from-ase">
+<h2>Use it from ASE<a class="headerlink" href="#use-it-from-ase" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.ase.CPMDCCalculator(params,</span> <span class="pre">library=None)</span></code> is an ASE calculator over the
+same library, in eV and Angstrom.
+<a class="reference internal" href="ase.html"><span class="doc">Use cpmdc as an ASE calculator</span></a> shows it on a molecule, on a
+periodic cell, and in relaxations, and lists its properties, units, caching
+rules, working directory, and errors.</p>
 </section>
 </section>
 
@@ -392,10 +445,10 @@ composition. A later step with a different composition needs a new
         <span>Previous</span><div class="title">Embedding cpmdc</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="mpi.html">
+    <a href="ase.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Run under mpirun</div>
+        <div class="title">Use cpmdc as an ASE calculator</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -487,7 +540,7 @@ composition. A later step with a different composition needs a new
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

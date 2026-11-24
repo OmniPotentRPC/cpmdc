@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>struct CPMDCPropertySnapshot - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="struct CPMDCRankSpread" href="struct_CPMDCRankSpread.html" /><link rel="prev" title="struct CPMDCMultiStateEnergies" href="struct_CPMDCMultiStateEnergies.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>struct CPMDCPropertySnapshot - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="struct CPMDCRankSpread" href="struct_CPMDCRankSpread.html" /><link rel="prev" title="struct CPMDCMultiStateEnergies" href="struct_CPMDCMultiStateEnergies.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/api/struct_CPMDCPropertySnapshot.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="global.html">Global Namespace</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -336,26 +353,28 @@ struct CPMDCPropertySnapshot {
 <span id="details-struct-c-p-m-d-c-property-snapshot"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
 <p>PROP-style property snapshot after a successful evaluation.</p>
 <ul class="simple">
-<li><p>dipole[3]: OpenCPMD <code class="docutils literal notranslate"><span class="pre">ddippdipole</span></code> (a.u.) when linked; PEF zeros</p></li>
-<li><p>polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9</p></li>
-<li><p>hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs dedicated PROP/Hessian run; gradient is always available after force eval)</p></li>
+<li><p>dipole[3]: OpenCPMD molecular dipole (electron Bohr) for the current geometry when <code class="docutils literal notranslate"><span class="pre">dipole_count</span> <span class="pre">==</span> <span class="pre">3</span></code></p></li>
+<li><p>polarizability[9]: always zeros, with count 9; no build computes it</p></li>
+<li><p>hessian[]: deprecated name of the nuclear gradient dE/dR packed as [n_atoms*3]. Use <a class="reference internal" href="global.html#doxid-cpmdc-8h-1adb7640bfa6ef86e8f509e91fd5dfcf7e"><span class="std std-ref">cpmdc_last_gradient()</span></a> or <a class="reference internal" href="global.html#doxid-cpmdc-8h-1aafd3421da0bedb4742331d904dcb9cdb"><span class="std std-ref">cpmdc_session_last_gradient()</span></a> instead. A full Hessian needs a dedicated PROP/Hessian run.</p></li>
 </ul>
+<p>The fixed legacy array limits evaluations to 1365 atoms. libcpmdc rejects a larger system instead of truncating its gradient.</p>
 <section id="fields">
 <h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1ab26d1b54dbe94a3381bd01ef061f2c87"><span id="index-1"></span>int valid</pre>
 <p>Non-zero when the snapshot was written.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a219308dd9232cb5340fc99466db536a5"><span id="index-2"></span>size_t hessian_count</pre>
-<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">hessian</span></code>.</p>
+<p>Deprecated: number of doubles copied into <code class="docutils literal notranslate"><span class="pre">hessian</span></code>.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1af26b4dd2e4fbde6ebf3605d6eb778f2e"><span id="index-3"></span>double hessian[4096]</pre>
-<p>Nuclear gradient dE/dR, packed as <code class="docutils literal notranslate"><span class="pre">natoms</span> <span class="pre">*</span> <span class="pre">3</span></code>.</p>
+<p>Deprecated: nuclear gradient dE/dR.</p>
+<p>Use the gradient accessors.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1af22f800017ca74f8ac3d58766c0c7d7e"><span id="index-4"></span>size_t dipole_count</pre>
 <p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">dipole</span></code>.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a29b033740147bb25af1b397e20bc7aa9"><span id="index-5"></span>double dipole[3]</pre>
-<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">ddippdipole</span></code> in atomic units, or zeros for a reference PEF.</p>
+<p>Molecular dipole in electron Bohr; meaningful only when count is 3.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1aa375aea8f4d2476b4d3e8857e1c1e128"><span id="index-6"></span>size_t polarizability_count</pre>
 <p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">polarizability</span></code>.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a0165ad7c4fe23bd81b91210082cf75cd"><span id="index-7"></span>double polarizability[9]</pre>
-<p>Polarizability when PROP is available; otherwise zeros.</p>
+<p>Always zeros: no build computes the polarizability.</p>
 </section>
 </section>
 </section>
@@ -467,7 +486,7 @@ struct CPMDCPropertySnapshot {
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Drive cpmdc over the i-PI socket protocol - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run LAMMPS on cpmdc forces" href="lammps.html" /><link rel="prev" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/socket-drivers.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/socket-drivers.html"/>
+  <meta property="og:title" content="Drive cpmdc over the i-PI socket protocol"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#migration-status">Migration status</a></li>
+<li><a class="reference internal" href="#start-the-driver">Start the driver</a></li>
+<li><a class="reference internal" href="#from-ase">From ASE</a></li>
+<li><a class="reference internal" href="#from-i-pi">From i-PI</a></li>
+<li><a class="reference internal" href="#with-lammps-fix-ipi">With LAMMPS fix ipi</a></li>
+<li><a class="reference internal" href="#the-c-driver">The C driver</a></li>
+<li><a class="reference internal" href="#units">Units</a></li>
+<li><a class="reference internal" href="#limits">Limits</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/socket-drivers.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Drive cpmdc over the i-PI socket protocol</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/howto/socket-drivers.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/howto/socket-drivers.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/howto/socket-drivers.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/socket-drivers.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/socket-drivers.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="drive-cpmdc-over-the-i-pi-socket-protocol">
+<h1>Drive cpmdc over the i-PI socket protocol<a class="headerlink" href="#drive-cpmdc-over-the-i-pi-socket-protocol" title="Link to this heading">¶</a></h1>
+<section id="migration-status">
+<h2>Migration status<a class="headerlink" href="#migration-status" title="Link to this heading">¶</a></h2>
+<p>Protocol frontends belong in <a class="reference external" href="https://github.com/OmniPotentRPC/rgpot">rgpot</a>, where they can wrap every potential.
+The intended route is rgpot’s <code class="docutils literal notranslate"><span class="pre">IPIDriver</span></code> over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, while direct
+<code class="docutils literal notranslate"><span class="pre">Session.calculate_au()</span></code> calls and rgpot’s Cap’n Proto RPC remain the
+preferred in-process and remote interfaces.</p>
+<p>The cpmdc-specific drivers remain for now because rgpot develop at
+<code class="docutils literal notranslate"><span class="pre">424629e5ba9c0948b8d6224f5b49c014ffb4ac7c</span></code> does not yet expose <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>
+through <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code>.  In <code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">make()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">names()</span></code> contain no CPMD case, and the command has no way to read serialized
+<code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>.  A user therefore cannot select CPMD with <code class="docutils literal notranslate"><span class="pre">--pot</span></code> or <code class="docutils literal notranslate"><span class="pre">-m</span></code>.
+Three library-level differences also matter before the old route can be retired:</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">Geometry</span></code> helper inside <code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc</span></code> (it lives
+in an anonymous namespace, not in the public <code class="docutils literal notranslate"><span class="pre">IPIDriver</span></code> class) calls
+<code class="docutils literal notranslate"><span class="pre">openBox()</span></code> when <code class="docutils literal notranslate"><span class="pre">cellVolume()</span></code> of the cell is not greater than zero.
+<code class="docutils literal notranslate"><span class="pre">cellVolume()</span></code> returns the absolute determinant, so a left-handed cell
+has positive volume and is tiled like any other.  A cell with zero volume
+(all-zero or singular) is replaced by a padded finite cube before <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>
+sees it.  This differs from <code class="docutils literal notranslate"><span class="pre">Session.calculate_au(...,</span> <span class="pre">cell=None)</span></code>
+and can replace the cell from the CPMD deck, or silently pad a singular
+cell that cpmdc rejects.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IPIDriver::step()</span></code> does not mark a direct <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> as initialized.  A
+following <code class="docutils literal notranslate"><span class="pre">STATUS</span></code> therefore returns <code class="docutils literal notranslate"><span class="pre">NEEDINIT</span></code> instead of <code class="docutils literal notranslate"><span class="pre">HAVEDATA</span></code>.
+ASE and normal i-PI handshakes send <code class="docutils literal notranslate"><span class="pre">INIT</span></code>, but cpmdc’s current driver also
+accepts the init-less sequence.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IPIDriver::step()</span></code> accepts an <code class="docutils literal notranslate"><span class="pre">INIT</span></code> string requesting <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> above
+one and then processes one structure.  cpmdc rejects that unsupported
+request explicitly.</p></li>
+</ul>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Capability</p></th>
+<th class="head"><p>cpmdc driver</p></th>
+<th class="head"><p>rgpot <code class="docutils literal notranslate"><span class="pre">IPIDriver</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Protocol messages</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">STATUS</span></code>, <code class="docutils literal notranslate"><span class="pre">INIT</span></code>, <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code>, <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code>, <code class="docutils literal notranslate"><span class="pre">EXIT</span></code>; pipelined <code class="docutils literal notranslate"><span class="pre">POSDATA=/=GETFORCE</span></code>; rejects <code class="docutils literal notranslate"><span class="pre">batch_size</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p></td>
+<td><p>the same standard messages and pipeline, but the audited base ignores <code class="docutils literal notranslate"><span class="pre">batch_size</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Wire units</p></td>
+<td><p>Bohr, Hartree, Hartree/Bohr; Hartree virial</p></td>
+<td><p>the same, converted around rgpot’s Angstrom/eV evaluator</p></td>
+</tr>
+<tr class="row-even"><td><p>Cell</p></td>
+<td><p>transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored</p></td>
+<td><p>transpose to rgpot rows; inverse ignored; a cell with zero volume (all-zero or singular) is currently padded, while a left-handed cell is tiled like any other</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sockets</p></td>
+<td><p>UNIX names/paths and IPv4/IPv6 TCP, with retry</p></td>
+<td><p>UNIX names/paths and TCP, with retry and message timeout</p></td>
+</tr>
+<tr class="row-even"><td><p>Command</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> take serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> exists, but <code class="docutils literal notranslate"><span class="pre">pot_spec</span></code> cannot construct <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>ASE</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> over UNIX or TCP</p></td>
+<td><p>generic driver is tested with <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, but not selectable with CPMD</p></td>
+</tr>
+<tr class="row-even"><td><p>LAMMPS <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code></p></td>
+<td><p>both are clients and meet through an i-PI server</p></td>
+<td><p>same topology once the CPMD command path exists</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The commands below document the transitional cpmdc driver.  They should not
+be copied into a new engine frontend; close the rgpot gaps and replace this
+page with the generic route first.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> is a client for the i-PI wire protocol.
+It connects to a server over a UNIX or TCP socket, receives positions and
+cells, and returns energies, forces, and virials from one <code class="docutils literal notranslate"><span class="pre">Session</span></code>.
+The servers it works with are i-PI, ASE’s <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, and ASE’s
+<code class="docutils literal notranslate"><span class="pre">SocketServer</span></code>.
+LAMMPS <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code> is a client too, so LAMMPS and cpmdc meet through an i-PI
+server; a later section shows that setup.
+For LAMMPS to integrate on cpmdc forces in one process, with less overhead
+per step, see <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
+GROMACS has no i-PI client; it reaches cpmdc in process through
+<a class="reference internal" href="gromacs.html"><span class="doc">its CP2K QM/MM interface</span></a>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> is the same client written in C, for hosts without Python.</p>
+<p>The protocol is the one in the i-PI documentation,
+<a class="reference external" href="https://docs.ipi-code.org/distributed.html">Distributed execution: communication protocol</a>, with the byte layout of
+i-PI’s <code class="docutils literal notranslate"><span class="pre">ipi/interfaces/sockets.py</span></code> and ASE’s <code class="docutils literal notranslate"><span class="pre">ase/calculators/socketio.py</span></code>.
+<code class="docutils literal notranslate"><span class="pre">python/cpmdc/ipi.py</span></code> cites both.</p>
+</section>
+<section id="start-the-driver">
+<h2>Start the driver<a class="headerlink" href="#start-the-driver" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">cpmdc</span></code> installs the <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> command; <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">cpmdc.ipi</span></code>
+is the same program.
+It needs a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file (see <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a>) and the
+species in the order the server sends positions, because the protocol
+carries no species:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc-ipi<span class="w"> </span>--unix<span class="w"> </span>water<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span><span class="s2">&quot;O H H&quot;</span>
+</span><span data-line="2">cpmdc-ipi<span class="w"> </span>--host<span class="w"> </span>localhost<span class="w"> </span>--port<span class="w"> </span><span class="m">31415</span><span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OH2
+</span></pre></div>
+</div>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--unix</span> <span class="pre">NAME</span></code></p></td>
+<td><p>UNIX socket; a bare name gets i-PI’s default <code class="docutils literal notranslate"><span class="pre">sockets_prefix</span></code>, which ASE also uses, and a name with a <code class="docutils literal notranslate"><span class="pre">/</span></code> is a path</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--host</span> <span class="pre">H</span> <span class="pre">--port</span> <span class="pre">P</span></code></p></td>
+<td><p>TCP socket; <code class="docutils literal notranslate"><span class="pre">--host</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">localhost</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--params</span> <span class="pre">FILE</span></code></p></td>
+<td><p>serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--species</span> <span class="pre">TEXT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;O</span> <span class="pre">H</span> <span class="pre">H&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;O,H,H&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;OH2&quot;</span></code>, or atomic numbers <code class="docutils literal notranslate"><span class="pre">&quot;8</span> <span class="pre">1</span> <span class="pre">1&quot;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--structure</span> <span class="pre">FILE</span></code></p></td>
+<td><p>take the species from a file ASE can read, instead of <code class="docutils literal notranslate"><span class="pre">--species</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--cluster</span></code></p></td>
+<td><p>ignore the cell the server sends; the deck sets the box</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--library</span> <span class="pre">PATH</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> to load; otherwise the <code class="docutils literal notranslate"><span class="pre">find_library</span></code> order</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--socket-prefix</span> <span class="pre">P</span></code></p></td>
+<td><p>prefix for a bare <code class="docutils literal notranslate"><span class="pre">--unix</span></code> name, as i-PI’s <code class="docutils literal notranslate"><span class="pre">-S</span></code> or <code class="docutils literal notranslate"><span class="pre">sockets_prefix</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--wait</span> <span class="pre">SECONDS</span></code></p></td>
+<td><p>retry the connection until the server listens</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--verbose</span></code></p></td>
+<td><p>log each protocol message on standard error</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The driver opens the session before it connects, so a bad <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>
+file fails at once.
+It exits with status 0 after <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or when the server closes the
+connection between messages, with status 1 and a message on standard
+error after an error, and with status 2 for a usage error.</p>
+</section>
+<section id="from-ase">
+<h2>From ASE<a class="headerlink" href="#from-ase" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> without <code class="docutils literal notranslate"><span class="pre">calc</span></code> binds the socket and waits for a client.
+Start <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> against the same name, then use the calculator as any
+other.
+This relaxes the isolated water message from the Python how-to through a
+UNIX socket:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+</span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.calculators.socketio</span><span class="w"> </span><span class="kn">import</span> <span class="n">SocketIOCalculator</span>
+</span><span data-line="7"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">BFGS</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;cpmdc-&quot;</span> <span class="o">+</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span>
+</span><span data-line="10"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="11"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">)</span>
+</span><span data-line="12"><span class="k">with</span> <span class="n">SocketIOCalculator</span><span class="p">(</span><span class="n">unixsocket</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="13">    <span class="n">driver</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+</span><span data-line="14">        <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;cpmdc.ipi&quot;</span><span class="p">,</span> <span class="s2">&quot;--unix&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span>
+</span><span data-line="15">         <span class="s2">&quot;--params&quot;</span><span class="p">,</span> <span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;--species&quot;</span><span class="p">,</span> <span class="s2">&quot;O H H&quot;</span><span class="p">]</span>
+</span><span data-line="16">    <span class="p">)</span>
+</span><span data-line="17">    <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="18">    <span class="k">with</span> <span class="n">BFGS</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="k">as</span> <span class="n">opt</span><span class="p">:</span>
+</span><span data-line="19">        <span class="n">opt</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">fmax</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span data-line="20">    <span class="nb">print</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">(),</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">())</span>
+</span><span data-line="21"><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;driver exit status&quot;</span><span class="p">,</span> <span class="n">driver</span><span class="o">.</span><span class="n">wait</span><span class="p">())</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">port=31415</span></code> in place of <code class="docutils literal notranslate"><span class="pre">unixsocket</span></code>, with <code class="docutils literal notranslate"><span class="pre">--port</span> <span class="pre">31415</span></code> on the driver,
+uses TCP.
+A fully periodic structure gives <code class="docutils literal notranslate"><span class="pre">get_stress()</span></code>: ASE turns the virial into
+stress as <code class="docutils literal notranslate"><span class="pre">-virial</span> <span class="pre">/</span> <span class="pre">volume</span></code>.
+A structure without a cell is sent as an all-zero cell, which the driver
+takes as a cluster.
+The calculator accepts changes of <code class="docutils literal notranslate"><span class="pre">positions</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code> only, as ASE’s
+socket calculators do; another composition needs a new calculator and a
+new driver.
+<code class="docutils literal notranslate"><span class="pre">SocketServer</span></code>, the class under <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, works the same way
+for a host that wants the raw <code class="docutils literal notranslate"><span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">forces</span></code>, and <code class="docutils literal notranslate"><span class="pre">virial</span></code>.</p>
+</section>
+<section id="from-i-pi">
+<h2>From i-PI<a class="headerlink" href="#from-i-pi" title="Link to this heading">¶</a></h2>
+<p>Declare an <code class="docutils literal notranslate"><span class="pre">ffsocket</span></code> and point the system at it:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nt">&lt;simulation</span><span class="w"> </span><span class="na">verbosity=</span><span class="s">&quot;low&quot;</span><span class="nt">&gt;</span>
+</span><span data-line="2"><span class="w">  </span><span class="nt">&lt;ffsocket</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;cpmdc&quot;</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;unix&quot;</span><span class="w"> </span><span class="na">pbc=</span><span class="s">&quot;false&quot;</span><span class="nt">&gt;</span>
+</span><span data-line="3"><span class="w">    </span><span class="nt">&lt;address&gt;</span><span class="w"> </span>water<span class="w"> </span><span class="nt">&lt;/address&gt;</span>
+</span><span data-line="4"><span class="w">  </span><span class="nt">&lt;/ffsocket&gt;</span>
+</span><span data-line="5"><span class="w">  </span><span class="nt">&lt;system&gt;</span>
+</span><span data-line="6"><span class="w">    </span><span class="nt">&lt;initialize</span><span class="w"> </span><span class="na">nbeads=</span><span class="s">&quot;1&quot;</span><span class="nt">&gt;</span>
+</span><span data-line="7"><span class="w">      </span><span class="nt">&lt;file</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;xyz&quot;</span><span class="nt">&gt;</span><span class="w"> </span>init.xyz<span class="w"> </span><span class="nt">&lt;/file&gt;</span>
+</span><span data-line="8"><span class="w">    </span><span class="nt">&lt;/initialize&gt;</span>
+</span><span data-line="9"><span class="w">    </span><span class="nt">&lt;forces&gt;&lt;force</span><span class="w"> </span><span class="na">forcefield=</span><span class="s">&quot;cpmdc&quot;</span><span class="nt">/&gt;&lt;/forces&gt;</span>
+</span><span data-line="10"><span class="w">    </span><span class="cm">&lt;!-- ensemble and motion as usual --&gt;</span>
+</span><span data-line="11"><span class="w">  </span><span class="nt">&lt;/system&gt;</span>
+</span><span data-line="12"><span class="nt">&lt;/simulation&gt;</span>
+</span></pre></div>
+</div>
+<p>Start i-PI, then one driver per bead:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">i-pi<span class="w"> </span>input.xml<span class="w"> </span><span class="p">&amp;</span>
+</span><span data-line="2">cpmdc-ipi<span class="w"> </span>--unix<span class="w"> </span>water<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OHH<span class="w"> </span>--cluster<span class="w"> </span>--wait<span class="w"> </span><span class="m">60</span>
+</span></pre></div>
+</div>
+<p>i-PI always sends a cell. For an isolated molecule, <code class="docutils literal notranslate"><span class="pre">pbc=&quot;false&quot;</span></code> keeps i-PI
+from wrapping positions and <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> keeps the box in the deck.
+For a periodic deck, drop both and the driver sends the virial, so i-PI
+can run constant-pressure ensembles.
+Leave <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> at 1: the driver refuses a batched <code class="docutils literal notranslate"><span class="pre">INIT</span></code>.
+Wavefunction extrapolation wants each driver to see one continuous
+trajectory; with several beads, start one driver per bead and set
+<code class="docutils literal notranslate"><span class="pre">matching=&quot;lock&quot;</span></code> on the <code class="docutils literal notranslate"><span class="pre">ffsocket</span></code> so i-PI keeps each bead on its driver.
+The pytest suite runs a short NVE trajectory through i-PI 3.3.</p>
+</section>
+<section id="with-lammps-fix-ipi">
+<h2>With LAMMPS fix ipi<a class="headerlink" href="#with-lammps-fix-ipi" title="Link to this heading">¶</a></h2>
+<p>Untested as written: LAMMPS was not run with this input.
+<code class="docutils literal notranslate"><span class="pre">bench/lammps_routes.py</span></code> runs the same arrangement with <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">zero</span></code>.
+In it i-PI integrates; for LAMMPS to integrate, use the in-process routes
+of <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
+<code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code> makes LAMMPS an i-PI client, as <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> is, so the two cannot
+connect to each other.
+They meet through an i-PI server that sums their forces, for example a
+classical term from LAMMPS added to the cpmdc energy:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nt">&lt;ffsocket</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;cpmdc&quot;</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;unix&quot;</span><span class="nt">&gt;</span><span class="w"> </span><span class="nt">&lt;address&gt;</span><span class="w"> </span>cpmdc<span class="w"> </span><span class="nt">&lt;/address&gt;</span><span class="w"> </span><span class="nt">&lt;/ffsocket&gt;</span>
+</span><span data-line="2"><span class="nt">&lt;ffsocket</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;lammps&quot;</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;unix&quot;</span><span class="nt">&gt;</span><span class="w"> </span><span class="nt">&lt;address&gt;</span><span class="w"> </span>lammps<span class="w"> </span><span class="nt">&lt;/address&gt;</span><span class="w"> </span><span class="nt">&lt;/ffsocket&gt;</span>
+</span><span data-line="3"><span class="nt">&lt;system&gt;</span>
+</span><span data-line="4"><span class="w">  </span><span class="nt">&lt;forces&gt;</span>
+</span><span data-line="5"><span class="w">    </span><span class="nt">&lt;force</span><span class="w"> </span><span class="na">forcefield=</span><span class="s">&quot;cpmdc&quot;</span><span class="nt">/&gt;</span>
+</span><span data-line="6"><span class="w">    </span><span class="nt">&lt;force</span><span class="w"> </span><span class="na">forcefield=</span><span class="s">&quot;lammps&quot;</span><span class="nt">/&gt;</span>
+</span><span data-line="7"><span class="w">  </span><span class="nt">&lt;/forces&gt;</span>
+</span><span data-line="8"><span class="nt">&lt;/system&gt;</span>
+</span></pre></div>
+</div>
+<p>The LAMMPS input defines its force field and ends in <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code>; <code class="docutils literal notranslate"><span class="pre">unix</span></code>
+selects a UNIX socket with the name <code class="docutils literal notranslate"><span class="pre">lammps</span></code>, and the port is ignored:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">units           real
+</span><span data-line="2">atom_style      full
+</span><span data-line="3">read_data       water.data
+</span><span data-line="4">pair_style      lj/cut 10.0
+</span><span data-line="5">pair_coeff      * * 0.0 1.0
+</span><span data-line="6">pair_coeff      1 1 0.1553 3.166
+</span><span data-line="7">fix             1 all ipi lammps 32345 unix
+</span><span data-line="8">run             100000000
+</span></pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">i-pi<span class="w"> </span>input.xml<span class="w"> </span><span class="p">&amp;</span>
+</span><span data-line="2">cpmdc-ipi<span class="w"> </span>--unix<span class="w"> </span>cpmdc<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OHH<span class="w"> </span>--wait<span class="w"> </span><span class="m">60</span><span class="w"> </span><span class="p">&amp;</span>
+</span><span data-line="3">lmp<span class="w"> </span>-in<span class="w"> </span><span class="k">in</span>.lammps
+</span></pre></div>
+</div>
+<p>The species in i-PI’s structure, in the LAMMPS data file, and in
+<code class="docutils literal notranslate"><span class="pre">--species</span></code> must be in the same order: none of the three clients checks.</p>
+</section>
+<section id="the-c-driver">
+<h2>The C driver<a class="headerlink" href="#the-c-driver" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> speaks the same protocol from C, through
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>, with no Python
+interpreter.
+Meson builds it from <code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> on platforms with UNIX sockets and
+installs it in <code class="docutils literal notranslate"><span class="pre">bin</span></code> beside <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>; the wheel ships <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> instead.
+It links <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> and finds it through its run path, so no
+<code class="docutils literal notranslate"><span class="pre">--library</span></code> option exists.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc-ipi-c<span class="w"> </span>--unix<span class="w"> </span>water<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OHH<span class="w"> </span>--cluster<span class="w"> </span>--wait<span class="w"> </span><span class="m">60</span>
+</span><span data-line="2">cpmdc-ipi-c<span class="w"> </span>--host<span class="w"> </span>localhost<span class="w"> </span>--port<span class="w"> </span><span class="m">31415</span><span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span><span class="s2">&quot;O H H&quot;</span>
+</span></pre></div>
+</div>
+<p>The options are those of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> without <code class="docutils literal notranslate"><span class="pre">--structure</span></code> and <code class="docutils literal notranslate"><span class="pre">--library</span></code>:
+<code class="docutils literal notranslate"><span class="pre">--unix</span></code> or <code class="docutils literal notranslate"><span class="pre">--host</span></code> and <code class="docutils literal notranslate"><span class="pre">--port</span></code>, <code class="docutils literal notranslate"><span class="pre">--params</span></code>, <code class="docutils literal notranslate"><span class="pre">--species</span></code> in the same
+spellings, <code class="docutils literal notranslate"><span class="pre">--cluster</span></code>, <code class="docutils literal notranslate"><span class="pre">--socket-prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--wait</span></code>, and <code class="docutils literal notranslate"><span class="pre">--verbose</span></code>.
+A bare <code class="docutils literal notranslate"><span class="pre">--unix</span></code> name gets the same default prefix as i-PI, ASE, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>.
+The wire messages, units, and limits below are shared with <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>.
+For <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, status 0 follows <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or a close between messages,
+status 1 reports a protocol or calculation error, and status 2 reports a
+command-line usage error.
+Energies and forces equal those of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> bit for bit, and both drivers
+take the virial volume from the same routine, LU with partial pivoting on the
+cell scaled by a power of two: the pytest suite checks both drivers
+to 1e-10 through ASE’s <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> over UNIX and TCP sockets,
+through a minimal server, and through a short i-PI NVE run.</p>
+</section>
+<section id="units">
+<h2>Units<a class="headerlink" href="#units" title="Link to this heading">¶</a></h2>
+<p>Everything on the wire is atomic units, and the driver converts nothing
+it returns.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>On the wire</p></th>
+<th class="head"><p>cpmdc</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>positions</p></td>
+<td><p>Bohr, <code class="docutils literal notranslate"><span class="pre">3N</span></code> reals</p></td>
+<td><p>to Angstrom with <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> for <code class="docutils literal notranslate"><span class="pre">Session</span></code>, which divides it out</p></td>
+</tr>
+<tr class="row-odd"><td><p>cell</p></td>
+<td><p>h with lattice vectors as columns, Bohr, nine reals row-major</p></td>
+<td><p>rows are the lattice vectors given to <code class="docutils literal notranslate"><span class="pre">Session</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>inverse cell</p></td>
+<td><p>nine reals row-major</p></td>
+<td><p>read and ignored</p></td>
+</tr>
+<tr class="row-odd"><td><p>energy</p></td>
+<td><p>Hartree</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Evaluation.energy_h</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>forces</p></td>
+<td><p>Hartree/Bohr, <code class="docutils literal notranslate"><span class="pre">3N</span></code> reals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Evaluation.forces_h_bohr</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>virial</p></td>
+<td><p>Hartree, nine reals laid out as the cell</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">-dE/d(strain)</span></code>, the library stress times the volume in Bohr<sup>3</sup></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The virial is what ASE’s <code class="docutils literal notranslate"><span class="pre">SocketClient</span></code> sends as <code class="docutils literal notranslate"><span class="pre">-volume</span> <span class="pre">*</span> <span class="pre">stress</span></code> and
+what i-PI’s ASE driver sends, so ASE’s <code class="docutils literal notranslate"><span class="pre">stress</span> <span class="pre">=</span> <span class="pre">-virial</span> <span class="pre">/</span> <span class="pre">volume</span></code> comes
+back with ASE’s sign, <code class="docutils literal notranslate"><span class="pre">(1/V)</span> <span class="pre">dE/d(strain)</span></code>.
+cpmdc converts with CODATA 2018 constants and ASE with CODATA 2014 ones.
+Through <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> the energy therefore differs from
+<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> by about one part in 10<sup>8</sup>, from ASE’s conversions on its
+side of the socket.
+With ASE’s <code class="docutils literal notranslate"><span class="pre">Bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">Ha</span></code> set to <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> and <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code>
+the two agree to 1e-10, which the pytest suite checks.</p>
+</section>
+<section id="limits">
+<h2>Limits<a class="headerlink" href="#limits" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>The species are fixed at start. A step with another atom count stops the
+driver with a message; a change of composition at the same count cannot
+be seen on the wire, so restart the driver with the new <code class="docutils literal notranslate"><span class="pre">--species</span></code>.</p></li>
+<li><p>One structure per request: <code class="docutils literal notranslate"><span class="pre">INIT</span></code> must be UTF-8, and <code class="docutils literal notranslate"><span class="pre">batch_size</span></code>, when
+present, must appear once with the integer value 1. There is no shared-memory
+(<code class="docutils literal notranslate"><span class="pre">mode=&quot;shm&quot;</span></code>) transport.</p></li>
+<li><p>The extra string after the virial is empty.</p></li>
+<li><p>A cluster, an isolated deck, or <code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code> sends a zero virial; a
+periodic cell without a library stress warns once on standard error.</p></li>
+<li><p>A cell that is neither all zero nor rank 3 stops the driver. Rank 3
+uses the numpy.linalg.matrix<sub>rank</sub>  cutoff: a singular value counts only
+when it exceeds the largest times 3 times the float64 unit roundoff.
+Both drivers and the library compute the singular values with the same
+one-sided Jacobi iteration on the cell scaled by a power of two, so they
+agree on every cell, including those within rounding of the cutoff,
+where two SVD routines can disagree.</p></li>
+<li><p>Both drivers judge the cell on the wire values, in Bohr, before any
+conversion. A full-rank cell whose volume in Bohr<sup>3</sup>  is below the least
+normal float64 stops the driver with “the server sent a cell whose volume
+is too small for binary64”, so the virial volume cannot underflow. The
+library then checks the Angstrom cell it is given; a cell that passes in
+Bohr but whose Angstrom volume is below that value, such as a diagonal of
+3.1072325e-103 Bohr, stops either driver with the library’s “cell volume
+is too small for binary64”.</p></li>
+<li><p>A wire position or, unless <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is given, a cell value that is NaN
+or infinite stops either driver with “positions must be finite” or “cell
+must be finite”, before the step is evaluated and with no reply. The
+positions are checked first; a non-finite cell skips the rank checks above.</p></li>
+<li><p>A cell whose volume is above the largest float64 stops either driver with
+“cell volume is too large for binary64” before the step is evaluated, and
+a virial component that is not finite stops it with “virial is not
+finite”. Neither driver sends a non-finite virial.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--wait</span></code> must be finite and zero or positive.</p></li>
+<li><p>The driver is one process with one session. It does not run under
+<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>; start several drivers for several beads.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> takes the species from <code class="docutils literal notranslate"><span class="pre">--species</span></code> only.</p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="constant-cutoff.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Relax a cell at a constant cutoff</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="lammps.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Run LAMMPS on cpmdc forces</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

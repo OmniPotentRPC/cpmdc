@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run LAMMPS on cpmdc forces - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run GROMACS on cpmdc forces" href="gromacs.html" /><link rel="prev" title="Drive cpmdc over the i-PI socket protocol" href="socket-drivers.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/lammps.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/lammps.html"/>
+  <meta property="og:title" content="Run LAMMPS on cpmdc forces"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#from-python-with-fix-external">From Python with fix external</a></li>
+<li><a class="reference internal" href="#from-an-input-script-with-pairstyle-cpmdc">From an input script with pair<sub>style</sub>  cpmdc</a></li>
+<li><a class="reference internal" href="#several-mpi-ranks">Several MPI ranks</a></li>
+<li><a class="reference internal" href="#the-harness-on-the-reference-well-and-on-opencpmd">The harness on the reference well and on OpenCPMD</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/lammps.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Run LAMMPS on cpmdc forces</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/howto/lammps.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/howto/lammps.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/howto/lammps.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/lammps.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/lammps.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="run-lammps-on-cpmdc-forces">
+<h1>Run LAMMPS on cpmdc forces<a class="headerlink" href="#run-lammps-on-cpmdc-forces" title="Link to this heading">¶</a></h1>
+<p>LAMMPS can take its energy, forces, and virial from cpmdc in process, so its
+integrators, thermostats, barostats, minimizers, and output run on a cpmdc
+potential energy surface.
+Two routes call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>
+once per force evaluation; both pass the same numbers to LAMMPS.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Route</p></th>
+<th class="head"><p>LAMMPS side</p></th>
+<th class="head"><p>Needs</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code></p></td>
+<td><p>rgpot’s generic <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">external</span> <span class="pre">pf/callback</span></code> frontend</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rgpot</span></code>, the <code class="docutils literal notranslate"><span class="pre">lammps</span></code> Python module (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">lammps</span></code> works), <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> for more than one rank</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code></p></td>
+<td><p>a LAMMPS plugin, <code class="docutils literal notranslate"><span class="pre">cpmdcplugin.so</span></code>, loaded with <code class="docutils literal notranslate"><span class="pre">plugin</span> <span class="pre">load</span></code></p></td>
+<td><p>LAMMPS with the <code class="docutils literal notranslate"><span class="pre">PLUGIN</span></code> package and the headers it was built from; no Python</p></td>
+</tr>
+<tr class="row-even"><td><p>i-PI sockets</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code>, a client of an i-PI server</p></td>
+<td><p>i-PI and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>; see <a class="reference internal" href="socket-drivers.html"><span class="doc">the socket drivers</span></a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The plugin suits LAMMPS input scripts run by <code class="docutils literal notranslate"><span class="pre">lmp</span></code> and has the least overhead
+per step (see <a class="reference internal" href="../explanation/md-engines.html"><span class="doc">cpmdc inside MD engines</span></a>).
+<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> suits Python workflows and needs no compiler.  The cpmdc class is
+a compatibility wrapper: it presents a <code class="docutils literal notranslate"><span class="pre">cpmdc.Session</span></code> as a Python rgpot
+potential and delegates the LAMMPS protocol, unit conversion, cell, virial,
+MPI gather and callback errors to <code class="docutils literal notranslate"><span class="pre">rgpot.lammps.FixExternal</span></code>.  Install rgpot
+alongside cpmdc to use this route.  <code class="docutils literal notranslate"><span class="pre">rgpot.lammps</span></code> is not in a released rgpot
+wheel yet; the Python tests skip, with that reason, when the import fails.
+The socket route keeps cpmdc in a separate process and lets i-PI integrate;
+LAMMPS then contributes forces of its own.</p>
+<p>The <a class="reference internal" href="../reference/lammps.html"><span class="doc">LAMMPS interface reference</span></a> gives the unit
+styles, the cell, and the virial both routes use.</p>
+<section id="from-python-with-fix-external">
+<h2>From Python with fix external<a class="headerlink" href="#from-python-with-fix-external" title="Link to this heading">¶</a></h2>
+<p>Define the box, the atoms, and the masses as usual, without a pair style for the
+atoms cpmdc covers, then hand the <code class="docutils literal notranslate"><span class="pre">lammps</span></code> object to <code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> with one
+element per atom type, in type order:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">lammps</span><span class="w"> </span><span class="kn">import</span> <span class="n">lammps</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.lammps</span><span class="w"> </span><span class="kn">import</span> <span class="n">FixExternal</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="n">lmp</span> <span class="o">=</span> <span class="n">lammps</span><span class="p">()</span>
+</span><span data-line="6"><span class="n">lmp</span><span class="o">.</span><span class="n">file</span><span class="p">(</span><span class="s2">&quot;in.setup&quot;</span><span class="p">)</span>  <span class="c1"># units metal, box, atoms, masses</span>
+</span><span data-line="7"><span class="k">with</span> <span class="n">FixExternal</span><span class="p">(</span><span class="n">lmp</span><span class="p">,</span> <span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;O H&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">cpmdc</span><span class="p">:</span>
+</span><span data-line="8">    <span class="n">lmp</span><span class="o">.</span><span class="n">commands_string</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="9"><span class="s2">        velocity all create 300 4928</span>
+</span><span data-line="10"><span class="s2">        fix nve all nve</span>
+</span><span data-line="11"><span class="s2">        timestep 0.00025</span>
+</span><span data-line="12"><span class="s2">        thermo 10</span>
+</span><span data-line="13"><span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+</span><span data-line="14">    <span class="n">cpmdc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+</span><span data-line="15">    <span class="nb">print</span><span class="p">(</span><span class="n">lmp</span><span class="o">.</span><span class="n">get_thermo</span><span class="p">(</span><span class="s2">&quot;pe&quot;</span><span class="p">),</span> <span class="n">cpmdc</span><span class="o">.</span><span class="n">evaluations</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> issues <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">cpmdc</span> <span class="pre">all</span> <span class="pre">external</span> <span class="pre">pf/callback</span> <span class="pre">1</span> <span class="pre">1</span></code> and
+<code class="docutils literal notranslate"><span class="pre">fix_modify</span> <span class="pre">cpmdc</span> <span class="pre">energy</span> <span class="pre">yes</span> <span class="pre">virial</span> <span class="pre">yes</span></code>, so <code class="docutils literal notranslate"><span class="pre">pe</span></code> holds the cpmdc energy and
+<code class="docutils literal notranslate"><span class="pre">press</span></code> includes its virial.
+On a periodic OpenCPMD deck that virial carries the Pulay stress of the cutoff.
+Before <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">npt</span></code> or <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">box/relax</span></code>, set <code class="docutils literal notranslate"><span class="pre">constantCutoff</span> <span class="pre">=</span> <span class="pre">[A,</span> <span class="pre">sigma,</span> <span class="pre">E0]</span></code> in
+the <code class="docutils literal notranslate"><span class="pre">system</span></code> section of the message, as <a class="reference internal" href="constant-cutoff.html"><span class="doc">relax a cell at a constant cutoff</span></a>
+shows; the <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code> route reads the same message.
+With <code class="docutils literal notranslate"><span class="pre">create=False</span></code> it attaches to a <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">external</span></code> the input already defines
+under <code class="docutils literal notranslate"><span class="pre">fix_id</span></code>; that fix needs the same two <code class="docutils literal notranslate"><span class="pre">fix_modify</span></code> settings.
+<code class="docutils literal notranslate"><span class="pre">close()</span></code>, or leaving the <code class="docutils literal notranslate"><span class="pre">with</span></code> block, removes the fixes it added and closes
+the session.</p>
+<p>A failed evaluation cannot raise through LAMMPS’ C callback.
+<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> keeps the error in <code class="docutils literal notranslate"><span class="pre">error</span></code>, returns zero forces for that step, and
+a <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">halt</span></code> it adds stops LAMMPS at the end of the step.
+<code class="docutils literal notranslate"><span class="pre">FixExternal.run()</span></code> then raises <code class="docutils literal notranslate"><span class="pre">cpmdc.CPMDCError</span></code> with the library’s message; a
+bare <code class="docutils literal notranslate"><span class="pre">lmp.command(&quot;run</span> <span class="pre">...&quot;)</span></code> raises LAMMPS’ halt error instead.</p>
+<p>Any <code class="docutils literal notranslate"><span class="pre">run</span></code> or <code class="docutils literal notranslate"><span class="pre">minimize</span></code> works: <code class="docutils literal notranslate"><span class="pre">minimize</span></code> uses the cpmdc energy through
+<code class="docutils literal notranslate"><span class="pre">fix_modify</span> <span class="pre">energy</span> <span class="pre">yes</span></code>.</p>
+</section>
+<section id="from-an-input-script-with-pairstyle-cpmdc">
+<h2>From an input script with pair<sub>style</sub>  cpmdc<a class="headerlink" href="#from-an-input-script-with-pairstyle-cpmdc" title="Link to this heading">¶</a></h2>
+<p>Meson builds <code class="docutils literal notranslate"><span class="pre">cpmdcplugin.so</span></code> when a C++ compiler, MPI for C++, and the LAMMPS
+headers are found.
+The headers come from <code class="docutils literal notranslate"><span class="pre">-Dlammps_include=DIR</span></code>, or from the <code class="docutils literal notranslate"><span class="pre">include/lammps</span></code>
+directory of an importable <code class="docutils literal notranslate"><span class="pre">lammps</span></code> Python package, which the pip wheel ships:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_lammps_plugin<span class="o">=</span>enabled
+</span><span data-line="2"><span class="c1"># or, with the headers of a LAMMPS source tree:</span>
+</span><span data-line="3">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_lammps_plugin<span class="o">=</span>enabled<span class="w"> </span>-Dlammps_include<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$LAMMPS_SRC</span><span class="s2">/src&quot;</span>
+</span><span data-line="4">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">install</span></code> puts the plugin in <code class="docutils literal notranslate"><span class="pre">lib/cpmdc</span></code> under the prefix, with a run path
+to <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.
+Load it and select the pair style:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">plugin load      /path/to/lib/cpmdc/cpmdcplugin.so
+</span><span data-line="2">units            metal
+</span><span data-line="3">read_data        water.data
+</span><span data-line="4">pair_style       cpmdc water.params.bin
+</span><span data-line="5">pair_coeff       * * O H
+</span><span data-line="6">fix              nve all nve
+</span><span data-line="7">timestep         0.00025
+</span><span data-line="8">run              1000
+</span></pre></div>
+</div>
+<p>LAMMPS also loads every <code class="docutils literal notranslate"><span class="pre">\*plugin.so</span></code> in the directories of <code class="docutils literal notranslate"><span class="pre">LAMMPS_PLUGIN_PATH</span></code>
+at startup.
+<code class="docutils literal notranslate"><span class="pre">pair_coeff</span> <span class="pre">*</span> <span class="pre">*</span></code> takes one element symbol or atomic number per atom type.
+The pair style needs no cutoff and requests no neighbor list.
+A failed evaluation stops LAMMPS with <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc:</span></code> and the library’s
+message.
+A compute that asks for a per-atom energy or virial (<code class="docutils literal notranslate"><span class="pre">pe/atom</span></code>, <code class="docutils literal notranslate"><span class="pre">stress/atom</span></code>,
+<code class="docutils literal notranslate"><span class="pre">centroid/stress/atom</span></code>) is refused when the run starts, because cpmdc returns
+totals, see <a class="reference internal" href="../reference/lammps.html"><span class="doc">the LAMMPS interface reference</span></a>.</p>
+<p>The plugin is a C++ shared object compiled against one LAMMPS: build it with the
+headers of the LAMMPS that loads it.
+LAMMPS’ integer sizes must match, so pass <code class="docutils literal notranslate"><span class="pre">-Dcpp_args=-DLAMMPS_BIGBIG</span></code> for a
+LAMMPS built with <code class="docutils literal notranslate"><span class="pre">LAMMPS_BIGBIG</span></code>.
+The plugin and LAMMPS must also share one MPI library; the pip wheel links an
+MPICH-compatible <code class="docutils literal notranslate"><span class="pre">libmpi.so.12</span></code>.
+The plugin links only <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>’s public C ABI.
+LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary built
+against its headers.</p>
+</section>
+<section id="several-mpi-ranks">
+<h2>Several MPI ranks<a class="headerlink" href="#several-mpi-ranks" title="Link to this heading">¶</a></h2>
+<p>Under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> LAMMPS spreads the atoms over its ranks, and cpmdc still
+evaluates the whole system once per step:</p>
+<ul class="simple">
+<li><p>World rank 0 owns the one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.
+Before it opens the session it adopts <code class="docutils literal notranslate"><span class="pre">MPI_COMM_SELF</span></code> as the calculator
+communicator, so an OpenCPMD build runs on rank 0 alone and never waits in a
+collective for ranks that do not call it.</p></li>
+<li><p>Each step gathers every rank’s positions and atom types, by atom ID, onto rank
+0; rank 0 evaluates; the energy, the virial, and all forces go back to every
+rank, which keeps the forces of the atoms it owns.</p></li>
+<li><p>The other ranks wait during the evaluation, so extra ranks speed up only
+LAMMPS’ own work.
+The traffic per step is <code class="docutils literal notranslate"><span class="pre">O(N)</span></code> doubles.</p></li>
+<li><p>Both routes order a step by increasing atom ID. Positive, unique IDs may
+have gaps, so <code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> and <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code> work
+without a <code class="docutils literal notranslate"><span class="pre">reset_atoms</span> <span class="pre">id</span></code> pass.</p></li>
+<li><p>A step with a new elemental composition opens a new session.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> needs <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> for this, and <code class="docutils literal notranslate"><span class="pre">comm=</span></code> when the <code class="docutils literal notranslate"><span class="pre">lammps</span></code> object was
+created on a communicator other than <code class="docutils literal notranslate"><span class="pre">MPI.COMM_WORLD</span></code>.
+The plugin uses LAMMPS’ own <code class="docutils literal notranslate"><span class="pre">world</span></code> communicator.
+Running one cpmdc evaluation on several ranks under the same LAMMPS is not part
+of either route.</p>
+</section>
+<section id="the-harness-on-the-reference-well-and-on-opencpmd">
+<h2>The harness on the reference well and on OpenCPMD<a class="headerlink" href="#the-harness-on-the-reference-well-and-on-opencpmd" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tests/python/test_lammps.py</span></code> is the harness for both routes.
+It compares each LAMMPS step with <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> and runs short NVE and NPT
+trajectories, plus an <code class="docutils literal notranslate"><span class="pre">mpiexec</span> <span class="pre">-n</span> <span class="pre">1</span></code> launch and an <code class="docutils literal notranslate"><span class="pre">mpiexec</span> <span class="pre">-n</span> <span class="pre">2</span></code> launch of the
+same step.
+Which tests it collects depends on the library <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> names.
+The <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> fixture reads <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code>, which is 1 only when that
+library is linked to OpenCPMD.
+A test that holds for one library is marked <code class="docutils literal notranslate"><span class="pre">cpmd_backend</span></code> with the reason.
+Collection keeps that test only when the bit matches, and the <code class="docutils literal notranslate"><span class="pre">cpmd_backend</span></code>
+fixture then supplies the name, so the other library does not collect it and a
+run reports no skips from it.</p>
+<p>Both libraries collect every comparison of one message between LAMMPS and ASE
+and the two-rank check on the two waters.</p>
+<p>The reference well is a quadratic energy anchored at the origin.
+It collects four tests that use that shape:</p>
+<ul class="simple">
+<li><p>An unwrapped path held to the tolerances of the single steps (forces to
+rtol 1e-10), since the well’s forces are linear in the coordinates.</p></li>
+<li><p>An NVE run of 800 steps of 0.25 fs through the box corner, with etotal
+within 2e-3 of the swing of pe, the fall into the well.</p></li>
+<li><p>An NPT run toward -20000 bar, near the well’s own stress, with econserve
+within 5e-3 of that swing.</p></li>
+<li><p>A central difference of the energy over strains of 1e-5 on the triclinic
+cell, within 1e-6 of the largest virial component.</p></li>
+</ul>
+<p>OpenCPMD collects the constant-cutoff step and a plane-wave counterpart of each.
+The finite differences and trajectories run the periodic water deck at an
+orbital threshold of 1e-7 instead of its 1e-5, on the <code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> route only;
+the single steps show that both routes pass the same numbers.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Test</p></th>
+<th class="head"><p>What it measures</p></th>
+<th class="head"><p>Measured</p></th>
+<th class="head"><p>Bound</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test_positions_are_unwrapped_on_plane_waves</span></code></p></td>
+<td><p>forces after the wrap and unwrap against ASE</p></td>
+<td><p>1.3e-11 eV/Angstrom</p></td>
+<td><p>1e-9 eV/Angstrom</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test_forces_are_the_energy_gradient</span></code></p></td>
+<td><p>central difference of the energy, 1e-3 Angstrom steps, against the forces</p></td>
+<td><p>2.6e-5 eV/Angstrom</p></td>
+<td><p>1e-4 eV/Angstrom</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test_virial_is_the_strain_derivative_of_one_basis</span></code></p></td>
+<td><p>strains of 1e-5 of the plain deck against its virial, over the largest component</p></td>
+<td><p>2.5e-7</p></td>
+<td><p>1e-6</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test_virial_is_the_strain_derivative_in_place</span></code></p></td>
+<td><p>Richardson extrapolation of strains of 2.5e-3 and 5e-3 on one held basis</p></td>
+<td><p>4.8e-6</p></td>
+<td><p>5e-5</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test_constant_cutoff_virial_is_the_strain_derivative</span></code></p></td>
+<td><p>new constant-cutoff setups at strains of 1e-4, and of 5e-3</p></td>
+<td><p>6.9e-7, 2.0e-2</p></td>
+<td><p>1e-5, 4e-2</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test_nve_energy_error_falls_with_the_timestep_squared</span></code></p></td>
+<td><p>etotal drift over 50 fs; RMS at 0.5 fs over RMS at 0.25 fs</p></td>
+<td><p>8.5e-5 eV; 4.0</p></td>
+<td><p>5e-4 eV; 3 to 5</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">test_npt_conserves_the_extended_energy_at_a_constant_cutoff</span></code></p></td>
+<td><p>iso NPT toward 0 bar over 50 fs: range of the volume; departure of econserve over the swing of pe</p></td>
+<td><p>3.7%; 6.2e-3</p></td>
+<td><p>above 1%; 1e-2</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The plain-deck virial is the derivative of the energy at a fixed set of plane
+waves.
+Each strained cell is a new setup at the deck’s 40 Ry, so a central difference
+holds the basis only while no plane wave crosses that sphere: on the triclinic
+cell a strain of 1e-5 keeps all of them, and at 3e-5 the difference misses by
+1.8 times the largest component.
+At the deck’s own orbital threshold the 1e-5 difference misses by 1.1e-3, the
+SCF error over the step; at 1e-7 it meets the virial to 2.5e-7.
+With <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.01</span></code> a constant-cutoff deck keeps the plane waves of
+its setup cell through the strain, and the misses at 5e-3 and 2.5e-3, 1.3e-3
+and 3.2e-4, fall as the square of the step.</p>
+<p>At 0.25 fs the Verlet fluctuation of etotal on the two waters is 8.6e-4 eV RMS,
+above the 8e-4 eV that 2e-3 of their 0.4 eV swing of pe allows, so the
+reference NVE bound belongs to the well.
+At the deck’s threshold of 1e-5, etotal also falls at 2.9e-2 eV/ps, 17 times
+the 1.7e-3 eV/ps at 1e-7; over 800 steps, 200 fs, that adds 5.7e-3 eV.</p>
+<p>The NPT run uses the constant-cutoff deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.05</span></code>,
+since a plain deck sets up a new basis whenever the cell moves.
+Its target, 0 bar, lies near the -135 bar the two waters average over the run.
+The pressure at the first step, +18 kbar, is the virial of the stretched O-H
+bonds, which swings by about 15 kbar each vibration; as the target it
+compressed the cube from 729 to 202 Angstrom<sup>3</sup>  in 50 fs.
+NVE on the same deck leaves its start by 5.9e-3 of the swing of pe, so the
+barostat adds no visible error to econserve.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_reference_cell_holds_the_basis</span></code> is the plain deck with <code class="docutils literal notranslate"><span class="pre">REFERENCE</span> <span class="pre">CELL</span></code>
+and <code class="docutils literal notranslate"><span class="pre">MESH</span></code> at the triclinic cell, which keeps its 10347 plane waves and its
+72 72 80 mesh through the strain.
+It is marked <code class="docutils literal notranslate"><span class="pre">xfail(strict=True)</span></code>: the strain difference is +3.28 eV where the
+virial is -32.42 eV (xx), at strains of 1e-5 and 5e-3 alike.
+A cold setup with <code class="docutils literal notranslate"><span class="pre">REFERENCE</span> <span class="pre">CELL</span></code> builds the G vectors from the reference
+lattice rather than the strained cell, which looks like a library bug.</p>
+<p>Build LAMMPS <code class="docutils literal notranslate"><span class="pre">stable_22Jul2025</span></code> as a shared library with MPI, exceptions,
+<code class="docutils literal notranslate"><span class="pre">PKG_PYTHON</span></code>, and <code class="docutils literal notranslate"><span class="pre">PKG_PLUGIN</span></code>, against the same Open MPI that cpmdc uses.
+The installed include directory is missing headers the plugin includes
+(<code class="docutils literal notranslate"><span class="pre">json_fwd.h</span></code>, <code class="docutils literal notranslate"><span class="pre">version.h</span></code>, <code class="docutils literal notranslate"><span class="pre">lammpsplugin.h</span></code>), so point <code class="docutils literal notranslate"><span class="pre">-Dlammps_include</span></code> at
+that LAMMPS source <code class="docutils literal notranslate"><span class="pre">src</span></code> directory.
+Build the OpenCPMD archive with <code class="docutils literal notranslate"><span class="pre">scripts/ci/build_opencpmd.sh</span></code>, which applies
+the patches the harness needs, including the optional constant-cutoff and PCG
+patches.
+<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_omp_info.sh</span></code>,
+<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_pcg_step.sh</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_constant_cutoff.sh</span></code> rebuild those members when the
+tree was already compiled.
+Then point meson at that archive and at the LAMMPS headers, and run the
+harness with the pseudopotentials the deck names:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># OpenCPMD library, plugin, and the LAMMPS harness.</span>
+</span><span data-line="2">meson<span class="w"> </span>setup<span class="w"> </span>build-cpmd<span class="w"> </span>-Dwith_cpmd<span class="o">=</span><span class="nb">true</span><span class="w"> </span>-Dcpmd_root<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CPMD_ROOT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>-Dwith_lammps_plugin<span class="o">=</span>enabled<span class="w"> </span>-Dlammps_include<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$LAMMPS_SRC</span><span class="s2">/src&quot;</span>
+</span><span data-line="4">meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build-cpmd
+</span><span data-line="5"><span class="nv">CPMDC_LIBRARY</span><span class="o">=</span>build-cpmd/libcpmdc.so<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">  </span><span class="nv">CPMDC_LAMMPS_PLUGIN</span><span class="o">=</span>build-cpmd/cpmdcplugin.so<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">  </span><span class="nv">CPMDC_PSEUDO_DIR</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CPMDC_PSEUDO_DIR</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">  </span>python3<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/python/test_lammps.py
+</span></pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">lammps</span></code> Python module has to be the one built from that same LAMMPS, on
+<code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code>.
+Unset <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> (the tests then load <code class="docutils literal notranslate"><span class="pre">build/libcpmdc.so</span></code>) to run the
+reference well instead.
+With the plugin present, the pseudopotentials present for OpenCPMD, and
+<code class="docutils literal notranslate"><span class="pre">mpiexec</span></code> able to start two ranks, each run collects only its own tests and
+reports zero skips.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="socket-drivers.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Drive cpmdc over the i-PI socket protocol</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="gromacs.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Run GROMACS on cpmdc forces</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMD option mapping - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Feature inventory" href="feature-inventory.html" /><link rel="prev" title="CPMDParams schema fields" href="cpmdparams-schema.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMD option mapping - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Feature inventory" href="feature-inventory.html" /><link rel="prev" title="CPMDParams schema fields" href="cpmdparams-schema.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/cpmd-options.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -343,54 +360,57 @@ Geometry is never part of <code class="docutils literal notranslate"><span class
 <td><p><code class="docutils literal notranslate"><span class="pre">charge</span></code></p></td>
 <td><p>System charge</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.multiplicity</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.hasCharge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hasCharge</span></code></p></td>
+<td><p>Mark <code class="docutils literal notranslate"><span class="pre">CPMDParams.charge</span></code> as explicit, including zero</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.multiplicity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">multiplicity</span></code></p></td>
 <td><p>2S+1; values <code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">1</span></code> imply LSD defaults</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.task</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.task</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">task</span></code></p></td>
 <td><p>Frontend hint: <code class="docutils literal notranslate"><span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">gradient</span></code>, <code class="docutils literal notranslate"><span class="pre">md</span></code>, <code class="docutils literal notranslate"><span class="pre">optimize</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.title</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.title</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">title</span></code></p></td>
 <td><p>Optional comment header in rendered decks</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.memoryMb</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.memoryMb</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">memoryMb</span></code></p></td>
 <td><p>Frontend memory hint</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.scratchDir</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.scratchDir</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scratchDir</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span> <span class="pre">FILEPATH</span></code> and the working directory for CPMD output when <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> is empty</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.permanentDir</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.permanentDir</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">permanentDir</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span> <span class="pre">FILEPATH</span></code> and the working directory for CPMD output; wins over <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.cpmdRoot</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.cpmdRoot</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmdRoot</span></code></p></td>
 <td><p>OpenCPMD source/build tree</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.enginePath</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.enginePath</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enginePath</span></code></p></td>
 <td><p>Frontend engine selection hint</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputBlocks</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputBlocks</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code></p></td>
 <td><p>Raw <code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span></code> text blocks prepended to the deck</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">inputSections</span></code></p></td>
 <td><p>Structured <code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code> list</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The feature-discovery table exposes these as <code class="docutils literal notranslate"><span class="pre">params.&lt;field&gt;</span></code> IDs. Structured
-fields use <code class="docutils literal notranslate"><span class="pre">params.inputSections.&lt;section&gt;.&lt;field&gt;</span></code>, for example
+<p>The feature-discovery table exposes these as <code class="docutils literal notranslate"><span class="pre">params.&lt;field&gt;</span></code> IDs.
+Structured fields use <code class="docutils literal notranslate"><span class="pre">params.inputSections.&lt;section&gt;.&lt;field&gt;</span></code>, for example
 <code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.maxIter</span></code>, <code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxScreening</span></code>,
-<code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cell</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.directives</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cell</span></code>, and <code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.directives</span></code>.</p>
 </section>
 <section id="feature-id-namespaces">
 <h2>Feature ID namespaces<a class="headerlink" href="#feature-id-namespaces" title="Link to this heading">¶</a></h2>
@@ -428,11 +448,12 @@ fields use <code class="docutils literal notranslate"><span class="pre">params.i
 </table>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">catalog.section.SYSTEM</span></code> means the <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> deck section is recognized as a
-section kind. Individual <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> controls stay under
+section kind.
+Individual <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> controls stay under
 <code class="docutils literal notranslate"><span class="pre">params.inputSections.system.*</span></code> rather than a separate <code class="docutils literal notranslate"><span class="pre">catalog.system.*</span></code>
 namespace.</p>
-<p>Manual keyword names do not always map to a <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> feature ID. Use
-the field namespace when the renderer owns a typed section field:</p>
+<p>Manual keyword names do not always map to a <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> feature ID.
+Use the field namespace when the renderer owns a typed section field:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -463,8 +484,9 @@ the field namespace when the renderer owns a typed section field:</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">FFTW</span> <span class="pre">WISDOM</span></code> is not a typed feature row because the OpenCPMD manual source
 comments out that keyword and the parser tree used for inventory probing has no
-matching branch. Use <code class="docutils literal notranslate"><span class="pre">inputSections.raw</span></code> or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> only for a downstream
-tree that still accepts it.</p>
+matching branch.
+Use <code class="docutils literal notranslate"><span class="pre">inputSections.raw</span></code> or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> only for a downstream tree that still
+accepts it.</p>
 </section>
 <section id="mapping-a-cpmd-manual-line">
 <h2>Mapping a CPMD manual line<a class="headerlink" href="#mapping-a-cpmd-manual-line" title="Link to this heading">¶</a></h2>
@@ -474,9 +496,9 @@ tree that still accepts it.</p>
 <li><p>Prefer a <code class="docutils literal notranslate"><span class="pre">params.inputSections.&lt;section&gt;.&lt;field&gt;</span></code> row when one exists; that
 is the writable schema field.</p></li>
 <li><p>Use a <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> row for recognized <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> keyword and inline option
-spellings. These rows are capability/discovery IDs; many render through an
-existing text field such as <code class="docutils literal notranslate"><span class="pre">roksOptions</span></code>, <code class="docutils literal notranslate"><span class="pre">langevinOptions</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">interfaceOptions</span></code>.</p></li>
+spellings.
+These rows are capability/discovery IDs; many render through an existing text
+field such as <code class="docutils literal notranslate"><span class="pre">roksOptions</span></code>, <code class="docutils literal notranslate"><span class="pre">langevinOptions</span></code>, or <code class="docutils literal notranslate"><span class="pre">interfaceOptions</span></code>.</p></li>
 <li><p>Use a <code class="docutils literal notranslate"><span class="pre">catalog.section.*</span></code> row only to detect support for a whole OpenCPMD
 section such as <code class="docutils literal notranslate"><span class="pre">&amp;PIMD</span></code> or <code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code>.</p></li>
 <li><p>Use <code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, or top-level <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> when no structured
@@ -512,6 +534,18 @@ field or catalog row represents the required deck text.</p></li>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.boxWalls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.boxWalls</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">GEOMETRY</span> <span class="pre">CLASSICAL</span> <span class="pre">XYZ</span> <span class="pre">SAMPLE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">optimizeGeometryOptions</span></code> plus <code class="docutils literal notranslate"><span class="pre">optimizeGeometrySample</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL</span></code>, <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ</span></code>, <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NOSE</span> <span class="pre">IONS</span> <span class="pre">ULTRA</span> <span class="pre">MASSIVE</span> <span class="pre">T0</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">noseIonsOptions</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">catalog.cpmd.NOSE_IONS_ULTRA</span></code>, <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.NOSE_IONS_MASSIVE</span></code>, <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.NOSE_IONS_T0</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code> with nested <code class="docutils literal notranslate"><span class="pre">EMPIRICAL</span> <span class="pre">CORRECTION</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vdw.directives</span></code> and <code class="docutils literal notranslate"><span class="pre">vdw.subsections</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">catalog.section.VDW</span></code></p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -519,12 +553,14 @@ field or catalog row represents the required deck text.</p></li>
 <section id="inventory-guardrails">
 <h2>Inventory guardrails<a class="headerlink" href="#inventory-guardrails" title="Link to this heading">¶</a></h2>
 <p>The inventory files are part of the public compatibility contract, not only
-generated lookup data. <code class="docutils literal notranslate"><span class="pre">schema/inventory/cpmd_cp_keywords.txt</span></code> lists base
-<code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls that must exist as normalized <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> feature rows.
+generated lookup data.
+<code class="docutils literal notranslate"><span class="pre">schema/inventory/cpmd_cp_keywords.txt</span></code> lists base <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls that must
+exist as normalized <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> feature rows.
 Punctuation and spaces normalize to underscores, so <code class="docutils literal notranslate"><span class="pre">FREE-ENERGY</span></code> maps to
 <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.FREE_ENERGY</span></code>.
 The JSON inventory carries both <code class="docutils literal notranslate"><span class="pre">opencpmd_inscan_sections</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmd_sections</span></code>;
-they must describe the same OpenCPMD parser section set. <code class="docutils literal notranslate"><span class="pre">catalog.section.*</span></code>
+they must describe the same OpenCPMD parser section set.
+<code class="docutils literal notranslate"><span class="pre">catalog.section.*</span></code>
 feature rows must be owned by that set and by the checked-in
 <code class="docutils literal notranslate"><span class="pre">schema/inventory/opencpmd_sections.txt</span></code> allowlist.</p>
 <p>Run the focused inventory guards with:</p>
@@ -539,33 +575,36 @@ feature rows must be owned by that set and by the checked-in
 </span><span data-line="9"><span class="w">  </span>--print-errorlogs
 </span></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">feature-inventory</span></code> cross-checks the JSON inventory against the schema, public
-C feature table, README, and this reference page. When <code class="docutils literal notranslate"><span class="pre">CPMD_ROOT</span></code> points at an
-OpenCPMD tree, it also compares parser <code class="docutils literal notranslate"><span class="pre">inscan('&amp;SECTION')</span></code> calls with the
-checked-in section inventory.
+<p><code class="docutils literal notranslate"><span class="pre">feature-inventory</span></code> cross-checks the JSON inventory against the schema, public C
+feature table, the C ABI reference, and this reference page.
+When <code class="docutils literal notranslate"><span class="pre">CPMD_ROOT</span></code> points at an OpenCPMD tree, it also compares parser
+<code class="docutils literal notranslate"><span class="pre">inscan('&amp;SECTION')</span></code> calls with the checked-in section inventory.
 <code class="docutils literal notranslate"><span class="pre">cpmd-base-keyword-inventory</span></code> proves the base keyword list cannot drop a
-<code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> row silently. <code class="docutils literal notranslate"><span class="pre">cpmd-params-field-inventory</span></code> requires every
-top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> schema field to keep a <code class="docutils literal notranslate"><span class="pre">params.*</span></code> feature row and
-rejects duplicate inventory IDs/lists and C feature table duplicates before set
-comparisons can hide them.
-<code class="docutils literal notranslate"><span class="pre">cpmd-public-abi-inventory</span></code> requires every public <code class="docutils literal notranslate"><span class="pre">cpmdc_*</span></code> header function to
-resolve through <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code> and the feature table, then verifies the native
+<code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code> row silently.
+<code class="docutils literal notranslate"><span class="pre">cpmd-params-field-inventory</span></code> requires every top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> schema field
+to keep a <code class="docutils literal notranslate"><span class="pre">params.*</span></code> feature row.
+It rejects duplicate inventory IDs/lists and C feature table duplicates before
+set comparisons can hide them.
+<code class="docutils literal notranslate"><span class="pre">cpmd-public-abi-inventory</span></code> requires every public
+<code class="docutils literal notranslate"><span class="pre">cpmdc_*</span></code> header function to resolve through <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code> and the feature
+table, then verifies the native
 <code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code>, stub <code class="docutils literal notranslate"><span class="pre">src/cpmdc_stub.c</span></code>, or shared <code class="docutils literal notranslate"><span class="pre">src/cpmdc_features.c</span></code>
 implementation that exports it.
 <code class="docutils literal notranslate"><span class="pre">stub-abi-symbol-coverage</span></code> requires the standalone stub test to assert every
 <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code> feature row is present and stub-applicable.
 <code class="docutils literal notranslate"><span class="pre">shared-dlopen-symbol-coverage</span></code> requires the shared-library <code class="docutils literal notranslate"><span class="pre">dlopen</span></code> test to
 load every <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code> entry from <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code>.
-<code class="docutils literal notranslate"><span class="pre">cpmd-schema-render-coverage</span></code> requires typed
-<code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code> fields to appear in the catalog render fixtures, and
-<code class="docutils literal notranslate"><span class="pre">cpmd-option-token-coverage</span></code> requires inline option spellings in Cap’n Proto
-fixtures to have render coverage. <code class="docutils literal notranslate"><span class="pre">cpmd-typed-render-field-coverage</span></code> requires
-typed <code class="docutils literal notranslate"><span class="pre">cpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">system</span></code>, <code class="docutils literal notranslate"><span class="pre">dft</span></code>, and <code class="docutils literal notranslate"><span class="pre">atoms</span></code> fields to appear in render fixtures
-or render assertions. <code class="docutils literal notranslate"><span class="pre">cpmd-long-tail-section-coverage</span></code> requires every
-<code class="docutils literal notranslate"><span class="pre">CPMDDirectiveSection</span></code> union arm to appear in the long-tail fixture, render
-assertions, and this reference page. <code class="docutils literal notranslate"><span class="pre">cpmd-escape-hatch-coverage</span></code> requires
-<code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">set</span></code>, and <code class="docutils literal notranslate"><span class="pre">raw</span></code> carriers to stay covered by schema,
-fixtures, render tests, and this reference page.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmd-schema-render-coverage</span></code> requires typed <code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code> fields to appear
+in the catalog render fixtures, and <code class="docutils literal notranslate"><span class="pre">cpmd-option-token-coverage</span></code> requires inline
+option spellings in Cap’n Proto fixtures to have render coverage.
+<code class="docutils literal notranslate"><span class="pre">cpmd-typed-render-field-coverage</span></code> requires typed <code class="docutils literal notranslate"><span class="pre">cpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">system</span></code>, <code class="docutils literal notranslate"><span class="pre">dft</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">atoms</span></code> fields to appear in render fixtures or render assertions.
+<code class="docutils literal notranslate"><span class="pre">cpmd-long-tail-section-coverage</span></code> requires every <code class="docutils literal notranslate"><span class="pre">CPMDDirectiveSection</span></code> union
+arm to appear in the long-tail fixture, render assertions, and this reference
+page.
+<code class="docutils literal notranslate"><span class="pre">cpmd-escape-hatch-coverage</span></code> requires <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">set</span></code>, and <code class="docutils literal notranslate"><span class="pre">raw</span></code>
+carriers to stay covered by schema, fixtures, render tests, and this reference
+page.</p>
 </section>
 <section id="cpmdinputsection-kinds">
 <h2><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code> kinds<a class="headerlink" href="#cpmdinputsection-kinds" title="Link to this heading">¶</a></h2>
@@ -696,22 +735,54 @@ fixtures, render tests, and this reference page.</p>
 <p>Missing core sections receive minimal defaults from the renderer so a sparse
 <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> still produces a valid-looking deck for debugging.
 When structured <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
+(functional, cutoff, charge, multiplicity, or zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with
+<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>), those section values are also the
 effective embed configuration passed through the C ABI.
+The functional, cutoff, charge, and multiplicity lines the renderer writes
+and that configuration follow the same precedence.
+<code class="docutils literal notranslate"><span class="pre">raw</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, and <code class="docutils literal notranslate"><span class="pre">set</span></code> sections, <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, and section <code class="docutils literal notranslate"><span class="pre">directives</span></code>
+are rendered as given and are not read back into that configuration, so the
+carrier check runs for every set overlay field of a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay,
+whether or not a typed field also sets it, including zero <code class="docutils literal notranslate"><span class="pre">charge</span></code> with
+<code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>, and a carrier of the same setting
+rejects that field.
+A <code class="docutils literal notranslate"><span class="pre">FUNCTIONAL</span></code> directive in a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> section or a <code class="docutils literal notranslate"><span class="pre">DFT.FUNCTIONAL</span></code> set
+directive is rejected when the deck is rendered, because the rendered <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>
+section already carries the functional.
+The same render rejects a <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> directive in
+the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section, and a <code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code> set directive.
+<code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code> is written on every deck, including the default 70 Ry.
+<code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> is written only when it is not 0 and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
+A section value that differs from the schema default (functional <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>,
+cutoff 70 Ry, charge 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code>, multiplicity 1) beats the
+top-level field.
+A method field in a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> section that is omitted or holds
+its schema default is unset and does not replace the top-level arm or overlay
+value, so a typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge of 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code> is also unset,
+while zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> is explicit.
 For geometry deck rendering, <code class="docutils literal notranslate"><span class="pre">atoms.pseudopotentials</span></code> groups <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>
-coordinates by element symbol. Explicit pseudopotential entries accept standard
-element symbols and must cover every atomic number present in the step geometry;
-otherwise rendering fails. When no <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section is supplied, the renderer
-only provides built-in BLYP pseudopotential defaults for H and O. An explicit
-<code class="docutils literal notranslate"><span class="pre">atoms</span></code> section may rely on those H/O defaults while still carrying
-<code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code> entries for additional <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> keywords.</p>
+coordinates by element symbol.
+Explicit pseudopotential entries accept standard element symbols and must cover
+every atomic number present in the step geometry; otherwise rendering fails.
+When no <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section is supplied, the renderer only provides built-in BLYP
+pseudopotential defaults for H and O. An explicit <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section may rely on
+those H/O defaults while still carrying <code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code> entries for additional
+<code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> keywords.</p>
 </section>
 <section id="escape-hatches">
 <h2>Escape hatches<a class="headerlink" href="#escape-hatches" title="Link to this heading">¶</a></h2>
 <p>Long-tail CPMD keywords go in <code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code> lists or <code class="docutils literal notranslate"><span class="pre">subsections</span></code> inside the
 matching typed section, <code class="docutils literal notranslate"><span class="pre">CPMDSetDirective</span></code> dotted keys, <code class="docutils literal notranslate"><span class="pre">CPMDInputSection.raw</span></code>,
-or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>. <code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code> uses <code class="docutils literal notranslate"><span class="pre">subsections</span></code> for nested blocks such as
-<code class="docutils literal notranslate"><span class="pre">EMPIRICAL</span> <span class="pre">CORRECTION</span></code>.
+or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>.
+<code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code> uses <code class="docutils literal notranslate"><span class="pre">subsections</span></code> for nested blocks such as <code class="docutils literal notranslate"><span class="pre">EMPIRICAL</span> <span class="pre">CORRECTION</span></code>.
 <code class="docutils literal notranslate"><span class="pre">set.key</span></code> uses <code class="docutils literal notranslate"><span class="pre">SECTION.KEYWORD</span></code> form, for example <code class="docutils literal notranslate"><span class="pre">CPMD.PRINT</span> <span class="pre">FORCES</span> <span class="pre">ON</span></code> or
 <code class="docutils literal notranslate"><span class="pre">SYSTEM.POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>; non-empty <code class="docutils literal notranslate"><span class="pre">set.value</span></code> is emitted on the
 following indented line.
@@ -720,8 +791,8 @@ format.</p>
 </section>
 <section id="choosing-an-input-carrier">
 <h2>Choosing an input carrier<a class="headerlink" href="#choosing-an-input-carrier" title="Link to this heading">¶</a></h2>
-<p>Use the most structured carrier that represents the deck intent. The usual
-path is:</p>
+<p>Use the most structured carrier that represents the deck intent.
+The usual path is:</p>
 <ol class="arabic simple">
 <li><p>Put functional, cutoff, charge, multiplicity, task, and embed hints in the
 top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields.</p></li>
@@ -745,15 +816,19 @@ alias, and <code class="docutils literal notranslate"><span class="pre">raw</spa
 <td><p>typed section field</p></td>
 <td><p>Schema readers, tests, and feature discovery can name the field directly</p></td>
 </tr>
-<tr class="row-odd"><td><p>One extra keyword inside a generated section</p></td>
+<tr class="row-odd"><td><p>Catalog section without typed fields, such as <code class="docutils literal notranslate"><span class="pre">&amp;PIMD</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;LINRES</span></code>, or <code class="docutils literal notranslate"><span class="pre">&amp;TDDFT</span></code></p></td>
+<td><p>the matching section arm with <code class="docutils literal notranslate"><span class="pre">directives</span></code> and <code class="docutils literal notranslate"><span class="pre">subsections</span></code></p></td>
+<td><p>The section kind stays typed while its keywords stay lines</p></td>
+</tr>
+<tr class="row-even"><td><p>One extra keyword inside a generated section</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">set</span></code></p></td>
 <td><p>The renderer merges it into the matching section without duplicating defaults</p></td>
 </tr>
-<tr class="row-even"><td><p>Non-catalog section alias with ordinary keyword/argument lines</p></td>
+<tr class="row-odd"><td><p>Non-catalog section alias with ordinary keyword/argument lines</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">generic</span></code></p></td>
 <td><p>The section remains structured even when it is not an inventory ID</p></td>
 </tr>
-<tr class="row-odd"><td><p>Existing deck text that must survive byte-for-byte apart from surrounding output</p></td>
+<tr class="row-even"><td><p>Existing deck text that must survive byte-for-byte apart from surrounding output</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">raw</span></code> or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code></p></td>
 <td><p>The renderer does not reinterpret the fragment</p></td>
 </tr>
@@ -798,9 +873,10 @@ alias, and <code class="docutils literal notranslate"><span class="pre">raw</spa
 <section id="catalog-section-exposure">
 <h2>Catalog section exposure<a class="headerlink" href="#catalog-section-exposure" title="Link to this heading">¶</a></h2>
 <p>The public feature table advertises every OpenCPMD <code class="docutils literal notranslate"><span class="pre">inscan('&amp;SECTION')</span></code> name as
-a <code class="docutils literal notranslate"><span class="pre">catalog.section.&lt;NAME&gt;</span></code> feature ID. Typed sections have dedicated schema
-arms; every section can still be rendered through <code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> when a dedicated field is unnecessary.</p>
+a <code class="docutils literal notranslate"><span class="pre">catalog.section.&lt;NAME&gt;</span></code> feature ID.
+Typed sections have dedicated schema arms; every section can still be rendered
+through <code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> when a dedicated field is
+unnecessary.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -916,15 +992,18 @@ arms; every section can still be rendered through <code class="docutils literal 
 </section>
 <section id="other-structured-parameter-features">
 <h2>Other structured parameter features<a class="headerlink" href="#other-structured-parameter-features" title="Link to this heading">¶</a></h2>
-<p>These <code class="docutils literal notranslate"><span class="pre">params.inputSections.*</span></code> IDs cover carriers and fields that are not
-single CPMD/DFT catalog keyword rows in the typed tables below.</p>
+<p>These <code class="docutils literal notranslate"><span class="pre">params.inputSections.*</span></code>
+IDs cover carriers and fields that are not single CPMD/DFT catalog keyword rows
+in the typed tables below.</p>
 <p>A <code class="docutils literal notranslate"><span class="pre">system.cellVectors</span></code> cell contains nine numbers grouped by lattice vector.
 Typed parameter rendering preserves them on one data line; geometry overrides
-use three vector rows. OpenCPMD accepts either layout in one list-directed
-read. <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> specifies implicit triclinic symmetry, so its deck
-omits the <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line and the default isolated Poisson solver. Combining
-<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> is rejected by the native parser. The vector
-qualifier also requires nine values and excludes <code class="docutils literal notranslate"><span class="pre">ABSOLUTE</span></code> and <code class="docutils literal notranslate"><span class="pre">DEGREE</span></code>.</p>
+use three vector rows.
+OpenCPMD accepts either layout in one list-directed read.
+<code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> specifies implicit triclinic symmetry, so its deck omits the
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line and the default isolated Poisson solver.
+Combining <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> is rejected by the native parser.
+The vector qualifier also requires nine values and excludes <code class="docutils literal notranslate"><span class="pre">ABSOLUTE</span></code> and
+<code class="docutils literal notranslate"><span class="pre">DEGREE</span></code>.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -1054,491 +1133,495 @@ qualifier also requires nine values and excludes <code class="docutils literal n
 <td><p><code class="docutils literal notranslate"><span class="pre">system.charge</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">CHARGE</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.multiplicity</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.hasCharge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code></p></td>
+<td><p>Mark <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> as explicit, including zero</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.multiplicity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.multiplicity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">MULTIPLICITY</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.nSup</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.nSup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.nSup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">NSUP</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.states</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.states</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.states</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">STATES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.occupation</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.occupation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.occupation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">OCCUPATION</span></code> values</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.occupationFixed</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.occupationFixed</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.occupationFixed</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">FIXED</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">OCCUPATION</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.externalField</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.externalField</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.externalField</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">EXTERNAL</span> <span class="pre">FIELD</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.wCut</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.wCut</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.wCut</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">WCUT</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.wGauss</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.wGauss</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.wGauss</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">WGAUSS</span></code> sigma values</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifference</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifference</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsFiniteDifference</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">FD</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifferenceDisplacement</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifferenceDisplacement</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsFiniteDifferenceDisplacement</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span> <span class="pre">FD=</span></code> displacement</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsProductDisplacement</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsProductDisplacement</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsProductDisplacement</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span> <span class="pre">PROD=</span></code> displacement</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinres</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinres</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinres</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">LINRES</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresTolerance</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresTolerance</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinresTolerance</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">TOL=</span></code> to <code class="docutils literal notranslate"><span class="pre">COUPLINGS</span> <span class="pre">LINRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresNvects</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresNvects</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinresNvects</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">NVECT=</span></code> to <code class="docutils literal notranslate"><span class="pre">COUPLINGS</span> <span class="pre">LINRES</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresSpecify</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresSpecify</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinresSpecify</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">SPECIFY</span></code> to <code class="docutils literal notranslate"><span class="pre">COUPLINGS</span> <span class="pre">LINRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresThresholds</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresThresholds</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinresThresholds</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">THRESHOLDS</span></code> payload to <code class="docutils literal notranslate"><span class="pre">COUPLINGS</span> <span class="pre">LINRES</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresBruteForce</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsLinresBruteForce</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsLinresBruteForce</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">BRUTE</span> <span class="pre">FORCE</span></code> to <code class="docutils literal notranslate"><span class="pre">COUPLINGS</span> <span class="pre">LINRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsSurfaces</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsSurfaces</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsSurfaces</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span> <span class="pre">NSURF=</span></code> surface triples</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifferenceAtoms</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.couplingsFiniteDifferenceAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.couplingsFiniteDifferenceAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">COUPLINGS</span> <span class="pre">NAT=</span></code> atom list</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftDonorAtoms</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftDonorAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cdftDonorAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">DONOR</span></code> atom list</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftDonorWeights</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftDonorWeights</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cdftDonorWeights</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">WMULT</span></code> weights to <code class="docutils literal notranslate"><span class="pre">DONOR</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorAtoms</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cdftAcceptorAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">ACCEPTOR</span></code> atom list</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorHdasDonors</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorHdasDonors</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cdftAcceptorHdasDonors</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">HDAS</span></code> donor list to <code class="docutils literal notranslate"><span class="pre">ACCEPTOR</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorWeights</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cdftAcceptorWeights</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cdftAcceptorWeights</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">WMULT</span></code> weights to <code class="docutils literal notranslate"><span class="pre">ACCEPTOR</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroup</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.pointGroup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">POINT</span> <span class="pre">GROUP</span></code> selector line</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroupMolecule</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroupMolecule</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.pointGroupMolecule</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">MOLECULE</span></code> to <code class="docutils literal notranslate"><span class="pre">POINT</span> <span class="pre">GROUP</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroupDelta</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pointGroupDelta</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.pointGroupDelta</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">POINT</span> <span class="pre">GROUP</span> <span class="pre">DELTA=</span></code> accuracy</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitation</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.lowSpinExcitation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">LOW</span> <span class="pre">SPIN</span> <span class="pre">EXCITATION</span></code> options</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitationLsets</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitationLsets</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.lowSpinExcitationLsets</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">LSETS</span></code> to <code class="docutils literal notranslate"><span class="pre">LOW</span> <span class="pre">SPIN</span> <span class="pre">EXCITATION</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitationPenalty</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lowSpinExcitationPenalty</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.lowSpinExcitationPenalty</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">LOW</span> <span class="pre">SPIN</span> <span class="pre">EXCITATION</span> <span class="pre">PENALTY</span></code> value</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lseParameters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.lseParameters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.lseParameters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">LSE</span> <span class="pre">PARAMETERS</span></code> lsea/lseb</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.modifiedGoedecker</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.modifiedGoedecker</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.modifiedGoedecker</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">MODIFIED</span> <span class="pre">GOEDECKER</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.modifiedGoedeckerParameters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.modifiedGoedeckerParameters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.modifiedGoedeckerParameters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">MODIFIED</span> <span class="pre">GOEDECKER</span> <span class="pre">PARAMETERS</span></code> lambda values</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.energyProfile</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.energyProfile</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.energyProfile</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">ENERGY</span> <span class="pre">PROFILE</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.densityCutOffRy</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.densityCutOffRy</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.densityCutOffRy</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">DENSITY</span> <span class="pre">CUTOFF</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.densityCutoffNumber</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.densityCutoffNumber</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.densityCutoffNumber</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">DENSITY</span> <span class="pre">CUTOFF</span> <span class="pre">NUMBER</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.dual</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.dual</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.dual</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">DUAL</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.constantCutoff</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.constantCutoff</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.constantCutoff</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code> with A, sigma, and E0 in Ry, in that order; rendered only with three values; see <a class="reference internal" href="../howto/constant-cutoff.html"><span class="doc">relax a cell at a constant cutoff</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.boxWalls</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.boxWalls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.boxWalls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">BOX</span> <span class="pre">WALLS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.poissonSolver</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.poissonSolver</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.poissonSolver</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">POISSON</span> <span class="pre">SOLVER</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.poissonParameter</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.poissonParameter</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.poissonParameter</span></code></p></td>
 <td><p>Optional <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">...</span> <span class="pre">PARAMETER</span></code> value</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.mesh</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.mesh</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.mesh</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">MESH</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpoints</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpoints</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpoints</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span></code> explicit weighted points</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsScaled</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsScaled</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsScaled</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">SCALED</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsOnlyDiagonal</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsOnlyDiagonal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsOnlyDiagonal</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">ONLYDIAG</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlock</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlock</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsBlock</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">BLOCK=</span></code> to <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockAll</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockAll</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsBlockAll</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">ALL</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">BLOCK</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockCalculated</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockCalculated</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsBlockCalculated</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">CALCULATED</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">BLOCK</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockNoSwap</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsBlockNoSwap</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsBlockNoSwap</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">NOSWAP</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">BLOCK</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstPack</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstPack</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsMonkhorstPack</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span> <span class="pre">MONKHORST-PACK</span></code> mesh</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstSymmetrized</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstSymmetrized</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsMonkhorstSymmetrized</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">SYMMETRIZED</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">MONKHORST-PACK</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstFull</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstFull</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsMonkhorstFull</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">FULL</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">MONKHORST-PACK</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstKdp</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstKdp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsMonkhorstKdp</span></code></p></td>
 <td><p>Add <code class="docutils literal notranslate"><span class="pre">KDP</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">MONKHORST-PACK</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstShift</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointsMonkhorstShift</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointsMonkhorstShift</span></code></p></td>
 <td><p>Add mesh-line <code class="docutils literal notranslate"><span class="pre">SHIFT=</span></code> to <code class="docutils literal notranslate"><span class="pre">KPOINTS</span> <span class="pre">MONKHORST-PACK</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointBands</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.kpointBands</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.kpointBands</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">KPOINTS</span> <span class="pre">BANDS</span></code> segments</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.doubleGrid</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.doubleGrid</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.doubleGrid</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">DOUBLE</span> <span class="pre">GRID</span></code> <code class="docutils literal notranslate"><span class="pre">ON</span></code> or <code class="docutils literal notranslate"><span class="pre">OFF</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.symmetrizeCoordinates</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.symmetrizeCoordinates</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.symmetrizeCoordinates</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">SYMMETRIZE</span> <span class="pre">COORDINATES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.tesr</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.tesr</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.tesr</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">TESR</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.surface</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.surface</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.surface</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">SURFACE</span></code> direction</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.polymer</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.polymer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.polymer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">POLYMER</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cluster</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cluster</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.cluster</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">CLUSTER</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pressure</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.pressure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.pressure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">PRESSURE</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.stressTensor</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.stressTensor</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.stressTensor</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">STRESS</span> <span class="pre">TENSOR</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.shockVelocity</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.shockVelocity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.shockVelocity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span> <span class="pre">SHOCK</span> <span class="pre">VELOCITY</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.directives</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.system.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">system.directives</span></code></p></td>
 <td><p>Additional <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> keyword/value lines</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.basis.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.basis.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">basis.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;BASIS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.basis.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.basis.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">basis.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;BASIS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmd.directives</span></code></p></td>
 <td><p>Additional <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> keyword/value lines</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.directives</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dft.directives</span></code></p></td>
 <td><p>Additional <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> keyword/value lines</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.clas.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.clas.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clas.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;CLAS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.clas.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.clas.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clas.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;CLAS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.eam.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.eam.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eam.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;EAM</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.eam.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.eam.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eam.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;EAM</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.exte.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.exte.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">exte.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;EXTE</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.exte.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.exte.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">exte.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;EXTE</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.hardness.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.hardness.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">hardness.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;HARDNESS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.hardness.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.hardness.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">hardness.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;HARDNESS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.info.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.info.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">info.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;INFO</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.info.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.info.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">info.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;INFO</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.linres.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.linres.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">linres.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;LINRES</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.linres.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.linres.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">linres.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;LINRES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.molstates.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.molstates.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">molstates.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;MOLSTATES</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.molstates.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.molstates.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">molstates.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;MOLSTATES</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.mts.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.mts.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mts.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;MTS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.mts.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.mts.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mts.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;MTS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.nlcc.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.nlcc.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nlcc.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;NLCC</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.nlcc.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.nlcc.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nlcc.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;NLCC</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.path.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.path.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">path.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;PATH</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.path.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.path.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">path.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;PATH</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pimd.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;PIMD</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.pimd.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pimd.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;PIMD</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.potential.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.potential.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">potential.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;POTENTIAL</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.potential.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.potential.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">potential.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;POTENTIAL</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.prop.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.prop.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">prop.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;PROP</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.prop.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.prop.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">prop.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;PROP</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.ptddft.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.ptddft.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ptddft.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;PTDDFT</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.ptddft.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.ptddft.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ptddft.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;PTDDFT</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.resp.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.resp.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">resp.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;RESP</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.resp.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.resp.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">resp.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;RESP</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.tddft.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.tddft.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tddft.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;TDDFT</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.tddft.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.tddft.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tddft.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;TDDFT</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vdw.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vdw.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">vdw.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vdw.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vdw.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">vdw.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;VDW</span></code>, including <code class="docutils literal notranslate"><span class="pre">EMPIRICAL</span> <span class="pre">CORRECTION</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vectors.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vectors.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">vectors.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;VECTORS</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vectors.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.vectors.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">vectors.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;VECTORS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.wavefunction.directives</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.wavefunction.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">wavefunction.directives</span></code></p></td>
 <td><p>Keyword/value lines inside <code class="docutils literal notranslate"><span class="pre">&amp;WAVEFUNCTION</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.wavefunction.subsections</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.wavefunction.subsections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">wavefunction.subsections</span></code></p></td>
 <td><p>Nested blocks inside <code class="docutils literal notranslate"><span class="pre">&amp;WAVEFUNCTION</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.pseudopotentials</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.pseudopotentials</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.pseudopotentials</span></code></p></td>
 <td><p>Pseudopotential entries grouped with <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> coordinates</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.constraints</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.constraints</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.constraints</span></code></p></td>
 <td><p>CONSTRAINTS block entries (FIX/DIST/BEND/TORSION)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.isotopes</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.isotopes</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.isotopes</span></code></p></td>
 <td><p>ISOTOPE per-species mass overrides</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.velocities</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.velocities</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.velocities</span></code></p></td>
 <td><p>VELOCITIES block initial velocities</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.dummyAtoms</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.dummyAtoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.dummyAtoms</span></code></p></td>
 <td><p>DUMMY ATOMS entries (types 1-4)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.changeBonds</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.changeBonds</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.changeBonds</span></code></p></td>
 <td><p>CHANGE BONDS lines</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.generate</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.generate</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.generate</span></code></p></td>
 <td><p>GENERATE COORDINATES flag</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hubbardU</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hubbardU</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dft.hubbardU</span></code></p></td>
 <td><p>Structured HUBBARD U per-species entries</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxWfcCutoff</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxWfcCutoff</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dft.hfxWfcCutoff</span></code></p></td>
 <td><p>HFX WFC CUTOFF value</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxBlock</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxBlock</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dft.hfxBlock</span></code></p></td>
 <td><p>HFX BLOCK size</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxDistribution</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxDistribution</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dft.hfxDistribution</span></code></p></td>
 <td><p>HFX DISTRIBUTION scheme</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.directives</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.directives</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.directives</span></code></p></td>
 <td><p>Additional non-coordinate <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> keyword/value lines</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.set.key</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.set.key</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">set.key</span></code></p></td>
 <td><p>Dotted <code class="docutils literal notranslate"><span class="pre">SECTION.KEYWORD</span></code> merge target</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.set.value</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.set.value</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">set.value</span></code></p></td>
 <td><p>Optional value emitted under the dotted key</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.raw</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.raw</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">raw</span></code></p></td>
 <td><p>Full section text inserted as-is</p></td>
 </tr>
@@ -1549,8 +1632,9 @@ qualifier also requires nine values and excludes <code class="docutils literal n
 <section id="typed-cpmd-controls">
 <h2>Typed <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls<a class="headerlink" href="#typed-cpmd-controls" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code> exposes these driver controls directly; parser-accepted
-escape-hatch rows use <code class="docutils literal notranslate"><span class="pre">directives</span></code>. The feature IDs are the stable discovery
-keys returned by <code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table()</span></code>.</p>
+escape-hatch rows use <code class="docutils literal notranslate"><span class="pre">directives</span></code>.
+The feature IDs are the stable discovery keys returned by
+<code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table()</span></code>.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -4194,10 +4278,13 @@ keys returned by <code class="docutils literal notranslate"><span class="pre">cp
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> renders into every deck that sets <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> or <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> renders into every deck that sets <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> or
+<code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code>.
 <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> applies it in Born-Oppenheimer molecular dynamics only.
-On the in-process route it applies to every call that starts from stored orbitals, when the archive carries <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>.
-The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation how-to</span></a> shows a message and the check.</p>
+On the in-process route it applies to every call that starts from stored
+orbitals, when the archive carries <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>.
+The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation how-to</span></a> shows a
+message and the check.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -4227,9 +4314,9 @@ The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><spa
 </section>
 <section id="typed-dft-controls">
 <h2>Typed <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> controls<a class="headerlink" href="#typed-dft-controls" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code> exposes common DFT scalars directly. Parser-accepted
-escape-hatch rows use <code class="docutils literal notranslate"><span class="pre">directives</span></code> so callers can still discover the catalog ID
-without a dedicated scalar field.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code> exposes common DFT scalars directly.
+Parser-accepted escape-hatch rows use <code class="docutils literal notranslate"><span class="pre">directives</span></code> so callers can still discover
+the catalog ID without a dedicated scalar field.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -4791,7 +4878,7 @@ is reserved void in this package).</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

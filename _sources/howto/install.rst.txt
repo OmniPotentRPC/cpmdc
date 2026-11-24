@@ -22,27 +22,32 @@ The build has two modes, selected by the Meson option ``with_cpmd``:
     +----------+--------------------------------------+------------------------------------------------+-----------------------+
 
 Both modes export the same symbols.
-A third target, ``libcpmdc_stub.a``, is a link-only placeholder: every call
-fails and ``cpmdc_available()`` returns 0.
+A third target,
+``libcpmdc_stub.a``, is a link-only placeholder: every call fails and ``cpmdc_available()``
+returns 0.
 The tests use it to check the ABI without a working evaluator.
 
 .. table::
 
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | Artifact               | Installed as                                                         | Purpose                                        |
-    +========================+======================================================================+================================================+
-    | ``libcpmdc.so``        | ``lib/libcpmdc.so.MAJOR``                                            | the C ABI from ``include/cpmdc.h``             |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | public headers         | ``include/cpmdc/cpmdc.h``, ``cpmdc_features.h``, ``cpmdc_restart.h`` | declarations for hosts                         |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | ``libcpmdc_restart.a`` | ``lib/libcpmdc_restart.a``                                           | reader and writer for CPMD ``RESTART`` files   |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | ``cpmdc-restart``      | ``bin/cpmdc-restart``                                                | command-line front end to ``libcpmdc_restart`` |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | pkg-config files       | ``cpmdc.pc``, ``cpmdc-restart.pc``                                   | compiler and linker flags                      |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
-    | CMake package          | ``cpmdcConfig.cmake``                                                | imported target ``cpmdc::cpmdc``               |
-    +------------------------+----------------------------------------------------------------------+------------------------------------------------+
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | Artifact               | Installed as                                                                             | Purpose                                        |
+    +========================+==========================================================================================+================================================+
+    | ``libcpmdc.so``        | ``lib/libcpmdc.so.MAJOR``                                                                | the C ABI from ``include/cpmdc.h``             |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | public headers         | ``include/cpmdc/cpmdc.h``, ``cpmdc_features.h``, ``cpmdc_export.h``, ``cpmdc_restart.h`` | declarations for hosts                         |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | ``libcpmdc_restart.a`` | ``lib/libcpmdc_restart.a``                                                               | reader and writer for CPMD ``RESTART`` files   |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | ``cpmdc-restart``      | ``bin/cpmdc-restart``                                                                    | command-line front end to ``libcpmdc_restart`` |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | pkg-config files       | ``cpmdc.pc``, ``cpmdc-restart.pc``                                                       | compiler and linker flags                      |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+    | CMake package          | ``cpmdcConfig.cmake``                                                                    | imported target ``cpmdc::cpmdc``               |
+    +------------------------+------------------------------------------------------------------------------------------+------------------------------------------------+
+
+The optional tools (``cpmdc-ipi-c``, the LAMMPS plugin, and ``libcpmdc_gromacs``)
+are listed with the options that build them in the
+:doc:`build reference <../reference/build-options>`.
 
 ``MAJOR`` is the soversion, the first field of ``version.txt``.
 
@@ -54,29 +59,39 @@ Without Pixi, install the same set from your package manager:
 
 .. table::
 
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | Dependency                                 | Version in ``pixi.toml``                  | Needed for                                       |
-    +============================================+===========================================+==================================================+
-    | Meson, Ninja                               | Meson 1.5.2 or newer, Ninja 1.11 or newer | every build                                      |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | Cap'n Proto (``capnp`` compiler)           | 1.0.2 or newer, below 2                   | generating the schema readers, encoding messages |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | C and Fortran compilers                    | any recent GCC and gfortran               | every build                                      |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | pkg-config                                 | 2.5.1 or newer                            | dependency lookup                                |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | Python 3                                   | 3.10 or newer                             | build helpers and tests                          |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | cmocka                                     | 1.1.7 or newer                            | ``-Dwith_tests=true``                            |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3            | ``-Dwith_cpmd=true``                             |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
-    | FFTW3                                      | optional                                  | linked when OpenCPMD was configured with FFTW3   |
-    +--------------------------------------------+-------------------------------------------+--------------------------------------------------+
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | Dependency                                 | Version in ``pixi.toml``                                                  | Needed for                                       |
+    +============================================+===========================================================================+==================================================+
+    | Meson, Ninja                               | Meson 1.5.2 or newer, below 2; Ninja 1.11 or newer, below 2               | every build                                      |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | Cap'n Proto (``capnp`` compiler)           | 1.0.2 or newer, below 2                                                   | generating the schema readers, encoding messages |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | C and Fortran compilers                    | any recent GCC and gfortran                                               | every build                                      |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | C++ compiler and Rust (``cargo``)          | Rust 1.70 or newer, below 2                                               | the ``minimage`` subproject                      |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | pkg-config                                 | 2.5.1 or newer, below 3                                                   | dependency lookup                                |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | Python 3                                   | 3.10 or newer, below 4                                                    | build helpers and tests                          |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | ASE, pytest, i-PI                          | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the ``python-api`` and ``python-pytest`` tests   |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | cmocka                                     | 1.1.7 or newer, below 3                                                   | ``-Dwith_tests=true``                            |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 or newer, below 6; OpenBLAS 0.3.34 or newer, below 0.4        | ``-Dwith_cpmd=true``                             |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
+    | FFTW3                                      | 3.3.11 or newer, below 4; optional                                        | linked when OpenCPMD was configured with FFTW3   |
+    +--------------------------------------------+---------------------------------------------------------------------------+--------------------------------------------------+
 
-Meson fetches three subprojects on the first ``meson setup``: the C Cap'n Proto
-runtime (``c-capnproto``), the shared schema (``potentials-schema``, pinned in
-``subprojects/potentials-schema.wrap``), and ``capnp-fortran``.
+CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
+``bench/constant_cutoff_npt.py run`` needs ASE 3.27 for ``LangevinBAOAB``.
+Its ``start`` command draws Maxwell-Boltzmann momenta with ``thermalize_momenta``
+on ASE 3.29 and with ``MaxwellBoltzmannDistribution`` on earlier releases.
+
+The C Cap'n Proto runtime (``c-capnproto``) is vendored in ``subprojects/``.
+Meson fetches three subprojects on the first ``meson setup``: the shared schema
+(``potentials-schema``, pinned in ``subprojects/potentials-schema.wrap``),
+``capnp-fortran``, and ``minimage``; ``-Dwith_readcon=true`` adds ``readcon-core``.
 On a machine without network access, download them first where the network is
 available:
 
@@ -97,7 +112,7 @@ Clone the repository and run the default suite:
 
 ``test-stub`` configures ``build/`` with tests on, compiles, and runs the Meson
 suite.
-A healthy run ends with every test reported ``OK`` and ``Fail: 0``.
+A healthy run reports no failures.
 The same steps without Pixi:
 
 .. code:: bash
@@ -106,24 +121,8 @@ The same steps without Pixi:
     meson compile -C build
     meson test -C build --print-errorlogs
 
-Meson options
--------------
-
-.. table::
-
-    +----------------+---------+-----------+-----------------------------------------------------------------------+
-    | Option         | Type    | Default   | Effect                                                                |
-    +================+=========+===========+=======================================================================+
-    | ``with_tests`` | boolean | ``true``  | build the cmocka suites, contract checks, and ``example_host_step``   |
-    +----------------+---------+-----------+-----------------------------------------------------------------------+
-    | ``with_cpmd``  | boolean | ``false`` | link OpenCPMD instead of the reference evaluator                      |
-    +----------------+---------+-----------+-----------------------------------------------------------------------+
-    | ``cpmd_root``  | string  | empty     | OpenCPMD build tree holding ``lib/libcpmd.a``, ``obj/``, and ``src/`` |
-    +----------------+---------+-----------+-----------------------------------------------------------------------+
-
-``with_cpmd=true`` only takes effect together with a non-empty ``cpmd_root``.
-Configuration stops when ``DIR/lib/libcpmd.a`` or ``DIR/obj/timetag.o`` is missing.
-OpenCPMD keeps ``timetag`` outside the archive, and ``header`` calls it.
+The :doc:`build reference <../reference/build-options>` lists every Meson
+option, installed artifact, and Pixi task.
 
 Build against OpenCPMD
 ----------------------
@@ -140,7 +139,14 @@ With the archive in place:
       -Dcpmd_root="$CPMD_ROOT" \
       -Dwith_tests=true
     meson compile -C build-cpmd
+    export CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY
     meson test -C build-cpmd --print-errorlogs
+
+Configuration stops when
+``$CPMD_ROOT/lib/libcpmd.a`` or ``$CPMD_ROOT/obj/timetag.o`` is missing.
+The live tests run OpenCPMD, which reads the pseudopotentials from
+``CPMDC_PSEUDO_DIR`` (see the
+:doc:`environment reference <../reference/environment>`).
 
 The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS when
 OpenBLAS is absent), FFTW3 when found, ``libgfortran``, and ``libquadmath``.
@@ -164,39 +170,68 @@ Install
 The last command prints the project version, which Meson reads from
 ``version.txt``.
 Hosts that load the library at run time, such as ``rgpot``, look for it through
-``CPMDC_LIBRARY``; see the :doc:`environment
-reference <../reference/environment>`.
+``CPMDC_LIBRARY``; see the
+:doc:`environment reference <../reference/environment>`.
 
-Pixi tasks
-----------
+Installed shared libraries and plugins that need another library from the
+prefix record a run path relative to their own file: ``$ORIGIN`` on Linux and
+``@loader_path`` on macOS. ``libcpmdc`` sets an empty install run path, because
+it does not load another library from the prefix; toolchain directories
+Meson already recorded, such as the one for ``libgfortran``, stay.
+``libcpmdc_gromacs`` records ``$ORIGIN`` (its own directory). The LAMMPS plugin
+is installed one directory deeper, in ``lib/cpmdc``, and records ``$ORIGIN/..``.
+``cpmdc-ipi-c`` records the normalised relative path from the resolved
+``bindir`` to the resolved ``libdir``. ``-Dbindir=.``, absolute ``bindir`` and
+``libdir`` under the prefix, a nested ``libdir``, and a path that contains
+``..`` or a trailing slash still open ``libcpmdc``. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
+Meson keeps a build-tree run path only on uninstalled binaries. After
+``meson install``, an installed ``.so`` or ``.dylib`` does not point at the build
+tree or at the prefix path used for that install, so the tree can be moved
+and ``libcpmdc_gromacs`` still opens ``libcpmdc``.
 
-.. table::
+Install the Python package
+--------------------------
 
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | Task                                                                           | Environment | Runs                                                                                    |
-    +================================================================================+=============+=========================================================================================+
-    | ``test-stub``                                                                  | default     | configure ``build/``, compile, full Meson suite                                         |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``test-cmocka``                                                                | default     | the ``cmocka`` suite only                                                               |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``test-e2e``                                                                   | default     | the ``e2e`` suite only (single point and optimizer session)                             |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``test-stub-sanitize``                                                         | default     | full suite in ``build-sanitize/`` under AddressSanitizer and UndefinedBehaviorSanitizer |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``fortran-lint``                                                               | default     | ``fprettify --diff`` over ``src/*.f90``                                                 |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``prek``, ``prek-install``, ``prek-validate``                                  | default     | pre-commit hooks from ``prek.toml``                                                     |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``lychee``                                                                     | default     | link check over README, ``docs/orgmode``, and news fragments                            |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``release-assert``, ``version-sync``, ``towncrier-draft``, ``release-cog-dry`` | default     | release metadata checks, and ``version.txt`` copies                                     |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``mkrst``                                                                      | ``docs``    | export ``docs/orgmode`` to ``docs/source`` RST                                          |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``doxybuild``                                                                  | ``docs``    | Doxygen XML and Doxyrest pages for the public headers                                   |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
-    | ``sphinxbld``, ``docbld``                                                      | ``docs``    | ``mkrst``, ``doxybuild``, then the Sphinx HTML site in ``docs/build``                   |
-    +--------------------------------------------------------------------------------+-------------+-----------------------------------------------------------------------------------------+
+Release tags publish wheels for Linux x86\ :sub:`64`  and aarch64 (manylinux\ :sub:`2`  \ :sub:`28`\) and
+macOS arm64 (macOS 15 or newer).
+One wheel per platform serves CPython 3.10 and newer; CI tests 3.10 to 3.13.
+The ``ase`` extra installs ASE for ``cpmdc.ase``:
 
-Run a docs task with ``pixi run -e docs docbld``.
+.. code:: bash
+
+    pip install "cpmdc[ase]"
+    python -c "import cpmdc; print(cpmdc.find_library())"
+
+The second command prints the ``libcpmdc`` inside the installed package.
+That library is the default build: the reference evaluator, without OpenCPMD and
+without MPI, so ``Session.available()`` is false.
+The wheel carries ``libgfortran`` and ``schema/Potentials.capnp``.
+A periodic cell needs no other tool: the package encodes each step as
+``ForceInput`` itself.
+The ``capnp`` command is needed only to encode a ``CPMDParams`` text file, and
+``cpmdc.find_schema()`` returns the schema to encode it against.
+The ``test`` extra adds pytest for ``tests/python``.
+To evaluate with OpenCPMD, build ``libcpmdc`` with
+``-Dwith_cpmd=true`` and set ``CPMDC_LIBRARY`` to it; the variable takes precedence
+over the copy in the wheel.
+
+On other platforms pip builds the sdist.
+That needs the C, C++, and Fortran compilers, Rust (``cargo``, for the ``minimage``
+subproject), the ``capnp`` command, and network access for the Meson subprojects.
+The same build from a checkout:
+
+.. code:: bash
+
+    pip install ".[ase]"
+
+Build the docs
+--------------
+
+.. code:: bash
+
+    pixi run -e docs docbld
+
+The :doc:`build reference <../reference/build-options>` lists the other
+Pixi tasks.
 The published site is `cpmdc.rgoswami.me <https://cpmdc.rgoswami.me>`_.

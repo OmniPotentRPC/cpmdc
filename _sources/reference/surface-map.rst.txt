@@ -3,38 +3,46 @@ Public C surface map
 ====================
 
 
-A cross-check of the in-process C ABI: every public function against the
-header, the inventory, both implementations, and the feature table.
-The :doc:`C ABI reference <c-abi>` documents what each function does; this page
-records where each one lives.
-The ``cpmd-public-abi-inventory``, ``stub-abi-symbol-coverage``, and
-``shared-dlopen-symbol-coverage`` tests keep it true.
+A cross-check of the in-process C ABI: every public function against the header,
+the inventory, both implementations, and the feature table.
+The :doc:`C ABI reference <c-abi>` documents what each function does; this
+page records where each one lives.
+The ``cpmd-public-abi-inventory``, ``stub-abi-symbol-coverage``,
+``shared-dlopen-symbol-coverage``, and ``c-abi-inventory`` tests keep it true.
+
+Protocol adapters are deliberately outside this surface.  Direct callers use
+``cpmdc_session_calculate_au()`` or the Cap'n Proto result calls; remote callers
+normally use rgpot's Cap'n Proto RPC.  An optional i-PI adapter belongs to
+rgpot as a frontend over every potential.  The
+:doc:`i-PI migration status <../howto/socket-drivers>` records why the
+transitional cpmdc driver has not been removed yet.
 
 Sources checked
 ---------------
 
 .. table::
 
-    +--------------------------------------------------------+---------------------------------------------------+
-    | Source                                                 | Role                                              |
-    +========================================================+===================================================+
-    | ``include/cpmdc.h``, ``include/cpmdc_features.h``      | public declarations                               |
-    +--------------------------------------------------------+---------------------------------------------------+
-    | ``schema/inventory/cpmd_features.json``                | ``abi_symbols`` list and feature rows             |
-    +--------------------------------------------------------+---------------------------------------------------+
-    | ``src/cpmdc.c``                                        | implementation in the default and OpenCPMD builds |
-    +--------------------------------------------------------+---------------------------------------------------+
-    | ``src/cpmdc_stub.c``                                   | implementation in the stub build                  |
-    +--------------------------------------------------------+---------------------------------------------------+
-    | ``src/cpmdc_features.c``, ``src/cpmdc_capabilities.c`` | discovery functions shared by all builds          |
-    +--------------------------------------------------------+---------------------------------------------------+
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | Source                                                 | Role                                                    |
+    +========================================================+=========================================================+
+    | ``include/cpmdc.h``, ``include/cpmdc_features.h``      | public declarations                                     |
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | ``schema/inventory/cpmd_features.json``                | ``abi_symbols`` list and feature rows                   |
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | ``src/cpmdc.c``                                        | implementation in the default and OpenCPMD builds       |
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | ``src/cpmdc_stub.c``                                   | implementation in the stub build                        |
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | ``src/cpmdc_features.c``, ``src/cpmdc_capabilities.c`` | discovery functions shared by all builds                |
+    +--------------------------------------------------------+---------------------------------------------------------+
+    | ``libcpmdc``                                           | the ``cpmdc_`` symbols the built shared library exports |
+    +--------------------------------------------------------+---------------------------------------------------------+
 
 Symbols
 -------
 
-Columns: declared in a public header, implemented for the default and
-OpenCPMD builds, implemented for the stub, and present as an ``abi.*`` feature
-row.
+Columns: declared in a public header, implemented for the default and OpenCPMD
+builds, implemented for the stub, and present as an ``abi.*`` feature row.
 
 .. table::
 
@@ -59,9 +67,13 @@ row.
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_set_params``                    | setup           | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_session_set_constant_cutoff``           | setup           | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_destroy``                       | lifecycle       | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_select_orbitals``               | setup           | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_session_copy_orbitals``                 | setup           | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_energy_gradient``               | step, arrays    | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
@@ -72,6 +84,8 @@ row.
     | ``cpmdc_session_calculate_forces``              | step, message   | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_calculate_result``              | step, message   | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_session_calculate_au``                  | step, arrays    | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_calculate_result``                      | step, message   | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
@@ -101,6 +115,10 @@ row.
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_last_property_snapshot``                | result snapshot | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_last_gradient``                         | result snapshot | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_last_dipole``                           | result snapshot | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_last_stress``                           | result snapshot | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_last_rank_spread``                      | MPI             | Y      | Y     | Y    | Y           |
@@ -121,6 +139,10 @@ row.
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_last_property_snapshot``        | result snapshot | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_session_last_gradient``                 | result snapshot | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
+    | ``cpmdc_session_last_dipole``                   | result snapshot | Y      | Y     | Y    | Y           |
+    +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_session_last_stress``                   | result snapshot | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
     | ``cpmdc_feature_count``                         | discovery       | Y      | Y     | Y    | Y           |
@@ -130,7 +152,32 @@ row.
     | ``cpmdc_feature_find``                          | discovery       | Y      | Y     | Y    | Y           |
     +-------------------------------------------------+-----------------+--------+-------+------+-------------+
 
-42 symbols in ``abi_symbols``, 42 with every column present.
+51 symbols in ``abi_symbols``, 51 with every column present.
+
+Exported symbols
+----------------
+
+``schema/inventory/surface_map_abi.txt`` is generated by
+``scripts/abi_inventory.py`` from the exported symbols of ``libcpmdc`` (``nm -D --defined-only``, or ``nm -gU`` on macOS; ``NM`` names another ``nm``) and the declarations in ``include/cpmdc.h``
+and ``include/cpmdc_features.h``.
+It lists the 51 public functions with their header, the ABI generation
+(``CPMDC_ABI_VERSION``, 0), and a ``@since`` column that stays ``-`` until a
+declaration records a later generation.
+``libcpmdc`` exports exactly those symbols: internal glue is hidden (see :doc:`the C ABI reference <c-abi>`
+for ``CPMDC_API`` and the export list).
+
+The ``c-abi-inventory`` test, in the ``abi`` and ``inventory`` suites, and the CI stub
+job fail when the file differs from what the built library and the headers give,
+when a public declaration lacks
+``CPMDC_API`` or is not exported, or when the library exports any other symbol, internal ``cpmdc_``
+glue and symbols of the linked static archives alike.
+The ``shared-dlopen-abi`` test also checks that internal C and Fortran glue does
+not resolve through ``dlsym``.
+After changing the surface, regenerate the file with
+``meson compile -C build abi-inventory``.
+
+``scripts/abi_baseline.txt`` and the ``c-abi-baseline`` test are separate: they
+freeze the exported names so a removal or a rename fails.
 
 Parser sections
 ---------------
@@ -139,7 +186,7 @@ The 25 sections OpenCPMD reads with ``inscan('&SECTION')``, recorded in
 ``opencpmd_inscan_sections`` and ``schema/inventory/opencpmd_sections.txt``:
 
 ATOM, ATOMS, BASIS, CLAS, CPMD, DFT, EAM, EXTE, HARDNESS, INFO, LINRES,
-MOLSTATES, MTS, NLCC, PATH, PIMD, POTENTIAL, PROP, PTDDFT, RESP, SYSTEM,
-TDDFT, VDW, VECTORS, WAVEFUNCTION.
+MOLSTATES, MTS, NLCC, PATH, PIMD, POTENTIAL, PROP, PTDDFT, RESP, SYSTEM, TDDFT,
+VDW, VECTORS, WAVEFUNCTION.
 
 QMMM, PROPERTIES, BICANONICAL, and CDFT are ``&CPMD`` keywords, not sections.

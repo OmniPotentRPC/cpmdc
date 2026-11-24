@@ -9,37 +9,45 @@ Read by libcpmdc at run time
 
 .. table::
 
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Variable                 | Read in                                                         | Effect                                                                                                                                                                          |
-    +==========================+=================================================================+=================================================================================================================================================================================+
-    | ``CPMDC_PSEUDO_DIR``     | ``src/cpmd_embed_c_api.F90``, first call of an OpenCPMD session | directory holding the pseudopotential files named in the deck; ``cpmdc`` changes into it while CPMD reads them, then leaves it before CPMD writes output files                  |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMD_PP_LIBRARY_PATH`` | same place, when ``CPMDC_PSEUDO_DIR`` is unset                  | fallback for the same directory                                                                                                                                                 |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_DECK_OUT``       | ``src/cpmdc.c``, each time a message is rendered                | file that receives the rendered method deck; each write replaces the last                                                                                                       |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_STRESS``         | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation          | ``0`` skips the stress tensor on periodic cells; any other value, or unset, computes it                                                                                         |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_SCF_STEPS``      | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation          | ``1`` writes ``cpmdc_warm_start``, ``cpmdc_wfn_extrapolated K``, and ``cpmdc_scf_steps N`` to the error stream                                                                  |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_WARM_RMSD``      | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation          | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance                         |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_RANK_CONSENSUS`` | ``src/cpmdc.c``, each evaluation under a running MPI            | ``1`` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
-    +--------------------------+-----------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Variable                     | Read in                                                                                                                                     | Effect                                                                                                                                                                                                                                                                                                            |
+    +==============================+=============================================================================================================================================+===================================================================================================================================================================================================================================================================================================================+
+    | ``CPMDC_PSEUDO_DIR``         | ``src/cpmdc_embed_host.c``, each cold OpenCPMD evaluation                                                                                   | directory holding the pseudopotential files named in the deck; ``cpmdc`` changes into it while CPMD reads them, then leaves it before CPMD writes output files                                                                                                                                                    |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMD_PP_LIBRARY_PATH``     | same place, when ``CPMDC_PSEUDO_DIR`` is unset                                                                                              | fallback for the same directory                                                                                                                                                                                                                                                                                   |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_DECK_OUT``           | ``src/cpmdc.c``, each time a message is rendered                                                                                            | file that receives the rendered method deck; each write replaces the last                                                                                                                                                                                                                                         |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_STRESS``             | ``src/cpmd_embed_c_api.F90``, each evaluation, OpenCPMD or the reference evaluator                                                          | ``0`` skips the stress tensor on periodic cells; any other value, or unset, computes it                                                                                                                                                                                                                           |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_SCF_STEPS``          | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation                                                                                      | ``1`` writes ``cpmdc_warm_start``, ``cpmdc_wfn_extrapolated K``, and ``cpmdc_scf_steps N`` to the error stream                                                                                                                                                                                                    |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_WARM_RMSD``          | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation                                                                                      | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF on a matching basis; default 0.15, a negative value takes them at any distance, and beyond the limit the SCF starts from the deck's guess without full setup                                                         |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_CELL_IN_PLACE``      | ``src/cpmdc_orbital_limit.c``, before each OpenCPMD evaluation or orbital copy                                                              | calculator rank 0's largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell                             |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_RECENTER``           | ``src/cpmd_embed_c_api.F90``, each OpenCPMD evaluation on an isolated deck                                                                  | ``mass`` (default) or ``geometry`` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ``off`` or ``0`` keeps the caller's coordinates; ``MASS``, ``GEOMETRY`` and ``OFF`` are accepted too; any other value fails the call |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_RECENTER_MARGIN``    | same place                                                                                                                                  | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call                                                                                               |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_RANK_CONSENSUS``     | ``src/cpmdc.c``, each evaluation under a running MPI                                                                                        | ``1`` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result                                                                                                                                   |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ORBITAL_SLOT_LIMIT`` | ``src/cpmdc.c`` on each evaluation and orbital copy, and ``tools/opencpmd_embed_rwfopt.patch`` when the host has not already agreed a value | unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call                                                                                                                               |
+    +------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-The first call of an OpenCPMD session fails when neither
-``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names an existing directory.
-The result message and ``cpmdc_last_error()`` name that directory; the call
-does not report an unconverged SCF.
+A cold OpenCPMD evaluation fails when neither ``CPMDC_PSEUDO_DIR`` nor
+``CPMD_PP_LIBRARY_PATH`` names an existing directory.
+The result message and ``cpmdc_last_error()`` name that directory; the call does
+not report an unconverged SCF.
 While ``cpmdc`` is in the pseudopotential directory it also sets
-``CPMD_PP_LIBRARY_PATH`` and ``PP_LIBRARY_PATH`` to that directory with a
-trailing slash, for OpenCPMD's own lookup.
-The change of directory is needed because OpenCPMD's ``get_pplib`` takes
-``argv[2]`` as the library path whenever the process has more than one
-argument, which most hosts do.
+``CPMD_PP_LIBRARY_PATH`` and ``PP_LIBRARY_PATH`` to that directory with a trailing
+slash, for OpenCPMD's own lookup.
+The change of directory is needed because OpenCPMD's ``get_pplib`` takes ``argv[2]``
+as the library path whenever the process has more than one argument, which most
+hosts do.
 Once the pseudopotential files are read, the working directory becomes
-``permanentDir`` if that field is set, otherwise ``scratchDir``, otherwise the
-host directory from before the call.
+``permanentDir`` if that field is set, otherwise ``scratchDir``, otherwise the host
+directory from before the call.
 A library force call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or
 ``GEOMETRY.xyz`` there.
 ``cpmd.x`` writes those files in that directory.
@@ -50,6 +58,23 @@ and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.
 
+``CPMDC_RECENTER`` acts on an isolated deck (``SYMMETRY 0``, a Poisson solver,
+``CLUSTER``, ``SURFACE`` or ``POLYMER``); a periodic deck is not moved.
+A slab (``SURFACE``) moves only along its normal and a wire (``POLYMER``) only
+across its axis.
+With ``mass`` or ``geometry``, energy, forces and ``sum_i x_i (x) f_i`` do not change
+when the caller translates every atom.
+Warm-start distances and stored orbitals use the moved coordinates; the caller's
+arrays are not changed.
+The margin applies with ``off`` too, so by default an atom outside the cell fails
+the call instead of running with density across a face;
+``CPMDC_RECENTER_MARGIN=-1`` lets it run, as releases before the recentring did.
+``cpmd.x`` keeps the deck's coordinates, so a comparison with it needs
+``CPMDC_RECENTER=off``, and ``CPMDC_RECENTER_MARGIN=-1`` for atoms outside the cell;
+the ``water-capnp-cli-parity`` and ``extrapolate-wfn`` tests set both.
+:doc:`Atoms in an isolated cell <../explanation/isolated-cells>` explains
+why the library moves the atoms and what drift costs without it.
+
 ``CPMDC_SCF_STEPS=1`` writes one line, ``cpmdc_scf_steps N``, for each SCF that
 returns.
 ``N`` is that SCF's iteration count.
@@ -59,46 +84,127 @@ orbitals, -1 the deck's guess because every stored geometry lies beyond
 ``CPMDC_WARM_RMSD``) and the nearest distance ``D`` in Angstrom, or
 ``cpmdc_warm_start -2`` when nothing is stored.
 Lines with a distance also include ``donor_key=K``, the key whose converged
-orbitals supply the selected history, and ``periodic=T`` or ``periodic=F``,
-the native boundary model used for the distance. A rejected history's donor
-key describes the nearest stored candidate, not an accepted warm start.
-A call whose orbitals start from the ``EXTRAPOLATE WFN`` prediction writes ``cpmdc_wfn_extrapolated K`` before its ``cpmdc_scf_steps`` line, with ``K`` the number of earlier converged orbital sets that the prediction combined.
-Each line is flushed as it is written, so a log file shows it while the host runs.
+orbitals supply the selected history, and ``periodic=T`` or ``periodic=F``, the
+native boundary model used for the distance.
+A rejected history's donor key describes the nearest stored candidate, not an
+accepted warm start.
+A call whose orbitals start from the ``EXTRAPOLATE WFN`` prediction writes
+``cpmdc_wfn_extrapolated K`` before its ``cpmdc_scf_steps`` line, with ``K`` the
+number of earlier converged orbital sets that the prediction combined.
+Each line is flushed as it is written, so a log file shows it while the host
+runs.
 
-``CPMDC_WARM_RMSD`` is the distance limit of :doc:`the stored orbitals <../explanation/wavefunction-state>` (section Distance limit).
+``CPMDC_WARM_RMSD`` is the distance limit of
+:doc:`the stored orbitals <../explanation/wavefunction-state>` (section
+Distance limit).
 A value that does not parse as a number keeps the default.
+
+``CPMDC_CELL_IN_PLACE`` acts only on a periodic deck with ``CONSTANT CUTOFF``; any
+other deck sets CPMD up again for every new cell, whatever the variable says.
+A cell within the limit takes the plane waves of the setup cell, so the call
+starts from the stored orbitals and keeps the ``EXTRAPOLATE WFN`` history.
+:doc:`Wavefunction state between calls <../explanation/wavefunction-state>`
+(section Cell changes at a constant cutoff) gives the conditions and what the
+move changes in the energy and the stress.
+Calculator rank 0 reads the value and broadcasts it; values on the other ranks
+are ignored.
+
+``CPMDC_ORBITAL_SLOT_LIMIT`` is the most parked orbital copies a calculator keeps,
+excluding the key that is selected.
+Unset, the table grows with each new key.
+A positive integer refuses a park that would pass that count: the evaluation
+or the copy fails, ``cpmdc_last_error()`` names the variable, and the copies
+already stored stay where they are.
+Lowering the value does not discard copies already parked; the next new park
+fails until the count is within the new limit.
+An empty value, zero, a negative value, or any value that is not a positive
+integer fails the call and does not leave the table unbounded.
+Every calculator rank must use the same value.
+A rank that disagrees, or an MPI collective that fails, fails the call on
+every rank.
+Each evaluation and each copy checks its own arguments and session first and
+agrees the value only after that, so a call that is itself bad reports that
+reason even when the value is unusable.
+A rank that rejects its own call still joins the agreement, and every other
+rank then fails the call too, with a message that another rank rejected it,
+instead of waiting for it.
+A session evaluation validates its topology without mutating the session and
+commits it only after the collective preflight succeeds on every rank, so a
+failed preflight leaves the session unchanged.
+Every rank also agrees whether an orbital key is selected, whether stale
+orbitals were cleared, and whether orbital preparation succeeded, failing
+every rank with the same error when any rank diverges or fails.
+``cpmd.x`` and a warm-start call that does not go through the library read the
+variable themselves.
 
 ``CPMDC_RANK_CONSENSUS=1`` adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or ``MPI_COMM_WORLD`` when
 neither call was made.
-Every rank fails when one rank failed, and every rank resets its CPMD state
-when one rank stopped.
-A repeat of the stored positions returns the stored result only when every
-rank repeats.
+Every rank fails when one rank failed, and every rank resets its CPMD state when
+one rank stopped.
+A repeat of the stored positions returns the stored result only when every rank
+repeats.
 ``cpmdc_last_rank_spread()`` then reports the largest energy and gradient
 difference from rank 0 before the broadcast.
 Set it to the same value on every rank.
 A build without MPI ignores it.
+
+Test hooks in libcpmdc
+----------------------
+
+These change results on purpose and must be unset in ordinary runs.
+
+.. table::
+
+    +-----------------------------+----------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+    | Variable                    | Read in                                                                                      | Effect                                                                                                                                      |
+    +=============================+==============================================================================================+=============================================================================================================================================+
+    | ``CPMDC_PWSCALE_MPI_FAULT`` | ``src/cpmdc_pwscale.c``, builds with ``-Dwith_pwscale=true`` and MPI (``pwscale-mpi-fault``) | ``gather`` drops rank 0's gather buffer when the bind is created; ``team`` fails the last rank's team; every rank still reports the failure |
+    +-----------------------------+----------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
 
 Read by the tests and tools
 ---------------------------
 
 .. table::
 
-    +-----------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-    | Variable                                | Read by                                                           | Effect                                                                                                                           |
-    +=========================================+===================================================================+==================================================================================================================================+
-    | ``CPMD_ROOT``, then ``CPMDC_CPMD_ROOT`` | ``tools/check_feature_inventory.py`` (``feature-inventory`` test) | OpenCPMD source tree to probe for ``inscan('&SECTION')`` calls; without it the live completeness check is skipped with a warning |
-    +-----------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMD_SRC``, then ``OPENCPMD_SRC``     | ``tests/test_cpmd_inscan_token_fidelity.py``                      | OpenCPMD source tree for the parser token check                                                                                  |
-    +-----------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDC_CPMD_EXE``, then ``CPMD_ROOT``  | ``tools/cpmd_root_probe.py``                                      | the ``cpmd.x`` to check, or the tree whose ``bin/cpmd.x`` it checks                                                              |
-    +-----------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-    | ``MAKE``, ``AR``                        | ``tools/rebuild_opencpmd_embed.sh``                               | the Make and archiver programs; default ``make`` and ``ar``                                                                      |
-    +-----------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Variable                                                                                      | Read by                                                           | Effect                                                                                                                                                                                    |
+    +===============================================================================================+===================================================================+===========================================================================================================================================================================================+
+    | ``CPMD_ROOT``, then ``CPMDC_CPMD_ROOT``                                                       | ``tools/check_feature_inventory.py`` (``feature-inventory`` test) | OpenCPMD source tree to probe for ``inscan('&SECTION')`` calls; without it the live completeness check is skipped with a warning                                                          |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMD_SRC``, then ``OPENCPMD_SRC``                                                           | ``tests/test_cpmd_inscan_token_fidelity.py``                      | OpenCPMD source tree for the parser token check                                                                                                                                           |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_CPMD_EXE``, then ``CPMD_ROOT``                                                        | ``tools/cpmd_root_probe.py``                                      | the ``cpmd.x`` to check, or the tree whose ``bin/cpmd.x`` it checks                                                                                                                       |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``MAKE``, ``AR``                                                                              | ``tools/rebuild_opencpmd_embed.sh``                               | the Make and archiver programs; default ``make`` and ``ar``                                                                                                                               |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_TEST_PARAMS``, ``CPMDC_TEST_PERIODIC_PARAMS``                                         | ``tests/python/conftest.py`` (``python-pytest``)                  | encoded cluster and periodic water ``CPMDParams``; without them the text messages in ``tests/`` are encoded with ``capnp``                                                                |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_TEST_INSTALLED``                                                                      | ``tests/python/conftest.py``                                      | ``1`` tests the installed package instead of ``python/`` of the checkout                                                                                                                  |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_IPI_C``                                                                               | ``tests/python/test_ipi_c_driver.py``                             | the ``cpmdc-ipi-c`` to test; default ``build/cpmdc-ipi-c``                                                                                                                                |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_LAMMPS_PLUGIN``                                                                       | ``tests/python/test_lammps.py``                                   | the ``cpmdcplugin.so`` to load; default ``build/cpmdcplugin.so``                                                                                                                          |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_GROMACS_LIB``                                                                         | ``tests/python/test_gromacs.py``, ``test_gromacs_opencpmd.py``    | the ``libcpmdc_gromacs.so`` to load; default ``build/libcpmdc_gromacs.so``                                                                                                                |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_GMX``                                                                                 | ``tests/python/gromacs_case.py``, ``bench/gromacs_routes.py``     | the double-precision ``gmx_d`` built against ``libcp2k.pc``; default ``gmx_d`` on ``PATH``                                                                                                |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_GMX_MPI``, ``CPMDC_MPIEXEC``                                                          | ``tests/python/gromacs_case.py``                                  | an MPI ``gmx_mpi_d`` and its launcher; default ``gmx_mpi_d`` and ``mpiexec`` on ``PATH``                                                                                                  |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_EXAMPLE_WORK``                                                                        | ``tests/test_docs_examples.py``                                   | set by the test itself to its scratch directory                                                                                                                                           |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_FFT_FAULT``                                                                   | ``bench/pwscale_fft.c`` (``pwscale-fft-fail``)                    | names an FFT setup step that must fail, to check the cleanup path                                                                                                                         |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_POISON_RUN``                                                                  | ``bench/pwscale_harness.c`` (``pwscale-logger``)                  | adds 1 Hartree to the energy of that run number, to check the logger rejects it                                                                                                           |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``OMPI_COMM_WORLD_RANK``, ``PMIX_RANK``, ``PMI_RANK``; ``OMPI_COMM_WORLD_SIZE``, ``PMI_SIZE`` | ``bench/constant_cutoff_npt.py``                                  | set by the MPI launcher; the first of each that is set gives the rank, and rank 0 writes the record, the state, and the tables, and the rank count that the record keeps; unset, one rank |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ORG_EXPORT``                                                                          | ``docs/export.el``                                                | ``pandoc`` exports the Org pages with pandoc instead of ox-rst                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------+-------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-The live tests of an OpenCPMD build (``meson test -C build-cpmd``) run
-``libcpmdc``, so they need ``CPMDC_PSEUDO_DIR`` like any other host.
+The live tests of an OpenCPMD build (``meson test -C build-cpmd``) run ``libcpmdc``,
+so they need ``CPMDC_PSEUDO_DIR`` like any other host.
 
 Read by hosts that load libcpmdc
 --------------------------------
@@ -108,14 +214,16 @@ decide which ``libcpmdc`` a host loads.
 
 .. table::
 
-    +------------------------------------------------------------------+---------------------------------------------------+----------------------------------------------------------------------------------------------+
-    | Variable                                                         | Host                                              | Effect                                                                                       |
-    +==================================================================+===================================================+==============================================================================================+
-    | ``CPMDC_LIBRARY``, ``RGPOT_CPMDC_ENGINE``, ``RGPOT_CPMD_ENGINE`` | ``rgpot`` ``CPMDPot`` and ``python/cpmdc``        | path of the ``libcpmdc.so`` to ``dlopen``, tried in that order after an explicit engine path |
-    +------------------------------------------------------------------+---------------------------------------------------+----------------------------------------------------------------------------------------------+
-    | ``CPMDC_SCHEMA``                                                 | ``python/cpmdc``                                  | path of ``schema/Potentials.capnp``, used when a cell is encoded as ``ForceInput``           |
-    +------------------------------------------------------------------+---------------------------------------------------+----------------------------------------------------------------------------------------------+
-    | ``RGPOT_PARAMS_PATH``                                            | eOn ``RgpotPot`` builds that read ``params_path`` | overrides ``[RgpotPot] params_path``                                                         |
-    +------------------------------------------------------------------+---------------------------------------------------+----------------------------------------------------------------------------------------------+
-    | ``OMP_NUM_THREADS``                                              | OpenMP runtime                                    | threads per rank inside CPMD when OpenCPMD was built with OpenMP                             |
-    +------------------------------------------------------------------+---------------------------------------------------+----------------------------------------------------------------------------------------------+
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Variable                                                         | Host                                              | Effect                                                                                                                                          |
+    +==================================================================+===================================================+=================================================================================================================================================+
+    | ``CPMDC_LIBRARY``, ``RGPOT_CPMDC_ENGINE``, ``RGPOT_CPMD_ENGINE`` | ``rgpot`` ``CPMDPot`` and ``python/cpmdc``        | path of the ``libcpmdc.so`` to ``dlopen``, tried in that order after an explicit engine path                                                    |
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PARAMS``                                                 | ``examples/python/ase_energy.py``                 | encoded ``CPMDParams`` the example reads; the :doc:`ASE tutorial <../tutorials/ase-energy>` sets it                                             |
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_SCHEMA``                                                 | ``python/cpmdc`` ``find_schema``                  | path of ``schema/Potentials.capnp`` for encoding ``CPMDParams`` text; a cell needs no schema, because the package encodes ``ForceInput`` itself |
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``RGPOT_PARAMS_PATH``                                            | eOn ``RgpotPot`` builds that read ``params_path`` | overrides ``[RgpotPot] params_path``                                                                                                            |
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``OMP_NUM_THREADS``                                              | OpenMP runtime                                    | threads per rank inside CPMD when OpenCPMD was built with OpenMP                                                                                |
+    +------------------------------------------------------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+

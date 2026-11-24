@@ -1,0 +1,579 @@
+=============================
+Plane-wave scaffold reference
+=============================
+
+
+The plane-wave scaffold is declared in ``include/cpmdc_pwscale.h`` and
+implemented in ``src/cpmdc_pwscale.c`` (CPU and MPI),
+``src/cpmdc_pwscale_cuda.cu`` (CUDA), and ``src/cpmdc_pwscale_cuda_stub.c``
+(the CUDA calls of a build without CUDA).
+It evaluates one structure-factor sum on a synthetic plane-wave grid so that
+threads, ranks, and a GPU can be timed and compared on the same arithmetic.
+It is separate from the embed force call and the reference potential, and sits
+outside the C ABI of ``libcpmdc`` (see the :doc:`C ABI reference <c-abi>`):
+the functions use plain C linkage, the header stays in ``include/`` and is used
+from the source tree, and ``libcpmdc`` exports only the functions of ``cpmdc.h``
+and ``cpmdc_features.h``.
+The :doc:`rank how-to <../howto/pwscale-ranks>` shows how to time it.
+
+Availability
+------------
+
+The scaffold is off in the default build.
+``-Dwith_pwscale=true`` builds ``libcpmdc_pwscale.a``, a static library that is not
+installed, together with the ``cpmdc-pwscale`` harness and the ``pwscale`` test
+suite; it needs OpenMP.
+Programs of the source tree include ``cpmdc_pwscale.h`` and link that archive.
+All functions have C linkage, and the header compiles as C and as C++.
+None of them writes ``cpmdc_last_error()``; the return code is the whole report.
+
+.. table::
+
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | Function                          | Needs MPI in the build                     | Needs CUDA in the build                |
+    +===================================+============================================+========================================+
+    | ``cpmdc_pwscale_fill_geometry``   | no                                         | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_within``          | no                                         | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_sample_check``    | no                                         | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_eval``            | no                                         | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_eval_mpi``        | yes, else ``CPMDC_PWSCALE_ERR_NOMPI``      | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_mpi_bind_create`` | yes, else ``CPMDC_PWSCALE_ERR_NOMPI``      | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_eval_mpi_bound``  | yes, else ``CPMDC_PWSCALE_ERR_NOMPI``      | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_mpi_bind_free``   | compiled in both; does nothing without MPI | no                                     |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_cuda_compiled``   | no                                         | answers 1 with CUDA, 0 without         |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_cuda_device``     | no                                         | finds a device only with CUDA          |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+    | ``cpmdc_pwscale_eval_cuda``       | no                                         | yes, else ``CPMDC_PWSCALE_ERR_NOCUDA`` |
+    +-----------------------------------+--------------------------------------------+----------------------------------------+
+
+"MPI in the build" means that Meson found the MPI C compiler wrapper and passed
+``-DCPMDC_PWSCALE_HAVE_MPI=1`` to ``src/cpmdc_pwscale.c``.
+"CUDA in the build" means ``-Dwith_pwscale_cuda=true``: Meson then needs ``nvcc``,
+compiles the kernel for ``sm_70``, and links ``src/cpmdc_pwscale_cuda.cu`` in
+place of the stub.
+A CUDA build on a host without a device still returns
+``CPMDC_PWSCALE_ERR_NOCUDA`` from ``cpmdc_pwscale_eval_cuda``.
+
+Conventions
+-----------
+
+.. table::
+
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | Topic          | Rule                                                                                                                                   |
+    +================+========================================================================================================================================+
+    | positions      | ``double``, Bohr, ``3 * natoms`` values, atom-major: x0, y0, z0, x1, y1, z1, ...                                                       |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | atomic numbers | ``int``, ``natoms`` values; each is used as a weight and is not range-checked                                                          |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | forces         | ``double``, Hartree per Bohr, ``3 * natoms`` values in the layout of the positions                                                     |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | energy         | ``double`` in ``stats->energy_h``, Hartree                                                                                             |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | time           | ``double`` seconds from a monotonic clock (CUDA: event time)                                                                           |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ownership      | the caller owns every array and every ``problem`` and ``stats`` struct; no call keeps a pointer past its return                        |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | scratch        | calls allocate their scratch and release it before they return; ``cpmdc_pwscale_mpi_bind_create`` is the one exception, see `Binding`_ |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``stats``      | when not ``NULL``, a call zeroes it first, so it holds zeros after an error                                                            |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | ``forces``     | an evaluation overwrites the whole array; it does not add to it                                                                        |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | state          | no call keeps state between calls except through a ``cpmdc_pwscale_mpi_bind``, and one binding serves one call at a time               |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | OpenMP         | ``cpmdc_pwscale_eval`` and the MPI calls turn OpenMP dynamic adjustment off with ``omp_set_dynamic(0)`` for the calling thread         |
+    +----------------+----------------------------------------------------------------------------------------------------------------------------------------+
+
+The sum that is evaluated
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A problem has ``natoms`` atoms in a cubic cell of edge ``cell_bohr`` and ``npw`` plane
+waves.
+Let ``n`` be the smallest odd integer with ``n^3 >= npw``.
+Plane wave ``k``, for ``0 <= k < npw``, has the integer indices
+``ix = k mod n - n/2``, ``iy = (k / n) mod n - n/2``, and ``iz = k / n^2 - n/2``
+(integer division), and the wave vector
+``G = 2 pi / cell_bohr * (ix, iy, iz)`` in inverse Bohr.
+So the plane waves are the first ``npw`` cells of an ``n`` by ``n`` by ``n`` box,
+x running fastest; the box is cut short when ``npw`` is not a cube.
+With ``G2 = |G|^2`` and the position ``r`` of an atom of atomic number ``Z``:
+
+::
+
+    w(G)     = 4 pi / G2 * exp(-G2 / (4 alpha)) * exp(-G2 / (2 sigma^2))
+    energy   = sum over G != 0, atoms a:  Z_a * w(G) * cos(G . r_a)
+    force_a  = sum over G != 0:           Z_a * w(G) * sin(G . r_a) * G
+
+The term ``G = 0`` is visited and adds nothing.
+It is visited only when the box that ``npw`` cuts holds the origin.
+With ``G`` in inverse Bohr, ``alpha`` is in inverse Bohr squared and ``sigma`` in
+inverse Bohr; the code does not check units.
+
+How work is split
+~~~~~~~~~~~~~~~~~
+
+``CPMDC_PWSCALE_DIST_PW`` gives each worker a contiguous run of plane waves and
+every atom; ``CPMDC_PWSCALE_DIST_ATOMS`` gives each worker every plane wave and a
+contiguous run of atoms.
+Piece ``i`` of ``p`` over ``m`` items covers ``[i * m / p, (i + 1) * m / p)``.
+Workers are the OpenMP threads of one call, and in the MPI calls the ranks of
+the communicator, each with its own OpenMP team.
+With the plane-wave split every thread keeps a private force vector, and the
+vectors are summed in thread order.
+With the atom split threads write disjoint force entries.
+
+Agreement
+~~~~~~~~~
+
+A parallel or MPI result agrees with the serial one when
+``cpmdc_pwscale_within`` accepts the energy and every force component,
+with the tolerance ``CPMDC_PWSCALE_RTOL``, and the visit counts are equal.
+Bitwise equality is claimed only in the case below.
+For a fixed rank count and thread count, every rank holds the same bytes and
+repeated runs give the same bytes, because the partial sums are added in rank
+order and thread order.
+The CUDA path adds with ``atomicAdd`` on doubles, so its sum order is not fixed.
+
+Status codes and constants
+--------------------------
+
+Every function that returns ``int`` status returns one of these, except the
+predicates ``cpmdc_pwscale_within``, ``cpmdc_pwscale_sample_check``,
+``cpmdc_pwscale_cuda_compiled``, and ``cpmdc_pwscale_cuda_device``, which return 1 or 0.
+
+.. table::
+
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Constant                     |    Value | Meaning                                                                                                                                                                                            |
+    +==============================+==========+====================================================================================================================================================================================================+
+    | ``CPMDC_PWSCALE_OK``         |        0 | the call succeeded                                                                                                                                                                                 |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_ARG``    |       -1 | a pointer is ``NULL``, a problem value is out of range, ``dist`` is unknown, ``nthreads`` is above 4096, ``comm_bytes`` is wrong, scratch allocation failed, or an MPI call or another rank failed |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_NOMPI``  |       -2 | the build has no MPI                                                                                                                                                                               |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_NOCUDA`` |       -3 | the build has no CUDA, or the host has no CUDA device                                                                                                                                              |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_CUDA``   |       -4 | a CUDA allocation or kernel launch failed                                                                                                                                                          |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_NOFFTW`` |       -5 | returned by the FFT timing driver ``bench/pwscale_fft.c`` when built without FFTW, when ``fftw_init_threads()`` fails, or when FFTW plan creation fails; no function of this header returns it     |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_DIST_PW``    |        0 | split the plane-wave loop                                                                                                                                                                          |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_DIST_ATOMS`` |        1 | split the atom loop                                                                                                                                                                                |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_RTOL``       | ``1e-8`` | relative tolerance of agreement: a gap passes when it is at most ``RTOL * max(1, fabs(got), fabs(reference))``                                                                                     |
+    +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Codes are negative so that one rank's failure can be taken as the minimum
+over ranks.
+
+Types
+-----
+
+``cpmdc_pwscale_problem``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One problem.
+``cpmdc_pwscale_eval`` and the MPI calls reject it with ``CPMDC_PWSCALE_ERR_ARG``
+unless every limit below holds; a ``NaN`` fails the three positive tests.
+``cpmdc_pwscale_eval_cuda`` applies the same tests except the upper limits.
+``cpmdc_pwscale_mpi_bind_create`` copies it, so the caller's struct may go away
+after the call.
+
+.. table::
+
+    +---------------+------------+----------------------+-------------------------------------------------+
+    | Field         | Type       | Unit                 | Allowed values                                  |
+    +===============+============+======================+=================================================+
+    | ``natoms``    | ``int``    | atoms                | 1 to 1000000                                    |
+    +---------------+------------+----------------------+-------------------------------------------------+
+    | ``npw``       | ``int``    | plane waves          | 1 to 100000000                                  |
+    +---------------+------------+----------------------+-------------------------------------------------+
+    | ``cell_bohr`` | ``double`` | Bohr                 | greater than 0; the cell is a cube of this edge |
+    +---------------+------------+----------------------+-------------------------------------------------+
+    | ``alpha``     | ``double`` | inverse Bohr squared | greater than 0                                  |
+    +---------------+------------+----------------------+-------------------------------------------------+
+    | ``sigma``     | ``double`` | inverse Bohr         | greater than 0                                  |
+    +---------------+------------+----------------------+-------------------------------------------------+
+
+``cpmdc_pwscale_stats``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Timers and counts of one evaluation.
+Every field is zero after an error.
+The CPU calls set the fields below; the CUDA call differs where noted.
+
+.. table::
+
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Field           | Type          | Unit        | Meaning                                                                                                                                                                              |
+    +=================+===============+=============+======================================================================================================================================================================================+
+    | ``energy_h``    | ``double``    | Hartree     | the energy of the sum                                                                                                                                                                |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``seconds``     | ``double``    | s           | wall time of the evaluated region; see each function                                                                                                                                 |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``h2d_seconds`` | ``double``    | s           | host-to-device copy time; 0 on the CPU path                                                                                                                                          |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``d2h_seconds`` | ``double``    | s           | device-to-host time; 0 on the CPU path                                                                                                                                               |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``g_visited``   | ``long long`` | plane waves | plane waves visited, ``npw`` in every successful CPU call                                                                                                                            |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``atom_visits`` | ``long long`` | visits      | one per atom for each visited plane wave with ``G != 0``                                                                                                                             |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``alloc_bytes`` | ``long long`` | bytes       | scratch counted by the call: per-thread partials (and private force vectors with the plane-wave split); the MPI calls add the buffers of the binding; CUDA counts the device buffers |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``workers``     | ``int``       | threads     | the OpenMP team that ran, from ``omp_get_num_threads``, which can be smaller than ``nthreads``; 1 on CUDA                                                                            |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``mpi_ranks``   | ``int``       | ranks       | the communicator size, 1 for ``cpmdc_pwscale_eval``; the CUDA call leaves it at 0                                                                                                    |
+    +-----------------+---------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+``cpmdc_pwscale_mpi_bind``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An opaque handle declared as ``typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind``.
+It exists only in a build with MPI; without MPI a pointer of this type is always
+``NULL``.
+See `Binding`_ for what it holds.
+
+Functions
+---------
+
+.. table::
+
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | Function                                                                                                                                                                                                                                                            | Result                                                   |
+    +=====================================================================================================================================================================================================================================================================+==========================================================+
+    | ``void cpmdc_pwscale_fill_geometry(const cpmdc_pwscale_problem *prob, double *positions_bohr, int *atomic_numbers)``                                                                                                                                                | a deterministic geometry                                 |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_within(double got, double ref)``                                                                                                                                                                                                                | 1 when the two values agree under ``CPMDC_PWSCALE_RTOL`` |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_sample_check(double got_energy, const double *got_forces, double ref_energy, const double *ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double *max_abs_dE, double *max_abs_dF, int *counts_match)`` | 1 when a sample agrees with the reference, with the gaps |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob, const double *positions_bohr, const int *atomic_numbers, double *forces_h_bohr, int nthreads, int dist, cpmdc_pwscale_stats *stats)``                                                                   | a status code, forces and stats                          |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob, const double *positions_bohr, const int *atomic_numbers, double *forces_h_bohr, int nthreads, int dist, cpmdc_pwscale_stats *stats, const void *comm, size_t comm_bytes)``                          | a status code, forces and stats, the same on every rank  |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_mpi_bind_create(const cpmdc_pwscale_problem *prob, int dist, const void *comm, size_t comm_bytes, cpmdc_pwscale_mpi_bind **out)``                                                                                                               | a status code and a binding in ``\*out``                 |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind *bind, const double *positions_bohr, const int *atomic_numbers, double *forces_h_bohr, int nthreads, cpmdc_pwscale_stats *stats)``                                                                        | a status code, forces and stats, the same on every rank  |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``void cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind *bind)``                                                                                                                                                                                                  | nothing                                                  |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_cuda_compiled(void)``                                                                                                                                                                                                                           | 1 when the CUDA scaffold is built in                     |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_cuda_device(char *name, int namelen)``                                                                                                                                                                                                          | 1 when a CUDA device exists, and its name                |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+    | ``int cpmdc_pwscale_eval_cuda(const cpmdc_pwscale_problem *prob, const double *positions_bohr, const int *atomic_numbers, double *forces_h_bohr, cpmdc_pwscale_stats *stats)``                                                                                      | a status code, forces and stats                          |
+    +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------+
+
+``cpmdc_pwscale_fill_geometry``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fills ``positions_bohr`` and ``atomic_numbers`` for atoms ``i = 0 .. natoms - 1``,
+with ``s = i + 1``:
+the position is ``(fmod(0.11 s, 0.73), fmod(0.17 s, 0.71), fmod(0.23 s, 0.69))``
+times ``cell_bohr`` and the atomic number is ``1 + i mod 8``.
+Every position is inside the cell.
+The arrays depend only on ``natoms`` and ``cell_bohr`` of ``prob``.
+
+.. table::
+
+    +--------------------+-----------+--------------------------------------------------------------------------------------+
+    | Argument           | Direction | Contract                                                                             |
+    +====================+===========+======================================================================================+
+    | ``prob``           | in        | ``natoms`` and ``cell_bohr`` are read; ``npw``, ``alpha``, and ``sigma`` are ignored |
+    +--------------------+-----------+--------------------------------------------------------------------------------------+
+    | ``positions_bohr`` | out       | caller buffer of ``3 * natoms`` doubles                                              |
+    +--------------------+-----------+--------------------------------------------------------------------------------------+
+    | ``atomic_numbers`` | out       | caller buffer of ``natoms`` ints                                                     |
+    +--------------------+-----------+--------------------------------------------------------------------------------------+
+
+If any pointer is ``NULL``, or ``natoms`` is below 1, nothing is written.
+There is no return value.
+
+``cpmdc_pwscale_within``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Returns 1 when ``|got - ref| <= CPMDC_PWSCALE_RTOL * max(1, |got|, |ref|)``, else 0.
+The scale is the larger magnitude of the two values and never below 1.
+A ``NaN`` in either argument returns 0.
+
+``cpmdc_pwscale_sample_check``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compares one finished sample with the serial reference.
+``got_forces`` and ``ref_forces`` each hold ``n3 = 3 * natoms`` doubles in Hartree per
+Bohr.
+The energies are in Hartree.
+``g_got`` and ``g_ref`` are the plane-wave visit counts, ``a_got`` and ``a_ref`` the
+atom-visit counts.
+
+.. table::
+
+    +------------------+-----------+-------------------------------------------------------------------------+
+    | Argument         | Direction | Contract                                                                |
+    +==================+===========+=========================================================================+
+    | ``max_abs_dE``   | out       | the absolute energy gap ``fabs(got_energy - ref_energy)``, not relative |
+    +------------------+-----------+-------------------------------------------------------------------------+
+    | ``max_abs_dF``   | out       | the largest absolute force gap over the ``n3`` values, not relative     |
+    +------------------+-----------+-------------------------------------------------------------------------+
+    | ``counts_match`` | out       | 1 when ``g_got == g_ref`` and ``a_got == a_ref``, else 0                |
+    +------------------+-----------+-------------------------------------------------------------------------+
+
+Returns 1 only when ``cpmdc_pwscale_within`` accepts the energy and every force
+component and ``\*counts_match`` is 1.
+It returns 0 and writes nothing when ``got_forces``, ``ref_forces``, ``max_abs_dE``,
+``max_abs_dF``, or ``counts_match`` is ``NULL``, or ``n3`` is below 1.
+The three outputs are written on every other call, including a failing one.
+
+``cpmdc_pwscale_eval``
+~~~~~~~~~~~~~~~~~~~~~~
+
+Evaluates the sum on one rank with ``nthreads`` OpenMP threads.
+No MPI is involved, so this works in every build.
+
+.. table::
+
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | Argument           | Direction | Contract                                                            |
+    +====================+===========+=====================================================================+
+    | ``prob``           | in        | must hold the limits of the ``cpmdc_pwscale_problem`` section       |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``positions_bohr`` | in        | ``3 * natoms`` doubles, Bohr                                        |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``atomic_numbers`` | in        | ``natoms`` ints                                                     |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``forces_h_bohr``  | out       | ``3 * natoms`` doubles, Hartree per Bohr; zeroed, then filled       |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``nthreads``       | in        | OpenMP team size; a value below 1 means 1, and 1 is the serial loop |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``dist``           | in        | ``CPMDC_PWSCALE_DIST_PW`` or ``CPMDC_PWSCALE_DIST_ATOMS``           |
+    +--------------------+-----------+---------------------------------------------------------------------+
+    | ``stats``          | out       | may be ``NULL``; see the ``cpmdc_pwscale_stats`` section            |
+    +--------------------+-----------+---------------------------------------------------------------------+
+
+Returns ``CPMDC_PWSCALE_OK``, or ``CPMDC_PWSCALE_ERR_ARG`` when a pointer other than
+``stats`` is ``NULL``, the problem is out of range, ``dist`` is unknown, ``nthreads`` is
+above 4096, or scratch allocation fails.
+``forces_h_bohr`` is untouched for an argument error found before the evaluation,
+and is zero when the team fails.
+On success ``stats->seconds`` covers scratch allocation, the arithmetic, and the
+ordered sum, and ``stats->mpi_ranks`` is 1.
+
+``cpmdc_pwscale_eval_mpi``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Evaluates the sum on every rank of one communicator and gives every rank the
+whole result.
+It binds a problem, runs one bound call, and frees the binding, on every call.
+It is the one-shot form of `Binding`_.
+
+.. table::
+
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | Argument                                         | Direction | Contract                                                                                               |
+    +==================================================+===========+========================================================================================================+
+    | ``prob``, ``positions_bohr``, ``atomic_numbers`` | in        | the same on every rank, with the layout of ``cpmdc_pwscale_eval``; each rank passes the whole geometry |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``forces_h_bohr``                                | out       | ``3 * natoms`` doubles on every rank; every rank receives the summed forces                            |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``nthreads``                                     | in        | OpenMP team size inside each rank                                                                      |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``dist``                                         | in        | the split across ranks: contiguous plane waves or contiguous atoms                                     |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``stats``                                        | out       | may be ``NULL``; ``mpi_ranks`` is the communicator size                                                |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``comm``                                         | in        | ``NULL`` for ``MPI_COMM_WORLD``, else a pointer to an ``MPI_Comm``                                     |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+    | ``comm_bytes``                                   | in        | ``sizeof(MPI_Comm)`` when ``comm`` is not ``NULL``; ignored when it is                                 |
+    +--------------------------------------------------+-----------+--------------------------------------------------------------------------------------------------------+
+
+The call is collective over the communicator.
+Every rank receives the partials of every rank and adds them in rank order, so
+every rank ends with the same bytes.
+``stats->seconds`` runs from the entry of the bound call to the end of the
+rank-ordered sum, the Allgather included; the binding step before it is not
+timed.
+``stats->alloc_bytes`` holds ``(ranks + 1) * (3 * natoms + 4)`` doubles of exchange
+buffers plus the scratch of this rank's team.
+
+Returns ``CPMDC_PWSCALE_OK``, ``CPMDC_PWSCALE_ERR_NOMPI`` in a build without MPI
+(with ``stats`` zeroed), or ``CPMDC_PWSCALE_ERR_ARG``.
+The pointers and the problem are checked on the calling rank before any
+collective, so a rank that fails that check returns at once without joining.
+If every rank passes the same bad argument, every rank returns
+``CPMDC_PWSCALE_ERR_ARG``; if only some ranks do, the others wait in the
+collective of the binding step.
+A caller whose ranks can fail on their own binds first and uses the bound call,
+which reports such a failure on every rank.
+
+Binding
+~~~~~~~
+
+A binding holds a copy of the problem, ``dist``, the rank and size of the
+communicator, the handle of the communicator, and the buffers of the exchange
+(``(ranks + 1) * (3 * natoms + 4)`` doubles).
+It saves the checks and allocation of ``cpmdc_pwscale_eval_mpi`` on every step.
+The caller owns a binding from a successful ``cpmdc_pwscale_mpi_bind_create`` until
+``cpmdc_pwscale_mpi_bind_free``.
+The communicator is not copied, only its handle, so it must outlive the binding.
+The bound calls overwrite the buffers of the binding, so one binding serves one
+call at a time.
+
+``cpmdc_pwscale_mpi_bind_create``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Binds a problem to a communicator.
+
+.. table::
+
+    +--------------------------+-----------+-----------------------------------------------------------------------------------+
+    | Argument                 | Direction | Contract                                                                          |
+    +==========================+===========+===================================================================================+
+    | ``prob``                 | in        | the problem, the same on every rank; copied                                       |
+    +--------------------------+-----------+-----------------------------------------------------------------------------------+
+    | ``dist``                 | in        | ``CPMDC_PWSCALE_DIST_PW`` or ``CPMDC_PWSCALE_DIST_ATOMS``, the same on every rank |
+    +--------------------------+-----------+-----------------------------------------------------------------------------------+
+    | ``comm``, ``comm_bytes`` | in        | as for ``cpmdc_pwscale_eval_mpi``                                                 |
+    +--------------------------+-----------+-----------------------------------------------------------------------------------+
+    | ``out``                  | out       | receives the binding, or ``NULL`` on every failure                                |
+    +--------------------------+-----------+-----------------------------------------------------------------------------------+
+
+The call is collective: it runs one ``MPI_Allreduce`` that checks that every rank
+holds a valid problem and buffers, and that ``npw``, ``natoms``, and ``dist`` match
+across ranks.
+``cell_bohr``, ``alpha``, and ``sigma`` must match as well, but they are not compared.
+On failure after that collective every rank returns ``CPMDC_PWSCALE_ERR_ARG`` and
+``\*out`` is ``NULL``.
+Three failures come before the collective and do not join it:
+``out`` is ``NULL``, ``comm_bytes`` differs from ``sizeof(MPI_Comm)`` for a non-``NULL``
+``comm``, and a rank or size query of the communicator fails.
+A build without MPI returns ``CPMDC_PWSCALE_ERR_NOMPI`` and sets ``\*out`` to ``NULL``
+when ``out`` is not ``NULL``.
+
+``cpmdc_pwscale_eval_mpi_bound``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One force call on a binding.
+It has the arguments and the result of ``cpmdc_pwscale_eval_mpi`` for the problem
+and ``dist`` of the binding, without ``prob``, ``dist``, ``comm``, and ``comm_bytes``.
+The geometry arrays are per call.
+
+The call is collective over the bound communicator and runs one
+``MPI_Allgather`` of each rank's return code, visit counts, energy, and forces.
+A failure on one rank, such as a missing array, a team that fails, or
+``nthreads`` above 4096, is seen by every rank, and every rank returns the lowest
+(most negative) code any rank produced; ``forces_h_bohr`` is untouched then.
+A ``NULL`` ``bind`` returns ``CPMDC_PWSCALE_ERR_ARG`` at once, without the collective.
+A build without MPI returns ``CPMDC_PWSCALE_ERR_NOMPI`` and zeroes ``stats``.
+
+``stats->g_visited`` is ``npw`` with either split, ``stats->atom_visits`` is the sum
+over ranks, ``stats->workers`` is this rank's team, and ``stats->mpi_ranks`` is the
+communicator size.
+
+``cpmdc_pwscale_mpi_bind_free``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Releases a binding and its buffers.
+The call is local and not collective, and it leaves the communicator alone.
+A ``NULL`` pointer is accepted and does nothing.
+The pointer is invalid afterwards.
+Without MPI the function does nothing.
+
+``cpmdc_pwscale_cuda_compiled``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Returns 1 when the build compiled ``src/cpmdc_pwscale_cuda.cu``, else 0.
+It does not look for a device.
+
+``cpmdc_pwscale_cuda_device``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Reports whether a CUDA device exists and names device 0.
+
+.. table::
+
+    +-------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Argument    | Direction | Contract                                                                                                                                                              |
+    +=============+===========+=======================================================================================================================================================================+
+    | ``name``    | out       | may be ``NULL``; else a buffer of ``namelen`` chars that receives the device name as a NUL-terminated string, cut to fit, and an empty string when there is no device |
+    +-------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``namelen`` | in        | size of ``name`` in chars; ``name`` is not written when it is 0 or less                                                                                               |
+    +-------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Returns 1 when at least one device exists, else 0.
+A build without CUDA always returns 0 and writes an empty string.
+``cpmdc_pwscale_eval_cuda`` uses device 0.
+
+``cpmdc_pwscale_eval_cuda``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Evaluates the sum on CUDA device 0, with one thread per plane wave.
+The arguments are those of ``cpmdc_pwscale_eval`` without ``nthreads`` and ``dist``,
+and the result is the same sum in the same units; ``forces_h_bohr`` holds
+``3 * natoms`` doubles.
+
+Returns:
+
+.. table::
+
+    +------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+    | Code                         | When                                                                                                                       |
+    +==============================+============================================================================================================================+
+    | ``CPMDC_PWSCALE_OK``         | the evaluation ran                                                                                                         |
+    +------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_ARG``    | a pointer other than ``stats`` is ``NULL``, or ``natoms``, ``npw``, ``cell_bohr``, ``alpha``, or ``sigma`` is not positive |
+    +------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_NOCUDA`` | the build has no CUDA, or no device exists                                                                                 |
+    +------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PWSCALE_ERR_CUDA``   | a device allocation failed, or the kernel launch reported an error                                                         |
+    +------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+
+A missing build or device writes no timing: ``stats`` stays zeroed.
+On success ``stats->seconds`` is the event time from before the host-to-device
+copies to after the device-to-host copies and the synchronization, so it contains
+the copy times.
+``h2d_seconds`` covers the position and atomic-number copies; ``d2h_seconds`` runs
+from the end of the kernel launch to the end of the call, so it covers the
+copies back and any kernel time that is still running.
+``g_visited`` is ``npw``, ``workers`` is 1, and ``mpi_ranks`` stays 0.
+After ``CPMDC_PWSCALE_ERR_CUDA`` the contents of ``forces_h_bohr`` are unspecified.
+
+Tests
+-----
+
+Builds with ``-Dwith_pwscale=true`` run the ``pwscale`` suite:
+
+.. table::
+
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Test                                                | What it checks                                                                                                                                    |
+    +=====================================================+===================================================================================================================================================+
+    | ``pwscale-agreement``, also under 2, 4, and 8 ranks | threads and ranks against the serial loop, and the energy against an independent sum                                                              |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-oracle``                                  | the independent sum in ``tests/pwscale_oracle.py``                                                                                                |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-collectives-2``, ``-4``                   | the collectives of one call, counted through the PMPI shim, and the bytes of the result                                                           |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-mpi-fault``                               | that a failure on one rank is reported on every rank; ``CPMDC_PWSCALE_MPI_FAULT`` injects it (see the :doc:`environment reference <environment>`) |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-logger``                                  | that a timed row carries its own gaps and that a poisoned sample does not pass                                                                    |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-fft-fail``                                | that FFT allocation and planning failures return an error instead of using an incomplete plan                                                     |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``pwscale-cuda-include``                            | the ``nvcc`` target in ``meson.build``, read as text, holds the include directory and the CUDA source name                                        |
+    +-----------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
+
+The ``reference-contract`` test fails when a function, type, constant, or struct
+field of the header is missing from this page.

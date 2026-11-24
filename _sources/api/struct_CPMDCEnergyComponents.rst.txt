@@ -54,7 +54,7 @@ Detailed Documentation
 
 In-process snapshot of OpenCPMD ``ener_com`` scalars (Hartree a.u.).
 
-Filled after a successful embed SCF (``wfopts``) or reference PEF evaluation. Hosts read this via ``:ref:`cpmdc_last_energy_components() <doxid-cpmdc_8h_1a0d2884a4f1288d9f5e76ec4abb505246>``` without parsing CLI ENERGY files or opening a network socket. Field names mirror ``ener_com_t`` in OpenCPMD ``ener.mod.F90``. Zero fields are valid (not set for that run).
+Filled after a successful embed SCF (``wfopts``) or reference PEF evaluation. Hosts read this via ``:ref:`cpmdc_last_energy_components() <doxid-cpmdc_8h_1a70beaf52aa7e4d7d9aa6da558b131779>``` without parsing CLI ENERGY files or opening a network socket. Field names mirror ``ener_com_t`` in OpenCPMD ``ener.mod.F90``. Zero fields are valid (not set for that run).
 
 Fields
 ------

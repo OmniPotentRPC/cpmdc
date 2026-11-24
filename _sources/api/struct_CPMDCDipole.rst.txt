@@ -1,0 +1,58 @@
+.. index:: pair: struct; CPMDCDipole
+.. _doxid-struct_c_p_m_d_c_dipole:
+
+struct CPMDCDipole
+==================
+
+.. toctree::
+	:hidden:
+
+Overview
+~~~~~~~~
+
+Molecular dipole after a successful evaluation. :ref:`More...<details-struct_c_p_m_d_c_dipole>`
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	#include <cpmdc.h>
+	
+	struct CPMDCDipole {
+		// fields
+	
+		int :ref:`valid<doxid-struct_c_p_m_d_c_dipole_1ab0af10f011cd161781fe29b28dbf603d>`;
+		double :ref:`values<doxid-struct_c_p_m_d_c_dipole_1a740aa2080c7432282c2e0d4eab4913fb>`[3];
+	};
+.. _details-struct_c_p_m_d_c_dipole:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Molecular dipole after a successful evaluation.
+
+``valid`` is set only when OpenCPMD recomputed the dipole from the converged wavefunction for the current geometry. Values are electron Bohr.
+
+Fields
+------
+
+.. index:: pair: variable; valid
+.. _doxid-struct_c_p_m_d_c_dipole_1ab0af10f011cd161781fe29b28dbf603d:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int valid
+
+Non-zero only when this evaluation recomputed the dipole.
+
+.. index:: pair: variable; values
+.. _doxid-struct_c_p_m_d_c_dipole_1a740aa2080c7432282c2e0d4eab4913fb:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double values[3]
+
+Cartesian molecular dipole in electron Bohr.
+

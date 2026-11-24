@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Use cpmdc as an ASE calculator - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" /><link rel="prev" title="Call cpmdc from Python" href="python.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/ase.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/ase.html"/>
+  <meta property="og:title" content="Use cpmdc as an ASE calculator"/>
+    <meta name="twitter:card" content="summary"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#make-the-parameters-files">Make the parameters files</a></li>
+<li><a class="reference internal" href="#evaluate-a-structure">Evaluate a structure</a></li>
+<li><a class="reference internal" href="#compute-stress-in-a-periodic-cell">Compute stress in a periodic cell</a></li>
+<li><a class="reference internal" href="#relax-a-structure">Relax a structure</a></li>
+<li><a class="reference internal" href="#check-the-forces-and-the-stress">Check the forces and the stress</a></li>
+<li><a class="reference internal" href="#reuse-a-step">Reuse a step</a></li>
+<li><a class="reference internal" href="#set-the-charge-the-multiplicity-and-the-method">Set the charge, the multiplicity, and the method</a></li>
+<li><a class="reference internal" href="#choose-the-working-directory">Choose the working directory</a></li>
+<li><a class="reference internal" href="#handle-errors">Handle errors</a></li>
+<li><a class="reference internal" href="#sessions-and-copies">Sessions and copies</a></li>
+<li><a class="reference internal" href="#check-the-calculator-with-ase">Check the calculator with ASE</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/ase.rst">Edit this page</a>
+</div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Use cpmdc as an ASE calculator</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/howto/ase.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/howto/ase.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/howto/ase.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/ase.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/howto/ase.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="use-cpmdc-as-an-ase-calculator">
+<h1>Use cpmdc as an ASE calculator<a class="headerlink" href="#use-cpmdc-as-an-ase-calculator" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.ase.CPMDCCalculator</span></code> is an ASE calculator that evaluates each step in the
+Python process, through one cpmdc session.
+Set <code class="docutils literal notranslate"><span class="pre">atoms.calc</span></code> to it as to any other ASE calculator: ASE’s optimizers, cell
+filters, molecular dynamics, and trajectory files use it unchanged.
+Importing <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> registers <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> under <code class="docutils literal notranslate"><span class="pre">&quot;cpmdc&quot;</span></code> with
+<code class="docutils literal notranslate"><span class="pre">ase.calculators.calculator.register_calculator_class</span></code>, so
+<code class="docutils literal notranslate"><span class="pre">get_calculator_class(&quot;cpmdc&quot;)</span></code> returns it, and an installed package also
+exposes <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> in the <code class="docutils literal notranslate"><span class="pre">ase.plugins</span></code> entry-point group.
+ASE releases that ship <code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code> (3.29 and later) list the calculator in
+<code class="docutils literal notranslate"><span class="pre">ase._4.plugins.plugins.calculators</span></code> whichever of <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> and <code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code>
+is imported first; earlier releases have no plugin API and use only the registry.
+It starts no <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> process and writes no input file.
+<a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a> covers <code class="docutils literal notranslate"><span class="pre">Session</span></code> and <code class="docutils literal notranslate"><span class="pre">Potential</span></code>,
+the same library without ASE.</p>
+<section id="make-the-parameters-files">
+<h2>Make the parameters files<a class="headerlink" href="#make-the-parameters-files" title="Link to this heading">¶</a></h2>
+<p>The calculator takes the method from a serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message: the
+functional, the cutoff, the charge, the multiplicity, the pseudopotentials, and
+the boundary conditions of an isolated system.
+<a class="reference internal" href="write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a> explains the text
+form.
+These commands encode the isolated and the periodic water of a checkout at
+<code class="docutils literal notranslate"><span class="pre">$CPMDC</span></code> into the working directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">schema</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import cpmdc; print(cpmdc.find_schema())&quot;</span><span class="k">)</span>
+</span><span data-line="2">capnp<span class="w"> </span>encode<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$schema</span><span class="s2">&quot;</span><span class="w"> </span>CPMDParams<span class="w"> </span>&lt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/tests/water_blyp_params.capnp.txt&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>water.params.bin
+</span><span data-line="3">capnp<span class="w"> </span>encode<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$schema</span><span class="s2">&quot;</span><span class="w"> </span>CPMDParams<span class="w"> </span>&lt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/tests/water_blyp_periodic_params.capnp.txt&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>water.periodic.bin
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code> is one molecule with <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and the Hockney Poisson
+solver.
+<code class="docutils literal notranslate"><span class="pre">water.periodic.bin</span></code> is a simple cubic cell, <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>, which gives a stress
+tensor.
+The examples on this page run on the reference evaluator of the default build
+and of the wheel.
+On OpenCPMD they need <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code> to name the build and <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>
+to name the pseudopotential directory.</p>
+</section>
+<section id="evaluate-a-structure">
+<h2>Evaluate a structure<a class="headerlink" href="#evaluate-a-structure" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="5"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="7">    <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="8">    <span class="nb">print</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">())</span>
+</span><span data-line="9">    <span class="nb">print</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">())</span>
+</span><span data-line="10">    <span class="nb">print</span><span class="p">(</span><span class="n">calc</span><span class="o">.</span><span class="n">todict</span><span class="p">())</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">params</span></code> is the path of a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file or its bytes, and the calculator
+reads the file once, when the parameter is set.
+<code class="docutils literal notranslate"><span class="pre">library</span></code> is the path of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>; without it the calculator searches the
+places that <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a> lists.
+One step computes the energy, the forces, and the stress when the step has one,
+so <code class="docutils literal notranslate"><span class="pre">get_forces</span></code> after <code class="docutils literal notranslate"><span class="pre">get_potential_energy</span></code> does not evaluate again:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>ASE call</p></th>
+<th class="head"><p>Unit</p></th>
+<th class="head"><p>Free boundaries</p></th>
+<th class="head"><p>Periodic cell</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">energy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_potential_energy()</span></code></p></td>
+<td><p>eV</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">free_energy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_potential_energy(force_consistent=True)</span></code></p></td>
+<td><p>eV</p></td>
+<td><p>equals <code class="docutils literal notranslate"><span class="pre">energy</span></code></p></td>
+<td><p>equals <code class="docutils literal notranslate"><span class="pre">energy</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">forces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_forces()</span></code></p></td>
+<td><p>eV/Angstrom, shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stress</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_stress()</span></code></p></td>
+<td><p>eV/Angstrom<sup>3</sup>, Voigt <code class="docutils literal notranslate"><span class="pre">(xx,</span> <span class="pre">yy,</span> <span class="pre">zz,</span> <span class="pre">yz,</span> <span class="pre">xz,</span> <span class="pre">xy)</span></code></p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
+<td><p>yes, unless the deck is isolated or <code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dipole</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_dipole_moment()</span></code></p></td>
+<td><p>e*Angstrom, shape <code class="docutils literal notranslate"><span class="pre">(3,)</span></code></p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
+<td><p>yes for a supported deck that requests Berry dipole evaluation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">energies</span></code>, <code class="docutils literal notranslate"><span class="pre">magmom</span></code>, <code class="docutils literal notranslate"><span class="pre">magmoms</span></code>, <code class="docutils literal notranslate"><span class="pre">charges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_property(name)</span></code></p></td>
+<td><p></p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">free_energy</span></code> is the potential energy of the step, because the library does not
+separate an electronic entropy.
+The library returns no atomic energies, charges, or magnetic moments.
+<code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists <code class="docutils literal notranslate"><span class="pre">dipole</span></code> because linked OpenCPMD can deliver it.
+It raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when the current step cannot.</p>
+<p>A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
+deck with <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code>.
+The reference evaluator, isolated and k-point decks, and decks without either
+request do not return a dipole.
+A deck that combines <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> with <code class="docutils literal notranslate"><span class="pre">KPOINTS</span></code> is rejected when the
+calculator opens it, with an error that names both, because OpenCPMD stops in
+<code class="docutils literal notranslate"><span class="pre">localize2</span></code> on that combination.
+The calculator reports those cases as unavailable instead of returning zero or
+state left by an earlier step.</p>
+</section>
+<section id="compute-stress-in-a-periodic-cell">
+<h2>Compute stress in a periodic cell<a class="headerlink" href="#compute-stress-in-a-periodic-cell" title="Link to this heading">¶</a></h2>
+<p>All three <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flags true send <code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code> to the library as the periodic
+cell:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="5"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span> <span class="n">pbc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.periodic.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="7">    <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="8">    <span class="nb">print</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_stress</span><span class="p">())</span>
+</span><span data-line="9">    <span class="nb">print</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_stress</span><span class="p">(</span><span class="n">voigt</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</span></pre></div>
+</div>
+<p>Units are ASE’s: positions and cells in Angstrom, energies in eV, forces in
+eV/Angstrom, stress in eV/Angstrom<sup>3</sup>, and dipole in e*Angstrom.
+The calculator converts from the library’s Hartree and Bohr with <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code>
+and <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code>, which are the CODATA 2018 values.
+ASE’s default <code class="docutils literal notranslate"><span class="pre">ase.units</span></code> are CODATA 2014, so a number converted back with
+<code class="docutils literal notranslate"><span class="pre">ase.units.Hartree</span></code> differs by about 1e-8 relative.
+From ASE 3.24, <code class="docutils literal notranslate"><span class="pre">ase.units.create_units(&quot;2018&quot;)</span></code> agrees to 1e-10.
+ASE 3.23 stores <code class="docutils literal notranslate"><span class="pre">mu0</span> <span class="pre">=</span> <span class="pre">4*pi*1e-7</span></code> in that table, the permeability from before
+the 2019 SI revision, so the Bohr and Hartree it derives differ from these
+constants by about 1e-9.
+The calculator uses <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code> and <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> on every ASE version.
+Stress has ASE’s sign: the derivative of the energy with respect to strain,
+divided by the volume.
+It is positive when the energy rises as the cell expands.
+A tensor that is not exactly symmetric gives each shear component as the mean of
+its two off-diagonal elements, as ASE’s <code class="docutils literal notranslate"><span class="pre">full_3x3_to_voigt_6_stress</span></code> does.
+The library returns the tensor with the opposite sign, the OpenCPMD convention,
+and the calculator negates it.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flags choose the boundaries:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">atoms.pbc</span></code> and <code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code></p></th>
+<th class="head"><p>Step</p></th>
+<th class="head"><p>Stress</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>all false</p></td>
+<td><p>no cell is sent: the deck sets the box and the Poisson solver, and <code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code> is ignored</p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>all true, three independent cell vectors</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code> is sent as the periodic cell</p></td>
+<td><p>computed when the deck is periodic</p></td>
+</tr>
+<tr class="row-even"><td><p>all true, fewer than three independent cell vectors</p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>a mix of true and false</p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names the open axes</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A periodic cell with an isolated deck, such as <code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code>, gives the
+energy and the forces.
+Asking that step for stress raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> with the
+reason, and the calculator does not evaluate the step again to find it out.</p>
+</section>
+<section id="relax-a-structure">
+<h2>Relax a structure<a class="headerlink" href="#relax-a-structure" title="Link to this heading">¶</a></h2>
+<p>This relaxes the positions of the isolated water and writes a trajectory:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">BFGS</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="7"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">)</span>
+</span><span data-line="8"><span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span>
+</span><span data-line="9"><span class="k">with</span> <span class="n">BFGS</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">trajectory</span><span class="o">=</span><span class="s2">&quot;water.traj&quot;</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="k">as</span> <span class="n">opt</span><span class="p">:</span>
+</span><span data-line="10">    <span class="n">opt</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">fmax</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+</span><span data-line="11"><span class="n">frames</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;water.traj&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+</span><span data-line="12"><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">frames</span><span class="p">),</span> <span class="n">frames</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">())</span>
+</span><span data-line="13"><span class="nb">print</span><span class="p">(</span><span class="n">frames</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+</span><span data-line="14"><span class="n">atoms</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p>Each frame of the trajectory stores the energy, the forces, the stress when the
+step had one, and the calculator parameters, so <code class="docutils literal notranslate"><span class="pre">read</span></code> returns them without the
+library.</p>
+<p>With the periodic message, a cell filter relaxes the cell on the stress as well.
+<code class="docutils literal notranslate"><span class="pre">constant_cutoff=</span></code> gives the stress the cell needs, as the end of this section
+explains:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">FrechetCellFilter</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">BFGS</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="7"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span> <span class="n">pbc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8"><span class="n">atoms</span><span class="o">.</span><span class="n">rattle</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">17</span><span class="p">)</span>
+</span><span data-line="9"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.periodic.bin&quot;</span><span class="p">,</span> <span class="n">constant_cutoff</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="10">    <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="11">    <span class="k">with</span> <span class="n">BFGS</span><span class="p">(</span><span class="n">FrechetCellFilter</span><span class="p">(</span><span class="n">atoms</span><span class="p">),</span> <span class="n">logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="k">as</span> <span class="n">opt</span><span class="p">:</span>
+</span><span data-line="12">        <span class="n">opt</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">fmax</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+</span><span data-line="13">    <span class="nb">print</span><span class="p">(</span><span class="n">opt</span><span class="o">.</span><span class="n">nsteps</span><span class="p">,</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_volume</span><span class="p">(),</span> <span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">lengths</span><span class="p">())</span>
+</span></pre></div>
+</div>
+<p>On the reference evaluator the minimum puts every atom at the origin, because
+the well is anchored there and has no repulsion.
+The reference energy is not translation invariant for the same reason.
+The cell filter then shrinks the cell along y and z, the axes along which the
+atoms sit off the origin.
+These runs check that forces and stress reach the optimizer; the reference well
+is not a chemical model.
+On OpenCPMD each new cell starts a cold SCF with the full CPMD setup, as
+<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">Wavefunction state between calls</span></a>
+explains, so a cell relaxation costs more per step than a relaxation of the
+positions.
+A constant-cutoff deck under <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> moves a nearby cell in place
+and stays warm instead.
+Without <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, the OpenCPMD stress at the 40 Ry cutoff of
+<code class="docutils literal notranslate"><span class="pre">water.periodic.bin</span></code> is almost all Pulay stress, about 16 eV divided by the cell
+volume, which is 0.016 eV/Angstrom<sup>3</sup>  in the 10 Angstrom cube.
+It is the derivative at a fixed number of plane waves, while each new cell
+evaluates a fixed cutoff, so the cell filter shrinks the cell while the energy
+rises: without <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code> the run above falls below 250 Angstrom<sup>3</sup>  in 9
+steps, 0.8 eV above its start.
+<code class="docutils literal notranslate"><span class="pre">constant_cutoff=30.0</span></code> keeps the 40 Ry basis and evaluates the constant-cutoff
+functional at 30 Ry, whose stress follows the energy.
+The run then converges at 919 Angstrom<sup>3</sup>  in 53 steps, 0.85 eV below its start,
+because one water has almost no intermolecular stress.
+<a class="reference internal" href="constant-cutoff.html"><span class="doc">Relax a cell at a constant cutoff</span></a> explains the
+parameters and gives the measured stress and volumes against the cutoff.</p>
+<p>The reference well drawn by <code class="docutils literal notranslate"><span class="pre">docs/render_reference_well.py</span></code> is the shape of an
+isolated one-atom step at a 70 Ry cutoff:</p>
+<figure class="align-default" id="id1">
+<img alt="Reference harmonic well, energy against displacement" src="../_images/reference-well.svg" />
+<figcaption>
+<p><span class="caption-text">Reference well for one hydrogen atom. The script writes this figure
+from the evaluator formula.</span><a class="headerlink" href="#id1" title="Link to this image">¶</a></p>
+</figcaption>
+</figure>
+<p>The curve is zero at the origin and rises on both sides.</p>
+</section>
+<section id="check-the-forces-and-the-stress">
+<h2>Check the forces and the stress<a class="headerlink" href="#check-the-forces-and-the-stress" title="Link to this heading">¶</a></h2>
+<p>ASE’s finite differences test that the forces and the stress are derivatives of
+the energy:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">ase.calculators.fd</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_numerical_forces</span><span class="p">,</span> <span class="n">calculate_numerical_stress</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="7"><span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span> <span class="n">pbc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8"><span class="n">atoms</span><span class="o">.</span><span class="n">rattle</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span data-line="9"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.periodic.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="10">    <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="11">    <span class="n">forces</span> <span class="o">=</span> <span class="n">calculate_numerical_forces</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+</span><span data-line="12">    <span class="n">stress</span> <span class="o">=</span> <span class="n">calculate_numerical_stress</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
+</span><span data-line="13">    <span class="nb">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">()</span> <span class="o">-</span> <span class="n">forces</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+</span><span data-line="14">    <span class="nb">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_stress</span><span class="p">()</span> <span class="o">-</span> <span class="n">stress</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+</span></pre></div>
+</div>
+<p>The example evaluates 31 steps: two for each of the nine coordinates, two for
+each of the six strain components, and the analytic step.
+On the reference evaluator both differences are below 1e-13.
+On OpenCPMD the SCF tolerance sets them.
+At these steps the OpenCPMD runs of <code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_calculator.py</span></code> allow
+a force error of 2e-3 eV/Angstrom and a stress error of 1e-4 eV/Angstrom<sup>3</sup>.</p>
+</section>
+<section id="reuse-a-step">
+<h2>Reuse a step<a class="headerlink" href="#reuse-a-step" title="Link to this heading">¶</a></h2>
+<p>Results are cached as in ASE’s own calculators.
+A call on an unchanged structure returns the stored step.
+A change of <code class="docutils literal notranslate"><span class="pre">positions</span></code>, <code class="docutils literal notranslate"><span class="pre">numbers</span></code>, <code class="docutils literal notranslate"><span class="pre">cell</span></code>, or <code class="docutils literal notranslate"><span class="pre">pbc</span></code> evaluates the structure
+again, and <code class="docutils literal notranslate"><span class="pre">calc.calculation_required(atoms,</span> <span class="pre">properties)</span></code> returns true for such
+a structure until it is evaluated.
+A change of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> reuses the step, because the
+calculator does not read them.
+A change of <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">momenta</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, or a constraint reuses the step as well,
+because none of them is a system change: ASE applies a constraint to the forces
+after the calculator returns them.
+An equal copy of the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> gets the stored step from <code class="docutils literal notranslate"><span class="pre">get_property</span></code>.
+<code class="docutils literal notranslate"><span class="pre">calc.reset()</span></code> clears the stored step and keeps the session open.
+Calling <code class="docutils literal notranslate"><span class="pre">calc.calculate(atoms)</span></code> yourself evaluates the structure whatever is
+stored, and replaces every stored result: a step that gives no stress does not
+leave the stress of an earlier periodic step behind, and a step that fails
+leaves nothing stored, so a later <code class="docutils literal notranslate"><span class="pre">get_potential_energy()</span></code> never returns the
+energy of another structure.
+Every step of a calculator, from <code class="docutils literal notranslate"><span class="pre">get_property</span></code> or from <code class="docutils literal notranslate"><span class="pre">calculate</span></code>, runs on the
+same session while the atom count and the elemental composition stay the same.
+<code class="docutils literal notranslate"><span class="pre">set()</span></code> with the value a parameter already has does not open a session.
+<code class="docutils literal notranslate"><span class="pre">calc.get_property(name,</span> <span class="pre">atoms,</span> <span class="pre">allow_calculation=False)</span></code> returns the stored
+value, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when that structure has not been evaluated.</p>
+</section>
+<section id="set-the-charge-the-multiplicity-and-the-method">
+<h2>Set the charge, the multiplicity, and the method<a class="headerlink" href="#set-the-charge-the-multiplicity-and-the-method" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">charge</span></code> and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> fields of the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message set the
+charge and the spin, beside the functional, the cutoff, and the
+pseudopotentials.
+The calculator has no keyword for any of them, and it does not read
+<code class="docutils literal notranslate"><span class="pre">atoms.get_initial_charges()</span></code> or <code class="docutils literal notranslate"><span class="pre">atoms.get_initial_magnetic_moments()</span></code>.
+A keyword such as <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>, or <code class="docutils literal notranslate"><span class="pre">xc</span></code> raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> in the
+constructor and in <code class="docutils literal notranslate"><span class="pre">set()</span></code>, and the message names the key and points at
+<code class="docutils literal notranslate"><span class="pre">params</span></code>.
+To change the method, encode another message and pass it to <code class="docutils literal notranslate"><span class="pre">set()</span></code>; this
+example switches to the periodic message:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">try</span><span class="p">:</span>
+</span><span data-line="4">    <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</span><span data-line="5"><span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="6">    <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+</span><span data-line="7"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="8">    <span class="nb">print</span><span class="p">(</span><span class="n">calc</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="s2">&quot;water.periodic.bin&quot;</span><span class="p">))</span>
+</span><span data-line="9">    <span class="nb">print</span><span class="p">(</span><span class="n">calc</span><span class="o">.</span><span class="n">todict</span><span class="p">())</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">set()</span></code> returns a dictionary of the parameters that changed, with their new
+values.
+A new <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, or <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code> opens a new session and clears
+the stored results.
+A value that cannot be opened raises and leaves the old session in use.</p>
+</section>
+<section id="choose-the-working-directory">
+<h2>Choose the working directory<a class="headerlink" href="#choose-the-working-directory" title="Link to this heading">¶</a></h2>
+<p>Each step runs with <code class="docutils literal notranslate"><span class="pre">calc.directory</span></code> as the working directory of the process,
+and the process returns to its own directory afterwards.
+<code class="docutils literal notranslate"><span class="pre">directory</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">&quot;.&quot;</span></code>, which changes nothing.
+<code class="docutils literal notranslate"><span class="pre">label=&quot;run/water&quot;</span></code> sets <code class="docutils literal notranslate"><span class="pre">directory</span></code> to <code class="docutils literal notranslate"><span class="pre">&quot;run&quot;</span></code>, as it does for every ASE
+calculator; the prefix, <code class="docutils literal notranslate"><span class="pre">water</span></code>, is unused.
+ASE’s <code class="docutils literal notranslate"><span class="pre">Calculator.calculate</span></code> creates the directory on the first step when it
+does not exist.</p>
+<p>Two relative paths resolve against <code class="docutils literal notranslate"><span class="pre">directory</span></code>:</p>
+<ul class="simple">
+<li><p>a relative <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> or <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code>, read on the first
+step of each session, so give an absolute path when calculators run in more
+than one directory;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> that a deck with <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code> reads on a cold start,
+unless the message sets <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> or <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>, which CPMD then works
+in.</p></li>
+</ul>
+<p>A library step writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>,
+and the orbitals for the next step stay in memory.
+<code class="docutils literal notranslate"><span class="pre">params</span></code> is read when it is set, relative to the directory of the process at
+that moment, not to <code class="docutils literal notranslate"><span class="pre">directory</span></code>.
+<code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> keeps that file, and a <code class="docutils literal notranslate"><span class="pre">library</span></code> path, as an absolute path,
+so a copy that opens its session in another directory and a calculator rebuilt
+from <code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> there use the same files.
+The <code class="docutils literal notranslate"><span class="pre">restart</span></code> argument is deprecated and ignored, and passing it warns with
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>.</p>
+<p>The working directory belongs to the process, so another thread that opens a
+relative path during a step opens it under <code class="docutils literal notranslate"><span class="pre">directory</span></code>.
+Calls into the library must already come from one thread at a time, because it
+keeps one CPMD state per process, as the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a>
+says.</p>
+</section>
+<section id="handle-errors">
+<h2>Handle errors<a class="headerlink" href="#handle-errors" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Condition</p></th>
+<th class="head"><p>Raised</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc.ase.CalculationFailed</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a keyword other than <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, and ASE’s own; no <code class="docutils literal notranslate"><span class="pre">params</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TypeError</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>stress or dipole where the step has none; <code class="docutils literal notranslate"><span class="pre">energies</span></code>, <code class="docutils literal notranslate"><span class="pre">magmoms</span></code>, or <code class="docutils literal notranslate"><span class="pre">charges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ase.calculators.calculator.PropertyNotImplementedError</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>mixed <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flags, a periodic cell of rank below 3 (the numpy.linalg.matrix<sub>rank</sub>  cutoff), or a cell volume below the normal float64 range</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>a step on a calculator without atoms</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a <code class="docutils literal notranslate"><span class="pre">params</span></code> file that does not exist</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code> is both ASE’s <code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc.CPMDCError</span></code>, so
+code that catches either one for another calculator catches it unchanged.
+Its message names the working directory of the step and gives the library’s
+reason.
+The calculator stays usable, and the next call evaluates the step again.</p>
+</section>
+<section id="sessions-and-copies">
+<h2>Sessions and copies<a class="headerlink" href="#sessions-and-copies" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
+A reordering of the same atoms stays on the session.
+After a successful step, a structure with another composition closes the
+session and opens a new one from the same <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> holds <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, and <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, with
+absolute paths.
+<code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> returns them for a trajectory or a database row, and leaves out
+a <code class="docutils literal notranslate"><span class="pre">params</span></code> buffer given as bytes, because bytes are not JSON data.
+<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator(**calc.todict())</span></code> builds an equal calculator in any working
+directory, and <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator(parameters=&quot;calc.ase&quot;)</span></code> reads a file written by
+<code class="docutils literal notranslate"><span class="pre">calc.parameters.write(&quot;calc.ase&quot;)</span></code>.
+A calculator built from bytes has no <code class="docutils literal notranslate"><span class="pre">params</span></code> in <code class="docutils literal notranslate"><span class="pre">todict()</span></code>, so rebuilding it
+from that dictionary raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> that asks for <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+<p>ASE rebuilds a calculator from <code class="docutils literal notranslate"><span class="pre">calc.name</span></code> and <code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code>, in a trajectory,
+an <code class="docutils literal notranslate"><span class="pre">ase.db</span></code> row, and <code class="docutils literal notranslate"><span class="pre">PythonSubProcessCalculator</span></code>, and asks no pickling of a
+calculator.
+<code class="docutils literal notranslate"><span class="pre">copy.copy</span></code>, <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code>, and <code class="docutils literal notranslate"><span class="pre">pickle</span></code>, which <code class="docutils literal notranslate"><span class="pre">copy.deepcopy(atoms)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">ase.visualize.view</span></code> use, keep the parameters and the stored results, and the
+copy opens its own session on its first step.
+<code class="docutils literal notranslate"><span class="pre">close()</span></code> closes the session, and the next step opens a new one.
+The calculator is a context manager that closes on exit.</p>
+<p><code class="docutils literal notranslate"><span class="pre">calc.read(label)</span></code> always raises ASE’s <code class="docutils literal notranslate"><span class="pre">ReadError</span></code>, because a step stores no file
+that holds results, and ASE’s default would only set the label and let the
+caller think that results were restored.
+The <code class="docutils literal notranslate"><span class="pre">restart</span></code> keyword stays deprecated and ignored, as the reference page says.
+<code class="docutils literal notranslate"><span class="pre">parameters=</span></code> is the supported way to load a saved calculator.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ase.calculators.mixing.SumCalculator</span></code> takes several <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> objects,
+or one beside another ASE calculator, and evaluates each one once per
+structure.
+Its stress for a cluster raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code>, as the
+calculator’s own does.</p>
+</section>
+<section id="check-the-calculator-with-ase">
+<h2>Check the calculator with ASE<a class="headerlink" href="#check-the-calculator-with-ase" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_conformance.py</span></code> asks of <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> what any ASE
+user asks of a calculator, and answers with ASE’s own tools.
+It runs on the default build, which needs no OpenCPMD archive: <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-stub</span></code> builds it, and <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/python/test_ase_conformance.py</span></code>
+runs the file.
+The file checks these points:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Question</p></th>
+<th class="head"><p>ASE tool</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists energy, free energy, forces, stress, and dipole, and a stored step has ASE’s shapes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">calc.results</span></code>, <code class="docutils literal notranslate"><span class="pre">ase.io.write</span></code> and <code class="docutils literal notranslate"><span class="pre">read</span></code> of extended XYZ</p></td>
+</tr>
+<tr class="row-odd"><td><p>a property outside the list raises, without evaluating a step</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code>, <code class="docutils literal notranslate"><span class="pre">get_charges()</span></code>, <code class="docutils literal notranslate"><span class="pre">get_magnetic_moment()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>the stored step is reused and discarded as ASE expects</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">check_state</span></code>, <code class="docutils literal notranslate"><span class="pre">system_changes</span></code>, <code class="docutils literal notranslate"><span class="pre">calculation_required</span></code>, <code class="docutils literal notranslate"><span class="pre">get_property(...,</span> <span class="pre">allow_calculation=False)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a changed <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, or <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code> discards the stored step</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">calculation_required</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>later changes to the caller’s <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> leave the stored structure as it was</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">calc.atoms</span></code>, <code class="docutils literal notranslate"><span class="pre">get_atoms</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>the results survive a trajectory, extended XYZ through <code class="docutils literal notranslate"><span class="pre">SinglePointCalculator</span></code>, and an <code class="docutils literal notranslate"><span class="pre">ase.db</span></code> row, which rebuilds the calculator in another directory</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ase.io</span></code>, <code class="docutils literal notranslate"><span class="pre">ase.db</span></code>, <code class="docutils literal notranslate"><span class="pre">todict</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>a run of steps keeps one session</p></td>
+<td><p>a count of the <code class="docutils literal notranslate"><span class="pre">Session</span></code> objects opened</p></td>
+</tr>
+<tr class="row-odd"><td><p>a rejected step is <code class="docutils literal notranslate"><span class="pre">ase.calculators.calculator.CalculationFailed</span></code> with the library’s message</p></td>
+<td><p>a real library error, not a mock</p></td>
+</tr>
+<tr class="row-even"><td><p>a relaxation runs with a constraint</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BFGS</span></code> with <code class="docutils literal notranslate"><span class="pre">FixAtoms</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">read</span></code> refuses, and a refused <code class="docutils literal notranslate"><span class="pre">read</span></code> leaves the calculator as it was</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ReadError</span></code>, <code class="docutils literal notranslate"><span class="pre">CalculatorError</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>state outside the system changes, and an equal copy of the structure, keep the stored step</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">check_state</span></code>, <code class="docutils literal notranslate"><span class="pre">Atoms.copy</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>the parameters round trip through <code class="docutils literal notranslate"><span class="pre">todict</span></code> and a <code class="docutils literal notranslate"><span class="pre">Parameters</span></code> file, including a <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code> mapping</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parameters.write</span></code>, <code class="docutils literal notranslate"><span class="pre">parameters=</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>two calculators add up and each runs once per structure</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SumCalculator</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a molecular dynamics run conserves the energy and evaluates once per move</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VelocityVerlet</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>copies and pickles work, with or without the <code class="docutils literal notranslate"><span class="pre">params</span></code> file</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">copy</span></code>, <code class="docutils literal notranslate"><span class="pre">pickle</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>energies are in eV, forces in eV/Angstrom, stress in eV/Angstrom<sup>3</sup></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ase.units</span></code>, <code class="docutils literal notranslate"><span class="pre">calculate_numerical_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">calculate_numerical_stress</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>each Voigt stress component has the sign and the size of a central difference of the energy over strain, taken in the test</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Atoms.set_cell(...,</span> <span class="pre">scale_atoms=True)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a few steps of a cell relaxation lower the energy and the largest stress component</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BFGS</span></code> with <code class="docutils literal notranslate"><span class="pre">FrechetCellFilter</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> follows the same conventions where it shares them: the
+same units, a failed step reported as <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code>, a step with a NaN or infinite
+result refused, and a new session opened after a change of composition even when
+the previous attempt to open one failed.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="python.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Call cpmdc from Python</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="constant-cutoff.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Relax a cell at a constant cutoff</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div> <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

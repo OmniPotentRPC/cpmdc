@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Embedding cpmdc - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Call cpmdc from Python" href="python.html" /><link rel="prev" title="Write a CPMDParams message" href="write-cpmdparams.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Embedding cpmdc - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Call cpmdc from Python" href="python.html" /><link rel="prev" title="Write a CPMDParams message" href="write-cpmdparams.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/embedding.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -215,13 +232,17 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#message-flow">Message Flow</a></li>
 <li><a class="reference internal" href="#feature-discovery">Feature Discovery</a></li>
 <li><a class="reference internal" href="#session-step-calls-direct-call-socket">Session Step Calls (direct-call socket)</a></li>
-<li><a class="reference internal" href="#result-buffer-contract">Result Buffer Contract</a></li>
-<li><a class="reference internal" href="#session-lifetime">Session Lifetime</a></li>
+<li><a class="reference internal" href="#rules-a-host-follows">Rules a host follows</a></li>
+<li><a class="reference internal" href="#status-and-errors">Status and errors</a></li>
+<li><a class="reference internal" href="#orbitals-between-steps">Orbitals between steps</a></li>
+<li><a class="reference internal" href="#rgpot-cpmdpot">rgpot CPMDPot</a></li>
+<li><a class="reference internal" href="#socket-and-in-process-drivers">Socket and in-process drivers</a></li>
 <li><a class="reference internal" href="#cpmd-input-ownership">CPMD Input Ownership</a></li>
 <li><a class="reference internal" href="#restart-files">RESTART files</a></li>
-<li><a class="reference internal" href="#units">Units</a></li>
+<li><a class="reference internal" href="#in-process-cold-deck-and-memfd">In-process cold deck and memfd</a></li>
+<li><a class="reference internal" href="#mpi-adoption-and-plane-wave-scaling">MPI adoption and plane-wave scaling</a></li>
 <li><a class="reference internal" href="#opencpmd-runtime-inputs">OpenCPMD Runtime Inputs</a></li>
-<li><a class="reference internal" href="#nuclear-forces-from-repeated-scf-calls">Nuclear forces from repeated SCF calls</a></li>
+<li><a class="reference internal" href="#check-forces-from-a-live-link">Check forces from a live link</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -334,17 +355,22 @@ data-aria-dark="Switch to auto color mode">
 <td><p>one <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> session, C coordinate arrays</p></td>
 <td><p>Hartree plus Hartree/Bohr forces</p></td>
 </tr>
-<tr class="row-even"><td><p>Single serialized calculation</p></td>
+<tr class="row-even"><td><p>Repeated periodic steps without Cap’n Proto</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au</span></code></p></td>
+<td><p>one <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> session, Bohr positions and an optional cell</p></td>
+<td><p>Hartree, Hartree/Bohr forces, Hartree virial</p></td>
+</tr>
+<tr class="row-odd"><td><p>Single serialized calculation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> and <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> bytes</p></td>
 <td><p>serialized <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Scalar compatibility call</p></td>
+<tr class="row-even"><td><p>Scalar compatibility call</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code></p></td>
 <td><p>C coordinate arrays plus <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> bytes</p></td>
 <td><p>Hartree plus Hartree/Bohr forces</p></td>
 </tr>
-<tr class="row-even"><td><p>Capability discovery</p></td>
+<tr class="row-odd"><td><p>Capability discovery</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find</span></code></p></td>
 <td><p>stable feature ID</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CPMDCFeatureEntry</span></code> or <code class="docutils literal notranslate"><span class="pre">NULL</span></code></p></td>
@@ -352,19 +378,31 @@ data-aria-dark="Switch to auto color mode">
 </tbody>
 </table>
 </div>
-<p>Use the session result path for new drivers. It keeps method setup and topology
-state in one object while preserving the same <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> carrier used by
-RPC frontends.</p>
+<p>Molecular dynamics engines with their own integrator and units usually want
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au</span></code>: one copy of the positions in, the forces and the
+virial out.
+<code class="docutils literal notranslate"><span class="pre">tools/lammps/pair_cpmdc.cpp</span></code>, the LAMMPS <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code>, is a complete host
+on it, with unit conversion, the triclinic cell, and the MPI gather to one rank;
+<a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a> documents it beside the Python
+<code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">external</span></code> route.
+<code class="docutils literal notranslate"><span class="pre">tools/gromacs/cpmdc_gromacs.c</span></code> is a host on the same call behind another
+program’s C API, libcp2k, with mechanical QM-MM embedding; see
+<a class="reference internal" href="gromacs.html"><span class="doc">Run GROMACS on cpmdc forces</span></a>.</p>
+<p>Use the session result path for new drivers.
+It keeps method setup and topology state in one object while preserving the same
+<code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> carrier used by RPC frontends.</p>
 <p>The compatibility array calls are useful when a host already owns native C
-arrays and only needs Hartree/Hartree-per-Bohr values. The serialized result
-calls are the better boundary for RPC frontends, cross-language bindings, and
-drivers that already use the shared OmniPotentRPC schema.</p>
+arrays and only needs Hartree/Hartree-per-Bohr values.
+The serialized result calls are the better boundary for RPC frontends,
+cross-language bindings, and drivers that already use the shared OmniPotentRPC
+schema.</p>
 </section>
 <section id="c-abi">
 <h2>C ABI<a class="headerlink" href="#c-abi" title="Link to this heading">¶</a></h2>
 <p>Include <code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code> and pass serialized Cap’n Proto message bytes to the ABI
-functions. Wire structs are generated from <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>; the header
-does not redefine <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields as a second C struct language.</p>
+functions.
+Wire structs are generated from <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>; the header does not
+redefine <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields as a second C struct language.</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="cp">#include</span> <span class="cpf">&lt;cpmdc.h&gt;</span>
 </span><span data-line="2"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span>
 </span><span data-line="3">
@@ -424,9 +462,9 @@ The <code class="docutils literal notranslate"><span class="pre">PotentialResult
 </section>
 <section id="feature-discovery">
 <h2>Feature Discovery<a class="headerlink" href="#feature-discovery" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code> also exposes a small feature table. Embedders can inspect it before
-building inputs, hiding unsupported controls, or deciding whether a stub build
-is sufficient for a workflow.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code> also exposes a small feature table.
+Embedders can inspect it before building inputs, hiding unsupported controls, or
+deciding whether a stub build is sufficient for a workflow.</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kt">size_t</span> <span class="n">feature_count</span> <span class="o">=</span> <span class="n">cpmdc_feature_count</span><span class="p">();</span>
 </span><span data-line="2"><span class="k">const</span> <span class="n">CPMDCFeatureEntry</span> <span class="o">*</span><span class="n">features</span> <span class="o">=</span> <span class="n">cpmdc_feature_table</span><span class="p">();</span>
 </span><span data-line="3"><span class="k">const</span> <span class="n">CPMDCFeatureEntry</span> <span class="o">*</span><span class="n">pimd</span> <span class="o">=</span>
@@ -440,13 +478,16 @@ is sufficient for a workflow.</p>
 </span></pre></div>
 </div>
 <p>Feature IDs use namespaces such as <code class="docutils literal notranslate"><span class="pre">catalog.section.*</span></code>, <code class="docutils literal notranslate"><span class="pre">catalog.cpmd.*</span></code>,
-<code class="docutils literal notranslate"><span class="pre">catalog.dft.*</span></code>, <code class="docutils literal notranslate"><span class="pre">params.*</span></code>, and <code class="docutils literal notranslate"><span class="pre">abi.*</span></code>. Each entry reports whether it applies
-to stub builds, embedded OpenCPMD builds, or both. Structured field controls are
-discoverable with <code class="docutils literal notranslate"><span class="pre">params.inputSections.&lt;section&gt;.&lt;field&gt;</span></code> IDs, for example
+<code class="docutils literal notranslate"><span class="pre">catalog.dft.*</span></code>, <code class="docutils literal notranslate"><span class="pre">params.*</span></code>, and <code class="docutils literal notranslate"><span class="pre">abi.*</span></code>.
+Each entry reports whether it applies to stub builds, embedded OpenCPMD builds,
+or both.
+Structured field controls are discoverable with
+<code class="docutils literal notranslate"><span class="pre">params.inputSections.&lt;section&gt;.&lt;field&gt;</span></code> IDs, for example
 <code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.maxIter</span></code>, <code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxScreening</span></code>,
 and <code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.pseudopotentials</span></code>.</p>
-<p>The public C entry points are feature rows too. Use those rows when a host needs
-to negotiate the serialized result path before allocating Cap’n Proto buffers:</p>
+<p>The public C entry points are feature rows too.
+Use those rows when a host needs to negotiate the serialized result path before
+allocating Cap’n Proto buffers:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -483,8 +524,9 @@ to negotiate the serialized result path before allocating Cap’n Proto buffers:
 <section id="session-step-calls-direct-call-socket">
 <h2>Session Step Calls (direct-call socket)<a class="headerlink" href="#session-step-calls-direct-call-socket" title="Link to this heading">¶</a></h2>
 <p>Callers that drive multiple geometry steps keep method state in a session and
-pass a serialized <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> for each step. The result-carrier entry point
-writes an unpacked flat <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> for RPC-style or in-process loops.</p>
+pass a serialized <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> for each step.
+The result-carrier entry point writes an unpacked flat <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> for
+RPC-style or in-process loops.</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">CPMDCSession</span> <span class="o">*</span><span class="n">session</span> <span class="o">=</span> <span class="n">cpmdc_session_create</span><span class="p">(</span><span class="n">params_bytes</span><span class="p">,</span> <span class="n">params_size</span><span class="p">);</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="k">if</span> <span class="p">(</span><span class="n">session</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
@@ -512,50 +554,112 @@ writes an unpacked flat <code class="docutils literal notranslate"><span class="
 </span><span data-line="25"><span class="p">}</span>
 </span></pre></div>
 </div>
-<p>When <code class="docutils literal notranslate"><span class="pre">potential_result_capacity</span></code> is too small, <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>, the required byte count
-is written to <code class="docutils literal notranslate"><span class="pre">potential_result_size</span></code>, and OpenCPMD is not evaluated (same
-contract as <code class="docutils literal notranslate"><span class="pre">nwchemc_session_calculate_result</span></code>).</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">potential_result_capacity</span></code> is too small, <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>, the required byte
+count is written to <code class="docutils literal notranslate"><span class="pre">potential_result_size</span></code>, and OpenCPMD is not evaluated, the
+same contract as the session result call of the NWChem library <code class="docutils literal notranslate"><span class="pre">nwchemc</span></code>.</p>
 <p>Use the session path for optimizers, molecular dynamics drivers, and RPC
 frontends.
 It avoids reparsing method setup on every step and gives the runtime one place
 to enforce topology consistency.</p>
 </section>
-<section id="result-buffer-contract">
-<h2>Result Buffer Contract<a class="headerlink" href="#result-buffer-contract" title="Link to this heading">¶</a></h2>
-<p>Serialized result calls write an unpacked flat <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>. Size the
-output buffer from the step message before evaluating:</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kt">size_t</span> <span class="n">needed</span> <span class="o">=</span> <span class="n">cpmdc_potential_result_size_for_force_input</span><span class="p">(</span>
-</span><span data-line="2">    <span class="n">force_input_bytes</span><span class="p">,</span> <span class="n">force_input_size</span><span class="p">);</span>
-</span><span data-line="3"><span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="n">out</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="n">needed</span><span class="p">);</span>
-</span><span data-line="4"><span class="kt">size_t</span> <span class="n">wrote</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span><span data-line="5">
-</span><span data-line="6"><span class="n">CPMDCResult</span> <span class="n">r</span> <span class="o">=</span> <span class="n">cpmdc_session_calculate_result</span><span class="p">(</span>
-</span><span data-line="7">    <span class="n">session</span><span class="p">,</span> <span class="n">force_input_bytes</span><span class="p">,</span> <span class="n">force_input_size</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">needed</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wrote</span><span class="p">);</span>
-</span></pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">needed</span> <span class="pre">==</span> <span class="pre">0</span></code> means the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> message is invalid or too large for the C
-ABI. If <code class="docutils literal notranslate"><span class="pre">needed</span></code> is positive but the supplied capacity is smaller, the call
-returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>, writes the required byte count to <code class="docutils literal notranslate"><span class="pre">wrote</span></code>, and skips
-evaluation.</p>
+<section id="rules-a-host-follows">
+<h2>Rules a host follows<a class="headerlink" href="#rules-a-host-follows" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="../reference/c-abi.html"><span class="doc">The C ABI reference</span></a> states each call’s
+contract; these are the ones that shape a host loop:</p>
+<ul class="simple">
+<li><p>Size the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> buffer with
+<code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></code> before each serialized call,
+as in the example above.
+A return of 0 means the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> is invalid; a short buffer gives
+<code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> with the needed size in <code class="docutils literal notranslate"><span class="pre">potential_result_size</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code> copies the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> bytes, so the caller may free
+them at once.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
+Change the atom count, the elemental composition, or the method after that
+call, by creating a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>;
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code> only works before it.</p></li>
+<li><p>The native array calls take Angstrom and return Hartree and Hartree/Bohr;
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> takes Bohr.
+<code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> values use the units the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> names (for example
+<code class="docutils literal notranslate"><span class="pre">eV</span></code> and <code class="docutils literal notranslate"><span class="pre">eV/angstrom</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components()</span></code> reads the energy terms of the last evaluation
+in Hartree, without parsing CLI <code class="docutils literal notranslate"><span class="pre">ENERGY</span></code> files.</p></li>
+</ul>
 </section>
-<section id="session-lifetime">
-<h2>Session Lifetime<a class="headerlink" href="#session-lifetime" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code> copies the serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> buffer. Callers may
-free or reuse their original input bytes after the session is created.</p>
-<p>The first successful session evaluation fixes the topology: atom count and
-elemental composition. A reordering of those elements stays on the session.
-Later steps may change coordinates, the optional 3 by 3 cell, and requested
-units. A different composition or atom count requires a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code> can replace method setup only before topology is
-accepted. Once a step has succeeded, method changes also need a new session.</p>
+<section id="status-and-errors">
+<h2>Status and errors<a class="headerlink" href="#status-and-errors" title="Link to this heading">¶</a></h2>
+<p>Calls that return <code class="docutils literal notranslate"><span class="pre">CPMDCResult</span></code> set <code class="docutils literal notranslate"><span class="pre">ok</span></code>, Hartree <code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, and a
+null-terminated <code class="docutils literal notranslate"><span class="pre">message</span></code> on success or failure.
+Session helpers that return <code class="docutils literal notranslate"><span class="pre">int</span></code>, including
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals()</span></code>, use 0 on success and -1 on failure; they
+write <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> instead of filling <code class="docutils literal notranslate"><span class="pre">CPMDCResult</span></code>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> matches <code class="docutils literal notranslate"><span class="pre">message</span></code> when the call returns <code class="docutils literal notranslate"><span class="pre">CPMDCResult</span></code>;
+<a class="reference internal" href="../reference/c-abi.html"><span class="doc">the C ABI reference</span></a> lists which signature each
+call uses.
+It is per-thread, empty after a success, and is not written by the snapshot
+getters (<code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress()</span></code> and the rest).
+<a class="reference internal" href="troubleshooting.html"><span class="doc">Troubleshooting</span></a> lists common <code class="docutils literal notranslate"><span class="pre">message</span></code>
+values.
+<a class="reference internal" href="../reference/python.html"><span class="doc">The Python reference</span></a> maps the same failures
+to <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc.ipi.ProtocolError</span></code> on the i-PI driver, and ASE’s
+<code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code>.</p>
+</section>
+<section id="orbitals-between-steps">
+<h2>Orbitals between steps<a class="headerlink" href="#orbitals-between-steps" title="Link to this heading">¶</a></h2>
+<p>OpenCPMD keeps one set of converged orbitals for the whole process, not inside a
+<code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, and starts the next step from it when the functional, deck,
+cutoff, cell, charge, multiplicity, atom count, and elemental composition match.
+A change to any of these is a cold start, and so is the first step of the
+process.
+A session refuses a new atom count or composition, so those change only with a
+new session, and a new session whose values match starts warm.
+A constant-cutoff deck under <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> may also move the cell
+without a cold start.
+<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">Wavefunction state between calls</span></a>
+explains warm starts, extrapolation, and when a step restarts from atomic
+orbitals.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals()</span></code> name
+orbital stores by integer keys when a host runs several trajectories on one
+session; see <a class="reference internal" href="extrapolate-orbitals.html"><span class="doc">extrapolate the orbitals</span></a>.
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code> caps how many of those copies stay parked, and a
+new park past the cap fails without discarding the ones already stored.</p>
+</section>
+<section id="rgpot-cpmdpot">
+<h2>rgpot CPMDPot<a class="headerlink" href="#rgpot-cpmdpot" title="Link to this heading">¶</a></h2>
+<p><a class="reference external" href="https://github.com/OmniPotentRPC/rgpot">rgpot</a> loads <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> in
+<code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, maps host coordinates into <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, and reads a serialized
+<code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> from <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code>.
+<code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMDC_ENGINE</span></code>, and <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMD_ENGINE</span></code> name the
+library path; see <a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>
+and <a class="reference internal" href="../tutorials/eon-rgpot.html"><span class="doc">eOn through rgpot</span></a> for a full
+minimisation.</p>
+</section>
+<section id="socket-and-in-process-drivers">
+<h2>Socket and in-process drivers<a class="headerlink" href="#socket-and-in-process-drivers" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="socket-drivers.html"><span class="doc">Drive cpmdc over the i-PI socket protocol</span></a> documents
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> holds one Python <code class="docutils literal notranslate"><span class="pre">Session</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> holds one
+<code class="docutils literal notranslate"><span class="pre">CPMDCSession</span> <span class="pre">*</span></code>.
+Each evaluates when the server’s <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> message arrives and sends the
+stored result when <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code> asks for it.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> evaluates through <code class="docutils literal notranslate"><span class="pre">Session.energy_forces()</span></code> in
+<code class="docutils literal notranslate"><span class="pre">python/cpmdc/ipi.py</span></code>, which calls
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces()</span></code> without a cell or
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> when the step sends a cell that is
+not all zero and <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is not set.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> in <code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> calls <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>
+directly with Bohr arrays and the virial output.</p>
 </section>
 <section id="cpmd-input-ownership">
 <h2>CPMD Input Ownership<a class="headerlink" href="#cpmd-input-ownership" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> owns method and backend setup.
-<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> owns coordinates, atomic numbers, unit strings, and the optional
-3 by 3 cell for a single evaluation.
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> owns coordinates, atomic numbers, unit strings, and the optional 3
+by 3 cell for a single evaluation.
 The runtime renders a CPMD <code class="docutils literal notranslate"><span class="pre">INPUT</span></code> deck from <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> and merges the step
-geometry into it on the first evaluation of a session.</p>
+geometry into it on each cold evaluation.</p>
 <p>Structured <code class="docutils literal notranslate"><span class="pre">inputSections</span></code> should be preferred over raw blocks when a typed arm
 exists:</p>
 <ul class="simple">
@@ -563,22 +667,22 @@ exists:</p>
 fields, CDFT (constrained DFT) Gaussian controls, pressure and stress
 controls, Poisson settings, isolated-shape controls, charge, and spin
 multiplicity</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cpmd</span></code> for wavefunction optimization, MD, convergence, restart, and
-trajectory controls</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmd</span></code> for wavefunction optimization, MD, convergence, restart, and trajectory
+controls</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">dft</span></code> for functional and spin-polarized DFT controls</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">atoms</span></code> for pseudopotential grouping and fixed non-coordinate <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code>
 directives</p></li>
-<li><p>named OpenCPMD section arms such as <code class="docutils literal notranslate"><span class="pre">pimd</span></code>, <code class="docutils literal notranslate"><span class="pre">vdw</span></code>, <code class="docutils literal notranslate"><span class="pre">linres</span></code>, and <code class="docutils literal notranslate"><span class="pre">tddft</span></code>
-for keyword/value lines and nested subsection blocks</p></li>
+<li><p>named OpenCPMD section arms such as <code class="docutils literal notranslate"><span class="pre">pimd</span></code>, <code class="docutils literal notranslate"><span class="pre">vdw</span></code>, <code class="docutils literal notranslate"><span class="pre">linres</span></code>, and <code class="docutils literal notranslate"><span class="pre">tddft</span></code> for
+keyword/value lines and nested subsection blocks</p></li>
 </ul>
 <p>Use <code class="docutils literal notranslate"><span class="pre">generic</span></code> for non-catalog aliases, <code class="docutils literal notranslate"><span class="pre">set</span></code> for merge-only keywords inside a
 named section, and <code class="docutils literal notranslate"><span class="pre">raw</span></code> or <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> for text-preserving deck fragments.
-On a geometry render that is not the OpenCPMD merge, typed <code class="docutils literal notranslate"><span class="pre">atoms</span></code> sections
-must cover every element present in the step, and a missing <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section
-covers H and O only.
+On a geometry render that is not the OpenCPMD merge, typed <code class="docutils literal notranslate"><span class="pre">atoms</span></code> sections must
+cover every element present in the step, and a missing <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section covers H
+and O only.
 On the OpenCPMD path the <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block CPMD reads is rebuilt from each step.
-Elements listed in <code class="docutils literal notranslate"><span class="pre">atoms.pseudopotentials</span></code> supply the file, <code class="docutils literal notranslate"><span class="pre">LMAX</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC</span></code>,
-and <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line.
+Elements listed in <code class="docutils literal notranslate"><span class="pre">atoms.pseudopotentials</span></code> supply the file, <code class="docutils literal notranslate"><span class="pre">LMAX</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line.
 Elements the message omits use the built-in table for H, C, N, O, Si, and Ge.
 An element in neither is an error.
 See <a class="reference internal" href="write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>.</p>
@@ -638,29 +742,42 @@ See <a class="reference internal" href="write-cpmdparams.html"><span class="doc"
 </section>
 <section id="restart-files">
 <h2>RESTART files<a class="headerlink" href="#restart-files" title="Link to this heading">¶</a></h2>
-<p>The binary <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file is a separate object from the deck keyword. Read and
-rewrite it with <code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_restart.h</span></code> (<code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code>).
-Coordinates in that file are Bohr in species order. A coordinate patch copies
-the wavefunction records unchanged, which is how a host keeps orbitals while
-it owns the next geometry. Put <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code> in the deck to start the
-first SCF of a session from the patched file; the OpenCPMD path ignores
-restarted coordinates, velocities, and geometry, because each step supplies
-them.</p>
+<p>The binary <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file is a separate object from the deck keyword.
+Read and rewrite it with <code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code> or
+<code class="docutils literal notranslate"><span class="pre">cpmdc_restart.h</span></code> (<code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code>).
+Coordinates in that file are Bohr in species order.
+A coordinate patch copies the wavefunction records unchanged, which is how a
+host keeps orbitals while it owns the next geometry.
+Put <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code> in the deck to start a cold SCF from
+the patched file; the OpenCPMD path ignores restarted coordinates, velocities,
+and geometry, because each step supplies them.</p>
 </section>
-<section id="units">
-<h2>Units<a class="headerlink" href="#units" title="Link to this heading">¶</a></h2>
-<p>After a successful in-process evaluation (<code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code>, or one-shot <code class="docutils literal notranslate"><span class="pre">cpmdc_energy*</span></code>), call
-<code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components</span></code> to read the OpenCPMD <code class="docutils literal notranslate"><span class="pre">ener_com</span></code> snapshot
-(<code class="docutils literal notranslate"><span class="pre">etot</span></code>, <code class="docutils literal notranslate"><span class="pre">ekin</span></code>, <code class="docutils literal notranslate"><span class="pre">epseu</span></code>, <code class="docutils literal notranslate"><span class="pre">enl</span></code>, <code class="docutils literal notranslate"><span class="pre">eht</span></code>, <code class="docutils literal notranslate"><span class="pre">exc</span></code>, and the rest) in Hartree
-without parsing CLI <code class="docutils literal notranslate"><span class="pre">ENERGY</span></code> files. <code class="docutils literal notranslate"><span class="pre">etot</span></code> matches <code class="docutils literal notranslate"><span class="pre">CPMDCResult.energy_h</span></code> for
-that step.</p>
-<p>Native evaluation units on <code class="docutils literal notranslate"><span class="pre">CPMDCResult.energy_h</span></code> and force buffers are Hartree
-and Hartree/Bohr.
-<code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> energy and forces are converted to <code class="docutils literal notranslate"><span class="pre">ForceInput.energyUnit</span></code> and
-<code class="docutils literal notranslate"><span class="pre">energyUnit</span> <span class="pre">/</span> <span class="pre">lengthUnit</span></code> (for example <code class="docutils literal notranslate"><span class="pre">eV</span></code> and <code class="docutils literal notranslate"><span class="pre">eV/angstrom</span></code>).</p>
-<p><code class="docutils literal notranslate"><span class="pre">ForceInput.pos</span></code> and <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> use <code class="docutils literal notranslate"><span class="pre">ForceInput.lengthUnit</span></code>. The native
-array calls take positions in Angstrom regardless of the schema defaults.</p>
+<section id="in-process-cold-deck-and-memfd">
+<h2>In-process cold deck and memfd<a class="headerlink" href="#in-process-cold-deck-and-memfd" title="Link to this heading">¶</a></h2>
+<p>On a cold OpenCPMD evaluation the Fortran bridge in <code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>
+composes the full deck, then <code class="docutils literal notranslate"><span class="pre">src/cpmdc_memfd.c</span></code> writes it into an anonymous
+Linux <code class="docutils literal notranslate"><span class="pre">memfd_create</span></code> file and exposes it to CPMD as <code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code> so the
+parsers see a path without writing <code class="docutils literal notranslate"><span class="pre">INPUT</span></code> to disk.
+<code class="docutils literal notranslate"><span class="pre">src/cpmdc_embed_host.c</span></code> switches the working directory for pseudopotential
+reads and output, maps species-block gradients back to atom order, and records
+embed failures for the C result path.
+<a class="reference internal" href="../explanation/architecture.html"><span class="doc">Architecture</span></a> walks the layer list;
+<a class="reference internal" href="../reference/environment.html"><span class="doc">Environment variables</span></a> name
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> and the embed flags <code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS</span></code>, <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code>, and
+the rest.</p>
+</section>
+<section id="mpi-adoption-and-plane-wave-scaling">
+<h2>MPI adoption and plane-wave scaling<a class="headerlink" href="#mpi-adoption-and-plane-wave-scaling" title="Link to this heading">¶</a></h2>
+<p>When a host already split <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> into calculator groups, call
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code> before the first session instead of
+<code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator()</span></code>.
+The rules and a sketch are in <a class="reference internal" href="mpi.html"><span class="doc">Run under mpirun</span></a>.
+The optional plane-wave scaffold in <code class="docutils literal notranslate"><span class="pre">include/cpmdc_pwscale.h</span></code> times FFT and
+MPI paths separately from production <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>; see
+<a class="reference internal" href="../reference/pwscale.html"><span class="doc">Plane-wave scaffold reference</span></a> and
+<a class="reference internal" href="pwscale-ranks.html"><span class="doc">Time plane-wave scaling across ranks</span></a>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda()</span></code> runs the CUDA kernel when the build uses
+<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale_cuda=true</span></code>.</p>
 </section>
 <section id="opencpmd-runtime-inputs">
 <h2>OpenCPMD Runtime Inputs<a class="headerlink" href="#opencpmd-runtime-inputs" title="Link to this heading">¶</a></h2>
@@ -669,47 +786,18 @@ That tree must contain <code class="docutils literal notranslate"><span class="p
 from a completed executable build with the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code>; see
 <a class="reference internal" href="opencpmd-archive.html"><span class="doc">building the archive</span></a>.</p>
 <p>Set <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> to the directory holding the pseudopotential files.
-The first evaluation of a session changes into that directory while CPMD
-reads them (<code class="docutils literal notranslate"><span class="pre">ratom</span></code> and <code class="docutils literal notranslate"><span class="pre">recpnew</span></code>), then returns to the host’s directory.
+A cold evaluation changes into that directory while CPMD reads
+them (<code class="docutils literal notranslate"><span class="pre">ratom</span></code> and <code class="docutils literal notranslate"><span class="pre">recpnew</span></code>), then returns to the host’s directory.
 <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code> is the fallback when <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> is unset; with
-neither set, the first evaluation fails.</p>
+neither set, a cold evaluation fails.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> names a file that receives the method deck cpmdc renders from
-<code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>; see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a> for what the OpenCPMD
-path adds before CPMD parses it.</p>
+<code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>; see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a> for what the
+OpenCPMD path adds before CPMD parses it.</p>
 </section>
-<section id="nuclear-forces-from-repeated-scf-calls">
-<h2>Nuclear forces from repeated SCF calls<a class="headerlink" href="#nuclear-forces-from-repeated-scf-calls" title="Link to this heading">¶</a></h2>
-<p>A live OpenCPMD link evaluates each geometry with fixed nuclei (<code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code>) and then exports nuclear forces from <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, the same
-Born-Oppenheimer force definition as a single-point force evaluation after the
-SCF (self-consistent field).</p>
-<p>On the embed path the Fortran bridge always calls <code class="docutils literal notranslate"><span class="pre">embed_set_need_forces(.TRUE.)</span></code>
-before <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>.
-The same subroutine calls <code class="docutils literal notranslate"><span class="pre">embed_set_write_files(.FALSE.)</span></code>, so the force call
-writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>.
-<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves that flag true.
-OpenCPMD must be patched so <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets
-<code class="docutils literal notranslate"><span class="pre">tfor</span> <span class="pre">=</span> <span class="pre">(iprint_force</span> <span class="pre">==</span> <span class="pre">1)</span> <span class="pre">.OR.</span> <span class="pre">embed_need_forces</span></code>. Without that, OpenCPMD
-zeros <code class="docutils literal notranslate"><span class="pre">fion</span></code> after <code class="docutils literal notranslate"><span class="pre">forcedr</span></code> when <code class="docutils literal notranslate"><span class="pre">tfor</span></code> is false and the C force buffer stays
-all zeros even though the energy is finite. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code>
-before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>, so the bridge’s <code class="docutils literal notranslate"><span class="pre">IF</span> <span class="pre">(ALLOCATED(fion))</span></code> guard is
-optional.</p>
-<p>Warm calls (same process, same cell, same method, same elemental
-composition, new <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> positions):</p>
-<ol class="arabic simple">
-<li><p>First force call of the process: cold setup once, from the in-memory deck.
-The SCF sets <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code> so a converged <code class="docutils literal notranslate"><span class="pre">c0</span></code> is stored.
-Restore does nothing until that copy exists.</p></li>
-<li><p>Later calls, including a new session and a reordering of the same atomic
-numbers: update <code class="docutils literal notranslate"><span class="pre">tau0</span></code> from C arrays, <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, full SCF from the retained
-orbitals, no second setup. An unconverged ODIIS pass does not replace the
-stored <code class="docutils literal notranslate"><span class="pre">c0</span></code>. The same call then continues once with <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> from
-that previous converged copy, and the call still counts as warm.</p></li>
-<li><p>Every call requests forces through <code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code> and keeps the
-deck’s <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>; <code class="docutils literal notranslate"><span class="pre">tests/test_embed_warm_no_nomore_clamp.py</span></code> and
-<code class="docutils literal notranslate"><span class="pre">tests/test_embed_bomd_force_export.py</span></code> guard both.</p></li>
-</ol>
-<p><a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">Wavefunction state</span></a> explains what makes a call cold or
-warm.</p>
+<section id="check-forces-from-a-live-link">
+<h2>Check forces from a live link<a class="headerlink" href="#check-forces-from-a-live-link" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="../explanation/opencpmd-patches.html"><span class="doc">Nuclear forces from repeated SCF calls</span></a>
+explains how a live OpenCPMD link exports forces and what makes a call warm.</p>
 <p>Prefer an off-equilibrium water or similar system when checking forces.
 Some tightly packed cluster geometries can report a zero nuclear gradient even
 under native <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>; an energy that changes between calls does not show that
@@ -830,7 +918,7 @@ the forces are right.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

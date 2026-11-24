@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Write a CPMDParams message - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Embedding cpmdc" href="embedding.html" /><link rel="prev" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Write a CPMDParams message - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Embedding cpmdc" href="embedding.html" /><link rel="prev" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/write-cpmdparams.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -113,19 +113,24 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="quickstart.html">Build and test cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Call cpmdc from Python</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="ase.html">Use cpmdc as an ASE calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="constant-cutoff.html">Relax a cell at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="socket-drivers.html">Drive cpmdc over the i-PI socket protocol</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">Run LAMMPS on cpmdc forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">Run GROMACS on cpmdc forces</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -133,17 +138,25 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/build-options.html">Build options, artifacts, and Pixi tasks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/contracts.html">API contracts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCDipole.html">struct CPMDCDipole</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
@@ -184,9 +197,13 @@ data-aria-dark="Switch to auto color mode">
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">File, in-process, RPC, and protocol routes</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/isolated-cells.html">Atoms in an isolated cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/md-engines.html">cpmdc inside MD engines</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/constant-cutoff-npt.html">Density of water at a constant cutoff</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/opencpmd-patches.html">How the OpenCPMD patches work</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
@@ -315,8 +332,8 @@ Coordinates, species, and the cell of each step travel in <code class="docutils 
 </section>
 <section id="write-the-message-as-cap-n-proto-text">
 <h2>Write the message as Cap’n Proto text<a class="headerlink" href="#write-the-message-as-cap-n-proto-text" title="Link to this heading">¶</a></h2>
-<p>Cap’n Proto text is the shortest way to write a message by hand, and the
-<code class="docutils literal notranslate"><span class="pre">capnp</span></code> tool encodes it without any code.
+<p>Cap’n Proto text is the shortest way to write a message by hand, and the <code class="docutils literal notranslate"><span class="pre">capnp</span></code>
+tool encodes it without any code.
 This message describes a closed-shell Si and N cluster in a 14 Angstrom cube,
 BLYP at 70 Ry, with Kleinman-Bylander pseudopotentials:</p>
 <div class="highlight-capnp notranslate"><div class="highlight"><pre><span></span><span data-line="1">(
@@ -341,22 +358,23 @@ BLYP at 70 Ry, with Kleinman-Bylander pseudopotentials:</p>
 </span><span data-line="20">)
 </span></pre></div>
 </div>
-<p>Save it as <code class="docutils literal notranslate"><span class="pre">cluster.params.txt</span></code> and encode it against the schema in the
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> checkout:</p>
+<p>Save it as <code class="docutils literal notranslate"><span class="pre">cluster.params.txt</span></code> and encode it against the schema in the <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
+checkout:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">capnp<span class="w"> </span>encode<span class="w"> </span>schema/Potentials.capnp<span class="w"> </span>CPMDParams<span class="w"> </span><span class="se">\</span>
 </span><span data-line="2"><span class="w">  </span>&lt;<span class="w"> </span>cluster.params.txt<span class="w"> </span>&gt;<span class="w"> </span>cluster.params.bin
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">capnp</span> <span class="pre">encode</span></code> writes the unpacked flat stream that every <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> entry point
 reads.
-It rejects a field name that is not in the schema, so a typo fails here and
-not inside CPMD.</p>
+It rejects a field name that is not in the schema, so a typo fails here and not
+inside CPMD.</p>
 </section>
 <section id="map-deck-lines-to-fields">
 <h2>Map deck lines to fields<a class="headerlink" href="#map-deck-lines-to-fields" title="Link to this heading">¶</a></h2>
 <p>Each deck line has one preferred carrier.
-Look for a typed field first; the <a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">option
-mapping</span></a> lists every one of them with its feature ID.</p>
+Look for a typed field first; the
+<a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">option mapping</span></a> lists every one of them
+with its feature ID.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -425,11 +443,11 @@ mapping</span></a> lists every one of them with its feature ID.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">lmax</span></code>, <code class="docutils literal notranslate"><span class="pre">loc</span></code>, and <code class="docutils literal notranslate"><span class="pre">skip</span></code> take the channel as an integer: 0 renders <code class="docutils literal notranslate"><span class="pre">S</span></code>, 1
-<code class="docutils literal notranslate"><span class="pre">P</span></code>, 2 <code class="docutils literal notranslate"><span class="pre">D</span></code>, 3 <code class="docutils literal notranslate"><span class="pre">F</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">lmax</span></code>, <code class="docutils literal notranslate"><span class="pre">loc</span></code>, and <code class="docutils literal notranslate"><span class="pre">skip</span></code> take the channel as an integer: 0 renders <code class="docutils literal notranslate"><span class="pre">S</span></code>, 1 <code class="docutils literal notranslate"><span class="pre">P</span></code>,
+2 <code class="docutils literal notranslate"><span class="pre">D</span></code>, 3 <code class="docutils literal notranslate"><span class="pre">F</span></code>.
 A keyword without a typed field goes into that section’s <code class="docutils literal notranslate"><span class="pre">directives</span></code> list:
-<code class="docutils literal notranslate"><span class="pre">keyword</span></code> is the line, and each entry of <code class="docutils literal notranslate"><span class="pre">args</span></code> becomes one indented line
-below it.</p>
+<code class="docutils literal notranslate"><span class="pre">keyword</span></code> is the line, and each entry of <code class="docutils literal notranslate"><span class="pre">args</span></code> becomes one indented line below
+it.</p>
 </section>
 <section id="defaults-that-change-the-physics">
 <h2>Defaults that change the physics<a class="headerlink" href="#defaults-that-change-the-physics" title="Link to this heading">¶</a></h2>
@@ -465,25 +483,23 @@ below it.</p>
 <p>Set each of them on purpose.
 A raw <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> entry or a <code class="docutils literal notranslate"><span class="pre">raw</span></code> section that already opens <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>,
 <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>, or <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> is that section.
-The default writer does not open the same name again, so a periodic
-<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code> block is not followed by <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and
-<code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>.
+The default writer does not open the same name again, so a periodic <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>
+block is not followed by <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>.
 The caller’s box is the cell.
 A non-zero <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> replaces every <code class="docutils literal notranslate"><span class="pre">CELL</span></code> line of <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> and its
-<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>: a cubic deck and a cubic box keep <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>, another
-orthorhombic box gets <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">8</span></code> and <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">a</span> <span class="pre">b/a</span> <span class="pre">c/a</span></code>, and a box with
-off-diagonal components gets <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>, which CPMD
-refuses beside it.
-An isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, the default deck) keeps <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and
-takes only an orthorhombic box; another box fails the call.
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>: a cubic deck and a cubic box keep <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>, another orthorhombic
+box gets <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">8</span></code> and <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">a</span> <span class="pre">b/a</span> <span class="pre">c/a</span></code>, and a box with off-diagonal
+components gets <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>, which CPMD refuses beside it.
+An isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, the default deck) keeps <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and takes
+only an orthorhombic box; another box fails the call.
 Without <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code> the box goes in as Bohr.
-An all-zero box is a system without a cell: the deck’s <code class="docutils literal notranslate"><span class="pre">CELL</span></code> stays, or a
-12 Angstrom cube when the deck has none.</p>
+An all-zero box is a system without a cell: the deck’s <code class="docutils literal notranslate"><span class="pre">CELL</span></code> stays, or a 12
+Angstrom cube when the deck has none.</p>
 </section>
 <section id="check-the-rendered-deck">
 <h2>Check the rendered deck<a class="headerlink" href="#check-the-rendered-deck" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> writes the deck <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> renders from the message, so the
-check needs no OpenCPMD:</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> writes the deck <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> renders from the message, so the check
+needs no OpenCPMD:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">CPMDC_DECK_OUT</span><span class="o">=</span>cluster.inp<span class="w"> </span>build/example_host_step<span class="w"> </span><span class="se">\</span>
 </span><span data-line="2"><span class="w">  </span>cluster.params.bin<span class="w"> </span>step.bin
 </span><span data-line="3">cat<span class="w"> </span>cluster.inp
@@ -492,9 +508,10 @@ check needs no OpenCPMD:</p>
 <p><code class="docutils literal notranslate"><span class="pre">step.bin</span></code> is any encoded <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>; the default build evaluates it with the
 reference evaluator after the deck is written.
 Compare <code class="docutils literal notranslate"><span class="pre">cluster.inp</span></code> line by line against the deck you started from.
-On the OpenCPMD path a second deck, the one CPMD parses with the geometry
-merged in, overwrites the first; the <a class="reference internal" href="debug-deck.html"><span class="doc">deck debugging
-how-to</span></a> shows both.</p>
+The file holds this method deck only.
+On the OpenCPMD path CPMD parses a second deck, with the geometry merged in,
+that is not written; the <a class="reference internal" href="debug-deck.html"><span class="doc">deck debugging how-to</span></a> lists
+what that path changes.</p>
 </section>
 <section id="where-the-geometry-dependent-lines-go">
 <h2>Where the geometry-dependent lines go<a class="headerlink" href="#where-the-geometry-dependent-lines-go" title="Link to this heading">¶</a></h2>
@@ -546,8 +563,8 @@ An element the message does not list uses this table:</p>
 <p>An element in neither the message nor the table fails the evaluation.
 The message names the atomic number.
 A method deck whose <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block already has coordinate lines, for example
-from <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, is passed to CPMD unchanged; each step then overwrites
-only the positions.</p>
+from <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, is passed to CPMD unchanged; each step then overwrites only
+the positions.</p>
 </section>
 </section>
 
@@ -658,7 +675,7 @@ only the positions.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=6c02275b"></script>
+      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>
