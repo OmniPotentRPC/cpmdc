@@ -134,8 +134,9 @@ uses the explicitly configurable Gaussian kernel above. The returned QM energy
 includes electron--MM and ion--MM terms, and the adapter returns forces on the
 QM atoms and every MM charge.
 
-Electrostatic embedding currently requires ~CELL NONE~. A periodic cell is
-rejected with ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~. The GROMACS shim
+Electrostatic embedding currently requires ~CELL NONE~; ~CELL PERIODIC~ is
+refused, and a periodic deck is rejected with
+~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~. The GROMACS shim
 places every MM charge at its nearest image relative to the first QM atom
 before passing the resulting isolated cluster to cpmdc. It applies no cutoff;
 one nearest image of every MM charge contributes.

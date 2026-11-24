@@ -489,11 +489,14 @@ A narrower width fails ~cpmdc_session_set_external_charges()~ with
 \(1/\sigma^4\) force terms overflow to NaN for much narrower Gaussians.
 The total energy includes electron--MM and ion--MM coupling; QM and MM force
 arrays are both ~-dE/dR~. External charges are supported on an isolated system
-only, because periodic images are not implemented. A step with a cell, and a
-step on a deck that is not an isolated system (a ~SYMMETRY~ above 0, or a
-~SURFACE~ or ~POLYMER~ deck), fails with
+only, because periodic images are not implemented. A step with a periodic cell
+(a non-zero cell on a deck that leaves periodicity unset), or a step on a deck
+that is not an isolated system (a ~SYMMETRY~ above 0, a ~SURFACE~ or ~POLYMER~
+deck, or ~CELL VECTORS~ without an isolated keyword), fails with
 ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~ on every evaluation path,
-including ~cpmdc_session_energy_gradient()~.
+including ~cpmdc_session_energy_gradient()~. An isolated or cluster deck
+(~SYMMETRY 0~, ~SYMMETRY ISOLATED~, ~POISSON SOLVER~, ~CLUSTER~, or
+~ISOLATED MOLECULE~) with an isolated cell, and an all-zero cell, are accepted.
 Session charges and a deck-defined ~EXTERNAL POTENTIAL~ or
 ~EXTERNAL POTENTIAL ADD~ are mutually exclusive.
 An evaluation that requests both fails with
