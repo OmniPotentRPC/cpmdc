@@ -275,6 +275,19 @@ jobs:
             echo "convention tests skipped"
             exit 1
           fi
+      - name: Session tests against cpmd.x, only the reference stress skips
+        run: |
+          set -o pipefail
+          pixi run meson compile -C build-cpmd water_params_bin water_periodic_params_bin
+          export CPMDC_LIBRARY="$PWD/build-cpmd/libcpmdc.so"
+          export CPMDC_TEST_PARAMS="$PWD/build-cpmd/water_blyp_params.bin"
+          export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-cpmd/water_blyp_periodic_params.bin"
+          pixi run python -m pytest -q -rs tests/python/test_session.py | tee session-pytest.log
+          grep -E '[0-9]+ passed' session-pytest.log
+          if grep -E '^SKIPPED' session-pytest.log | grep -v "uses the reference evaluator's stress formula"; then
+            echo "session tests skipped for a reason other than the reference stress formula"
+            exit 1
+          fi
 
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})
