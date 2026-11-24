@@ -4659,47 +4659,67 @@ troubleshooting (file:troubleshooting.org).
 
 # Migration status
 Protocol frontends belong in rgpot (https://github.com/OmniPotentRPC/rgpot), where they can wrap every potential.
-The intended route is rgpot's =IPIDriver= over =CPMDPot=, while direct
+The primary socket route is rgpot's =IPIDriver= over =CPMDPot=, while direct
 =Session.calculate_au()= calls and rgpot's Cap'n Proto RPC remain the
 preferred in-process and remote interfaces.
 
-The cpmdc-specific drivers remain for now because rgpot develop at
-=424629e5ba9c0948b8d6224f5b49c014ffb4ac7c= does not yet expose =CPMDPot=
-through =rgpot-ipi-driver=.  In =engines/pot_spec.cpp=, =make()= and
-=names()= contain no CPMD case, and the command has no way to read serialized
-=CPMDParams=.  A user therefore cannot select CPMD with =--pot= or =-m=.
-Three library-level differences also matter before the old route can be retired:
+The audit covered the rgpot develop branch as of this change.  In that
+snapshot,
+=engines/pot_spec.cpp:182-218= reads a flat serialized =CPMDParams= file and
+constructs =CPMDPot=; =engines/pot_spec.cpp:223-225= selects it and
+=engines/pot_spec.cpp:325-328= lists it.  Both
+=--pot "CPMD params FILE"= and =-m CPMD -o params=FILE= completed a
+stub-backed CPMD force request in the audit.
 
-- The =Geometry= helper inside =CppCore/rgpot/IPIPot/IPIDriver.cc= (it lives
-  in an anonymous namespace, not in the public =IPIDriver= class) calls
-  =openBox()= when =cellVolume()= of the cell is not greater than zero.
-  =cellVolume()= returns the absolute determinant, so a left-handed cell
-  has positive volume and is tiled like any other.  A cell with zero volume
-  (all-zero or singular) is replaced by a padded finite cube before =CPMDPot=
-  sees it.  This differs from =Session.calculate_au(..., cell=None)=
-  and can replace the cell from the CPMD deck, or silently pad a singular
-  cell that cpmdc rejects.
-- =IPIDriver::step()= does not mark a direct =POSDATA= as initialized.  A
-  following =STATUS= therefore returns =NEEDINIT= instead of =HAVEDATA=.
-  ASE and normal i-PI handshakes send =INIT=, but cpmdc's current driver also
-  accepts the init-less sequence.
-- =IPIDriver::step()= accepts an =INIT= string requesting =batch_size= above
-  one and then processes one structure.  cpmdc rejects that unsupported
-  request explicitly.
+The three protocol and cell differences from the earlier audit are closed:
+
+- =CppCore/rgpot/IPIPot/IPIDriver.cc:410-417= still pads a zero-volume cell
+  by default.  Pass =--preserve-open-cell= for CPMD.  The same branch then
+  passes an all-zero cell through so cpmdc keeps the deck cell, and passes a
+  nonzero singular cell through so cpmdc rejects it.  The audit exercised
+  all four default and preserved cases.  Left-handed full-rank cells still
+  have positive absolute volume and follow the periodic path.
+- =CppCore/rgpot/IPIPot/IPIDriver.cc:347-351= marks a completed direct
+  =POSDATA= as initialized.  The audit sent =POSDATA= without =INIT= and the
+  following =STATUS= returned =HAVEDATA=.
+- =CppCore/rgpot/IPIPot/IPIDriver.cc:315-318= rejects an =INIT= request whose
+  =batch_size= is greater than one.  The audit sent =batch_size: 2= and the
+  driver exited with the explicit one-structure error.
 
 | Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
 |------------+--------------+----------------------------------|
-| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same standard messages and pipeline, but the audited base ignores =batch_size= |
+| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
-| Cell | transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored | transpose to rgpot rows; inverse ignored; a cell with zero volume (all-zero or singular) is currently padded, while a left-handed cell is tiled like any other |
+| Cell | transpose i-PI columns to CPMD rows; zero cell preserves the deck cell; nonzero singular cell is rejected; inverse is read and ignored | transpose to rgpot rows; inverse ignored; =--preserve-open-cell= gives the same zero and singular behavior; without it rgpot pads either zero-volume case |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
-| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= exists, but =pot_spec= cannot construct =CPMDPot= |
-| ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=, but not selectable with CPMD |
-| LAMMPS =fix ipi= | both are clients and meet through an i-PI server | same topology once the CPMD command path exists |
+| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= takes =--pot "CPMD params FILE"= or =-m CPMD -o params=FILE= |
+| ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=; the audit drove =CPMDPot= through the same wire protocol |
+| LAMMPS =fix ipi= | both are clients and meet through an i-PI server | the same topology |
 
-The commands below document the transitional cpmdc driver.  They should not
-be copied into a new engine frontend; close the rgpot gaps and replace this
-page with the generic route first.
+# Start the generic driver
+Give rgpot the serialized parameters and the species in server order.
+For CPMD, include =--preserve-open-cell=: it leaves periodic cells unchanged,
+keeps the deck cell for an all-zero wire cell, and lets cpmdc reject any other
+singular cell.
+
+CPMDC_LIBRARY=/path/to/libcpmdc.so rgpot-ipi-driver \
+  --pot "CPMD params water.params.bin" --species O,H,H \
+  --preserve-open-cell -u -a water
+CPMDC_LIBRARY=/path/to/libcpmdc.so rgpot-ipi-driver \
+  -m CPMD -o params=water.params.bin --species O,H,H \
+  --preserve-open-cell -a localhost -p 31415
+
+The first command uses the i-PI UNIX socket name =water=; the second uses TCP.
+The audit ran both potential spellings against the cpmdc stub library and
+completed a force request.  The cpmdc documentation harness cannot run this
+block because rgpot is a separate checkout.  rgpot's =IPIDriverTest= and the
+audit socket probe cover the protocol behavior.
+
+# cpmdc driver fallback
+The cpmdc-specific drivers remain as compatibility fallbacks for installations
+that do not yet ship the generic rgpot i-PI driver.  No audited protocol
+gap in the audited snapshot requires them.  Do not copy them into a new engine
+frontend.
 
 `cpmdc-ipi` is a client for the i-PI wire protocol.
 It connects to a server over a UNIX or TCP socket, receives positions and
@@ -4712,22 +4732,23 @@ For LAMMPS to integrate on cpmdc forces in one process, with less overhead
 per step, see Run LAMMPS on cpmdc forces (file:lammps.org).
 GROMACS has no i-PI client; it reaches cpmdc in process through
 its CP2K QM/MM interface (file:gromacs.org).
-`cpmdc-ipi-c` is the same client written in C, for hosts without Python.
+`cpmdc-ipi-c` is the same fallback client written in C, for hosts without
+Python.
 
 The protocol is the one in the i-PI documentation,
 Distributed execution: communication protocol (https://docs.ipi-code.org/distributed.html), with the byte layout of
 i-PI's `ipi/interfaces/sockets.py` and ASE's `ase/calculators/socketio.py`.
 `python/cpmdc/ipi.py` cites both.
 
-# Start the driver
+## Start the fallback driver
 `pip install cpmdc` installs the `cpmdc-ipi` command; `python -m cpmdc.ipi`
 is the same program.
 It needs a `CPMDParams` file (see Call cpmdc from Python (file:python.org)) and the
 species in the order the server sends positions, because the protocol
-carries no species:
-
-cpmdc-ipi --unix water --params water.params.bin --species "O H H"
-cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2
+carries no species.  For example, use
+`cpmdc-ipi --unix water --params water.params.bin --species "O H H"` for
+UNIX, or ~cpmdc-ipi --host localhost --port 31415 --params
+water.params.bin --species OH2~ for TCP.
 
 | Option | Meaning |
 |--------+---------|
@@ -4756,7 +4777,7 @@ the stored result when `GETFORCE` asks for it.
 `cpmdc_session_calculate_forces()` when the step sends a cell that is not all
 zero and `--cluster` is not set.
 
-# From ASE
+## From ASE
 `SocketIOCalculator` without `calc` binds the socket and waits for a client.
 Start `cpmdc-ipi` against the same name, then use the calculator as any
 other.
@@ -4797,7 +4818,7 @@ new driver.
 `SocketServer`, the class under `SocketIOCalculator`, works the same way
 for a host that wants the raw `energy`, `forces`, and `virial`.
 
-# From i-PI
+## From i-PI
 Declare an `ffsocket` and point the system at it:
 
 <simulation verbosity="low">
@@ -4828,7 +4849,7 @@ trajectory; with several beads, start one driver per bead and set
 `matching="lock"` on the `ffsocket` so i-PI keeps each bead on its driver.
 The pytest suite runs a short NVE trajectory through i-PI 3.3.
 
-# With LAMMPS fix ipi
+## With LAMMPS fix ipi
 Untested as written: LAMMPS was not run with this input.
 `bench/lammps_routes.py` runs the same arrangement with `pair_style zero`.
 In it i-PI integrates; for LAMMPS to integrate, use the in-process routes
@@ -4866,7 +4887,7 @@ lmp -in in.lammps
 The species in i-PI's structure, in the LAMMPS data file, and in
 `--species` must be in the same order: none of the three clients checks.
 
-# The C driver
+## The C driver
 `cpmdc-ipi-c` speaks the same protocol from C, through
 `cpmdc_session_calculate_au()` of the C ABI (file:../reference/c-abi.org), with no Python
 interpreter.
@@ -4895,7 +4916,7 @@ cell scaled by a power of two: the pytest suite checks both drivers
 to 1e-10 through ASE's `SocketIOCalculator` over UNIX and TCP sockets,
 through a minimal server, and through a short i-PI NVE run.
 
-# Units
+## Units
 Everything on the wire is atomic units, and the driver converts nothing
 it returns.
 
@@ -4918,7 +4939,7 @@ side of the socket.
 With ASE's `Bohr` and `Ha` set to `BOHR_TO_ANGSTROM` and `HARTREE_TO_EV`
 the two agree to 1e-10, which the pytest suite checks.
 
-# Limits
+## Limits
 - The species are fixed at start. A step with another atom count stops the
   driver with a message; a change of composition at the same count cannot
   be seen on the wire, so restart the driver with the new `--species`.
@@ -10454,10 +10475,11 @@ drift apart.
 
 The inventory describes the cpmdc engine boundary, not transport protocols.
 i-PI is an optional rgpot frontend over =CPMDPot= and other potentials;
-protocol frontends are not =cpmdc_feature_*= rows.  Until the
-rgpot i-PI command gaps (file:../howto/socket-drivers.org) are closed, the
-cpmdc-specific i-PI driver remains a transitional tool rather than an engine
-capability.
+protocol frontends are not =cpmdc_feature_*= rows.  The audited rgpot
+develop snapshot provides the audited generic
+i-PI route (file:../howto/socket-drivers.org) through =CPMDPot=.
+The cpmdc-specific i-PI drivers remain compatibility fallbacks, not engine
+capabilities.
 
 | Namespace | Kind | Example | Means |
 |-----------+------+---------+-------|
