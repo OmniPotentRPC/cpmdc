@@ -6354,6 +6354,16 @@ entries a call filled.
 | `int cpmdc_available(void)` | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
 | `void cpmdc_finalize(void)` | reference and OpenCPMD builds: marks the runtime finalized; later calls that need it fail with `CPMD embed not available`, but a session evaluation that repeats the step the session stored last still returns 0 from the session's cache; the link stub does nothing and its evaluations always fail with `OpenCPMD embed not available in cpmdc stub` followed by the called function's name in parentheses; no build calls `MPI_Finalize` |
 | `const char *cpmdc_last_error(void)` | per-thread text of the last failing public call, empty after a success |
+| `CPMDCErrorCode cpmdc_last_error_code(void)` | machine-readable code for that failure; periodic electrostatic embedding is `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`, and a deck `EXTERNAL POTENTIAL` combined with session charges is `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` |
+
+| `CPMDCErrorCode` constant | Value | Meaning |
+|---------------------------+-------+---------|
+| `CPMDC_ERROR_NONE` | 0 | no failure recorded on the calling thread |
+| `CPMDC_ERROR_INVALID_ARGUMENT` | 1 | a null handle, a bad buffer, or a value the call refuses, such as a Gaussian width below 1e-12 Angstrom |
+| `CPMDC_ERROR_UNAVAILABLE` | 2 | the backend is not linked, not ready, or this build is the link stub |
+| `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` | 3 | session charges with a periodic cell or a periodic deck |
+| `CPMDC_ERROR_EVALUATION_FAILED` | 4 | the evaluation ran and produced no result |
+| `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` | 5 | session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` |
 
 `cpmdc_last_error()` is written by `cpmdc_params_method()`,
 `cpmdc_set_params()`,
@@ -6368,8 +6378,10 @@ point, `cpmdc_session_calculate_au()` among them.
 When the call returns `CPMDCResult`, the text matches `message`, including a
 missing pseudopotential directory.
 Snapshot readers (`cpmdc_last_stress()` and the other
-`cpmdc_last_*` / `cpmdc_session_last_*` getters) do not write it: -1 means the
-snapshot is absent or the output pointer is null.
+`cpmdc_last_*` / `cpmdc_session_last_*` getters) do not write it, except
+`cpmdc_session_last_external_charge_forces()`, which writes the code and the
+text on every failure and clears both on success. For the other readers, -1
+means the snapshot is absent or the output pointer is null.
 `cpmdc_adopted_comm()` and `cpmdc_capabilities_result()` do not write it either.
 A capabilities return of -1 is the size query.
 
@@ -6508,6 +6520,8 @@ The output array holds `3 * n_atoms` doubles.
 | `CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)` | resolve a `PotentialConfig` like `cpmdc_configure()`, then create a session |
 | `int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)` | replace the parameters and drop any `common` overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
+| `int cpmdc_session_set_external_charges(CPMDCSession *s, size_t n, const double *positions_ang, const double *charges_e, const double *widths_ang)` | copy `n` Gaussian MM charges for subsequent calls; widths may be `NULL` for the 0.30 Angstrom default and must be at least 1e-12 Angstrom; `n == 0` clears them |
+| `int cpmdc_session_last_external_charge_forces(const CPMDCSession *s, double *forces_h_bohr, size_t forces_len)` | copy the `3 * n` MM forces from the last successful evaluation and clear `cpmdc_last_error()`; -1 writes `CPMDC_ERROR_INVALID_ARGUMENT` for a null session, a missing result, the wrong length, or a null buffer |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
 | `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past `CPMDC_ORBITAL_SLOT_LIMIT` fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
@@ -6533,6 +6547,32 @@ A later step with a different count or composition fails with
 `topology change requires a new session` before CPMD runs.
 A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+External charges contribute
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic potential.
+For \(r/\sigma > 1/8\) the closed form is used. At or below that ratio the
+potential and the force coefficient are evaluated from their Taylor series in
+\((r/\sigma)^2\) through \((r/\sigma)^{14}\), because the closed force
+coefficient subtracts two terms of size \(O(1/r^2)\) and loses digits to that
+cancellation as \(r\) shrinks.
+The series is continuous with the closed form at the switch, finite at
+\(r = 0\), and keeps the force on a charge that sits on an ion.
+No term is dropped and nothing is clamped to the origin.
+Every charge and position must be finite, and every width must be finite and at
+least 1e-12 Angstrom, from the argument or from `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG`.
+A narrower width fails `cpmdc_session_set_external_charges()` with
+`CPMDC_ERROR_INVALID_ARGUMENT` and keeps the previous charge set, because the
+\(1/\sigma^4\) force terms overflow to NaN for much narrower Gaussians.
+The total energy includes electron--MM and ion--MM coupling; QM and MM force
+arrays are both `-dE/dR`. External charges are supported on an isolated system
+only, because periodic images are not implemented. A step with a cell, and a
+step on a deck that is not an isolated system (a `SYMMETRY` above 0, or a
+`SURFACE` or `POLYMER` deck), fails with
+`CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` on every evaluation path,
+including `cpmdc_session_energy_gradient()`.
+Session charges and a deck-defined `EXTERNAL POTENTIAL` or
+`EXTERNAL POTENTIAL ADD` are mutually exclusive.
+An evaluation that requests both fails with
+`CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` instead of replacing the deck potential.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
 of every atom changes neither the energy nor the forces (see `CPMDC_RECENTER` in environment variables (file:environment.org)).
@@ -6894,6 +6934,18 @@ Calls that report the build and the failure text. None of them evaluates.
 | Python | the text of `cpmdc.CPMDCError`; the package reads it after each failing call. |
 | Defaults | empty string before any call |
 
+### ~cpmdc_last_error_code~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none |
+| Ownership | none: the code is returned by value, so there is nothing to free. |
+| Threads and MPI | Thread-safe: each thread reads its own code, written together with its `cpmdc_last_error()` text. MPI: local to each rank; the gate messages of a collective evaluation map to the same code on every rank. |
+| Returns and errors | none: cannot fail. The code is `CPMDC_ERROR_NONE` when the text is empty and otherwise names the failure: a bad argument, an unavailable backend, periodic embedding, an evaluation that produced no result, or a deck `EXTERNAL POTENTIAL` combined with session charges. A later failure replaces an earlier code. |
+| Python | the `code` attribute of `cpmdc.CPMDCError` and of its subclasses; a library without the symbol gives code 0. |
+| Defaults | `CPMDC_ERROR_NONE` before any call |
+
 ## MPI calculator binding
 
 Calls that choose the communicator of one calculator. See the MPI how-to for the sequence.
@@ -7075,6 +7127,30 @@ A session is created by one of two functions and released by `cpmdc_session_dest
 | Returns and errors | Returns 0 on success and -1 for a NULL session, a value that is not finite, a session that has accepted a topology, E0 + 2 sigma above the deck cutoff, a message that sets `system.constantCutoff`, or a raw `&SYSTEM` block; the session keeps its previous setting and the text is `cpmdc_last_error()`. The link stub returns -1. |
 | Python | `cpmdc.CPMDCError` from the `cpmdc.Session` constructor when `constant_cutoff=` is given. |
 | Defaults | `cutoff_ry` zero or less turns the functional off; `height_ry` zero or less selects 50 times the deck cutoff; `width_ry` zero or less selects `cutoff_ry / 10` |
+
+### ~cpmdc_session_set_external_charges~
+
+| Item | Description |
+|--------+--------|
+| Units | `positions_ang` and `widths_ang` in Angstrom; `charges_e` in units of the elementary charge. |
+| Layout | none: `positions_ang` holds `3 * n` doubles in C order, `charges_e` `n` doubles, and `widths_ang` `n` doubles or NULL for the default width of 0.30 Angstrom (or `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG` when set). |
+| Ownership | `session` stays owned by the caller; the library copies `positions_ang`, `charges_e` and `widths_ang`, so the caller keeps and may free them on return. `n` of 0 clears the set. |
+| Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
+| Returns and errors | Returns 0 on success and -1 with `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session, NULL arrays with `n` above 0, a value that is not finite, or a width below 1e-12 Angstrom; the previous set is kept. The link stub returns -1 with `CPMDC_ERROR_UNAVAILABLE`. A periodic or deck-potential clash is reported by the next evaluation, not by this call. A successful call clears `cpmdc_last_error()`, and every failure writes it. |
+| Python | `cpmdc.Session.set_external_charges` raises `cpmdc.CPMDCInvalidArgument`. |
+| Defaults | no external charges |
+
+### ~cpmdc_session_last_external_charge_forces~
+
+| Item | Description |
+|--------+--------|
+| Units | Hartree/Bohr. |
+| Layout | none: `forces_h_bohr` holds `3 * n` doubles in C order for the `n` charges of the last successful evaluation, in the order they were set. |
+| Ownership | `session` stays owned by the caller; the caller owns the output buffer `forces_h_bohr`. |
+| Threads and MPI | Thread-safe only with the session: one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0 and clears `cpmdc_last_error()`, or -1 with `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session or buffer, a length that is not `3 * n`, or no successful evaluation with charges. The link stub returns -1 with `CPMDC_ERROR_UNAVAILABLE`. |
+| Python | `cpmdc.Session.external_charge_forces_au` raises `cpmdc.CPMDCInvalidArgument`. |
+| Defaults | none |
 
 ### ~cpmdc_session_destroy~
 
@@ -7959,6 +8035,15 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Ownership | Returned by value; the caller owns the copy. `message` is inside the struct, so there is nothing to free. |
 | Python | Not wrapped as a type; the Python `Session` reads `ok`, `energy_h` and `message` and raises `cpmdc.CPMDCError` with the message when `ok` is 0. |
 
+## ~CPMDCErrorCode~
+
+| Item | Description |
+|--------+--------|
+| Layout | An `enum` of `int` values 0 to 5: `CPMDC_ERROR_NONE`, `CPMDC_ERROR_INVALID_ARGUMENT`, `CPMDC_ERROR_UNAVAILABLE`, `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`, `CPMDC_ERROR_EVALUATION_FAILED`, `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
+| Units | none |
+| Ownership | Returned by value from `cpmdc_last_error_code()`. |
+| Python | Not wrapped as a type; the integer is `cpmdc.CPMDCError.code` and selects the subclass that the package raises. |
+
 ## ~CPMDCEnergyComponents~
 
 | Item | Description |
@@ -8102,6 +8187,12 @@ Every macro and enum constant of the installed headers.
 |--------+--------+--------+--------|
 | CPMDC_ABI_VERSION | 0 for every 0.x release | The ABI generation: the major number of `version.txt`, written into the header by cog. Compare it with `cpmdc_abi_version()`. | `cpmdc.Session.abi_version` returns the compiled value. |
 | CPMDC_API | the platform export attribute | Marks an exported function: default visibility on GCC and Clang, `__declspec(dllexport)` or `dllimport` on Windows, empty for a static build. | none |
+| CPMDC_ERROR_NONE | 0 | `CPMDCErrorCode`: no failure recorded. | `cpmdc.CPMDCError.code` is 0 for a failure that did not come from the library. |
+| CPMDC_ERROR_INVALID_ARGUMENT | 1 | `CPMDCErrorCode`: a null handle, a bad buffer, or a refused value. | `cpmdc.CPMDCInvalidArgument` |
+| CPMDC_ERROR_UNAVAILABLE | 2 | `CPMDCErrorCode`: the backend is not linked or this build is the link stub. | `cpmdc.CPMDCUnavailable` |
+| CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | `CPMDCErrorCode`: session charges with a periodic cell or deck. | `cpmdc.CPMDCUnsupportedPeriodicEmbedding` |
+| CPMDC_ERROR_EVALUATION_FAILED | 4 | `CPMDCErrorCode`: the evaluation ran and produced no result. | `cpmdc.CPMDCEvaluationFailed` |
+| CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | `CPMDCErrorCode`: session charges with a deck `EXTERNAL POTENTIAL`. | `cpmdc.CPMDCDeckExternalPotential` |
 | CPMDC_FEATURE_SECTION | 1 | `CPMDCFeatureKind`: a CPMD input section, such as `catalog.section.PIMD`. | none |
 | CPMDC_FEATURE_PARAMS | 2 | `CPMDCFeatureKind`: a `CPMDParams` field. | none |
 | CPMDC_FEATURE_ABI | 3 | `CPMDCFeatureKind`: an exported C function. | none |
@@ -8181,6 +8272,127 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Stateless: raised and caught on the calling thread, safe to pass between threads. It never holds a session. |
 | Raises | none: this is the exception. It subclasses `RuntimeError`. The C status codes map to it as listed in the C contracts, and `cpmdc.ase.CalculationFailed` and `cpmdc.ipi.ProtocolError` subclass it. |
 | Defaults | none: the message is whatever the library or the loader reported. |
+
+### ~cpmdc.CPMDCError.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`: the `CPMDCErrorCode` of the library failure, or 0 when Python rejected the call or the library lacks `cpmdc_last_error_code()`. |
+| Ownership and threads | Plain attribute of the exception instance; read it on the thread that caught the exception. |
+| Raises | none |
+| Defaults | 0 on `CPMDCError`; each subclass has its own class value, and the constructor takes `code=None` to keep it. |
+
+### ~cpmdc.CPMDCInvalidArgument~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCInvalidArgument(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 1. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below 1e-12 Angstrom. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCInvalidArgument.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 1. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 1, equal to `CPMDC_ERROR_INVALID_ARGUMENT`. |
+
+### ~cpmdc.CPMDCUnavailable~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCUnavailable(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 2. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised when the backend is not linked or the library is the link stub. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCUnavailable.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 2. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 2, equal to `CPMDC_ERROR_UNAVAILABLE`. |
+
+### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCUnsupportedPeriodicEmbedding(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 3. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for session charges with a periodic cell or a periodic deck. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 3. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 3, equal to `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`. |
+
+### ~cpmdc.CPMDCEvaluationFailed~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCEvaluationFailed(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 4. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised when an evaluation ran and produced no result. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCEvaluationFailed.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 4. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 4, equal to `CPMDC_ERROR_EVALUATION_FAILED`. |
+
+### ~cpmdc.CPMDCDeckExternalPotential~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCDeckExternalPotential(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 5. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD`. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCDeckExternalPotential.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 5. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 5, equal to `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
 
 ### ~cpmdc.ConstantCutoff~
 
@@ -8478,6 +8690,28 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | The caller keeps every argument; the result is new data. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | `ValueError` for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, or a malformed cell; `TypeError` for an atomic number that is not an integer (a whole float such as `8.0` is accepted); `CPMDCError` for a closed session, a change of atom count or composition, a non-zero cell rejected by the C ABI (rank below 3, volume underflow, volume overflow, or isolated-deck mismatch), or a failed step. |
 | Defaults | `cell` is `None`: an isolated system, evaluated with `cpmdc_session_energy_forces()`; a cell goes through `cpmdc_session_calculate_forces()`. |
+
+### ~cpmdc.Session.set_external_charges~
+
+| Item | Description |
+|--------+--------|
+| Signature | `set_external_charges(positions_angstrom, charges_e, widths_angstrom=None)` |
+| Units | `positions_angstrom` and `widths_angstrom` in Angstrom; `charges_e` in units of the elementary charge. |
+| Shape and dtype | `positions_angstrom` holds `3 * M` finite floats, flat or `M` rows; `charges_e` and `widths_angstrom` hold `M` finite floats; `M` of 0 clears the charges. |
+| Ownership and threads | The library copies the arrays; the caller keeps them. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time. MPI: the package never calls MPI; every rank of a calculator makes the same call. |
+| Raises | `ValueError` for a non-finite value or a wrong length; `cpmdc.CPMDCInvalidArgument` for a width below 1e-12 Angstrom, with the previous charges kept; `CPMDCError` for a closed session, or for a library without `cpmdc_session_set_external_charges`. |
+| Defaults | `widths_angstrom` is `None`: the library default of 0.30 Angstrom. A new session has no charges. |
+
+### ~cpmdc.Session.external_charge_forces_au~
+
+| Item | Description |
+|--------+--------|
+| Signature | `external_charge_forces_au(n_charges)` |
+| Units | Hartree/Bohr. |
+| Shape and dtype | `n_charges` a non-negative `int`; returns `3 * n_charges` floats in an `array('d')`, in the order the charges were set. |
+| Ownership and threads | Returns a new buffer. Not thread-safe: one session is used by one thread at a time. MPI: local to the rank. |
+| Raises | `ValueError` for a negative count; `cpmdc.CPMDCInvalidArgument` before a successful evaluation or for a count that differs from the charges set; `CPMDCError` for a closed session or for a library without `cpmdc_session_last_external_charge_forces`. |
+| Defaults | none: the count is required. |
 
 ### ~cpmdc.Session.select_orbitals~
 
@@ -11754,7 +11988,12 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `BOHR_TO_ANGSTROM` | `0.529177210903` Angstrom per Bohr, the constant `CPMDC_BOHR_TO_ANGSTROM` in `src/cpmdc_params.h` |
 | `HARTREE_TO_KCAL_PER_MOL` | `627.5094740630558` kcal/mol per Hartree, from CODATA 2018 Hartree energy, the Avogadro constant, and 4184 J per kilocalorie |
 | `ATOMIC_NUMBER_MIN`, `ATOMIC_NUMBER_MAX` | `1` and `118` (dimensionless `int`), the range of atomic numbers that `Session` and the C evaluation calls accept |
-| `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails |
+| `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails; `CPMDCError.code` is the `CPMDCErrorCode` of a library failure and `0` when Python rejected the call or the library predates `cpmdc_last_error_code()` |
+| `CPMDCInvalidArgument` | `CPMDCError` subclass for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below `1e-12` Angstrom; `CPMDCInvalidArgument.code` is `1` |
+| `CPMDCUnavailable` | `CPMDCError` subclass for a backend that is not linked or a link stub; `CPMDCUnavailable.code` is `2` |
+| `CPMDCUnsupportedPeriodicEmbedding` | `CPMDCError` subclass for external charges with a periodic cell or a periodic deck; `CPMDCUnsupportedPeriodicEmbedding.code` is `3` |
+| `CPMDCEvaluationFailed` | `CPMDCError` subclass for an evaluation that ran and produced no result; `CPMDCEvaluationFailed.code` is `4` |
+| `CPMDCDeckExternalPotential` | `CPMDCError` subclass for session charges combined with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD`; `CPMDCDeckExternalPotential.code` is `5` |
 | `CpmdcError` | deprecated alias of `CPMDCError`, the same class; reading it warns with `DeprecationWarning` |
 | `MethodInfo` | `MethodInfo(functional, charge, multiplicity)`: frozen dataclass of the effective method settings decoded from `CPMDParams` (all three fields required) |
 | `MethodInfo.functional`, `MethodInfo.charge`, `MethodInfo.multiplicity` | `functional` as the functional token (`str`), `charge` as the total system charge in elementary charges (`int`), and `multiplicity` as the spin multiplicity (dimensionless `int`) |
@@ -11767,6 +12006,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Session` | `Session(params, *, library=None, schema=None, constant_cutoff=None)`: one `CPMDCSession` handle and context manager; `params` is serialized `CPMDParams` `bytes` or a file path (required); `library=None` is a `libcpmdc` path or `None` for `find_library`; `constant_cutoff=None` takes what `ConstantCutoff.coerce` takes (in Rydberg) and calls `cpmdc_session_set_constant_cutoff()`; `schema=None` is deprecated and ignored (`DeprecationWarning` when not `None`); raises `CPMDCError`, `FileNotFoundError`, `TypeError`, or `ValueError` |
 | `Session.energy_forces` | `energy_forces(positions, atomic_numbers, cell=None)`: evaluate one geometry from Angstrom `positions` of shape (N, 3), N integer `atomic_numbers` in 1..118, and optional Angstrom `cell=None` (3x3 or nine row-major floats, encoded as `ForceInput` in process, or `None` for an isolated system); returns `Evaluation` in Hartree, Hartree/Bohr, and Hartree/Bohr^3; raises `CPMDCError`, `TypeError`, or `ValueError` |
 | `Session.calculate_au` | `calculate_au(positions_bohr, atomic_numbers, cell_bohr=None, *, forces=None, virial=None)`: one step through `cpmdc_session_calculate_au()` from `3 * N` Bohr coordinates in `positions_bohr` (flat or N rows), N integer `atomic_numbers` in 1..118, and optional `cell_bohr=None` (nine Bohr values or three rows with one vector per row, or `None`); returns  with `energy_h` in Hartree, `3 * N` forces in Hartree/Bohr, and the nine-component row-major virial `-dE/d(strain)` in Hartree (zero without a cell or stress tensor); C-contiguous `float64` and `int32` inputs pass without a copy, and writable `forces=None` and `virial=None` `float64` buffers are filled in place when given (otherwise new `array('d')` buffers are returned); raises `CPMDCError`, `TypeError`, or `ValueError` |
+| `Session.set_external_charges` | `set_external_charges(positions_angstrom, charges_e, widths_angstrom=None)`: replace the Gaussian MM point charges used by later evaluations; `positions_angstrom` holds `3 * M` Angstrom coordinates, `charges_e` `M` charges in units of the elementary charge, and `widths_angstrom=None` `M` Gaussian standard deviations in Angstrom (the library default, 0.30 Angstrom, when `None`); empty arrays clear the charges; a width below `1e-12` Angstrom raises `CPMDCInvalidArgument` and keeps the previous charges; a non-finite value raises `ValueError`; a library without `cpmdc_session_set_external_charges` raises `CPMDCError` |
+| `Session.external_charge_forces_au` | `external_charge_forces_au(n_charges)`: `3 * n_charges` forces on the MM charges of the last successful evaluation, in Hartree/Bohr; raises `CPMDCInvalidArgument` before a successful step or on a wrong count, `CPMDCError` on a library without `cpmdc_session_last_external_charge_forces`, and `ValueError` for a negative count |
 | `Session.select_orbitals` | `select_orbitals(key)`: call `cpmdc_session_select_orbitals()` with signed 64-bit integer `key` (dimensionless); raises `TypeError`, `ValueError`, or `CPMDCError` |
 | `Session.copy_orbitals` | `copy_orbitals(from_key, to_key)`: call `cpmdc_session_copy_orbitals()` to copy stored orbitals from signed 64-bit integer `from_key` into `to_key` (dimensionless); raises `TypeError`, `ValueError`, or `CPMDCError` |
 | `Session.version` | `version()`: return `cpmdc/` and the compiled version string |
@@ -11789,14 +12030,14 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, `stress`, and `dipole` |
 | `CPMDCCalculator.ignored_changes` | the empty set: a change of `initial_charges` or `initial_magmoms` discards the stored results, because the calculator reads them as the total charge and, through the total moment, the multiplicity |
 | `CPMDCCalculator.discard_results_on_any_change` | `True`: a parameter that `set` changes clears the stored results |
-| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge only when `params` leaves the charge unset (`hasCharge` false and effective charge 0), and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves the multiplicity at its default of 1; an explicit charge, including 0 with `hasCharge` true, is kept, and a nonzero total that differs from a set value of `params` raises `ValueError` that names both values and both sources; a total that is not an integer within `n * eps * sum(abs(x))` and non-collinear moments raise `ValueError`; zero totals change nothing |
+| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves that setting at its default (a charge of 0, a multiplicity of 1); a nonzero total that differs from a set value of `params`, a total that is not an integer within `n * eps * sum(abs(x))`, and non-collinear moments raise `ValueError`; zero totals change nothing |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is encoded as standard Base64 under `{"cpmdparams_base64": ...}`, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
 | `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
-| `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
+| `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message and the library code in `CPMDCError.code` |
 | `cpmdc.ipi.Driver` | `Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)`: answer i-PI protocol requests from one `Session` |
 | `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree |
 | `Driver.serve` | `serve(sock)`: answer a connected socket until `EXIT` or a closed connection; return the step count |
@@ -11807,7 +12048,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.ipi.unix_socket_path` | `unix_socket_path(name, prefix=None)`: the socket file for an address, with the i-PI and ASE prefix |
 | `cpmdc.ipi.HEADER_BYTES`, `cpmdc.ipi.DEFAULT_SOCKET_PREFIX` | the 12-byte width of a protocol header, and the socket-name prefix that i-PI and ASE use |
 | `cpmdc.ipi.main` | `main(argv=None)`: the `cpmdc-ipi` command; returns the exit status |
-| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)`: cpmdc as the force engine of a `fix external pf/callback`, delegating the LAMMPS protocol to `rgpot.lammps.FixExternal` |
+| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None, qm_types=None, mm_width_angstrom=0.30)`: cpmdc as the force engine of a `fix external pf/callback`, delegating the LAMMPS protocol to `rgpot.lammps.FixExternal`; with `qm_types` (atom types evaluated as QM) every other atom is a Gaussian MM charge with its LAMMPS `q` and width `mm_width_angstrom` (finite, at least `1e-12`), on an isolated box only, and the charge set is cleared on the first step that has no MM atom |
 | `FixExternal.run` | `run(steps, *keywords)`: run `steps` with LAMMPS keywords; raises `CPMDCError` for a failed step |
 | `FixExternal.close` | `close()`: close the session and remove the fixes it added; also on leaving a `with` block |
 | `FixExternal.error`, `energy`, `evaluations` | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |
@@ -11815,8 +12056,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.lammps.UNIT_STYLES` | LAMMPS unit style to (length per Bohr, energy per Hartree) for `metal`, `real`, `electron` |
 | `cpmdc.lammps.unit_factors` | `unit_factors(style)`: that pair for one style; `ValueError` for any other |
 | `cpmdc.lammps.box_rows` | `box_rows(boxlo, boxhi, xy, yz, xz)`: `boxlo`, `boxhi`, `xy`, `yz`, `xz` to the 3x3 cell with one lattice vector per row |
-| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`, `links` a sequence of 1-based  pairs written as `&LINK` sections, `link_alpha` their `ALPHA_IMOMM`); `ValueError` or `TypeError` for a value the library would refuse |
-| `cpmdc.gromacs.write_qmi` | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: write that text to `path` and return it |
+| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`embedding` is `"ELECTROSTATIC"`, `"MECHANICAL"`, or `"NONE"`; `mm_width` is the Gaussian width in nm of `"ELECTROSTATIC"` and is refused for any other embedding, below `1e-13` nm, or when not finite; `ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`); `ValueError` or `TypeError` for a value the library would refuse |
+| `cpmdc.gromacs.write_qmi` | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)`: write that text to `path` and return it |
 | `cpmdc.gromacs.BOHR_TO_NM`, `HARTREE_TO_KJ_PER_MOL`, `HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM` | GROMACS' QM/MM conversion factors, built as `src/gromacs/math/units.h` builds them |
 | `cpmdc.lammps.type_numbers` | `type_numbers(elements, n_types)`: atomic numbers per atom type from `"O H"`, `"8 1"`, or a sequence; `ValueError` unless there are `n_types` |
 
@@ -11837,6 +12078,10 @@ covers `cpmdc.lammps`.
 | empty or invalid `CPMDParams`, library or schema not found, library load or call failed, closed `Session`, changed atom count or composition | `CPMDCError` |
 | a `constant_cutoff` whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw `&SYSTEM` block or with `system.constantCutoff`, or on a library without `cpmdc_session_set_constant_cutoff` | `CPMDCError` |
 | `Session.copy_orbitals` on a library without `cpmdc_session_copy_orbitals`, before any evaluation, or from a key without converged orbitals | `CPMDCError` |
+| `Session.set_external_charges` with a width below `1e-12` Angstrom, a null buffer, or a failed charge copy; `Session.external_charge_forces_au` before a successful step or with the wrong count | `CPMDCInvalidArgument` |
+| session charges with a periodic cell, or with a periodic deck on a call that passes no cell | `CPMDCUnsupportedPeriodicEmbedding` |
+| session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` | `CPMDCDeckExternalPotential` |
+| `Session.set_external_charges` or `Session.external_charge_forces_au` on a library without `cpmdc_session_set_external_charges` or `cpmdc_session_last_external_charge_forces` | `CPMDCError` with code `0` |
 | a `CPMDCCalculator` step that the library rejects | `cpmdc.ase.CalculationFailed`, which is a `CPMDCError` and ASE's `CalculationFailed` |
 | missing `params` file | `FileNotFoundError` |
 | empty or non-3D positions, mismatched `atomic_numbers` or `numbers` length, a cell or box that is not 3x3 or 9 numbers, a `stress_h_bohr3` without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite `ConstantCutoff` field, a whole-number argument that is a fraction such as `14.9`, an orbital key outside the signed 64-bit range | `ValueError` |
@@ -11850,8 +12095,8 @@ covers `cpmdc.lammps`.
 | a changed atom count, an `INIT` that is not UTF-8 or whose `batch_size` is duplicated or is not the integer 1, a message out of order, a connection closed mid-message, or an unusable periodic cell on the socket | `cpmdc.ipi.ProtocolError` |
 | a negative, NaN or infinite `cpmdc.ipi.connect(wait=...)` | `ValueError`, before a socket is opened |
 | `Session.calculate_au` with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size, or non-writable or non-contiguous `forces` or `virial` buffers | `CPMDCError`; `ValueError` for the sizes, buffers, non-finite values, and atomic numbers outside 1..118; `TypeError` for non-numeric coordinates or non-integer atomic numbers |
-| `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, or with the wrong number of elements | `ValueError` |
-| `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, or a failed step in `FixExternal.run` | `CPMDCError` |
+| `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, with the wrong number of elements, with empty `qm_types`, or with an `mm_width_angstrom` that is not finite or is below `1e-12` | `ValueError` |
+| `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, a step with MM atoms on a periodic box or without atom charges, or a failed step in `FixExternal.run` | `CPMDCError` |
 
 
 ## File: docs/orgmode/reference/surface-map.org
