@@ -3,7 +3,9 @@
 Importing this module registers :class:`CPMDCCalculator` under the name
 ``"cpmdc"`` with :func:`ase.calculators.calculator.register_calculator_class`,
 so :func:`ase.calculators.calculator.get_calculator_class` returns it for
-``"cpmdc"``.
+``"cpmdc"``. The calculator's ``name`` is that same string, so the name that
+a trajectory or an ASE database row records is one that ``get_calculator_class``
+loads.
 
 Units are ASE units: energy in eV, forces in eV/Angstrom, stress in
 eV/Angstrom^3, and dipole in e*Angstrom. Stress is Voigt order
@@ -66,6 +68,7 @@ from cpmdc._rank import _cell_is_rank_deficient
 
 __all__ = ["CPMDCCalculator", "CalculationFailed"]
 
+_CALCULATOR_NAME = "cpmdc"
 _NEED_PARAMS = "params is required: a CPMDParams path or bytes"
 _METHOD_IN_PARAMS = (
     "the charge, the multiplicity, the functional, the cutoff, and every "
@@ -258,6 +261,9 @@ class CPMDCCalculator(Calculator):
         Calculator.__init__(self, **kwargs)
         if self.parameters.get("params") is None:
             raise TypeError(_NEED_PARAMS)
+
+    def _get_name(self) -> str:
+        return _CALCULATOR_NAME
 
     @property
     def potential(self) -> Potential:
@@ -471,12 +477,12 @@ class CPMDCCalculator(Calculator):
 
 def _register_calculator() -> None:
     """Register :class:`CPMDCCalculator` with ASE under ``"cpmdc"`` once."""
-    if external_calculators.get("cpmdc") is CPMDCCalculator:
+    if external_calculators.get(_CALCULATOR_NAME) is CPMDCCalculator:
         return
-    if "cpmdc" not in external_calculators:
-        register_calculator_class("cpmdc", CPMDCCalculator)
+    if _CALCULATOR_NAME not in external_calculators:
+        register_calculator_class(_CALCULATOR_NAME, CPMDCCalculator)
     else:
-        external_calculators["cpmdc"] = CPMDCCalculator
+        external_calculators[_CALCULATOR_NAME] = CPMDCCalculator
 
 
 @functools.cache

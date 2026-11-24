@@ -26,6 +26,7 @@ from ase import Atoms, units
 from ase.calculators.calculator import (
     CalculationFailed,
     CalculatorError,
+    get_calculator_class,
     PropertyNotImplementedError,
     ReadError,
     all_changes,
@@ -1293,3 +1294,32 @@ def test_velocity_verlet_conserves_the_energy_with_one_step_per_move(calc, steps
     drift = abs(atoms.get_total_energy() - start)
     assert drift < (1e-3 if opencpmd else 1e-6)
     assert len(steps) == 1 + 10
+
+
+# --- the name ASE records ------------------------------------------------------
+
+
+def test_the_calculator_name_is_the_registered_name(calc):
+    assert calc.name == "cpmdc"
+    assert get_calculator_class(calc.name) is CPMDCCalculator
+
+
+def test_a_trajectory_names_a_calculator_class_ase_can_load(periodic_calc, tmp_path):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    atoms.get_potential_energy()
+    write(tmp_path / "water.traj", atoms)
+    back = read(tmp_path / "water.traj")
+    assert back.calc.name == "cpmdc"
+    assert get_calculator_class(back.calc.name) is CPMDCCalculator
+
+
+def test_a_database_row_names_a_calculator_class_ase_can_load(periodic_calc, tmp_path):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    atoms.get_potential_energy()
+    with ase.db.connect(tmp_path / "rows.json") as db:
+        db.write(atoms)
+    row = ase.db.connect(tmp_path / "rows.json").get(id=1)
+    assert row.calculator == "cpmdc"
+    assert get_calculator_class(row.calculator) is CPMDCCalculator
