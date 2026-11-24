@@ -350,16 +350,18 @@ class CPMDCCalculator(Calculator):
             }
         return dct
 
-    def check_state(self, atoms: Atoms, tol: float = 1e-15) -> list[str]:
+    def check_state(self, atoms: Atoms, *args: Any, **kwargs: Any) -> list[str]:
         """Return the system changes that make the stored step stale.
 
-        ASE's list, without ``"cell"`` while the stored structure and
+        The arguments after ``atoms`` go to ASE's ``Calculator.check_state``,
+        so ``tol`` keeps the default of the ASE release in use. The list is
+        ASE's, without ``"cell"`` while the stored structure and
         ``atoms`` are both clusters: a cluster step sends no cell, so a
         different ``atoms.cell`` gives the same step. A cell change that
         comes with a ``pbc`` change stays, because ``"pbc"`` is then in
         the list as well.
         """
-        changes: list[str] = Calculator.check_state(self, atoms, tol)
+        changes: list[str] = Calculator.check_state(self, atoms, *args, **kwargs)
         if (
             "cell" in changes
             and self.atoms is not None

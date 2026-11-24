@@ -1882,12 +1882,12 @@ The ASE calculator. Importing it imports ASE.
 
 | Item | Description |
 |--------+--------|
-| Signature | ~check_state(atoms, tol=1e-15)~ |
+| Signature | ~check_state(atoms, *args, **kwargs)~ |
 | Units | none |
 | Shape and dtype | ~atoms~ an ~ase.Atoms~; returns a ~list~ of ASE system-change names, empty when the stored step is valid for ~atoms~. |
 | Ownership and threads | Reads the calculator's copy of the atoms and changes nothing. Not thread-safe. |
 | Raises | none |
-| Defaults | ~tol~ is ASE's ~1e-15~. The list is ASE's, except that ~cell~ is left out while the stored structure and ~atoms~ both have every ~pbc~ flag false, because a cluster step sends no cell. |
+| Defaults | The arguments after ~atoms~ go to ASE's ~Calculator.check_state~, so ~tol~ keeps ASE's default. The list is ASE's, except that ~cell~ is left out while the stored structure and ~atoms~ both have every ~pbc~ flag false, because a cluster step sends no cell. |
 
 *** ~cpmdc.ase.CPMDCCalculator.reset~
 

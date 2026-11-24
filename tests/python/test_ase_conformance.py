@@ -1444,3 +1444,13 @@ def test_a_cell_change_after_a_periodic_step_evaluates_a_cluster(calc, steps):
     assert set(calc.check_state(atoms)) == {"cell", "pbc"}
     atoms.get_potential_energy()
     assert len(steps) == 2
+
+
+def test_check_state_forwards_the_tolerance_to_ase(calc):
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    atoms.positions[1, 1] += 1e-6
+    assert calc.check_state(atoms) == ["positions"]
+    assert calc.check_state(atoms, tol=1e-3) == []
+    assert calc.check_state(atoms, 1e-3) == []
