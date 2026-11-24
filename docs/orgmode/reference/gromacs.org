@@ -59,8 +59,14 @@ does not share would run another system than the one GROMACS set up.
 Later ~CHARGE~ or ~MULTIPLICITY~ lines do not override the first occurrence,
 whether inside or outside ~&DFT~, though every ~CHARGE~ or ~MULTIPLICITY~ line
 must carry a single value and a non-integer first value is refused.
+That includes a ~CHARGE~ or ~MULTIPLICITY~ line inside ~&CPMDC~: it is not a
+~&CPMDC~ key, but GROMACS reads it, and ~qmi_input()~ writes ~&CPMDC~ before
+~&DFT~, so such a line comes first and is the value compared.
 A disagreement names both values, for example
 ~&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0~.
+The disagreement message says ~&DFT~ whichever section the line sat in; a
+non-integer value outside ~&DFT~ is reported as ~input CHARGE~ or
+~input MULTIPLICITY~.
 The ~&XC_FUNCTIONAL~ of the file is not compared, because CP2K writes a
 functional as nested sections as well as a name; the deck holds the functional.
 A link hydrogen is not part of that comparison. The values are the effective

@@ -20,7 +20,9 @@ calculation; GROMACS writes the same sections into the input it generates.
 For a PBE or BLYP input generated from an mdp and stored in a tpr, set
 ``CPMDC_GROMACS_PARAMS`` when running mdrun. Its effective functional,
 charge, and multiplicity must match the generated input. An explicit
-``&CPMDC`` section takes precedence.
+``&CPMDC`` section takes precedence, and the charge and multiplicity of its
+message must match the first ``CHARGE`` and ``MULTIPLICITY`` lines of the
+file, which GROMACS reads whichever section holds them.
 
 Units: GROMACS works in nm, kJ/mol, and ps; its QM/MM module converts to
 Bohr and Hartree with its own constants, which :data:`BOHR_TO_NM` and
@@ -151,7 +153,10 @@ def qmi_input(
         deck sets the charge and multiplicity cpmdc uses, and
         ``libcpmdc_gromacs`` stops ``mdrun`` when they differ from these two
         values, so pass the deck's charge and multiplicity for a deck that is
-        not neutral and singlet.
+        not neutral and singlet. They are written in ``&DFT``, but GROMACS
+        and the library read the first ``CHARGE`` and ``MULTIPLICITY`` line
+        of the file in any section, ``&CPMDC`` included, so a line added
+        above ``&DFT`` replaces them.
     """
     charge_value = _integer(charge, "charge")
     multiplicity_value = _integer(multiplicity, "multiplicity")

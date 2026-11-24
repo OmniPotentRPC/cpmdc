@@ -13,7 +13,10 @@
  * The input is either the file of grompp -qmi with
  * qmmm-cp2k-qmmethod = INPUT, or GROMACS' generated PBE/BLYP input with the
  * CPMDParams message named by CPMDC_GROMACS_PARAMS. The generated
- * functional, charge, and multiplicity must match that message. GROMACS
+ * functional, charge, and multiplicity must match that message. On either
+ * path the charge and multiplicity compared are the first CHARGE and
+ * MULTIPLICITY lines of the file in any section, &CPMDC included, because
+ * those are the values GROMACS reads. GROMACS
  * writes the input at mdrun with the name of the PDB file it generates.
  * That PDB gives every atom's element, whether it is QM or MM, and the
  * classical charge of each MM atom (QM atoms carry 0: grompp removes their
