@@ -26,11 +26,17 @@ One run is a batch of calls; its figure is the mean time per call. The
 tables give the median over runs and the spread (quartiles, minimum,
 maximum).
 
+A change is called real only when the interquartile ranges of the two sides,
+pooled over the files of each side, do not overlap and the medians differ by
+more than MATERIAL_RATIO. The ``floor`` row runs identical code on both sides,
+so it shows how far a row can move with no change behind it.
+
 usage: client_overhead.py [--library LIBCPMDC --params CPMDPARAMS
                            --periodic-params CPMDPARAMS]
                           [--atoms 8,64,512,4096] [--runs 15]
                           [--batch-ms 50] [--pin CPU] [--json FILE]
                           [--profile PATH]
+       client_overhead.py --base-json FILE... --tip-json FILE...
 """
 
 from __future__ import annotations
@@ -65,6 +71,7 @@ REFERENCE_ATOM_LIMIT = 1365
 ATOMS_PER_VOLUME = 0.1
 MIN_EDGE_ANGSTROM = 6.0
 PROBE_CALLS = 3
+MATERIAL_RATIO = 1.05
 
 
 class Geometry:
@@ -312,6 +319,48 @@ def org_table(title: str, results: dict[str, dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
+def pooled(files: list[Path], backend: str, size: str, name: str) -> dict[str, float] | None:
+    """Median of the file medians, and the widest interquartile range over the files."""
+    found = []
+    for path in files:
+        stats = json.loads(path.read_text())["results"].get(backend, {}).get(size, {}).get(name)
+        if stats is not None:
+            found.append(stats)
+    if not found:
+        return None
+    return {
+        "median_us": statistics.median(item["median_us"] for item in found),
+        "q1_us": min(item["q1_us"] for item in found),
+        "q3_us": max(item["q3_us"] for item in found),
+    }
+
+
+def compare(base_files: list[Path], tip_files: list[Path]) -> str:
+    lines = ["#+TITLE: client overhead, base against tip", ""]
+    first = json.loads(base_files[0].read_text())
+    for backend, per_size in first["results"].items():
+        lines += [f"* {backend}", ""]
+        for size, per_path in per_size.items():
+            if "refused" in per_path:
+                continue
+            lines += [f"** N = {size}", "", "| path | base us | tip us | base/tip | beyond noise |", "|-"]
+            for name in per_path:
+                before = pooled(base_files, backend, size, name)
+                after = pooled(tip_files, backend, size, name)
+                if before is None or after is None:
+                    continue
+                ratio = before["median_us"] / after["median_us"]
+                apart = (after["q3_us"] < before["q1_us"] or before["q3_us"] < after["q1_us"]) and (
+                    ratio > MATERIAL_RATIO or ratio < 1.0 / MATERIAL_RATIO
+                )
+                lines.append(
+                    f"| {name} | {before['median_us']:.2f} | {after['median_us']:.2f} "
+                    f"| {ratio:.2f} | {'yes' if apart else 'no'} |"
+                )
+            lines.append("")
+    return "\n".join(lines)
+
+
 def profile_one(library: Path, params: bytes, periodic_params: bytes, n_atoms: int, name: str) -> str:
     geo = Geometry(n_atoms)
     paths, closers = build_paths(library, params, periodic_params, geo)
@@ -346,7 +395,15 @@ def main() -> int:
     parser.add_argument("--json", type=Path)
     parser.add_argument("--profile", metavar="PATH", help="cProfile one path of the mock backend")
     parser.add_argument("--profile-atoms", type=int, default=512)
+    parser.add_argument("--base-json", type=Path, nargs="+", help="result files of the base tree")
+    parser.add_argument("--tip-json", type=Path, nargs="+", help="result files of the tip tree")
     args = parser.parse_args()
+
+    if args.base_json or args.tip_json:
+        if not (args.base_json and args.tip_json):
+            parser.error("--base-json and --tip-json go together")
+        print(compare(args.base_json, args.tip_json))
+        return 0
 
     if args.pin is not None:
         os.sched_setaffinity(0, {args.pin})
