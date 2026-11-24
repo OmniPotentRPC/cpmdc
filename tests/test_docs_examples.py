@@ -121,6 +121,7 @@ SKIP = {
     "howto/lammps.org:1": "reconfigures the tree",
     "howto/lammps.org:2": "LAMMPS input script for lmp and the plugin",
     "howto/lammps.org:3": "OpenCPMD harness build; needs a built archive and the lammps module",
+    "howto/python.org:3": "reconfigures the tree and times 15 runs per path; the harness is a benchmark",
     "howto/mpi.org:3": "needs the caller's MPI host on 16 ranks",
     "howto/pwscale-ranks.org:0": "benchmark, not a correctness example",
     "howto/pwscale-ranks.org:1": "needs -Dwith_pwscale=true; pwscale-agreement makes the same calls",
