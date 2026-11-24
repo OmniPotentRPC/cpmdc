@@ -4,8 +4,9 @@
  * SYMMETRY 1 for a cubic deck and a cubic box, SYMMETRY 8 for another
  * orthorhombic box, CELL VECTORS without SYMMETRY for a box with
  * off-diagonal components, Bohr when the deck has no ANGSTROM. An isolated
- * deck (SYMMETRY 0, the built-in minimal deck) takes only an orthorhombic
- * box. An all-zero box is no cell, and the deck's CELL stays.
+ * deck (SYMMETRY 0, the built-in minimal deck) uses CLUSTER with CELL
+ * VECTORS for a non-orthorhombic box. An all-zero box is no cell, and the
+ * deck's CELL stays.
  */
 #include "cpmdc.h"
 #include "cpmdc_embed_image.h"
@@ -116,16 +117,20 @@ static void test_minimal_deck_orthorhombic_box(void **state) {
   lines_within_80(deck);
 }
 
-static void test_minimal_deck_refuses_a_skewed_box(void **state) {
+static void test_minimal_deck_uses_cluster_for_a_skewed_box(void **state) {
   (void)state;
   const double cell[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
                           0.0,  0.0, 12.0};
   char deck[8192];
   int len = 0;
-  /* The minimal deck is an isolated cluster with a Hockney solver. */
   assert_int_equal(cpmdc_embed_compose_cold_deck(2, kPos, kZ, cell, 1, deck,
                                                  (int)sizeof(deck), &len),
-                   0);
+                   1);
+  assert_non_null(strstr(deck, " CLUSTER\n CELL VECTORS\n"));
+  assert_cell_vectors_equal(deck, cell);
+  assert_non_null(strstr(deck, " POISSON SOLVER HOCKNEY\n"));
+  assert_null(strstr(deck, " SYMMETRY\n"));
+  lines_within_80(deck);
 }
 
 static void test_box_replaces_the_deck_cell(void **state) {
@@ -208,7 +213,7 @@ static void test_zero_box_keeps_the_deck_cell(void **state) {
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_minimal_deck_orthorhombic_box),
-      cmocka_unit_test(test_minimal_deck_refuses_a_skewed_box),
+      cmocka_unit_test(test_minimal_deck_uses_cluster_for_a_skewed_box),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
       cmocka_unit_test(test_small_triclinic_components_are_preserved),
       cmocka_unit_test(test_box_in_bohr_without_angstrom),

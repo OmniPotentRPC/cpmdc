@@ -1904,8 +1904,8 @@ CONTAINS
   ! and its data lines go, and so does SYMMETRY with its value line; then
   ! the box goes back in before the &END of &SYSTEM:
   !   isolated deck (SYMMETRY 0 or ISOLATED): SYMMETRY 0 and CELL, for a
-  !     diagonal box only; CPMD's isolated solvers need an orthorhombic
-  !     cell, so another box is refused (ierr 3).
+  !     diagonal box; CLUSTER and CELL VECTORS for another box, because
+  !     CPMD permits a non-orthorhombic isolated cell only with CLUSTER.
   !   diagonal box: SYMMETRY 1 when the deck said cubic and a = b = c,
   !     otherwise SYMMETRY 8, with CELL a b/a c/a.
   !   other box: CELL VECTORS and no SYMMETRY, which CPMD refuses beside it.
@@ -1974,13 +1974,6 @@ CONTAINS
     END IF
     diagonal = ABS(c(2)) + ABS(c(3)) + ABS(c(4)) + ABS(c(6)) + ABS(c(7)) + &
         ABS(c(8)) == 0.0_real64
-    IF (isolated_deck .AND. .NOT. diagonal) THEN
-      CALL cpmdc_note_embed_failure('an isolated deck (SYMMETRY 0) needs ' // &
-           'an orthorhombic box; the ForceInput box has off-diagonal ' // &
-           'components' // c_null_char)
-      ierr = 3
-      RETURN
-    END IF
     scale = 1.0_real64
     IF (.NOT. angstrom) scale = 1.0_real64 / ang_per_bohr
     c = c * scale
@@ -2007,7 +2000,13 @@ CONTAINS
            c(1), c(5) / c(1), &
            c(9) / c(1), ' 0 0 0', NEW_LINE('A')
     ELSE
-      WRITE(text, '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
+      IF (isolated_deck) THEN
+        text = ' CLUSTER' // NEW_LINE('A')
+      ELSE
+        text = ''
+      END IF
+      ntext = LEN_TRIM(text)
+      WRITE(text(ntext + 1:), '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
            'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
            'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') ' CELL VECTORS', &
            NEW_LINE('A'), c(1), c(2), c(3), NEW_LINE('A'), &
