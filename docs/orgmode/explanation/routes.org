@@ -7,10 +7,13 @@ The default local interface is the in-process session API:
 =cpmdc_session_calculate_result()= for Cap'n Proto messages.
 The default remote interface is rgpot's Cap'n Proto RPC over =CPMDPot=.
 i-PI is an optional rgpot protocol frontend over potentials; protocol
-frontends do not belong inside an engine library.  The cpmdc-specific i-PI
-frontend is transitional because the
-[[file:../howto/socket-drivers.org][rgpot migration gaps]] still prevent
-=rgpot-ipi-driver= from selecting =CPMDPot=.
+frontends do not belong inside an engine library.  In an rgpot build with
+the RPC stack, =rgpot-ipi-driver= selects =CPMDPot= for
+=--pot "CPMD params FILE"= and for ~-m CPMD -o params=FILE~.
+Pass =--preserve-open-cell= for CPMD so a singular cell is passed through
+instead of padded.  The
+[[file:../howto/socket-drivers.org][i-PI migration status]] records that
+route.  =cpmdc-ipi= and =cpmdc-ipi-c= remain compatibility fallbacks.
 
 The measurements below compare the two original execution routes.
 The file route writes a deck, starts ~cpmd.x~ for each force call, and reads

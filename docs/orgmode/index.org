@@ -89,8 +89,8 @@ composition requires a new session.
      - Drive ``Session`` or an in-process ``Potential`` directly from NumPy arrays
      - :doc:`Call cpmdc from Python <howto/python>`
    * - Run cpmdc under i-PI or an ASE socket calculator
-     - Use the rgpot frontend after its documented CPMD command gaps close; the cpmdc drivers remain transitional
-     - :doc:`i-PI frontend status and transitional commands <howto/socket-drivers>`
+     - Run ``rgpot-ipi-driver`` over ``CPMDPot`` when the rgpot build has the RPC stack (``--pot "CPMD params FILE"`` or ``-m CPMD -o params=FILE``, with ``--preserve-open-cell``); ``cpmdc-ipi`` and ``cpmdc-ipi-c`` remain compatibility fallbacks
+     - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
    * - Run LAMMPS on cpmdc forces
      - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
      - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
