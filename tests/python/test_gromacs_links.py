@@ -361,7 +361,9 @@ def write_bonded_system(
     (workdir / "topol.top").write_text(
         gc.TOPOLOGY_HEAD
         + BONDED_TOPOLOGY
-        + gc.MOLECULE.format(name="SOL", o="OW", h="HW")
+        + gc.MOLECULE.format(
+            name="SOL", o="OW", h="HW", qo=-0.834, qh1=0.417, qh2=0.417
+        )
         + f"\n[ system ]\nbonded\n\n[ molecules ]\n{molecules}"
     )
     (workdir / "index.ndx").write_text(
@@ -492,8 +494,10 @@ def test_mpi_link_atoms_match_one_rank(ranks, qm_ranks, single_rank_link, params
     grid = re.search(r"Domain decomposition grid (\d+) x (\d+) x (\d+)",
                      (tmp_path / "md.log").read_text())
     assert grid and int(grid.group(1)) >= 2, "no decomposition along x"
-    assert f"ranks {ranks} qm_ranks {ranks if qm_ranks == 'ALL' else 1} links 1" in (
-        tmp_path / "md_cp2k.out").read_text()
+    assert (
+        f"ranks {ranks} qm_ranks {ranks if qm_ranks == 'ALL' else 1} "
+        "epsilon_r 1 links 1"
+    ) in (tmp_path / "md_cp2k.out").read_text()
     ref_frames, ref_table = single_rank_link
     table = gc.energies(GMX_MPI, tmp_path, "Quantum-En.", "Potential")
     np.testing.assert_allclose(table[:, 1:], ref_table[:, 1:], rtol=1e-10, atol=0)
