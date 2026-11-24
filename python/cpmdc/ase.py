@@ -52,6 +52,7 @@ from ase.atoms import Atoms
 from ase.calculators.calculator import (
     CalculationFailed as _ASECalculationFailed,
     Calculator,
+    CalculatorSetupError,
     Parameters,
     PropertyNotImplementedError,
     ReadError,
@@ -66,7 +67,7 @@ from ase.utils import workdir
 from cpmdc import ConstantCutoff, CPMDCError, Potential, _warn_schema
 from cpmdc._rank import _cell_is_rank_deficient
 
-__all__ = ["CPMDCCalculator", "CalculationFailed"]
+__all__ = ["CPMDCCalculator", "CalculationFailed", "UnsupportedAtoms"]
 
 _CALCULATOR_NAME = "cpmdc"
 _NEED_PARAMS = "params is required: a CPMDParams path or bytes"
@@ -111,6 +112,16 @@ class CalculationFailed(CPMDCError, _ASECalculationFailed):
     It is both ASE's ``CalculationFailed`` and :class:`cpmdc.CPMDCError`,
     so either ``except`` clause catches it. The message names the working
     directory of the step and gives the library's reason.
+    """
+
+
+class UnsupportedAtoms(CalculatorSetupError, ValueError):
+    """A structure that the calculator cannot evaluate.
+
+    It is ASE's ``CalculatorSetupError``, which ASE raises for an ``Atoms``
+    object that a calculator does not support, and a ``ValueError``, which
+    this calculator raised before. The message names the ``pbc`` flags or
+    the ``cell`` that cpmdc rejects.
     """
 
 
@@ -433,13 +444,13 @@ class CPMDCCalculator(Calculator):
             return None
         if not all(flags):
             names = [axis for axis, flag in zip(("x", "y", "z"), flags) if not flag]
-            raise ValueError(
+            raise UnsupportedAtoms(
                 "cpmdc takes a fully periodic cell; non-periodic axes: "
                 + ", ".join(names)
             )
         cell_array: np.ndarray = atoms.cell.array
         if _cell_is_rank_deficient(cell_array):
-            raise ValueError(
+            raise UnsupportedAtoms(
                 "cpmdc takes a fully periodic cell; atoms.pbc is true but "
                 "atoms.cell does not have three independent vectors"
             )
