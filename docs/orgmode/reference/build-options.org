@@ -50,7 +50,7 @@ match only symbols that are present.
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | always |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | always |
 | pkg-config files | ~lib/pkgconfig/cpmdc.pc~, ~cpmdc-restart.pc~ | always |
-| CMake package | ~cpmdcConfig.cmake~, imported target ~cpmdc::cpmdc~ | always |
+| CMake package | ~lib/cmake/cpmdc/cpmdcConfig.cmake~, ~cpmdcConfigVersion.cmake~, imported target ~cpmdc::cpmdc~ | always; Meson writes ~cpmdcConfig.cmake~ from ~cmake/cpmdcConfig.cmake.in~, and the version file needs ~cmake~ at configure time |
 | ~cpmdc-ipi-c~ | ~bin/cpmdc-ipi-c~ | the platform has ~sys/un.h~ and ~with_python~ is off |
 | ~cpmdcplugin.so~ | ~lib/cpmdc/cpmdcplugin.so~ | ~with_lammps_plugin~ is not disabled, ~with_python~ is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
 | ~libcpmdc_gromacs~ | ~lib/libcpmdc_gromacs.so~, ~include/cpmdc/gromacs/libcp2k.h~, ~lib/cpmdc/gromacs/pkgconfig/libcp2k.pc~ | ~with_gromacs_shim~ is not disabled and ~with_python~ is off |
