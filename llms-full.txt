@@ -35,8 +35,10 @@ then regenerates the copies.
    keyword capability.
 5. Add a fragment `docs/newsfragments/+NAME.TYPE.md` for each user-visible
    change, with `TYPE` one of the types in `towncrier.toml`; `cog bump` runs
-   towncrier, which moves the fragments into `CHANGELOG.md`, and
-   `pixi run towncrier-draft` previews the result.
+   towncrier, which moves the fragments into `CHANGELOG.md`,
+   `pixi run towncrier-draft` previews the result, and
+   `pixi run towncrier-check` verifies fragments and changelog state against the
+   base branch.
 6. Tag `vX.Y.Z` when publishing.
 
 
@@ -6052,7 +6054,7 @@ linked.
 | `fortran-lint` | default | `fprettify --diff` over `src/*.f90` |
 | `prek`, `prek-install`, `prek-validate` | default | pre-commit hooks from `prek.toml` |
 | `lychee` | `docs` | link check over README, `docs/orgmode`, and news fragments |
-| `release-assert`, `version-sync`, `towncrier-draft`, `release-cog-dry` | default | release metadata checks, and `version.txt` copies |
+| `release-assert`, `version-sync`, `towncrier-draft`, `towncrier-check`, `release-cog-dry` | default | release metadata checks, fragment/changelog checks, and `version.txt` copies |
 | `mkrst` | `docs` | export `docs/orgmode` to `docs/source` RST |
 | `doxybuild` | `docs` | Doxygen XML and Doxyrest pages for the public headers |
 | `sphinxbld`, `docbld` | `docs` | `mkrst`, `doxybuild`, then the Sphinx HTML site in `docs/build` |
