@@ -13,7 +13,9 @@ sets ``qmmm-cp2k-qmmethod = INPUT``. GROMACS requires the CP2K keys it
 checks (``CHARGE``, ``MULTIPLICITY``, ``RUN_TYPE ENERGY_FORCE``,
 ``COORD_FILE_FORMAT PDB``, ``CHARGE_EXTENDED TRUE``, ``COORD_FILE_NAME``);
 the ``&CPMDC`` section carries the cpmdc settings that
-``libcpmdc_gromacs`` reads.
+``libcpmdc_gromacs`` reads. ``links`` adds the ``&LINK`` sections that cap
+a covalent bond between a QM atom and an MM atom with a hydrogen in the QM
+calculation; GROMACS writes the same sections into the input it generates.
 
 For a PBE or BLYP input generated from an mdp and stored in a tpr, set
 ``CPMDC_GROMACS_PARAMS`` when running mdrun. Its effective functional,
@@ -93,6 +95,8 @@ def qmi_input(
     ewald_precision: float | None = None,
     epsilon_r: float | None = None,
     qm_ranks: str | int | None = None,
+    links: Sequence[tuple[int, int]] | None = None,
+    link_alpha: float | None = None,
     charge: int = 0,
     multiplicity: int = 1,
 ) -> str:
@@ -132,6 +136,15 @@ def qmi_input(
         Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
         calculation on every rank mdrun gives the interface, as one cpmdc
         calculator; ``1`` runs it on rank 0 alone while the others wait.
+    links:
+        The QM-MM covalent bonds to cap, as ``(qm_index, mm_index)`` pairs of
+        1-based GROMACS atom numbers, QM atom first. Each becomes a ``&LINK``
+        section of ``&QMMM``, and the library adds a hydrogen to the QM
+        calculation on the bond, whose force it hands back to the two atoms.
+    link_alpha:
+        ``ALPHA_IMOMM`` of every link: the hydrogen sits at the QM atom plus
+        the bond vector divided by ``link_alpha``. The library default is
+        CP2K's 1.38. It must exceed 1, and needs ``links``.
     charge, multiplicity:
         The values GROMACS reads. GROMACS warns when ``charge`` differs from
         the classical charge it removed from the QM atoms; the ``CPMDParams``
@@ -175,6 +188,28 @@ def qmi_input(
             raise ValueError(f"qm_ranks is 'ALL' or 1, not {qm_ranks!r}")
         lines.append(f"  QM_RANKS {ranks}")
     lines.append("&END CPMDC")
+    qmmm: list[str] = []
+    if links is not None:
+        alpha = None if link_alpha is None else _number(link_alpha, "link_alpha", positive=True)
+        if alpha is not None and float(alpha) <= 1.0:
+            raise ValueError(f"link_alpha must exceed 1, got {link_alpha!r}")
+        qmmm.append("  &QMMM")
+        for pair in links:
+            if len(pair) != 2:
+                raise ValueError(f"each link is a (qm_index, mm_index) pair, got {pair!r}")
+            qm_index = _integer(pair[0], "links qm_index")
+            mm_index = _integer(pair[1], "links mm_index")
+            if qm_index < 1 or mm_index < 1:
+                raise ValueError(f"links are 1-based atom numbers, got {pair!r}")
+            if qm_index == mm_index:
+                raise ValueError(f"a link joins two atoms, got {pair!r}")
+            qmmm += ["    &LINK", f"      QM_INDEX {qm_index}", f"      MM_INDEX {mm_index}"]
+            if alpha is not None:
+                qmmm.append(f"      ALPHA_IMOMM {alpha}")
+            qmmm.append("    &END LINK")
+        qmmm.append("  &END QMMM")
+    elif link_alpha is not None:
+        raise ValueError("link_alpha needs links")
     head = [
         "&GLOBAL",
         "  RUN_TYPE ENERGY_FORCE",
@@ -187,6 +222,7 @@ def qmi_input(
         f"    CHARGE {charge_value}",
         f"    MULTIPLICITY {multiplicity_value}",
         "  &END DFT",
+        *qmmm,
         "  &SUBSYS",
         "    &TOPOLOGY",
         "      COORD_FILE_NAME gromacs.pdb",
@@ -210,6 +246,8 @@ def write_qmi(
     ewald_precision: float | None = None,
     epsilon_r: float | None = None,
     qm_ranks: str | int | None = None,
+    links: Sequence[tuple[int, int]] | None = None,
+    link_alpha: float | None = None,
     charge: int = 0,
     multiplicity: int = 1,
 ) -> Path:
@@ -224,6 +262,8 @@ def write_qmi(
         ewald_precision=ewald_precision,
         epsilon_r=epsilon_r,
         qm_ranks=qm_ranks,
+        links=links,
+        link_alpha=link_alpha,
         charge=charge,
         multiplicity=multiplicity,
     )

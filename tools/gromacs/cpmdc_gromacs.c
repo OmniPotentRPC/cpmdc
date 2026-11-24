@@ -34,7 +34,18 @@
  * MM charges, an Ewald sum when the box is periodic and a direct sum when
  * it is not. GROMACS keeps the QM-MM Lennard-Jones and the bonded terms
  * that cross the boundary; the QM density is not polarized by the MM
- * charges. &LINK sections (QM-MM covalent bonds) are refused.
+ * charges.
+ *
+ * Link atoms: each &LINK section (QM_INDEX, MM_INDEX, optional ALPHA_IMOMM,
+ * LINK_TYPE IMOMM) caps one QM-MM covalent bond with a hydrogen atom that is
+ * part of the QM calculation only, at the IMOMM position of CP2K,
+ *   x_H = x_QM + (x_MM - x_QM) / ALPHA_IMOMM,
+ * ALPHA_IMOMM 1.38 unless given. GROMACS writes these sections in the input
+ * it generates; on the explicit path they sit beside &CPMDC. The force on
+ * each hydrogen goes to the two atoms of its bond by the chain rule, 1 - a
+ * to the QM atom and a to the MM atom, a = 1 / ALPHA_IMOMM. With EMBEDDING
+ * MECHANICAL the MM atom of each bond leaves the QM-MM Coulomb sum (its
+ * charge is deleted), since it sits one bond from a QM charge.
  *
  * Virial: cp2k_get_stress_tensor gives the strain derivative of the energy
  * returned, for a symmetric strain that moves every atom and the box:
@@ -88,6 +99,8 @@
 /* Same value as GROMACS' c_bohr2Nm and cpmdc.BOHR_TO_ANGSTROM / 10. */
 #define BOHR_TO_NM 0.0529177210903
 #define PI 3.14159265358979323846
+/* CP2K's default ALPHA_IMOMM: the ratio of a C-C to a C-H bond length. */
+#define LINK_ALPHA_DEFAULT 1.38
 
 static const char *const k_symbols[MAX_Z] = {
     "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg",
@@ -123,6 +136,13 @@ typedef struct {
   int cell_mode, qm_ranks;
   int generated_input;
   int nqm;
+  /* QM-MM bonds capped with a link hydrogen; the QM calculation sees
+   * ncalc = nqm + nlink atoms, the hydrogens last. */
+  int nlink, ncalc;
+  /* per link: the QM and MM atoms as GROMACS indices, the QM atom as a slot of
+   * qm_index, and a = 1 / ALPHA_IMOMM */
+  int *link_qm, *link_mm, *link_slot;
+  double *link_scale;
   int *qm_index, *qm_z;
   double *qm_x, *qm_prev, *qm_f;
   int have_prev;
@@ -173,6 +193,13 @@ static Env *lookup(force_env_t id, const char *call) {
   if (id < 1 || id > MAX_ENVS || !g_envs[id - 1].used)
     die(NULL, "%s: no force environment %d", call, id);
   return &g_envs[id - 1];
+}
+
+static void *grow(Env *env, void *old, size_t count, size_t size) {
+  void *p = realloc(old, count * size);
+  if (!p)
+    die(env, "out of memory");
+  return p;
 }
 
 static void *alloc(Env *env, size_t count, size_t size) {
@@ -302,6 +329,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   char generated_functional[64] = {0};
   char xc_error[256] = {0};
   char *params_path = NULL;
+  int link_cap = 0, link_open = 0, link_qm = 0, link_mm = 0;
+  double link_alpha = LINK_ALPHA_DEFAULT;
   pdb_path[0] = '\0';
   env->cell_mode = CELL_DEFAULT;
   env->embedding = EMBED_UNSET;
@@ -319,10 +348,6 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       die(env, "%s has a line with too many tokens", path);
     if (n == 0)
       continue;
-    if (strcasecmp(w[0], "&LINK") == 0)
-      die(env, "%s has a &LINK section: cpmdc-gromacs supports QM regions of whole "
-               "molecules only, without QM-MM covalent bonds",
-          path);
     if (strcasecmp(w[0], "COORD_FILE_NAME") == 0) {
       if (n != 2)
         die(env, "COORD_FILE_NAME takes one value");
@@ -330,10 +355,63 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       continue;
     }
     if (!in_cpmdc && strcasecmp(w[0], "&END") == 0) {
+      if (link_open && depth > 0 && strcasecmp(sections[depth - 1], "LINK") == 0) {
+        if (link_qm == 0 || link_mm == 0)
+          die(env, "%s has a &LINK section without %s", path,
+              link_qm == 0 ? "QM_INDEX" : "MM_INDEX");
+        if (env->nlink == link_cap) {
+          link_cap = link_cap ? 2 * link_cap : 8;
+          env->link_qm = grow(env, env->link_qm, (size_t)link_cap, sizeof(int));
+          env->link_mm = grow(env, env->link_mm, (size_t)link_cap, sizeof(int));
+          env->link_scale = grow(env, env->link_scale, (size_t)link_cap, sizeof(double));
+        }
+        env->link_qm[env->nlink] = link_qm - 1;
+        env->link_mm[env->nlink] = link_mm - 1;
+        env->link_scale[env->nlink++] = 1.0 / link_alpha;
+        link_open = 0;
+      }
       pop_section(env, sections, &depth, w, n);
       continue;
     }
+    if (!in_cpmdc && link_open && w[0][0] != '&') {
+      if (n != 2)
+        die(env, "&LINK %s takes one value", w[0]);
+      if (strcasecmp(w[0], "QM_INDEX") == 0 || strcasecmp(w[0], "MM_INDEX") == 0) {
+        const int index = integer(env, w[1], w[0]);
+        if (index < 1)
+          die(env, "&LINK %s is a 1-based atom index, not %s", w[0], w[1]);
+        if (toupper((unsigned char)w[0][0]) == 'Q')
+          link_qm = index;
+        else
+          link_mm = index;
+      } else if (strcasecmp(w[0], "ALPHA_IMOMM") == 0) {
+        link_alpha = number(env, w[1], "&LINK ALPHA_IMOMM");
+        if (!(link_alpha > 1.0))
+          die(env, "&LINK ALPHA_IMOMM must exceed 1 so the hydrogen lies between the "
+                   "bonded atoms, not %s",
+              w[1]);
+      } else if (strcasecmp(w[0], "LINK_TYPE") == 0) {
+        if (strcasecmp(w[1], "IMOMM") != 0)
+          die(env, "&LINK LINK_TYPE is IMOMM, the only scheme cpmdc-gromacs implements, "
+                   "not %s",
+              w[1]);
+      } else {
+        die(env, "unsupported &LINK keyword %s: QM_INDEX, MM_INDEX, ALPHA_IMOMM, and "
+                 "LINK_TYPE IMOMM are read",
+            w[0]);
+      }
+      continue;
+    }
     if (!in_cpmdc && w[0][0] == '&') {
+      if (is_section(w[0], "LINK")) {
+        if (n != 1)
+          die(env, "&LINK takes no value");
+        if (link_open)
+          die(env, "&LINK sections do not nest");
+        link_open = 1;
+        link_qm = link_mm = 0;
+        link_alpha = LINK_ALPHA_DEFAULT;
+      }
       if (is_section(w[0], "CPMDC")) {
         if (n != 1)
           die(env, "&CPMDC takes no value");
@@ -514,6 +592,37 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->qm_charges_listed = nq;
 }
 
+/* Match each &LINK to its QM atom and its MM atom, and append the link
+ * hydrogens to the atoms the QM calculation sees. */
+static void resolve_links(Env *env, const int *is_qm) {
+  env->ncalc = env->nqm + env->nlink;
+  env->link_slot = alloc(env, (size_t)env->nlink, sizeof(int));
+  int *slot_of = alloc(env, (size_t)env->natoms, sizeof(int));
+  for (int i = 0; i < env->nqm; ++i)
+    slot_of[env->qm_index[i]] = i + 1;
+  for (int k = 0; k < env->nlink; ++k) {
+    const int q = env->link_qm[k], m = env->link_mm[k];
+    if (q >= env->natoms || m >= env->natoms)
+      die(env, "&LINK names atom %d, but the PDB file has %d atoms",
+          (q >= env->natoms ? q : m) + 1, env->natoms);
+    if (!is_qm[q])
+      die(env, "&LINK QM_INDEX %d is an MM atom in the PDB file", q + 1);
+    if (is_qm[m])
+      die(env, "&LINK MM_INDEX %d is a QM atom in the PDB file", m + 1);
+    for (int j = 0; j < k; ++j)
+      if (env->link_qm[j] == q && env->link_mm[j] == m)
+        die(env, "&LINK QM_INDEX %d MM_INDEX %d appears twice", q + 1, m + 1);
+    env->link_slot[k] = slot_of[q] - 1;
+  }
+  free(slot_of);
+  int *grown = realloc(env->qm_z, (size_t)env->ncalc * sizeof(int));
+  if (!grown)
+    die(env, "out of memory");
+  env->qm_z = grown;
+  for (int k = 0; k < env->nlink; ++k)
+    env->qm_z[env->nqm + k] = 1;
+}
+
 static void parse_pdb(Env *env, const char *path) {
   char *text = read_file(env, path, NULL, "the QM/MM PDB file");
   int cap = 1024, n = 0, nqm = 0, nmm = 0;
@@ -580,6 +689,7 @@ static void parse_pdb(Env *env, const char *path) {
       charged_mm |= q[i] != 0.0;
     }
   }
+  resolve_links(env, is_qm);
   free(is_qm);
   free(z);
   free(q);
@@ -600,6 +710,12 @@ static void parse_pdb(Env *env, const char *path) {
   if (env->embedding == EMBED_MECHANICAL) {
     if (nq != nqm)
       die(env, "&CPMDC QM_CHARGES lists %d charges for %d QM atoms", nq, nqm);
+    /* The MM atom of a cut bond is one bond from a QM charge, where a point
+     * charge model is not meaningful: delete its charge, as the Z1 scheme. */
+    for (int k = 0; k < env->nlink; ++k)
+      for (int j = 0; j < nmm; ++j)
+        if (env->mm_index[j] == env->link_mm[k])
+          env->mm_charge[j] = 0.0;
   } else {
     if (nq != 0)
       die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
@@ -904,7 +1020,7 @@ static void open_session(Env *env) {
  * the box, and its part is sum_i x_i (x) f_i over the QM atoms at the
  * positions cpmdc evaluated. */
 static int evaluate(Env *env, char *why, size_t why_cap) {
-  const int nq = env->nqm;
+  const int nq = env->nqm, nc = env->ncalc;
   double inv[3][3];
   const int periodic = env->have_cell && invert3(env->rows, inv) == 0;
   if (env->have_cell && !periodic) {
@@ -926,10 +1042,19 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
         nearest_image(env->rows, inv, &env->qm_x[0], &env->qm_x[3 * i]);
     }
   }
+  for (int k = 0; k < env->nlink; ++k) {
+    const double *xq = &env->qm_x[3 * env->link_slot[k]];
+    double xm[3], *xh = &env->qm_x[3 * (nq + k)];
+    memcpy(xm, &env->pos[3 * (size_t)env->link_mm[k]], sizeof(xm));
+    if (periodic)
+      nearest_image(env->rows, inv, xq, xm);
+    for (int c = 0; c < 3; ++c)
+      xh[c] = xq[c] + env->link_scale[k] * (xm[c] - xq[c]);
+  }
   if (!env->session)
     open_session(env);
   double qm_energy = 0.0, qm_virial[9] = {0.0};
-  if (cpmdc_session_calculate_au(env->session, nq, env->qm_x, env->qm_z,
+  if (cpmdc_session_calculate_au(env->session, nc, env->qm_x, env->qm_z,
                                  env->cell_mode == CELL_PERIODIC ? &env->rows[0][0] : NULL,
                                  &qm_energy, env->qm_f, qm_virial) != 0) {
     const char *text = cpmdc_last_error();
@@ -960,7 +1085,7 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
      * depend on the origin of x unless CPMDC_RECENTER=off. The cluster grid
      * still leaves a torque, so sum x (x) f is not symmetric; a symmetric
      * strain sees only its symmetric part. */
-    for (int i = 0; i < nq; ++i)
+    for (int i = 0; i < nc; ++i)
       for (int a = 0; a < 3; ++a)
         for (int b = 0; b < 3; ++b)
           env->virial[a][b] += 0.5 * (env->qm_x[3 * i + a] * env->qm_f[3 * i + b] +
@@ -1023,6 +1148,17 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   for (int i = 0; i < nq; ++i)
     for (int k = 0; k < 3; ++k)
       env->forces[3 * (size_t)env->qm_index[i] + k] += env->qm_f[3 * i + k];
+  /* x_H = (1 - a) x_QM + a x_MM, so the force on a link hydrogen goes to the
+   * two atoms of its bond in those shares. */
+  for (int k = 0; k < env->nlink; ++k) {
+    const double a = env->link_scale[k], *fh = &env->qm_f[3 * (nq + k)];
+    double *fq = &env->forces[3 * (size_t)env->qm_index[env->link_slot[k]]];
+    double *fm = &env->forces[3 * (size_t)env->link_mm[k]];
+    for (int c = 0; c < 3; ++c) {
+      fq[c] += (1.0 - a) * fh[c];
+      fm[c] += a * fh[c];
+    }
+  }
   env->energy = qm_energy + coulomb;
   if (env->log && env->evaluated == 0) {
     fprintf(env->log,
@@ -1059,7 +1195,7 @@ static void bcast(Env *env, void *buf, int count, MPI_Datatype type) {
  * this call, so only rank 0 may read them. */
 static void share_config(Env *env) {
   long head[6] = {env->natoms, env->nqm, env->cell_mode, env->qm_ranks,
-                  (long)env->params_len, 0};
+                  (long)env->params_len, env->nlink};
   bcast(env, head, 6, MPI_LONG);
   if (env->rank != 0) {
     env->natoms = (int)head[0];
@@ -1067,16 +1203,24 @@ static void share_config(Env *env) {
     env->cell_mode = (int)head[2];
     env->qm_ranks = (int)head[3];
     env->params_len = (size_t)head[4];
+    env->nlink = (int)head[5];
+    env->ncalc = env->nqm + env->nlink;
   }
   if (env->qm_ranks != QM_RANKS_ALL)
     return;
   if (env->rank != 0) {
     env->qm_index = alloc(env, (size_t)env->nqm, sizeof(int));
-    env->qm_z = alloc(env, (size_t)env->nqm, sizeof(int));
+    env->qm_z = alloc(env, (size_t)env->ncalc, sizeof(int));
+    env->link_mm = alloc(env, (size_t)env->nlink, sizeof(int));
+    env->link_slot = alloc(env, (size_t)env->nlink, sizeof(int));
+    env->link_scale = alloc(env, (size_t)env->nlink, sizeof(double));
     env->params = alloc(env, env->params_len + 1, 1);
   }
   bcast(env, env->qm_index, env->nqm, MPI_INT);
-  bcast(env, env->qm_z, env->nqm, MPI_INT);
+  bcast(env, env->qm_z, env->ncalc, MPI_INT);
+  bcast(env, env->link_mm, env->nlink, MPI_INT);
+  bcast(env, env->link_slot, env->nlink, MPI_INT);
+  bcast(env, env->link_scale, env->nlink, MPI_DOUBLE);
   for (size_t off = 0; off < env->params_len; off += 1 << 30) {
     size_t n = env->params_len - off < (size_t)1 << 30 ? env->params_len - off : (size_t)1 << 30;
     bcast(env, env->params + off, (int)n, MPI_BYTE);
@@ -1106,13 +1250,13 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
     if (env->log) {
       fprintf(env->log,
               "atoms %d qm %d mm %d cell %s embedding %s ewald_precision %.3g ranks %d "
-              "qm_ranks %d epsilon_r %.17g\n",
+              "qm_ranks %d epsilon_r %.17g links %d\n",
               env->natoms, env->nqm, env->nmm,
               env->cell_mode == CELL_PERIODIC ? "PERIODIC" : "NONE",
               env->embedding == EMBED_MECHANICAL ? "MECHANICAL" : "NONE",
               env->ewald_precision, env->size,
               env->qm_ranks == QM_RANKS_ALL ? env->size : 1,
-              env->epsilon_r);
+              env->epsilon_r, env->nlink);
       fflush(env->log);
     }
   }
@@ -1121,9 +1265,9 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
     share_config(env);
 #endif
   if (qm_rank(env)) {
-    env->qm_x = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
-    env->qm_prev = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
-    env->qm_f = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
+    env->qm_x = alloc(env, 3 * (size_t)env->ncalc, sizeof(double));
+    env->qm_prev = alloc(env, 3 * (size_t)env->ncalc, sizeof(double));
+    env->qm_f = alloc(env, 3 * (size_t)env->ncalc, sizeof(double));
   }
   env->pos = alloc(env, 3 * (size_t)env->natoms, sizeof(double));
   env->forces = alloc(env, 3 * (size_t)env->natoms, sizeof(double));
@@ -1179,6 +1323,10 @@ void cp2k_destroy_force_env(force_env_t force_env) {
   free(env->qm_index);
   free(env->qm_z);
   free(env->mm_index);
+  free(env->link_qm);
+  free(env->link_mm);
+  free(env->link_slot);
+  free(env->link_scale);
   free(env->qm_charge);
   free(env->mm_charge);
   free(env->qm_x);
