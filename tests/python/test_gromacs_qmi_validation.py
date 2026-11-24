@@ -103,6 +103,27 @@ def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
         charge=1,
     )
     assert "EPSILON_R 78.4\n" in target.read_text(encoding="utf-8")
+    electrostatic = tmp_path / "water_es.qmi"
+    assert (
+        write_qmi(
+            electrostatic,
+            "water.bin",
+            embedding="ELECTROSTATIC",
+            cell="NONE",
+            mm_width=0.025,
+            epsilon_r=2.5,
+        )
+        == electrostatic
+    )
+    assert electrostatic.read_text(encoding="utf-8") == qmi_input(
+        "water.bin",
+        embedding="ELECTROSTATIC",
+        cell="NONE",
+        mm_width=0.025,
+        epsilon_r=2.5,
+    )
+    assert "MM_WIDTH 0.025\n" in electrostatic.read_text(encoding="utf-8")
+    assert "EPSILON_R 2.5\n" in electrostatic.read_text(encoding="utf-8")
     linked = write_qmi(tmp_path / "linked.qmi", "water.bin", links=[(1, 4)], link_alpha=1.4)
     assert linked.read_text(encoding="utf-8") == qmi_input("water.bin", links=[(1, 4)], link_alpha=1.4)
     with pytest.raises(ValueError, match="multiplicity must be 1 or more"):

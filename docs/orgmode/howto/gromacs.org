@@ -155,10 +155,10 @@ pass ~charge=~ and ~multiplicity=~ to ~write_qmi()~ for a deck that is not
 neutral and singlet, and ~mdrun~ stops with both values when they differ.
 The file of ~-qmi~ holds a ~&CPMDC~ section inside
 ~&FORCE_EVAL~: ~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the cell and the QM-MM Coulomb term, ~QM_CHARGES~
-gives the QM atoms' classical charges, ~EPSILON_R~ scales the mechanical-embedding
-QM-MM Coulomb term when ~.mdp~ sets ~epsilon-r~ other than 1 (because GROMACS'
-CP2K module does not forward ~epsilon-r~ to ~libcp2k~), and ~QM_RANKS~ sets the
-ranks of an MPI GROMACS.
+gives the QM atoms' classical charges, ~EPSILON_R~ scales the QM-MM Coulomb term
+under ~MECHANICAL~ or ~ELECTROSTATIC~ embedding when ~.mdp~ sets ~epsilon-r~
+other than 1 (because GROMACS' CP2K module does not forward ~epsilon-r~ to
+~libcp2k~), and ~QM_RANKS~ sets the ranks of an MPI GROMACS.
 The [[file:../reference/gromacs.org][reference]] lists every key and what the
 library writes to ~md_cp2k.out~.
 An explicit ~&CPMDC~ section takes precedence over
