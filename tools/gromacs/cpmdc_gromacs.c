@@ -445,6 +445,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       push_section(env, sections, &depth, w[0]);
       continue;
     }
+    /* Not scoped to a section, &CPMDC included: GROMACS keeps the first line
+     * that starts with CHARGE or MULTIPLICITY wherever it sits. */
     if (strcasecmp(w[0], "CHARGE") == 0) {
       if (n != 2)
         die(env, "CHARGE takes one value");

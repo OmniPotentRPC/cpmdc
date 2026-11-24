@@ -955,6 +955,26 @@ def test_explicit_input_first_tokens_outside_dft_define_qm_state(charged_params,
 
 
 @needs_lib
+def test_charge_inside_cpmdc_is_compared_before_dft(params, tmp_path):
+    """GROMACS reads the first CHARGE line in any section, so &CPMDC counts."""
+    qmi = qmi_input(params).replace("  &CPMDC\n", "  &CPMDC\n    CHARGE 1\n", 1)
+    assert qmi.index("    CHARGE 1\n") < qmi.index("  &DFT\n")
+    stderr = shim_fails(tmp_path, qmi)
+    assert "&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0" in stderr
+
+
+@needs_lib
+def test_charge_inside_cpmdc_agreeing_with_params_is_accepted(charged_params, tmp_path):
+    qmi = qmi_input(charged_params).replace(
+        "  &CPMDC\n", "  &CPMDC\n    CHARGE 1\n    MULTIPLICITY 2\n", 1
+    )
+    assert "    CHARGE 0\n" in qmi and "    MULTIPLICITY 1\n" in qmi
+    inp = setup_env(tmp_path, qmi, "OHH", [True] * 3, [0.0] * 3, np.zeros((3, 3)))
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
 def test_explicit_input_charge_mismatch_uses_first_token_anywhere(params, tmp_path):
     qmi = qmi_input(params).replace("&FORCE_EVAL\n", "&FORCE_EVAL\n    CHARGE 1\n", 1)
     stderr = shim_fails(tmp_path, qmi)
