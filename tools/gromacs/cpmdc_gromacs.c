@@ -25,6 +25,7 @@
  *   QM_CHARGES q ...      classical charge of each QM atom, in index order
  *   EWALD_RCUT r          real-space cutoff of that Coulomb sum, nm
  *   EWALD_PRECISION p     erfc(alpha rcut) and the reciprocal-space cutoff
+ *   EPSILON_R r           relative dielectric constant of that Coulomb sum
  *   QM_RANKS ALL|1        under an MPI GROMACS, run the QM calculation on
  *                         every rank of the communicator (default) or on
  *                         rank 0 alone
@@ -126,8 +127,8 @@ typedef struct {
   double *qm_x, *qm_prev, *qm_f;
   int have_prev;
   /* rank 0 */
-  int embedding;
-  double ewald_rcut_nm, ewald_precision;
+  int embedding, saw_epsilon_r;
+  double ewald_rcut_nm, ewald_precision, epsilon_r;
   int nmm, qm_charges_listed;
   int *mm_index;
   double *qm_charge, *mm_charge;
@@ -306,6 +307,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->embedding = EMBED_UNSET;
   env->ewald_rcut_nm = 0.0;
   env->ewald_precision = 1e-8;
+  env->epsilon_r = 1.0;
+  env->saw_epsilon_r = 0;
   env->qm_ranks = QM_RANKS_ALL;
   env->qm_charge = alloc(env, (size_t)capq, sizeof(double));
   char *save = NULL;
@@ -439,6 +442,11 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       env->ewald_precision = number(env, w[1], "EWALD_PRECISION");
       if (!(env->ewald_precision > 0.0 && env->ewald_precision < 1.0))
         die(env, "&CPMDC EWALD_PRECISION must lie between 0 and 1");
+    } else if (strcasecmp(w[0], "EPSILON_R") == 0) {
+      env->epsilon_r = number(env, w[1], "EPSILON_R");
+      if (!(env->epsilon_r > 0.0))
+        die(env, "&CPMDC EPSILON_R must be positive");
+      env->saw_epsilon_r = 1;
     } else {
       die(env, "unknown &CPMDC keyword %s", w[0]);
     }
@@ -536,8 +544,8 @@ static void parse_pdb(Env *env, const char *path) {
     z[n] = symbol_number(w[nw - 2]);
     char *end = NULL;
     q[n] = strtod(w[nw - 1], &end);
-    if (end == w[nw - 1] || *end != '\0')
-      die(env, "%s: atom %d has no charge", path, n + 1);
+    if (end == w[nw - 1] || *end != '\0' || !isfinite(q[n]))
+      die(env, "%s: atom %d has no finite charge", path, n + 1);
     if (is_qm[n]) {
       if (z[n] == 0)
         die(env, "QM atom %d is %s, not an element (a virtual site?); keep virtual sites "
@@ -592,8 +600,11 @@ static void parse_pdb(Env *env, const char *path) {
   if (env->embedding == EMBED_MECHANICAL) {
     if (nq != nqm)
       die(env, "&CPMDC QM_CHARGES lists %d charges for %d QM atoms", nq, nqm);
-  } else if (nq != 0) {
-    die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
+  } else {
+    if (nq != 0)
+      die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
+    if (env->saw_epsilon_r)
+      die(env, "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL");
   }
 }
 
@@ -965,16 +976,39 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
       memcpy(&xm[3 * j], &env->pos[3 * (size_t)env->mm_index[j]], 3 * sizeof(double));
     if (periodic) {
       double h[3], rc, alpha, kmax;
+      double qmmm_vir[3][3] = {{0.0}};
       heights(env->rows, h);
       rc = env->ewald_rcut_nm > 0.0 ? env->ewald_rcut_nm / BOHR_TO_NM
                                     : fmin(1.0 / BOHR_TO_NM, 0.5 * fmin(h[0], fmin(h[1], h[2])));
       coulomb = ewald_qm_mm(env, env->rows, rc, env->ewald_precision, env->qm_x, fq, xm, fm,
-                            env->virial, &alpha, &kmax);
+                            qmmm_vir, &alpha, &kmax);
+      if (env->epsilon_r != 1.0) {
+        const double inv_eps = 1.0 / env->epsilon_r;
+        coulomb *= inv_eps;
+        for (int i = 0; i < 3 * nq; ++i)
+          fq[i] *= inv_eps;
+        for (int j = 0; j < 3 * nm; ++j)
+          fm[j] *= inv_eps;
+        for (int a = 0; a < 3; ++a)
+          for (int b = 0; b < 3; ++b)
+            qmmm_vir[a][b] *= inv_eps;
+      }
+      for (int a = 0; a < 3; ++a)
+        for (int b = 0; b < 3; ++b)
+          env->virial[a][b] += qmmm_vir[a][b];
       if (env->log && env->evaluated == 0)
         fprintf(env->log, "ewald rcut_bohr %.17g alpha_per_bohr %.17g kmax_per_bohr %.17g\n",
                 rc, alpha, kmax);
     } else {
       coulomb = direct_qm_mm(env, env->qm_x, fq, xm, fm);
+      if (env->epsilon_r != 1.0) {
+        const double inv_eps = 1.0 / env->epsilon_r;
+        coulomb *= inv_eps;
+        for (int i = 0; i < 3 * nq; ++i)
+          fq[i] *= inv_eps;
+        for (int j = 0; j < 3 * nm; ++j)
+          fm[j] *= inv_eps;
+      }
     }
     for (int j = 0; j < nm; ++j)
       for (int k = 0; k < 3; ++k)
@@ -1072,12 +1106,13 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
     if (env->log) {
       fprintf(env->log,
               "atoms %d qm %d mm %d cell %s embedding %s ewald_precision %.3g ranks %d "
-              "qm_ranks %d\n",
+              "qm_ranks %d epsilon_r %.17g\n",
               env->natoms, env->nqm, env->nmm,
               env->cell_mode == CELL_PERIODIC ? "PERIODIC" : "NONE",
               env->embedding == EMBED_MECHANICAL ? "MECHANICAL" : "NONE",
               env->ewald_precision, env->size,
-              env->qm_ranks == QM_RANKS_ALL ? env->size : 1);
+              env->qm_ranks == QM_RANKS_ALL ? env->size : 1,
+              env->epsilon_r);
       fflush(env->log);
     }
   }

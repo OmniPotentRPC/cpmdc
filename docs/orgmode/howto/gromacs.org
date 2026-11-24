@@ -151,8 +151,10 @@ gmx_d mdrun -deffnm md -ntmpi 1
 
 The file of ~-qmi~ holds a ~&CPMDC~ section inside
 ~&FORCE_EVAL~: ~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the cell and the QM-MM Coulomb term, ~QM_CHARGES~
-gives the QM atoms' classical charges, and ~QM_RANKS~ the ranks of an MPI
-GROMACS.
+gives the QM atoms' classical charges, ~EPSILON_R~ scales the mechanical-embedding
+QM-MM Coulomb term when ~.mdp~ sets ~epsilon-r~ other than 1 (because GROMACS'
+CP2K module does not forward ~epsilon-r~ to ~libcp2k~), and ~QM_RANKS~ sets the
+ranks of an MPI GROMACS.
 The [[file:../reference/gromacs.org][reference]] lists every key and what the
 library writes to ~md_cp2k.out~.
 An explicit ~&CPMDC~ section takes precedence over
