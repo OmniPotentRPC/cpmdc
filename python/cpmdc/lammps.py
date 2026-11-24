@@ -206,7 +206,7 @@ class _SessionPotential:
     def evaluate(
         self, positions: np.ndarray, numbers: np.ndarray, cell: np.ndarray
     ) -> dict[str, Any]:
-        composition = tuple(sorted(int(z) for z in numbers))
+        composition = tuple(np.sort(numbers).tolist())
         if self.session is None or (
             self.composition is not None and composition != self.composition
         ):

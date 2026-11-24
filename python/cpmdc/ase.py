@@ -158,7 +158,7 @@ def _pbc_flags(pbc: Any) -> list[bool]:
     return [bool(flag) for flag in raw]
 
 
-def _voigt(stress: Sequence[float]) -> np.ndarray:
+def _voigt(stress: Sequence[float] | np.ndarray) -> np.ndarray:
     """Row-major 3x3 to ASE Voigt (xx, yy, zz, yz, xz, xy), shear parts averaged."""
     voigt = full_3x3_to_voigt_6_stress(np.asarray(stress, dtype=float).reshape(3, 3))
     return np.asarray(voigt, dtype=float)
@@ -208,11 +208,19 @@ def _param_value(key: str, value: Any) -> Any:
     return os.path.abspath(path) if path else path
 
 
-def _require_finite(evaluated: Any) -> None:
-    """Refuse a step whose energy, forces, stress, or dipole is NaN or infinite."""
+def _require_finite(evaluated: Any) -> dict[str, np.ndarray]:
+    """The properties of ``evaluated`` as float arrays; refuse one that is NaN or infinite.
+
+    Each property is converted once, so the caller stores the array that was
+    checked.
+    """
+    arrays: dict[str, np.ndarray] = {}
     for name in ("energy", "forces", "stress", "dipole"):
-        if name in evaluated and not np.all(np.isfinite(np.asarray(evaluated[name], dtype=float))):
-            raise CPMDCError(f"the library returned a non-finite {name}")
+        if name in evaluated:
+            arrays[name] = np.asarray(evaluated[name], dtype=float)
+            if not np.all(np.isfinite(arrays[name])):
+                raise CPMDCError(f"the library returned a non-finite {name}")
+    return arrays
 
 
 def _integral_total(values: np.ndarray, source: str) -> int:
@@ -376,7 +384,7 @@ class CPMDCCalculator(Calculator):
             warnings.warn(_RESTART_IGNORED, DeprecationWarning, stacklevel=2)
         self._potential: Potential | None = None
         self._blob = b""
-        self._composition: tuple[int, ...] | None = None
+        self._composition: bytes | None = None
         self._override = _NO_OVERRIDE
         self._method = None
         self._no_stress = ""
@@ -518,8 +526,9 @@ class CPMDCCalculator(Calculator):
         if "stress" in properties and cell is None:
             self._no_stress = _NO_STRESS_CLUSTER
             raise PropertyNotImplementedError(_NO_STRESS_CLUSTER)
-        numbers = [int(number) for number in self.atoms.get_atomic_numbers()]
-        composition = tuple(sorted(numbers))
+        atomic_numbers = self.atoms.get_atomic_numbers()
+        numbers = atomic_numbers.tolist()
+        composition = np.sort(atomic_numbers).tobytes()
         if self._composition is not None and composition != self._composition:
             self._release()
         try:
@@ -530,23 +539,23 @@ class CPMDCCalculator(Calculator):
                     numbers,
                     None if cell is None else cell.tolist(),
                 )
-            _require_finite(evaluated)
+            checked = _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
             raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
         self._composition = composition
-        energy = float(evaluated["energy"])
+        energy = float(checked["energy"])
         self.results["energy"] = energy
         self.results["free_energy"] = energy
-        self.results["forces"] = np.asarray(evaluated["forces"], dtype=float)
+        self.results["forces"] = checked["forces"]
         if "stress" in evaluated and cell is not None:
-            self.results["stress"] = _voigt(evaluated["stress"])
+            self.results["stress"] = _voigt(checked["stress"])
         else:
             self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
             if "stress" in properties:
                 raise PropertyNotImplementedError(self._no_stress)
         if "dipole" in evaluated:
-            self.results["dipole"] = np.asarray(evaluated["dipole"], dtype=float)
+            self.results["dipole"] = checked["dipole"]
         else:
             missing = potential._session._missing_dipole_symbol()
             self._no_dipole = missing if missing is not None else _NO_DIPOLE
