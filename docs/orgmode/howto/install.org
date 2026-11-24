@@ -24,7 +24,7 @@ The tests use it to check the ABI without a working evaluator.
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
-| CMake package | ~cpmdcConfig.cmake~ | imported target ~cpmdc::cpmdc~ |
+| CMake package | ~lib/cmake/cpmdc/cpmdcConfig.cmake~, ~cpmdcConfigVersion.cmake~ | imported target ~cpmdc::cpmdc~; the version file accepts any release with the same major version |
 
 The optional tools (~cpmdc-ipi-c~, the LAMMPS plugin, and ~libcpmdc_gromacs~)
 are listed with the options that build them in the
@@ -43,7 +43,7 @@ Without Pixi, install the same set from your package manager:
 | C and Fortran compilers | any recent GCC and gfortran | every build |
 | C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
 | pkg-config | 2.5.1 or newer, below 3 | dependency lookup |
-| CMake | 3.24 or newer | writing ~cpmdcConfig.cmake~ and the ~packaging~ consumer build |
+| CMake | 3.24 or newer | configuring: Meson reads the CMake template for ~cpmdcConfigVersion.cmake~ and stops when ~cmake~ is missing; also the ~packaging~ consumer build, whose CMake leg is skipped when ~cmake~ is not installed |
 | Python 3 | 3.10 or newer, below 4 | build helpers and tests |
 | ASE, pytest, i-PI | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the ~python-api~ and ~python-pytest~ tests |
 | cmocka | 1.1.7 or newer, below 3 | ~-Dwith_tests=true~ |
