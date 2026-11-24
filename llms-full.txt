@@ -2305,23 +2305,40 @@ float64 unit roundoff; any other sum raises `ValueError` that names the sum.
 The multiplicity is `|M| + 1`.
 
 `cpmdc.params_method` reports the effective charge and multiplicity of the
-message, and a charge of 0 or a multiplicity of 1 is the schema default, so the
-calculator takes it as unset whether the message left the field out or wrote the
-default.
-Each of the two settings follows the same rules:
+message.
+A multiplicity of 1 is the schema default, so the calculator takes it as unset
+whether the message left the field out or wrote 1.
+A charge of 0 is unset only when `hasCharge` is false on the value that wins.
+That value is the top-level `charge` when no typed `system` charge is explicit,
+and the typed `system` charge when `system.hasCharge` is true or that charge is
+not 0.
+Zero with `hasCharge` true is explicit.
+The deck renderer and the Fortran embed record that same charge for the
+message the session opens with.
+Neither reads `Atoms.initial_charges`, and the C API does not read the
+`ForceInput` charge fields.
+The calculator decides the total before that handoff.
+The sum of `initial_charges` is written into the top-level `charge` only when
+the top-level `hasCharge` bit is false and the effective charge is still 0.
+A typed section that still reports another charge after that write is refused
+before a session opens.
+
+Each of the two settings follows these rules:
 
 | `Atoms` value | message value | result |
 |--------+--------+--------|
 | zero | any | the message value; nothing changes for an existing script |
 | nonzero | unset | the `Atoms` value, written into the top-level `charge` or `multiplicity` field of the message the session opens with |
 | nonzero | equal | the shared value, silently |
-| nonzero | set and different | `ValueError` that names both values and both sources, `Atoms.initial_charges` or `Atoms.initial_magmoms` and the `CPMDParams` message in `params` |
+| nonzero | set and different | `ValueError` that names both values and both sources, `Atoms.initial_charges` or `Atoms.initial_magmoms` and the `CPMDParams` message in `params`; the set value is kept and the step is refused |
 
-An explicit charge of 0 or multiplicity of 1 in the message cannot be told from
-the default, so a nonzero `Atoms` value replaces it.
-A message whose typed `system` section fixes the charge, such as one with
-`system.hasCharge` `true`, keeps that value after the edit, and the calculator
-raises `ValueError` instead of evaluating the wrong method.
+An explicit charge of 0 (`hasCharge` true) is a set value.
+A nonzero `Atoms` total raises `ValueError`, and the charge stays 0.
+A multiplicity of 1 has no such flag on `CPMDParams`, so a nonzero moment
+replaces a multiplicity of 1.
+A message whose typed `system` section fixes the charge, including
+`system.hasCharge` `true` with charge 0, keeps that value.
+The calculator raises `ValueError` before the step runs.
 A message that `cpmdc_params_method()` refuses as ambiguous, because a raw
 `&SYSTEM` block or a `SYSTEM.` set directive holds the scalar, raises
 `CPMDCError` the first time an `Atoms` value needs it.
@@ -8407,7 +8424,7 @@ The ASE calculator. Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | `atoms` an `ase.Atoms`; fills `results` with `energy` and `free_energy` floats, `forces` an N by 3 `float64` array, and `stress` a six-component `float64` array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; `atoms` is copied by ASE. Not thread-safe. The step runs with `directory` as the working directory, which is a process-wide change. |
-| Raises | `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets (the message names both values and both sources) or that a typed section of `params` fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
+| Raises | `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets, where charge 0 is set when `hasCharge` is true and unset when `hasCharge` is false (the message names both values and both sources, and the set charge is kept) or that a typed section of `params` fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
 | Defaults | `atoms` is `None`: the atoms already attached; `properties` is `None`: `['energy']`, but all four properties are always filled; `system_changes` is ASE's `all_changes`. |
 
 ### ~cpmdc.ase.CPMDCCalculator.close~
@@ -11480,7 +11497,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, `stress`, and `dipole` |
 | `CPMDCCalculator.ignored_changes` | the empty set: a change of `initial_charges` or `initial_magmoms` discards the stored results, because the calculator reads them as the total charge and, through the total moment, the multiplicity |
 | `CPMDCCalculator.discard_results_on_any_change` | `True`: a parameter that `set` changes clears the stored results |
-| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves that setting at its default (a charge of 0, a multiplicity of 1); a nonzero total that differs from a set value of `params`, a total that is not an integer within `n * eps * sum(abs(x))`, and non-collinear moments raise `ValueError`; zero totals change nothing |
+| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge only when `params` leaves the charge unset (`hasCharge` false and effective charge 0), and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves the multiplicity at its default of 1; an explicit charge, including 0 with `hasCharge` true, is kept, and a nonzero total that differs from a set value of `params` raises `ValueError` that names both values and both sources; a total that is not an integer within `n * eps * sum(abs(x))` and non-collinear moments raise `ValueError`; zero totals change nothing |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is encoded as standard Base64 under `{"cpmdparams_base64": ...}`, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
