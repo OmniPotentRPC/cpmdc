@@ -933,11 +933,32 @@ def test_explicit_input_charge_must_be_an_integer(line, message, params, tmp_pat
 
 
 @needs_lib
-def test_explicit_input_charge_outside_dft_is_not_the_qm_charge(params, tmp_path):
-    qmi = qmi_input(params).replace("  &SUBSYS\n", "  &SUBSYS\n    CHARGE 5\n    MULTIPLICITY 7\n")
+def test_explicit_input_uses_the_first_charge_and_multiplicity_tokens(params, tmp_path):
+    qmi = qmi_input(params).replace(
+        "    CHARGE 0\n", "    CHARGE 0\n    CHARGE 1\n"
+    ).replace(
+        "    MULTIPLICITY 1\n", "    MULTIPLICITY 1\n    MULTIPLICITY 2\n"
+    )
     inp = setup_env(tmp_path, qmi, "OHH", [True] * 3, [0.0] * 3, np.zeros((3, 3)))
     shim = Shim(inp, tmp_path / "sys.out")
     shim.close()
+
+
+@needs_lib
+def test_explicit_input_first_tokens_outside_dft_define_qm_state(charged_params, tmp_path):
+    qmi = qmi_input(charged_params, charge=0, multiplicity=1).replace(
+        "&FORCE_EVAL\n", "&FORCE_EVAL\n    CHARGE 1\n    MULTIPLICITY 2\n", 1
+    )
+    inp = setup_env(tmp_path, qmi, "OHH", [True] * 3, [0.0] * 3, np.zeros((3, 3)))
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
+def test_explicit_input_charge_mismatch_uses_first_token_anywhere(params, tmp_path):
+    qmi = qmi_input(params).replace("&FORCE_EVAL\n", "&FORCE_EVAL\n    CHARGE 1\n", 1)
+    stderr = shim_fails(tmp_path, qmi)
+    assert "CHARGE 1 disagrees with &CPMDC PARAMS charge 0" in stderr
 
 
 @needs_lib
@@ -986,12 +1007,10 @@ def test_generated_input_cannot_invent_qm_charges(params, tmp_path):
 
 
 @needs_lib
-def test_generated_input_scopes_charge_to_dft(params, tmp_path):
-    qmi = generated_input().replace("CHARGE 0\n", "").replace(
-        "&QMMM\n", "&QMMM\n      CHARGE 0\n"
-    )
+def test_generated_input_reads_charge_tokens_outside_dft(params, tmp_path):
+    qmi = generated_input().replace("&FORCE_EVAL\n", "&FORCE_EVAL\n    CHARGE 1\n", 1)
     stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
-    assert "has no CHARGE value" in stderr
+    assert "generated input CHARGE 1 disagrees with CPMDC_GROMACS_PARAMS charge 0" in stderr
 
 
 @needs_lib

@@ -326,6 +326,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   int input_charge = 0, input_multiplicity = 0;
   char input_charge_text[64] = {0};
   char input_multiplicity_text[64] = {0};
+  const char *input_charge_key = "&DFT CHARGE";
+  const char *input_multiplicity_key = "&DFT MULTIPLICITY";
   char generated_functional[64] = {0};
   char xc_error[256] = {0};
   char *params_path = NULL;
@@ -440,24 +442,28 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       push_section(env, sections, &depth, w[0]);
       continue;
     }
-    if (!in_cpmdc && strcasecmp(w[0], "CHARGE") == 0) {
-      if (!in_section(sections, depth, "DFT"))
-        continue;
+    if (strcasecmp(w[0], "CHARGE") == 0) {
       if (n != 2)
         die(env, "CHARGE in &DFT takes one value");
-      copy_token_checked(env, input_charge_text, sizeof(input_charge_text),
-                         w[1], "CHARGE");
+      if (!saw_charge) {
+        copy_token_checked(env, input_charge_text, sizeof(input_charge_text),
+                           w[1], "CHARGE");
+        input_charge_key = in_section(sections, depth, "DFT") ? "&DFT CHARGE" : "input CHARGE";
+      }
       saw_charge = 1;
       continue;
     }
-    if (!in_cpmdc && strcasecmp(w[0], "MULTIPLICITY") == 0) {
-      if (!in_section(sections, depth, "DFT"))
-        continue;
+    if (strcasecmp(w[0], "MULTIPLICITY") == 0) {
       if (n != 2)
         die(env, "MULTIPLICITY in &DFT takes one value");
-      copy_token_checked(env, input_multiplicity_text,
-                         sizeof(input_multiplicity_text), w[1],
-                         "MULTIPLICITY");
+      if (!saw_multiplicity) {
+        copy_token_checked(env, input_multiplicity_text,
+                           sizeof(input_multiplicity_text), w[1],
+                           "MULTIPLICITY");
+        input_multiplicity_key = in_section(sections, depth, "DFT")
+                                     ? "&DFT MULTIPLICITY"
+                                     : "input MULTIPLICITY";
+      }
       saw_multiplicity = 1;
       continue;
     }
@@ -559,9 +565,9 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->params = read_file(env, params_path, &env->params_len, "the CPMDParams message");
   if (env->params_len == 0)
     die(env, "the CPMDParams message %s is empty", params_path);
-  /* GROMACS takes the QM charge and multiplicity from CHARGE and MULTIPLICITY
-   * of &DFT, in the input it generates and in the file of -qmi alike, and
-   * removes the classical charge of the QM atoms by the first. The method
+  /* GROMACS scans the external input as a stream of tokens and keeps the first
+   * CHARGE and MULTIPLICITY it sees, in generated input and with -qmi alike.
+   * It removes the classical charge of the QM atoms by that CHARGE. The method
    * cpmdc runs is the CPMDParams message, so a value that the message does not
    * share would run another system than the one GROMACS set up. */
   if (env->generated_input || saw_charge || saw_multiplicity) {
@@ -580,7 +586,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
           generated_functional, deck_name, method.functional);
     if (saw_charge) {
       input_charge = integer(env, input_charge_text,
-                             env->generated_input ? "generated input CHARGE" : "&DFT CHARGE");
+                             env->generated_input ? "generated input CHARGE"
+                                                  : input_charge_key);
       if (input_charge != method.charge)
         die(env, "%s CHARGE %d disagrees with %s charge %d", input_name,
             input_charge, deck_name, method.charge);
@@ -589,7 +596,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       input_multiplicity =
           integer(env, input_multiplicity_text,
                   env->generated_input ? "generated input MULTIPLICITY"
-                                       : "&DFT MULTIPLICITY");
+                                       : input_multiplicity_key);
       if (input_multiplicity != method.multiplicity)
         die(env, "%s MULTIPLICITY %d disagrees with %s multiplicity %d",
             input_name, input_multiplicity, deck_name, method.multiplicity);
