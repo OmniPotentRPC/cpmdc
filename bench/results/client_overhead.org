@@ -1,0 +1,339 @@
+#+TITLE: Client overhead of one evaluation, base against tip
+
+Measured with =bench/client_overhead.py= on the base commit and on the tip of
+the change that packs step inputs with =array= and =memoryview=. Both sides
+import their own =python/cpmdc= and load the same stub-build =libcpmdc.so=, so
+only the Python client differs. Three base files and three tip files were taken
+alternately, pinned to one CPU, 15 runs of about 50 ms per path in each file.
+The comparison table pools the three files of each side: the base/tip column is
+the ratio of the medians of the file medians, and "beyond noise" requires the
+pooled interquartile ranges not to overlap and a ratio beyond 1.05. The
+=floor= rows run identical code on both sides and stay within 3 percent. N = 4096
+is refused by the reference evaluator (at most 1365 atoms), so it appears for
+the mock library only. The mock does one pass over the positions and one over
+the forces; the reference rows add the C session layer and the reference
+evaluator, which is the same on both sides.
+
+* Comparison, mock library
+
+** N = 8
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 1.30 | 1.32 | 0.98 | no |
+| Session.calculate_au (numpy) | 8.34 | 8.24 | 1.01 | no |
+| Session.calculate_au (lists) | 31.95 | 10.75 | 2.97 | yes |
+| Session.energy_forces (cluster, numpy) | 21.31 | 7.55 | 2.82 | yes |
+| Session.energy_forces (periodic, numpy) | 35.72 | 20.36 | 1.75 | yes |
+| Session.energy_forces (periodic, lists) | 27.63 | 19.69 | 1.40 | yes |
+| Potential.evaluate (periodic, numpy) | 39.01 | 24.39 | 1.60 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 22.01 | 21.64 | 1.02 | no |
+| CPMDCCalculator (energy, forces, stress) | 300.37 | 286.38 | 1.05 | no |
+
+** N = 64
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 1.47 | 1.46 | 1.00 | no |
+| Session.calculate_au (numpy) | 12.40 | 11.11 | 1.12 | yes |
+| Session.calculate_au (lists) | 157.77 | 18.23 | 8.65 | yes |
+| Session.energy_forces (cluster, numpy) | 134.53 | 13.49 | 9.98 | yes |
+| Session.energy_forces (periodic, numpy) | 155.29 | 28.71 | 5.41 | yes |
+| Session.energy_forces (periodic, lists) | 116.91 | 36.24 | 3.23 | yes |
+| Potential.evaluate (periodic, numpy) | 165.64 | 39.20 | 4.23 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 32.67 | 25.94 | 1.26 | yes |
+| CPMDCCalculator (energy, forces, stress) | 461.11 | 315.94 | 1.46 | yes |
+
+** N = 512
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 2.18 | 2.18 | 1.00 | no |
+| Session.calculate_au (numpy) | 42.94 | 32.34 | 1.33 | yes |
+| Session.calculate_au (lists) | 1150.66 | 72.57 | 15.86 | yes |
+| Session.energy_forces (cluster, numpy) | 1051.11 | 61.93 | 16.97 | yes |
+| Session.energy_forces (periodic, numpy) | 1100.01 | 81.05 | 13.57 | yes |
+| Session.energy_forces (periodic, lists) | 823.17 | 146.69 | 5.61 | yes |
+| Potential.evaluate (periodic, numpy) | 1179.32 | 191.92 | 6.14 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 99.89 | 53.44 | 1.87 | yes |
+| CPMDCCalculator (energy, forces, stress) | 1648.97 | 565.26 | 2.92 | yes |
+
+** N = 4096
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 7.74 | 7.99 | 0.97 | no |
+| Session.calculate_au (numpy) | 284.08 | 199.29 | 1.43 | yes |
+| Session.calculate_au (lists) | 8994.74 | 502.66 | 17.89 | yes |
+| Session.energy_forces (cluster, numpy) | 8386.59 | 510.05 | 16.44 | yes |
+| Session.energy_forces (periodic, numpy) | 8915.24 | 743.64 | 11.99 | yes |
+| Session.energy_forces (periodic, lists) | 6790.77 | 1304.29 | 5.21 | yes |
+| Potential.evaluate (periodic, numpy) | 9478.44 | 1459.90 | 6.49 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 612.58 | 254.47 | 2.41 | yes |
+| CPMDCCalculator (energy, forces, stress) | 11294.06 | 2455.15 | 4.60 | yes |
+
+* Comparison, reference libcpmdc
+
+** N = 8
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 6.89 | 6.95 | 0.99 | no |
+| Session.calculate_au (numpy) | 14.42 | 14.66 | 0.98 | no |
+| Session.calculate_au (lists) | 38.05 | 17.22 | 2.21 | yes |
+| Session.energy_forces (cluster, numpy) | 24.99 | 11.18 | 2.23 | yes |
+| Session.energy_forces (periodic, numpy) | 44.46 | 29.49 | 1.51 | yes |
+| Session.energy_forces (periodic, lists) | 35.91 | 29.26 | 1.23 | yes |
+| Potential.evaluate (periodic, numpy) | 47.51 | 33.45 | 1.42 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 29.23 | 29.28 | 1.00 | no |
+| CPMDCCalculator (energy, forces, stress) | 320.68 | 310.62 | 1.03 | no |
+
+** N = 64
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 10.25 | 10.49 | 0.98 | no |
+| Session.calculate_au (numpy) | 21.88 | 20.87 | 1.05 | no |
+| Session.calculate_au (lists) | 167.62 | 28.00 | 5.99 | yes |
+| Session.energy_forces (cluster, numpy) | 139.66 | 18.71 | 7.46 | yes |
+| Session.energy_forces (periodic, numpy) | 169.20 | 41.95 | 4.03 | yes |
+| Session.energy_forces (periodic, lists) | 131.06 | 49.88 | 2.63 | yes |
+| Potential.evaluate (periodic, numpy) | 180.00 | 53.22 | 3.38 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 42.45 | 36.15 | 1.17 | yes |
+| CPMDCCalculator (energy, forces, stress) | 485.50 | 342.66 | 1.42 | yes |
+
+** N = 512
+
+| path | base us | tip us | base/tip | beyond noise |
+|-
+| floor | 37.12 | 37.38 | 0.99 | no |
+| Session.calculate_au (numpy) | 78.32 | 68.04 | 1.15 | yes |
+| Session.calculate_au (lists) | 1184.62 | 108.32 | 10.94 | yes |
+| Session.energy_forces (cluster, numpy) | 1074.39 | 80.47 | 13.35 | yes |
+| Session.energy_forces (periodic, numpy) | 1165.94 | 136.56 | 8.54 | yes |
+| Session.energy_forces (periodic, lists) | 884.99 | 202.66 | 4.37 | yes |
+| Potential.evaluate (periodic, numpy) | 1242.73 | 243.73 | 5.10 | yes |
+| lammps _SessionPotential.evaluate (periodic) | 137.23 | 90.61 | 1.51 | yes |
+| CPMDCCalculator (energy, forces, stress) | 1791.07 | 647.89 | 2.76 | yes |
+
+* Base, first file
+
+| machine | cpu=Intel(R) Xeon(R) Processor; cores=8; kernel=6.12.113+; python=3.12.3; numpy=2.5.5; cc=gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 |
+| runs per path | 15, batch about 50.0 ms |
+
+** Mock library (Python client cost only)
+
+*** N = 8
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 1.30 | 1.29 | 1.30 | 1.29 | 1.57 | 0.004 | 0.00 |
+| Session.calculate_au (numpy) | 8.40 | 8.34 | 8.43 | 8.32 | 9.98 | 0.011 | 7.10 |
+| Session.calculate_au (lists) | 32.02 | 31.83 | 32.43 | 31.69 | 39.51 | 0.019 | 30.72 |
+| Session.energy_forces (cluster, numpy) | 21.51 | 21.39 | 21.88 | 21.12 | 29.90 | 0.023 | 20.22 |
+| Session.energy_forces (periodic, numpy) | 36.11 | 35.53 | 40.74 | 35.30 | 48.90 | 0.144 | 34.81 |
+| Session.energy_forces (periodic, lists) | 27.90 | 27.54 | 28.91 | 27.29 | 32.88 | 0.049 | 26.60 |
+| Potential.evaluate (periodic, numpy) | 39.82 | 38.97 | 40.57 | 38.32 | 46.12 | 0.040 | 38.52 |
+| lammps _SessionPotential.evaluate (periodic) | 22.01 | 21.86 | 22.81 | 21.57 | 24.95 | 0.043 | 20.72 |
+| CPMDCCalculator (energy, forces, stress) | 302.42 | 299.89 | 304.72 | 298.23 | 391.56 | 0.016 | 301.12 |
+
+*** N = 64
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 1.47 | 1.46 | 1.47 | 1.42 | 1.51 | 0.008 | 0.00 |
+| Session.calculate_au (numpy) | 12.40 | 12.34 | 12.48 | 12.32 | 12.60 | 0.011 | 10.94 |
+| Session.calculate_au (lists) | 158.07 | 157.52 | 158.47 | 156.41 | 160.10 | 0.006 | 156.60 |
+| Session.energy_forces (cluster, numpy) | 134.53 | 133.87 | 134.80 | 133.07 | 148.02 | 0.007 | 133.06 |
+| Session.energy_forces (periodic, numpy) | 155.11 | 154.89 | 155.42 | 154.43 | 158.52 | 0.003 | 153.64 |
+| Session.energy_forces (periodic, lists) | 116.91 | 116.15 | 117.19 | 115.38 | 119.56 | 0.009 | 115.44 |
+| Potential.evaluate (periodic, numpy) | 165.37 | 164.86 | 166.12 | 163.93 | 168.63 | 0.008 | 163.91 |
+| lammps _SessionPotential.evaluate (periodic) | 32.67 | 32.02 | 32.90 | 31.72 | 34.05 | 0.027 | 31.21 |
+| CPMDCCalculator (energy, forces, stress) | 460.48 | 457.51 | 463.67 | 454.07 | 499.63 | 0.013 | 459.01 |
+
+*** N = 512
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 2.18 | 2.17 | 2.20 | 2.16 | 2.24 | 0.013 | 0.00 |
+| Session.calculate_au (numpy) | 43.00 | 42.85 | 43.16 | 42.70 | 43.60 | 0.007 | 40.82 |
+| Session.calculate_au (lists) | 1147.98 | 1143.98 | 1162.35 | 1136.67 | 1209.03 | 0.016 | 1145.80 |
+| Session.energy_forces (cluster, numpy) | 1054.58 | 1047.87 | 1056.90 | 1041.74 | 1070.46 | 0.009 | 1052.40 |
+| Session.energy_forces (periodic, numpy) | 1104.94 | 1099.60 | 1109.55 | 1090.91 | 1126.81 | 0.009 | 1102.76 |
+| Session.energy_forces (periodic, lists) | 829.97 | 821.06 | 833.26 | 818.70 | 842.03 | 0.015 | 827.78 |
+| Potential.evaluate (periodic, numpy) | 1186.65 | 1174.39 | 1191.71 | 1170.63 | 1217.47 | 0.015 | 1184.46 |
+| lammps _SessionPotential.evaluate (periodic) | 100.32 | 100.02 | 100.63 | 99.23 | 101.11 | 0.006 | 98.14 |
+| CPMDCCalculator (energy, forces, stress) | 1648.97 | 1645.82 | 1651.99 | 1635.63 | 1753.06 | 0.004 | 1646.78 |
+
+*** N = 4096
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 7.74 | 7.74 | 7.76 | 7.72 | 7.80 | 0.003 | 0.00 |
+| Session.calculate_au (numpy) | 284.30 | 283.90 | 285.07 | 283.27 | 287.63 | 0.004 | 276.56 |
+| Session.calculate_au (lists) | 8974.84 | 8927.79 | 9001.20 | 8873.25 | 9310.19 | 0.008 | 8967.10 |
+| Session.energy_forces (cluster, numpy) | 8384.82 | 8358.15 | 8453.33 | 8326.75 | 8480.94 | 0.011 | 8377.07 |
+| Session.energy_forces (periodic, numpy) | 8894.31 | 8837.12 | 8943.56 | 8809.26 | 8994.77 | 0.012 | 8886.57 |
+| Session.energy_forces (periodic, lists) | 6776.57 | 6745.81 | 6805.78 | 6723.30 | 6832.73 | 0.009 | 6768.82 |
+| Potential.evaluate (periodic, numpy) | 9429.18 | 9385.21 | 9474.04 | 9315.78 | 9715.85 | 0.009 | 9421.44 |
+| lammps _SessionPotential.evaluate (periodic) | 613.18 | 611.79 | 614.52 | 607.68 | 619.28 | 0.004 | 605.44 |
+| CPMDCCalculator (energy, forces, stress) | 11294.06 | 11247.56 | 11343.07 | 8490.31 | 11680.19 | 0.008 | 11286.31 |
+
+** Reference libcpmdc (client plus C session layer)
+
+*** N = 8
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 7.03 | 7.02 | 7.07 | 7.00 | 7.28 | 0.007 | 0.00 |
+| Session.calculate_au (numpy) | 14.69 | 14.57 | 14.72 | 14.55 | 14.90 | 0.010 | 7.66 |
+| Session.calculate_au (lists) | 38.05 | 37.87 | 38.10 | 37.60 | 39.08 | 0.006 | 31.02 |
+| Session.energy_forces (cluster, numpy) | 24.99 | 24.84 | 25.09 | 24.65 | 25.28 | 0.010 | 17.95 |
+| Session.energy_forces (periodic, numpy) | 44.46 | 44.16 | 45.05 | 43.94 | 45.34 | 0.020 | 37.43 |
+| Session.energy_forces (periodic, lists) | 35.91 | 35.75 | 36.67 | 35.54 | 37.11 | 0.026 | 28.88 |
+| Potential.evaluate (periodic, numpy) | 47.51 | 47.39 | 47.74 | 46.67 | 50.50 | 0.007 | 40.48 |
+| lammps _SessionPotential.evaluate (periodic) | 29.23 | 29.07 | 29.45 | 28.46 | 29.82 | 0.013 | 22.19 |
+| CPMDCCalculator (energy, forces, stress) | 323.33 | 322.26 | 323.90 | 320.39 | 326.96 | 0.005 | 316.29 |
+
+*** N = 64
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 10.32 | 10.29 | 10.34 | 10.27 | 10.37 | 0.004 | 0.00 |
+| Session.calculate_au (numpy) | 21.88 | 21.81 | 21.88 | 21.72 | 22.16 | 0.003 | 11.56 |
+| Session.calculate_au (lists) | 167.62 | 166.21 | 168.72 | 165.84 | 170.99 | 0.015 | 157.30 |
+| Session.energy_forces (cluster, numpy) | 140.28 | 139.46 | 140.72 | 137.96 | 142.90 | 0.009 | 129.96 |
+| Session.energy_forces (periodic, numpy) | 169.38 | 169.15 | 169.64 | 168.12 | 170.45 | 0.003 | 159.06 |
+| Session.energy_forces (periodic, lists) | 131.06 | 130.74 | 131.52 | 130.12 | 135.35 | 0.006 | 120.75 |
+| Potential.evaluate (periodic, numpy) | 180.00 | 178.88 | 180.62 | 177.47 | 181.65 | 0.010 | 169.69 |
+| lammps _SessionPotential.evaluate (periodic) | 42.70 | 42.57 | 42.81 | 42.18 | 43.37 | 0.006 | 32.38 |
+| CPMDCCalculator (energy, forces, stress) | 485.50 | 484.37 | 487.17 | 481.01 | 492.29 | 0.006 | 475.18 |
+
+*** N = 512
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 37.09 | 37.03 | 37.18 | 36.90 | 37.48 | 0.004 | 0.00 |
+| Session.calculate_au (numpy) | 78.32 | 78.17 | 78.52 | 77.96 | 78.84 | 0.005 | 41.23 |
+| Session.calculate_au (lists) | 1184.62 | 1183.46 | 1188.87 | 1177.59 | 1199.88 | 0.005 | 1147.53 |
+| Session.energy_forces (cluster, numpy) | 1077.55 | 1074.68 | 1083.70 | 1072.74 | 1105.93 | 0.008 | 1040.46 |
+| Session.energy_forces (periodic, numpy) | 1165.94 | 1164.49 | 1166.67 | 1157.88 | 1176.79 | 0.002 | 1128.85 |
+| Session.energy_forces (periodic, lists) | 889.17 | 887.08 | 891.11 | 883.51 | 897.18 | 0.005 | 852.08 |
+| Potential.evaluate (periodic, numpy) | 1244.35 | 1242.69 | 1248.68 | 1237.40 | 1268.09 | 0.005 | 1207.26 |
+| lammps _SessionPotential.evaluate (periodic) | 137.31 | 136.93 | 137.76 | 136.59 | 140.07 | 0.006 | 100.21 |
+| CPMDCCalculator (energy, forces, stress) | 1790.97 | 1788.26 | 1792.58 | 1781.53 | 1802.45 | 0.002 | 1753.88 |
+
+*** N = 4096
+
+Refused by the library: the reference evaluator takes at most 1365 atoms
+
+* Tip, first file
+
+| machine | cpu=Intel(R) Xeon(R) Processor; cores=8; kernel=6.12.113+; python=3.12.3; numpy=2.5.5; cc=gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 |
+| runs per path | 15, batch about 50.0 ms |
+
+** Mock library (Python client cost only)
+
+*** N = 8
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 1.32 | 1.30 | 1.33 | 1.30 | 1.34 | 0.024 | 0.00 |
+| Session.calculate_au (numpy) | 8.24 | 8.20 | 8.29 | 8.15 | 8.48 | 0.011 | 6.92 |
+| Session.calculate_au (lists) | 10.75 | 10.72 | 10.79 | 10.68 | 10.91 | 0.007 | 9.43 |
+| Session.energy_forces (cluster, numpy) | 7.55 | 7.54 | 7.57 | 7.51 | 7.80 | 0.004 | 6.23 |
+| Session.energy_forces (periodic, numpy) | 20.36 | 20.15 | 20.42 | 19.84 | 20.60 | 0.013 | 19.04 |
+| Session.energy_forces (periodic, lists) | 19.69 | 19.63 | 19.80 | 19.44 | 19.86 | 0.009 | 18.38 |
+| Potential.evaluate (periodic, numpy) | 24.38 | 24.31 | 24.47 | 24.17 | 25.00 | 0.007 | 23.06 |
+| lammps _SessionPotential.evaluate (periodic) | 21.22 | 21.15 | 21.57 | 20.87 | 21.74 | 0.020 | 19.91 |
+| CPMDCCalculator (energy, forces, stress) | 283.74 | 281.67 | 284.85 | 279.22 | 287.77 | 0.011 | 282.43 |
+
+*** N = 64
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 1.42 | 1.42 | 1.42 | 1.41 | 1.47 | 0.006 | 0.00 |
+| Session.calculate_au (numpy) | 11.06 | 11.03 | 11.16 | 10.85 | 11.25 | 0.012 | 9.64 |
+| Session.calculate_au (lists) | 18.23 | 18.18 | 18.30 | 18.04 | 18.84 | 0.007 | 16.81 |
+| Session.energy_forces (cluster, numpy) | 13.49 | 13.42 | 13.53 | 13.38 | 13.81 | 0.008 | 12.07 |
+| Session.energy_forces (periodic, numpy) | 28.63 | 28.48 | 28.73 | 28.08 | 29.02 | 0.009 | 27.21 |
+| Session.energy_forces (periodic, lists) | 36.10 | 36.03 | 36.21 | 35.83 | 36.78 | 0.005 | 34.68 |
+| Potential.evaluate (periodic, numpy) | 39.14 | 39.06 | 39.27 | 38.72 | 39.66 | 0.005 | 37.72 |
+| lammps _SessionPotential.evaluate (periodic) | 25.94 | 25.70 | 26.24 | 25.44 | 26.63 | 0.021 | 24.52 |
+| CPMDCCalculator (energy, forces, stress) | 311.85 | 310.76 | 313.18 | 309.73 | 316.07 | 0.008 | 310.42 |
+
+*** N = 512
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 2.18 | 2.16 | 2.18 | 2.15 | 2.20 | 0.009 | 0.00 |
+| Session.calculate_au (numpy) | 32.34 | 32.24 | 32.47 | 32.12 | 32.59 | 0.007 | 30.16 |
+| Session.calculate_au (lists) | 72.57 | 72.45 | 72.82 | 72.26 | 73.40 | 0.005 | 70.39 |
+| Session.energy_forces (cluster, numpy) | 62.16 | 61.92 | 62.32 | 61.64 | 62.72 | 0.006 | 59.98 |
+| Session.energy_forces (periodic, numpy) | 81.05 | 80.84 | 81.33 | 79.35 | 82.11 | 0.006 | 78.87 |
+| Session.energy_forces (periodic, lists) | 146.96 | 145.49 | 147.88 | 143.96 | 150.10 | 0.016 | 144.78 |
+| Potential.evaluate (periodic, numpy) | 191.92 | 191.43 | 192.60 | 190.03 | 195.20 | 0.006 | 189.74 |
+| lammps _SessionPotential.evaluate (periodic) | 53.02 | 52.92 | 53.25 | 52.18 | 53.50 | 0.006 | 50.84 |
+| CPMDCCalculator (energy, forces, stress) | 561.86 | 559.32 | 563.07 | 548.62 | 565.60 | 0.007 | 559.68 |
+
+*** N = 4096
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 7.99 | 7.97 | 8.00 | 7.94 | 8.09 | 0.003 | 0.00 |
+| Session.calculate_au (numpy) | 198.59 | 198.40 | 198.81 | 198.18 | 200.02 | 0.002 | 190.60 |
+| Session.calculate_au (lists) | 501.81 | 500.39 | 504.70 | 497.51 | 508.11 | 0.009 | 493.82 |
+| Session.energy_forces (cluster, numpy) | 517.42 | 516.66 | 518.19 | 510.28 | 522.90 | 0.003 | 509.43 |
+| Session.energy_forces (periodic, numpy) | 766.01 | 760.02 | 774.83 | 758.03 | 777.14 | 0.019 | 758.02 |
+| Session.energy_forces (periodic, lists) | 1324.59 | 1312.49 | 1336.76 | 1304.72 | 1340.83 | 0.018 | 1316.60 |
+| Potential.evaluate (periodic, numpy) | 1459.90 | 1429.41 | 1468.62 | 1425.28 | 1506.61 | 0.027 | 1451.91 |
+| lammps _SessionPotential.evaluate (periodic) | 253.83 | 253.05 | 254.67 | 251.22 | 255.83 | 0.006 | 245.84 |
+| CPMDCCalculator (energy, forces, stress) | 2388.68 | 2362.69 | 2403.90 | 2349.55 | 2440.29 | 0.017 | 2380.68 |
+
+** Reference libcpmdc (client plus C session layer)
+
+*** N = 8
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 6.92 | 6.90 | 6.93 | 6.88 | 7.11 | 0.005 | 0.00 |
+| Session.calculate_au (numpy) | 14.66 | 14.58 | 14.74 | 14.50 | 14.82 | 0.011 | 7.74 |
+| Session.calculate_au (lists) | 17.22 | 17.12 | 17.29 | 17.06 | 17.50 | 0.010 | 10.30 |
+| Session.energy_forces (cluster, numpy) | 11.18 | 11.14 | 11.20 | 11.06 | 11.28 | 0.005 | 4.27 |
+| Session.energy_forces (periodic, numpy) | 29.49 | 29.42 | 29.68 | 29.30 | 30.55 | 0.009 | 22.57 |
+| Session.energy_forces (periodic, lists) | 29.26 | 29.14 | 29.71 | 28.91 | 30.47 | 0.020 | 22.34 |
+| Potential.evaluate (periodic, numpy) | 33.45 | 33.34 | 33.71 | 32.98 | 34.07 | 0.011 | 26.54 |
+| lammps _SessionPotential.evaluate (periodic) | 29.39 | 29.25 | 29.55 | 28.88 | 29.89 | 0.010 | 22.47 |
+| CPMDCCalculator (energy, forces, stress) | 307.53 | 304.94 | 309.02 | 302.42 | 315.21 | 0.013 | 300.61 |
+
+*** N = 64
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 10.34 | 10.32 | 10.38 | 10.28 | 10.44 | 0.005 | 0.00 |
+| Session.calculate_au (numpy) | 20.87 | 20.74 | 20.98 | 20.65 | 21.47 | 0.012 | 10.52 |
+| Session.calculate_au (lists) | 28.00 | 27.93 | 28.11 | 27.88 | 28.16 | 0.006 | 17.65 |
+| Session.energy_forces (cluster, numpy) | 18.71 | 18.71 | 18.82 | 18.56 | 19.40 | 0.006 | 8.37 |
+| Session.energy_forces (periodic, numpy) | 41.95 | 41.87 | 42.24 | 41.75 | 43.00 | 0.009 | 31.61 |
+| Session.energy_forces (periodic, lists) | 49.88 | 49.71 | 50.06 | 49.42 | 51.73 | 0.007 | 39.53 |
+| Potential.evaluate (periodic, numpy) | 53.22 | 52.89 | 53.35 | 52.74 | 53.70 | 0.009 | 42.87 |
+| lammps _SessionPotential.evaluate (periodic) | 36.10 | 35.95 | 36.30 | 35.56 | 37.93 | 0.010 | 25.75 |
+| CPMDCCalculator (energy, forces, stress) | 339.93 | 338.46 | 341.73 | 336.86 | 345.68 | 0.010 | 329.59 |
+
+*** N = 512
+
+| path | median us/call | q1 | q3 | min | max | IQR/median | over floor us |
+|-
+| floor | 37.40 | 37.31 | 37.45 | 37.10 | 38.33 | 0.004 | 0.00 |
+| Session.calculate_au (numpy) | 68.04 | 67.60 | 68.16 | 67.13 | 68.44 | 0.008 | 30.63 |
+| Session.calculate_au (lists) | 108.32 | 107.65 | 108.47 | 107.35 | 123.13 | 0.008 | 70.92 |
+| Session.energy_forces (cluster, numpy) | 80.86 | 80.53 | 81.00 | 80.33 | 81.32 | 0.006 | 43.46 |
+| Session.energy_forces (periodic, numpy) | 136.56 | 136.19 | 136.83 | 135.71 | 139.87 | 0.005 | 99.16 |
+| Session.energy_forces (periodic, lists) | 202.66 | 201.90 | 203.96 | 200.16 | 206.08 | 0.010 | 165.25 |
+| Potential.evaluate (periodic, numpy) | 240.21 | 239.84 | 240.55 | 239.36 | 240.95 | 0.003 | 202.81 |
+| lammps _SessionPotential.evaluate (periodic) | 89.83 | 89.68 | 90.06 | 89.53 | 90.94 | 0.004 | 52.43 |
+| CPMDCCalculator (energy, forces, stress) | 635.70 | 633.65 | 636.43 | 631.32 | 660.85 | 0.004 | 598.29 |
+
+*** N = 4096
+
+Refused by the library: the reference evaluator takes at most 1365 atoms

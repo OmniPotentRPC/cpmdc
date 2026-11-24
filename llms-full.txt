@@ -4637,6 +4637,15 @@ calculator in process globals.
 The `schema` argument of `Session`, `Potential`, and `CPMDCCalculator` is
 deprecated and ignored, and passing it warns with `DeprecationWarning`.
 
+A C-contiguous `float64` array of shape , and lists or tuples of plain
+`float` and `int` rows, are packed without a Python loop over the
+coordinates.
+Another container, or a coordinate that is a `bool`, a string, or a NumPy
+scalar inside a list, is still accepted where it was and takes the checked
+loop.
+For `calculate_au`, a C-contiguous `float64` or `int32` buffer is the only
+form that is not copied.
+
 # Use it as an rgpot provider
 `Potential.evaluate(positions, numbers, box)` returns `energy` in eV, `forces`
 in eV/Angstrom, and `stress` as nine row-major eV/Angstrom^3 components when the
@@ -4666,6 +4675,36 @@ same library, in eV and Angstrom.
 Use cpmdc as an ASE calculator (file:ase.org) shows it on a molecule, on a
 periodic cell, and in relaxations, and lists its properties, units, caching
 rules, working directory, and errors.
+
+# Measure the client overhead
+`bench/client_overhead.py` times what one call costs on the Python side, with
+the SCF out of the measurement, for N atoms in a cubic cell.
+It builds a mock `libcpmdc` from `bench/client_overhead_mock.c` that does one
+pass over the positions and one over the forces, and, given a stub build, it
+also runs the reference evaluator.
+That evaluator takes at most 1365 atoms, so the 4096 atom rows are measured on
+the mock only.
+The `floor` row calls `cpmdc_session_calculate_au` through bare `ctypes`, so a
+path minus the floor is what the Python layer adds.
+
+meson setup build -Dwith_tests=true && meson compile -C build
+python3 bench/client_overhead.py --library build/libcpmdc.so \
+    --params build/water_blyp_params.bin \
+    --periodic-params build/water_blyp_periodic_params.bin \
+    --runs 15 --pin 3 --json tip.json
+CPMDC_BENCH_PYTHON=$OTHER_TREE/python python3 bench/client_overhead.py \
+    --library build/libcpmdc.so --params build/water_blyp_params.bin \
+    --periodic-params build/water_blyp_periodic_params.bin --json base.json
+python3 bench/client_overhead.py --base-json base.json --tip-json tip.json
+python3 bench/client_overhead.py --profile "Session.energy_forces (periodic, numpy)"
+
+One run is a batch of calls of about 50 ms and the figure is the mean time per
+call.
+A ring of four geometries is cycled, so the session never answers from its
+last geometry.
+The tables give the median over the runs, the quartiles, and the extremes.
+`bench/results/client_overhead.org` holds the base and tip tables of the
+change that packs inputs with `array` and `memoryview`.
 
 
 ## File: docs/orgmode/howto/quickstart.org

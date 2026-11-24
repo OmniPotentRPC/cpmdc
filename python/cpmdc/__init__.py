@@ -25,13 +25,15 @@ import math
 import operator
 import os
 import struct
+import sys
 import warnings
 from array import array
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from itertools import chain
 from numbers import Integral, Real
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 
 # src/cpmdc.c CPMDC_HARTREE_EV and src/cpmdc_params.h CPMDC_BOHR_TO_ANGSTROM.
 HARTREE_TO_EV = 27.211386245988
@@ -289,10 +291,59 @@ def _finite(value: Any, what: str) -> float:
     return number
 
 
+_FORMATS = {ctypes.c_double: "d", ctypes.c_int: "i"}
+# Exact types that array(typecode, items) converts the way the checked loops
+# below do. A bool, a NumPy scalar, or a string is left to those loops, which
+# keep their own acceptance rules and messages.
+_PLAIN_SCALARS = {ctypes.c_double: frozenset({float, int}), ctypes.c_int: frozenset({int})}
+_PLAIN_ROWS = frozenset({list, tuple})
+
+
+def _packed(items: list[Any], ctype: Any, nested: bool) -> array[Any] | None:
+    """``items`` as one array; ``None`` if a checked loop must decide.
+
+    ``nested`` lets ``items`` be rows, lists or tuples that are flattened one
+    level. Only plain ``float`` and ``int`` entries qualify (``int`` alone for
+    ``c_int``), so the array holds exactly what the checked loops would
+    accept, converted by the same rounding. Anything else, including a
+    value ``array`` refuses, returns ``None``.
+    """
+    kinds = set(map(type, items))
+    if nested and kinds and kinds <= _PLAIN_ROWS:
+        items = list(chain.from_iterable(items))
+        kinds = set(map(type, items))
+    if not kinds <= _PLAIN_SCALARS[ctype]:
+        return None
+    try:
+        return array(_FORMATS[ctype], items)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _all_finite(values: Any) -> bool:
+    """True when every entry is finite; False means "look closer", not "non-finite".
+
+    A sum is finite only when every term is, since ``inf`` and ``nan``
+    survive addition. A sum that overflows is also False, and the caller then
+    checks the entries one by one.
+    """
+    return math.isfinite(sum(values))
+
+
 def _positions(positions: Sequence[Sequence[float]]) -> tuple[int, array[float]]:
+    view = _contiguous_rows(positions)
+    if view is not None:
+        flat = array("d")
+        flat.frombytes(view.cast("B"))
+        if _all_finite(flat):
+            return len(flat) // 3, flat
     rows = list(positions)
     if not rows:
         raise ValueError("positions must contain at least one atom")
+    if set(map(type, rows)) <= _PLAIN_ROWS and set(map(len, rows)) == {3}:
+        packed = _packed(rows, ctypes.c_double, nested=True)
+        if packed is not None and _all_finite(packed):
+            return len(rows), packed
     flat = array("d")
     for index, row in enumerate(rows):
         coords = list(row)
@@ -301,6 +352,26 @@ def _positions(positions: Sequence[Sequence[float]]) -> tuple[int, array[float]]
         for coord in coords:
             flat.append(_finite(coord, "positions"))
     return len(rows), flat
+
+
+def _contiguous_rows(data: Any) -> memoryview | None:
+    """``data`` as a C-contiguous ``float64`` buffer of shape (N, 3), N >= 1, else ``None``."""
+    try:
+        view = memoryview(data)
+    except TypeError:
+        return None
+    shape = view.shape
+    if (
+        shape is None
+        or view.ndim != 2
+        or shape[1] != 3
+        or shape[0] < 1
+        or view.format.lstrip("@=") != "d"
+        or view.itemsize != ctypes.sizeof(ctypes.c_double)
+        or not view.c_contiguous
+    ):
+        return None
+    return view
 
 
 ATOMIC_NUMBER_MIN = 1
@@ -346,10 +417,25 @@ def _orbital_key(value: Any, what: str) -> int:
 
 
 def _numbers(atomic_numbers: Sequence[int], n_atoms: int) -> array[int]:
-    values = [_atomic_number(number) for number in atomic_numbers]
+    view = _contiguous(atomic_numbers, ctypes.c_int, n_atoms)
+    if view is not None and view.ndim == 1:
+        packed = array("i")
+        packed.frombytes(view.cast("B"))
+        if _atomic_numbers_in_range(packed):
+            return packed
+    items = list(atomic_numbers)
+    if len(items) == n_atoms:
+        plain = _packed(items, ctypes.c_int, nested=False)
+        if plain is not None and _atomic_numbers_in_range(plain):
+            return plain
+    values = [_atomic_number(number) for number in items]
     if len(values) != n_atoms:
         raise ValueError("atomic_numbers must have one entry per atom")
     return array("i", values)
+
+
+def _atomic_numbers_in_range(values: array[int]) -> bool:
+    return bool(values) and ATOMIC_NUMBER_MIN <= min(values) and max(values) <= ATOMIC_NUMBER_MAX
 
 
 def _cell(cell: Sequence[Sequence[float]] | Sequence[float] | None) -> list[float] | None:
@@ -367,9 +453,6 @@ def _cell(cell: Sequence[Sequence[float]] | Sequence[float] | None) -> list[floa
     if len(raw) != 9:
         raise ValueError("cell must be 3x3 or 9 numbers")
     return [_finite(value, "cell") for value in raw]
-
-
-_FORMATS = {ctypes.c_double: "d", ctypes.c_int: "i"}
 
 
 def _contiguous(data: Any, ctype: Any, count: int) -> memoryview | None:
@@ -399,7 +482,8 @@ def _flat(data: Any) -> list[Any]:
 
 def _checked_buffer(view: memoryview, ctype: Any, what: str) -> None:
     if ctype is ctypes.c_double:
-        if not all(map(math.isfinite, view.cast("B").cast("d"))):
+        reals = view.cast("B").cast("d")
+        if not _all_finite(reals) and not all(map(math.isfinite, reals)):
             raise ValueError(f"{what} must be finite")
     elif not all(
         ATOMIC_NUMBER_MIN <= value <= ATOMIC_NUMBER_MAX for value in view.cast("B").cast("i")
@@ -419,7 +503,15 @@ def _in_array(data: Any, ctype: Any, count: int, what: str) -> Any:
         if view.readonly:
             return (ctype * count).from_buffer_copy(view)
         return (ctype * count).from_buffer(data)
-    flat = _flat(data)
+    items = list(data)
+    plain = _packed(items, ctype, nested=True)
+    if plain is not None and len(plain) == count:
+        if ctype is ctypes.c_int:
+            if _atomic_numbers_in_range(plain):
+                return (ctype * count).from_buffer(plain)
+        elif _all_finite(plain):
+            return (ctype * count).from_buffer(plain)
+    flat = _flat(items)
     if len(flat) != count:
         raise ValueError(f"{what} must have {count} values, got {len(flat)}")
     if ctype is ctypes.c_int:
@@ -446,13 +538,22 @@ _ELEMENT_FOUR_BYTES = 4
 _ELEMENT_EIGHT_BYTES = 5
 
 
+def _little_endian(values: array[Any]) -> bytes:
+    """The bytes of ``values`` in the little-endian order Cap'n Proto stores."""
+    if sys.byteorder == "little":
+        return values.tobytes()
+    swapped = array(values.typecode, values)
+    swapped.byteswap()
+    return swapped.tobytes()
+
+
 def _force_input_message(
     flat: array[float], numbers: array[int], cell: list[float] | None
 ) -> bytes:
     """Single-segment Cap'n Proto ``ForceInput``, laid out as ``capnp encode`` does."""
     lists: list[tuple[int, int, bytes]] = [
-        (_ELEMENT_EIGHT_BYTES, len(flat), struct.pack(f"<{len(flat)}d", *flat)),
-        (_ELEMENT_FOUR_BYTES, len(numbers), struct.pack(f"<{len(numbers)}i", *numbers)),
+        (_ELEMENT_EIGHT_BYTES, len(flat), _little_endian(flat)),
+        (_ELEMENT_FOUR_BYTES, len(numbers), _little_endian(numbers)),
     ]
     if cell is not None:
         lists.append((_ELEMENT_EIGHT_BYTES, 9, struct.pack("<9d", *cell)))
@@ -613,11 +714,8 @@ def _message(result: _CResult) -> str:
     return raw.decode("utf-8", "replace")
 
 
-def _rows(forces: ctypes.Array, n_atoms: int) -> list[list[float]]:  # type: ignore[type-arg]
-    return [
-        [float(forces[3 * i]), float(forces[3 * i + 1]), float(forces[3 * i + 2])]
-        for i in range(n_atoms)
-    ]
+def _rows(forces: array[float], n_atoms: int) -> list[list[float]]:
+    return cast("list[list[float]]", memoryview(forces).cast("B").cast("d", (n_atoms, 3)).tolist())
 
 
 class Session:
@@ -717,9 +815,10 @@ class Session:
         n_atoms, flat = _positions(positions)
         numbers = _numbers(atomic_numbers, n_atoms)
         box = _cell(cell)
-        force_buf = (ctypes.c_double * (n_atoms * 3))()
-        pos_buf = (ctypes.c_double * (n_atoms * 3))(*flat)
-        num_buf = (ctypes.c_int * n_atoms)(*numbers)
+        forces = array("d", [0.0]) * (n_atoms * 3)
+        force_buf = (ctypes.c_double * (n_atoms * 3)).from_buffer(forces)
+        pos_buf = (ctypes.c_double * (n_atoms * 3)).from_buffer(flat)
+        num_buf = (ctypes.c_int * n_atoms).from_buffer(numbers)
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
         if box is None:
@@ -739,7 +838,7 @@ class Session:
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
         dipole_value = self._last_dipole()
         return Evaluation(
-            float(result.energy_h), _rows(force_buf, n_atoms), tensor, dipole_value
+            float(result.energy_h), _rows(forces, n_atoms), tensor, dipole_value
         )
 
     def _dipole_reader(self) -> Any:
