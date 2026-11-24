@@ -192,6 +192,28 @@ def pbe_params(tmp_path_factory) -> Path:
     return path
 
 
+@pytest.fixture(scope="session")
+def charged_params(tmp_path_factory) -> Path:
+    """The water message with the top-level charge +1 and multiplicity 2."""
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is needed to encode the charged parser fixture")
+    source = (ROOT / "tests" / "water_blyp_params.capnp.txt").read_text()
+    charged = source.replace("charge = 0,", "charge = 1,").replace(
+        "multiplicity = 1,", "multiplicity = 2,", 1
+    )
+    assert charged != source
+    done = subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=charged.encode(),
+        stdout=subprocess.PIPE,
+        check=True,
+    )
+    path = tmp_path_factory.mktemp("gromacs-charged") / "water_charged_params.bin"
+    path.write_bytes(done.stdout)
+    return path
+
+
 class Shim:
     """libcpmdc_gromacs loaded with ctypes; one force environment."""
 
@@ -813,6 +835,107 @@ def test_explicit_cpmdc_section_wins_over_params_variable(params, tmp_path, monk
         [0.0] * 3,
         np.zeros((3, 3)),
     )
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
+@pytest.mark.parametrize(
+    "kwargs,message",
+    [
+        ({"charge": 1}, "&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0"),
+        ({"multiplicity": 2}, "&DFT MULTIPLICITY 2 disagrees with &CPMDC PARAMS multiplicity 1"),
+    ],
+    ids=["charge", "multiplicity"],
+)
+def test_explicit_input_disagreeing_with_params_is_refused(kwargs, message, params, tmp_path):
+    stderr = shim_fails(tmp_path, qmi_input(params, **kwargs))
+    assert message in stderr
+    assert message in (tmp_path / "sys.out").read_text()
+
+
+@needs_lib
+def test_explicit_input_defaults_do_not_hide_a_charged_params(charged_params, tmp_path):
+    stderr = shim_fails(tmp_path, qmi_input(charged_params))
+    assert "&DFT CHARGE 0 disagrees with &CPMDC PARAMS charge 1" in stderr
+
+
+@needs_lib
+def test_explicit_input_agreeing_with_a_charged_params_is_accepted(charged_params, tmp_path):
+    inp = setup_env(
+        tmp_path,
+        qmi_input(charged_params, charge=1, multiplicity=2),
+        "OHH",
+        [True] * 3,
+        [0.0] * 3,
+        np.zeros((3, 3)),
+    )
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
+@pytest.mark.parametrize(
+    "deck,charge,multiplicity",
+    [("neutral", 0, 1), ("charged", 1, 2)],
+)
+def test_capped_region_compares_the_deck_charge(
+    deck, charge, multiplicity, params, charged_params, tmp_path
+):
+    """A link hydrogen is not counted into the charge the deck is compared with."""
+    blob = params if deck == "neutral" else charged_params
+    symbols = "OHHOHH"
+    qm = [True, True, True, False, False, False]
+    charges = [0.0] * 6
+    x = np.arange(18, dtype=float).reshape(6, 3) * 0.05
+    matched = tmp_path / deck
+    matched.mkdir()
+    qmi = qmi_input(
+        blob, embedding="NONE", links=[(1, 4)], charge=charge, multiplicity=multiplicity
+    )
+    shim = Shim(setup_env(matched, qmi, symbols, qm, charges, x), matched / "sys.out")
+    shim.close()
+    recounted = charge - 1
+    refused = tmp_path / f"{deck}-recount"
+    refused.mkdir()
+    stderr = shim_fails(
+        refused,
+        qmi_input(
+            blob,
+            embedding="NONE",
+            links=[(1, 4)],
+            charge=recounted,
+            multiplicity=multiplicity,
+        ),
+        symbols=symbols,
+        qm=qm,
+        charges=charges,
+    )
+    assert f"&DFT CHARGE {recounted} disagrees with &CPMDC PARAMS charge {charge}" in stderr
+
+
+@needs_lib
+@pytest.mark.parametrize(
+    "line,message",
+    [
+        ("CHARGE one", "&DFT CHARGE value one is not an integer"),
+        ("CHARGE 0.5", "&DFT CHARGE value 0.5 is not an integer"),
+        ("MULTIPLICITY 1.0", "&DFT MULTIPLICITY value 1.0 is not an integer"),
+    ],
+)
+def test_explicit_input_charge_must_be_an_integer(line, message, params, tmp_path):
+    key = line.split()[0]
+    qmi = qmi_input(params).replace(
+        "    CHARGE 0\n" if key == "CHARGE" else "    MULTIPLICITY 1\n", f"    {line}\n"
+    )
+    assert line in qmi
+    assert message in shim_fails(tmp_path, qmi)
+
+
+@needs_lib
+def test_explicit_input_charge_outside_dft_is_not_the_qm_charge(params, tmp_path):
+    qmi = qmi_input(params).replace("  &SUBSYS\n", "  &SUBSYS\n    CHARGE 5\n    MULTIPLICITY 7\n")
+    inp = setup_env(tmp_path, qmi, "OHH", [True] * 3, [0.0] * 3, np.zeros((3, 3)))
     shim = Shim(inp, tmp_path / "sys.out")
     shim.close()
 

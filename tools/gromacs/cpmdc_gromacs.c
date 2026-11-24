@@ -323,9 +323,9 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   char sections[32][32] = {{0}};
   int depth = 0;
   int saw_charge = 0, saw_multiplicity = 0, saw_functional = 0;
-  int generated_charge = 0, generated_multiplicity = 0;
-  char generated_charge_text[64] = {0};
-  char generated_multiplicity_text[64] = {0};
+  int input_charge = 0, input_multiplicity = 0;
+  char input_charge_text[64] = {0};
+  char input_multiplicity_text[64] = {0};
   char generated_functional[64] = {0};
   char xc_error[256] = {0};
   char *params_path = NULL;
@@ -445,7 +445,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
         continue;
       if (n != 2)
         die(env, "CHARGE in &DFT takes one value");
-      copy_token_checked(env, generated_charge_text, sizeof(generated_charge_text),
+      copy_token_checked(env, input_charge_text, sizeof(input_charge_text),
                          w[1], "CHARGE");
       saw_charge = 1;
       continue;
@@ -455,8 +455,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
         continue;
       if (n != 2)
         die(env, "MULTIPLICITY in &DFT takes one value");
-      copy_token_checked(env, generated_multiplicity_text,
-                         sizeof(generated_multiplicity_text), w[1],
+      copy_token_checked(env, input_multiplicity_text,
+                         sizeof(input_multiplicity_text), w[1],
                          "MULTIPLICITY");
       saw_multiplicity = 1;
       continue;
@@ -547,10 +547,6 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       die(env, "%s has no CHARGE value", path);
     if (!saw_multiplicity)
       die(env, "%s has no MULTIPLICITY value", path);
-    generated_charge =
-        integer(env, generated_charge_text, "generated input CHARGE");
-    generated_multiplicity = integer(env, generated_multiplicity_text,
-                                     "generated input MULTIPLICITY");
     params_path = strdup(fallback);
     if (!params_path)
       die(env, "out of memory");
@@ -563,30 +559,41 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->params = read_file(env, params_path, &env->params_len, "the CPMDParams message");
   if (env->params_len == 0)
     die(env, "the CPMDParams message %s is empty", params_path);
-  if (env->generated_input) {
+  /* GROMACS takes the QM charge and multiplicity from CHARGE and MULTIPLICITY
+   * of &DFT, in the input it generates and in the file of -qmi alike, and
+   * removes the classical charge of the QM atoms by the first. The method
+   * cpmdc runs is the CPMDParams message, so a value that the message does not
+   * share would run another system than the one GROMACS set up. */
+  if (env->generated_input || saw_charge || saw_multiplicity) {
+    const char *input_name = env->generated_input ? "generated input" : "&DFT";
+    const char *deck_name = env->generated_input ? "CPMDC_GROMACS_PARAMS" : "&CPMDC PARAMS";
     CPMDCMethodInfo method;
     if (cpmdc_params_method(env->params, env->params_len, &method) != 0) {
       const char *why = cpmdc_last_error();
       if (!why || !*why)
-        die(env, "cannot read CPMDC_GROMACS_PARAMS deck %s", params_path);
-      die(env, "cannot read CPMDC_GROMACS_PARAMS deck %s: %s", params_path,
-          why);
+        die(env, "cannot read %s deck %s", deck_name, params_path);
+      die(env, "cannot read %s deck %s: %s", deck_name, params_path, why);
     }
-    if (strcasecmp(generated_functional, method.functional) != 0)
-      die(env,
-          "generated input functional %s disagrees with "
-          "CPMDC_GROMACS_PARAMS functional %s",
-          generated_functional, method.functional);
-    if (generated_charge != method.charge)
-      die(env,
-          "generated input CHARGE %d disagrees with CPMDC_GROMACS_PARAMS "
-          "charge %d",
-          generated_charge, method.charge);
-    if (generated_multiplicity != method.multiplicity)
-      die(env,
-          "generated input MULTIPLICITY %d disagrees with "
-          "CPMDC_GROMACS_PARAMS multiplicity %d",
-          generated_multiplicity, method.multiplicity);
+    if (env->generated_input &&
+        strcasecmp(generated_functional, method.functional) != 0)
+      die(env, "%s functional %s disagrees with %s functional %s", input_name,
+          generated_functional, deck_name, method.functional);
+    if (saw_charge) {
+      input_charge = integer(env, input_charge_text,
+                             env->generated_input ? "generated input CHARGE" : "&DFT CHARGE");
+      if (input_charge != method.charge)
+        die(env, "%s CHARGE %d disagrees with %s charge %d", input_name,
+            input_charge, deck_name, method.charge);
+    }
+    if (saw_multiplicity) {
+      input_multiplicity =
+          integer(env, input_multiplicity_text,
+                  env->generated_input ? "generated input MULTIPLICITY"
+                                       : "&DFT MULTIPLICITY");
+      if (input_multiplicity != method.multiplicity)
+        die(env, "%s MULTIPLICITY %d disagrees with %s multiplicity %d",
+            input_name, input_multiplicity, deck_name, method.multiplicity);
+    }
   }
   free(params_path);
   env->qm_charges_listed = nq;

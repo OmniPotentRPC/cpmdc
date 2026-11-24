@@ -147,8 +147,11 @@ def qmi_input(
         CP2K's 1.38. It must exceed 1, and needs ``links``.
     charge, multiplicity:
         The values GROMACS reads. GROMACS warns when ``charge`` differs from
-        the classical charge it removed from the QM atoms; the ``CPMDParams``
-        deck sets the charge and multiplicity cpmdc uses.
+        the classical charge it removed from the QM atoms. The ``CPMDParams``
+        deck sets the charge and multiplicity cpmdc uses, and
+        ``libcpmdc_gromacs`` stops ``mdrun`` when they differ from these two
+        values, so pass the deck's charge and multiplicity for a deck that is
+        not neutral and singlet.
     """
     charge_value = _integer(charge, "charge")
     multiplicity_value = _integer(multiplicity, "multiplicity")
