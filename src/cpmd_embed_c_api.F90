@@ -2148,7 +2148,8 @@ CONTAINS
     CHARACTER(LEN=600) :: text
     REAL(real64) :: c(9), scale
     INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k, cell_state
-    LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, diagonal, done
+    LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, isolated_kw, &
+        diagonal, done
     ierr = 0
     IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
     ! First pass: units and the deck's symmetry, inside &SYSTEM only.
@@ -2156,6 +2157,7 @@ CONTAINS
     angstrom = .FALSE.
     cubic_deck = .FALSE.
     isolated_deck = .FALSE.
+    isolated_kw = .FALSE.
     skip = 0
     osym = 0
     ls = 1
@@ -2184,9 +2186,15 @@ CONTAINS
         angstrom = .TRUE.
       ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY' .AND. osym == 0) THEN
         osym = 1
+      ELSE IF (in_sys .AND. (TRIM(tok) == 'CLUSTER' .OR. &
+               INDEX(head, 'POISSON SOLVER') > 0 .OR. &
+               INDEX(head, 'ISOLATED MOLECULE') > 0 .OR. &
+               INDEX(head, 'MOLECULE ISOLATED') > 0)) THEN
+        isolated_kw = .TRUE.
       END IF
       ls = le + 1
     END DO
+    IF (osym == 0 .AND. isolated_kw) isolated_deck = .TRUE.
     DO k = 1, 9
       c(k) = REAL(cell(k), KIND=real64)
     END DO
@@ -2457,51 +2465,87 @@ CONTAINS
     IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
   END FUNCTION
 
-  ! Symmetry 0, a Poisson solver, CLUSTER, or an isolated-molecule keyword
-  ! is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
-  ! symmetry code is periodic. With no symmetry line, a positive-volume
-  ! cell is periodic and a zero box stays a cluster.
+  ! Symmetry 0/ISOLATED, a Poisson solver, CLUSTER, or an isolated-molecule
+  ! keyword inside &SYSTEM is isolated. Positive/non-isolated SYMMETRY,
+  ! SURFACE, POLYMER, or CELL VECTORS without an isolated keyword is periodic.
+  ! With periodicity unset, a positive-volume cell is periodic and a zero or
+  ! absent box stays isolated.
   LOGICAL FUNCTION reference_deck_isolated(deck, cell, has_cell)
     CHARACTER(LEN=*), INTENT(IN) :: deck
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
-    INTEGER :: p, n, sym, saw
-    reference_deck_isolated = .TRUE.
+    INTEGER :: ls, le, n, pos
+    CHARACTER(LEN=160) :: head, trimmed, tok, symtok
+    LOGICAL :: in_sys, expect_sym, sym_isolated, sym_periodic
+    LOGICAL :: has_isolated_kw, has_periodic_kw, has_cell_vectors
     n = LEN_TRIM(deck)
-    IF (INDEX(deck, 'POISSON SOLVER') > 0) RETURN
-    IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
-    IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
-    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
-    p = 1
-    DO WHILE (p <= n - 7)
-      IF (deck(p:p+7) == 'SYMMETRY') THEN
-        IF (p >= 7) THEN
-          IF (deck(p-6:p-1) == 'CHECK ') THEN
-            p = p + 1
-            CYCLE
+    in_sys = .FALSE.
+    expect_sym = .FALSE.
+    sym_isolated = .FALSE.
+    sym_periodic = .FALSE.
+    has_isolated_kw = .FALSE.
+    has_periodic_kw = .FALSE.
+    has_cell_vectors = .FALSE.
+    ls = 1
+    DO WHILE (ls <= n)
+      le = ls
+      DO WHILE (le <= n)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      CALL embed_upper_copy(deck(ls:MIN(le - 1, n)), head)
+      CALL embed_ltrim(head, trimmed)
+      IF (LEN_TRIM(trimmed) > 0 .AND. trimmed(1:1) /= '!') THEN
+        pos = 1
+        CALL embed_next_tok(trimmed, pos, tok)
+        IF (TRIM(tok) == '&SYSTEM') THEN
+          in_sys = .TRUE.
+          expect_sym = .FALSE.
+        ELSE IF (in_sys .AND. TRIM(tok) == '&END') THEN
+          in_sys = .FALSE.
+          expect_sym = .FALSE.
+        ELSE IF (in_sys .AND. expect_sym) THEN
+          IF (TRIM(tok) == '0' .OR. tok(1:8) == 'ISOLATED') THEN
+            sym_isolated = .TRUE.
+          ELSE
+            sym_periodic = .TRUE.
+          END IF
+          expect_sym = .FALSE.
+        ELSE IF (in_sys) THEN
+          IF (TRIM(tok) == 'SYMMETRY') THEN
+            CALL embed_next_tok(trimmed, pos, symtok)
+            IF (LEN_TRIM(symtok) > 0 .AND. symtok(1:1) /= '!') THEN
+              IF (TRIM(symtok) == '0' .OR. symtok(1:8) == 'ISOLATED') THEN
+                sym_isolated = .TRUE.
+              ELSE
+                sym_periodic = .TRUE.
+              END IF
+            ELSE
+              expect_sym = .TRUE.
+            END IF
+          ELSE IF (TRIM(tok) == 'CLUSTER' .OR. &
+                   INDEX(trimmed, 'POISSON SOLVER') == 1 .OR. &
+                   INDEX(trimmed, 'ISOLATED MOLECULE') == 1 .OR. &
+                   INDEX(trimmed, 'MOLECULE ISOLATED') == 1) THEN
+            has_isolated_kw = .TRUE.
+          ELSE IF (TRIM(tok) == 'SURFACE' .OR. TRIM(tok) == 'POLYMER') THEN
+            has_periodic_kw = .TRUE.
+          ELSE IF (INDEX(trimmed, 'CELL VECTORS') == 1) THEN
+            has_cell_vectors = .TRUE.
           END IF
         END IF
-        p = p + 8
-        saw = 0
-        sym = 0
-        DO WHILE (p <= n)
-          IF (deck(p:p) >= '0' .AND. deck(p:p) <= '9') THEN
-            saw = 1
-            sym = sym * 10 + IACHAR(deck(p:p)) - IACHAR('0')
-            p = p + 1
-          ELSE IF (saw == 1) THEN
-            EXIT
-          ELSE
-            p = p + 1
-          END IF
-        END DO
-        IF (saw == 1 .AND. sym > 0) reference_deck_isolated = .FALSE.
-        RETURN
       END IF
-      p = p + 1
+      ls = le + 1
     END DO
-    IF (periodic_symmetry_code(cell, has_cell) /= 0) &
-        reference_deck_isolated = .FALSE.
+    IF (sym_periodic .OR. has_periodic_kw) THEN
+      reference_deck_isolated = .FALSE.
+    ELSE IF (sym_isolated .OR. has_isolated_kw) THEN
+      reference_deck_isolated = .TRUE.
+    ELSE IF (has_cell_vectors) THEN
+      reference_deck_isolated = .FALSE.
+    ELSE
+      reference_deck_isolated = (periodic_symmetry_code(cell, has_cell) == 0)
+    END IF
   END FUNCTION
 
   INTEGER FUNCTION reference_pef_fill_stress(image, n_atoms, pos, z, cell, k)

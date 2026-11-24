@@ -2149,6 +2149,145 @@ int cpmdc_deck_defines_external_potential(const char *deck, size_t deck_len) {
   return 0;
 }
 
+static size_t trim_line_bounds(const char *line, size_t len,
+                               const char **start_out) {
+  while (len > 0 && (*line == ' ' || *line == '\t' || *line == '\r')) {
+    line++;
+    len--;
+  }
+  while (len > 0 &&
+         (line[len - 1] == ' ' || line[len - 1] == '\t' ||
+          line[len - 1] == '\r')) {
+    len--;
+  }
+  *start_out = line;
+  return len;
+}
+
+static int line_starts_keyword_ci(const char *line, size_t len,
+                                  const char *key) {
+  size_t key_len = strlen(key);
+  if (len < key_len)
+    return 0;
+  for (size_t i = 0; i < key_len; ++i) {
+    char c = line[i];
+    if (c >= 'a' && c <= 'z')
+      c = (char)(c - 'a' + 'A');
+    if (c != key[i])
+      return 0;
+  }
+  if (len == key_len)
+    return 1;
+  return line[key_len] == ' ' || line[key_len] == '\t' ||
+         line[key_len] == '!';
+}
+
+static int token_is_isolated_symmetry_ci(const char *tok, size_t len) {
+  static const char isolated[] = "ISOLATED";
+  const size_t isolated_len = sizeof(isolated) - 1u;
+  size_t tok_len = 0;
+  while (tok_len < len && tok[tok_len] != ' ' && tok[tok_len] != '\t' &&
+         tok[tok_len] != '!')
+    tok_len++;
+  if (tok_len == 0)
+    return 0;
+  if (tok_len == 1 && tok[0] == '0')
+    return 1;
+  if (tok_len >= isolated_len) {
+    int match = 1;
+    for (size_t i = 0; i < isolated_len; ++i) {
+      char c = tok[i];
+      if (c >= 'a' && c <= 'z')
+        c = (char)(c - 'a' + 'A');
+      if (c != isolated[i]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match)
+      return 1;
+  }
+  return 0;
+}
+
+static int deck_or_cell_is_periodic(const char *deck, const double *cell_ang,
+                                    int has_cell) {
+  int in_sys = 0;
+  int expect_sym_val = 0;
+  int sym_isolated = 0;
+  int sym_periodic = 0;
+  int has_isolated_kw = 0;
+  int has_periodic_kw = 0;
+  int has_cell_vectors = 0;
+
+  if (deck && deck[0] != '\0') {
+    const char *p = deck;
+    size_t left = strlen(deck);
+    while (left > 0) {
+      const char *nl = (const char *)memchr(p, '\n', left);
+      size_t raw_len = nl ? (size_t)(nl - p) : left;
+      const char *line = NULL;
+      size_t len = trim_line_bounds(p, raw_len, &line);
+
+      if (len > 0 && line[0] != '!') {
+        if (line_starts_keyword_ci(line, len, "&SYSTEM")) {
+          in_sys = 1;
+          expect_sym_val = 0;
+        } else if (in_sys && line_starts_keyword_ci(line, len, "&END")) {
+          in_sys = 0;
+          expect_sym_val = 0;
+        } else if (in_sys && expect_sym_val) {
+          if (token_is_isolated_symmetry_ci(line, len))
+            sym_isolated = 1;
+          else
+            sym_periodic = 1;
+          expect_sym_val = 0;
+        } else if (in_sys) {
+          if (line_starts_keyword_ci(line, len, "SYMMETRY")) {
+            const char *arg = line + 8u;
+            size_t arg_len = len - 8u;
+            while (arg_len > 0 && (*arg == ' ' || *arg == '\t')) {
+              arg++;
+              arg_len--;
+            }
+            if (arg_len > 0 && *arg != '!') {
+              if (token_is_isolated_symmetry_ci(arg, arg_len))
+                sym_isolated = 1;
+              else
+                sym_periodic = 1;
+            } else {
+              expect_sym_val = 1;
+            }
+          } else if (line_starts_keyword_ci(line, len, "POISSON SOLVER") ||
+                     line_starts_keyword_ci(line, len, "CLUSTER") ||
+                     line_starts_keyword_ci(line, len, "ISOLATED MOLECULE") ||
+                     line_starts_keyword_ci(line, len, "MOLECULE ISOLATED")) {
+            has_isolated_kw = 1;
+          } else if (line_starts_keyword_ci(line, len, "SURFACE") ||
+                     line_starts_keyword_ci(line, len, "POLYMER")) {
+            has_periodic_kw = 1;
+          } else if (line_starts_keyword_ci(line, len, "CELL VECTORS")) {
+            has_cell_vectors = 1;
+          }
+        }
+      }
+      if (!nl)
+        break;
+      left -= raw_len + 1u;
+      p = nl + 1;
+    }
+  }
+
+  if (sym_periodic || has_periodic_kw)
+    return 1;
+  if (sym_isolated || has_isolated_kw)
+    return 0;
+  if (has_cell_vectors)
+    return 1;
+  return has_cell && cell_ang &&
+         cpmdc_cell_rank3_state(cell_ang) != CPMDC_CELL_ZERO;
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -2950,12 +3089,13 @@ static CPMDCResult session_energy_gradient_cell(
     err = "property gradient snapshot supports at most 1365 atoms";
   /* Decided before the collective gates, from state every rank holds. */
   if (!err && session->external_count > 0) {
-    if (has_cell)
+    if (deck_or_cell_is_periodic(session->input_deck, cell_ang, has_cell))
       err = k_periodic_embedding_msg;
 #if !defined(CPMDC_HAS_CPMD)
-    else if (cpmdc_deck_defines_external_potential(
-                 session->input_deck,
-                 session->input_deck ? strlen(session->input_deck) : 0u))
+    if (!err &&
+        cpmdc_deck_defines_external_potential(
+            session->input_deck,
+            session->input_deck ? strlen(session->input_deck) : 0u))
       err = k_deck_external_potential_msg;
 #endif
   }

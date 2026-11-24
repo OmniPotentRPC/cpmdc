@@ -915,8 +915,8 @@ def test_reference_embedding_step_has_no_fabricated_dipole(embedding_params):
         assert list(snapshot.dipole) == [0.0, 0.0, 0.0]
 
 
-def test_periodic_external_charges_have_typed_error(embedding_params):
-    with Session(embedding_params) as session:
+def test_periodic_external_charges_have_typed_error(periodic_params):
+    with Session(periodic_params) as session:
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         with pytest.raises(
             cpmdc.CPMDCUnsupportedPeriodicEmbedding, match="periodic electrostatic embedding"
@@ -932,8 +932,8 @@ def test_periodic_external_charges_have_typed_error(embedding_params):
         assert session._lib.cpmdc_last_error_code() == caught.value.code
 
 
-def test_typed_failure_replaces_previous_error_code(embedding_params):
-    with Session(embedding_params) as session:
+def test_typed_failure_replaces_previous_error_code(periodic_params):
+    with Session(periodic_params) as session:
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         with pytest.raises(cpmdc.CPMDCUnsupportedPeriodicEmbedding):
             session.calculate_au(
@@ -948,6 +948,65 @@ def test_typed_failure_replaces_previous_error_code(embedding_params):
         assert type(failure) is cpmdc.CPMDCInvalidArgument
         assert failure.code == cpmdc.CPMDCInvalidArgument.code
         assert session._lib.cpmdc_last_error_code() == failure.code
+
+
+def test_isolated_cell_external_charges_evaluate(embedding_params):
+    mm = [3.0, 0.2, -0.1]
+    charge = [0.7]
+    width = [0.30]
+    cell_bohr = [20.0, 0.0, 0.0, 0.0, 22.0, 0.0, 0.0, 0.0, 24.0]
+    cell_ang = [value * cpmdc.BOHR_TO_ANGSTROM for value in cell_bohr]
+    water_bohr = [value / cpmdc.BOHR_TO_ANGSTROM for row in WATER for value in row]
+    step = 1.0e-5
+    with Session(embedding_params) as session:
+        opencpmd = session.available()
+        session.set_external_charges(mm, charge, width)
+        energy_au, qm_forces_au, virial = session.calculate_au(
+            water_bohr, [8, 1, 1], cell_bohr
+        )
+        assert session._lib.cpmdc_last_error_code() == 0
+        assert math.isfinite(energy_au)
+        assert all(math.isfinite(value) for value in qm_forces_au)
+        assert list(virial) == [0.0] * 9
+        mm_forces_au = session.external_charge_forces_au(1)
+        assert all(math.isfinite(value) for value in mm_forces_au)
+
+        done = session.energy_forces(WATER, [8, 1, 1], cell=cell_ang)
+        assert done.stress_h_bohr3 is None
+        assert done.energy_h == pytest.approx(energy_au, rel=1e-12, abs=1e-12)
+        mm_forces_msg = session.external_charge_forces_au(1)
+        assert list(mm_forces_msg) == pytest.approx(list(mm_forces_au), rel=1e-12, abs=1e-12)
+
+        moved = [list(row) for row in WATER]
+        moved[0][0] += step
+        plus = session.energy_forces(moved, [8, 1, 1], cell=cell_ang).energy_h
+        moved[0][0] -= 2.0 * step
+        minus = session.energy_forces(moved, [8, 1, 1], cell=cell_ang).energy_h
+        qm_fd = -(plus - minus) / (2.0 * step) * cpmdc.BOHR_TO_ANGSTROM
+        qm_abs = _finite_difference_allowance(plus, minus, step, opencpmd)
+        assert done.forces_h_bohr[0][0] == pytest.approx(
+            qm_fd, rel=_FORCE_FD_REL, abs=qm_abs
+        )
+
+        shifted = list(mm)
+        shifted[0] += step
+        session.set_external_charges(shifted, charge, width)
+        plus = session.energy_forces(WATER, [8, 1, 1], cell=cell_ang).energy_h
+        shifted[0] -= 2.0 * step
+        session.set_external_charges(shifted, charge, width)
+        minus = session.energy_forces(WATER, [8, 1, 1], cell=cell_ang).energy_h
+        mm_fd = -(plus - minus) / (2.0 * step) * cpmdc.BOHR_TO_ANGSTROM
+        mm_abs = _finite_difference_allowance(plus, minus, step, opencpmd)
+        assert mm_abs < abs(mm_fd)
+        assert mm_forces_msg[0] == pytest.approx(mm_fd, rel=_FORCE_FD_REL, abs=mm_abs)
+
+        session.set_external_charges(mm, charge, width)
+        zero_energy, zero_forces, _ = session.calculate_au(
+            water_bohr, [8, 1, 1], [0.0] * 9
+        )
+        assert math.isfinite(zero_energy)
+        assert all(math.isfinite(value) for value in zero_forces)
+        assert all(math.isfinite(value) for value in session.external_charge_forces_au(1))
 
 
 def test_smearing_width_changes_embedding_and_origin_is_finite(embedding_params):
@@ -1247,3 +1306,62 @@ def test_periodic_deck_is_refused_without_a_cell_argument(periodic_params):
         assert caught.value.code == cpmdc.CPMDCUnsupportedPeriodicEmbedding.code
         session.set_external_charges([], [])
         assert session.energy_forces(WATER, [8, 1, 1]).energy_h == bare.energy_h
+
+
+def test_cluster_deck_and_unset_periodicity_cell_rules(tmp_path):
+    cluster_blob = _encode_params_text(
+        tmp_path,
+        """(
+  functional = "BLYP",
+  cutOffRy = 50.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 40 ) ),
+    ( dft = ( functional = "BLYP", lsd = false ) ),
+    ( raw = "&SYSTEM\\n CLUSTER\\n POISSON SOLVER HOCKNEY\\n ANGSTROM\\n CELL\\n  10.0 1.0 1.0 0.0 0.0 0.0\\n CUTOFF\\n  50.0\\n&END\\n" ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)""",
+    ).read_bytes()
+    unset_blob = _encode_params_text(
+        tmp_path,
+        """(
+  functional = "BLYP",
+  cutOffRy = 50.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 40 ) ),
+    ( dft = ( functional = "BLYP", lsd = false ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)""",
+    ).read_bytes()
+    water_bohr = [value / cpmdc.BOHR_TO_ANGSTROM for row in WATER for value in row]
+    cell_bohr = [20.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 20.0]
+
+    with Session(cluster_blob) as cluster:
+        cluster.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        energy_h, qm_forces, _ = cluster.calculate_au(water_bohr, [8, 1, 1], cell_bohr)
+        assert math.isfinite(energy_h)
+        assert all(math.isfinite(value) for value in qm_forces)
+        assert all(math.isfinite(value) for value in cluster.external_charge_forces_au(1))
+
+    with Session(unset_blob) as unset:
+        unset.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        energy_zero, _, _ = unset.calculate_au(water_bohr, [8, 1, 1], [0.0] * 9)
+        assert math.isfinite(energy_zero)
+        with pytest.raises(
+            cpmdc.CPMDCUnsupportedPeriodicEmbedding, match="periodic electrostatic embedding"
+        ) as caught:
+            unset.calculate_au(water_bohr, [8, 1, 1], cell_bohr)
+        assert caught.value.code == cpmdc.CPMDCUnsupportedPeriodicEmbedding.code
