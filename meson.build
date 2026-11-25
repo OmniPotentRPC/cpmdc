@@ -2701,7 +2701,7 @@ if get_option('with_tests')
       'tests/test_cold_deck_cell.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: [inc, include_directories('src')],
-      c_args: common_c_args,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     suite: ['cmocka', 'params'],
   )

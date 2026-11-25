@@ -101,7 +101,12 @@ from cpmdc import (
     _warn_schema,
     params_method,
 )
-from cpmdc._rank import _cell_is_rank_deficient
+from cpmdc._rank import (
+    _FULL_RANK,
+    _NONFINITE,
+    _VOLUME_UNDERFLOW,
+    _cell_state,
+)
 
 __all__ = ["CPMDCCalculator", "CalculationFailed", "UnsupportedAtoms"]
 
@@ -712,10 +717,10 @@ class CPMDCCalculator(Calculator):
     def _periodic_cell(atoms: Atoms) -> np.ndarray | None:
         """Return the periodic cell, or ``None`` when every axis is open.
 
-        A fully periodic cell must have rank 3. :func:`cpmdc._rank._cell_is_rank_deficient`
+        A fully periodic cell must have rank 3. :func:`cpmdc._rank._cell_state`
         applies the ``numpy.linalg.matrix_rank`` cutoff: singular values
         count only above ``sigma_max * 3 * eps``, with ``eps`` the float64
-        unit roundoff.
+        unit roundoff. A non-finite cell is left to the coordinate check.
         """
         flags = _pbc_flags(atoms.pbc)
         if not any(flags):
@@ -727,7 +732,13 @@ class CPMDCCalculator(Calculator):
                 + ", ".join(names)
             )
         cell_array: np.ndarray = atoms.cell.array
-        if _cell_is_rank_deficient(cell_array):
+        state = _cell_state(cell_array)
+        if state == _VOLUME_UNDERFLOW:
+            raise UnsupportedAtoms(
+                "cpmdc takes a fully periodic cell; atoms.pbc is true but "
+                "atoms.cell volume is too small for binary64"
+            )
+        if state not in (_NONFINITE, _FULL_RANK):
             raise UnsupportedAtoms(
                 "cpmdc takes a fully periodic cell; atoms.pbc is true but "
                 "atoms.cell does not have three independent vectors"

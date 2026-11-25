@@ -27,6 +27,10 @@ _ASE = (
     "cpmdc takes a fully periodic cell; atoms.pbc is true but "
     "atoms.cell does not have three independent vectors"
 )
+_ASE_VOLUME = (
+    "cpmdc takes a fully periodic cell; atoms.pbc is true but "
+    "atoms.cell volume is too small for binary64"
+)
 _IPI = (
     "the server sent a cell without three independent vectors; send an "
     "all-zero cell or start cpmdc-ipi with --cluster for an isolated system"
@@ -269,7 +273,7 @@ def test_subnormal_cell_is_refused_before_its_volume_underflows() -> None:
     cell = np.diag([side, side, side])
     assert np.linalg.matrix_rank(cell) == 3
     assert _cell_is_rank_deficient(cell)
-    with pytest.raises(ValueError, match=re.escape(_ASE)):
+    with pytest.raises(ValueError, match=re.escape(_ASE_VOLUME)):
         _ase(cell)
     with pytest.raises(ProtocolError, match=re.escape(_IPI_VOLUME)):
         _ipi(cell)
