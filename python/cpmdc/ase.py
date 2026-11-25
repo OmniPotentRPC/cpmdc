@@ -101,7 +101,11 @@ from cpmdc import (
     _warn_schema,
     params_method,
 )
-from cpmdc._rank import _cell_is_rank_deficient
+from cpmdc._rank import (
+    _VOLUME_UNDERFLOW,
+    _cell_is_rank_deficient,
+    _cell_state,
+)
 
 __all__ = ["CPMDCCalculator", "CalculationFailed", "UnsupportedAtoms"]
 
@@ -728,6 +732,11 @@ class CPMDCCalculator(Calculator):
             )
         cell_array: np.ndarray = atoms.cell.array
         if _cell_is_rank_deficient(cell_array):
+            if _cell_state(cell_array) == _VOLUME_UNDERFLOW:
+                raise UnsupportedAtoms(
+                    "cpmdc takes a fully periodic cell; atoms.pbc is true but "
+                    "atoms.cell volume is too small for binary64"
+                )
             raise UnsupportedAtoms(
                 "cpmdc takes a fully periodic cell; atoms.pbc is true but "
                 "atoms.cell does not have three independent vectors"

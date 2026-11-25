@@ -181,8 +181,8 @@ static void test_minimal_deck_rejects_invalid_diagonal_boxes(void **state) {
 static void test_isolated_keyword_decks_stay_isolated(void **state) {
   (void)state;
   static const char *const keywords[] = {
-      " CLUSTER\n", " POISSON SOLVER TUCKERMAN\n", " ISOLATED MOLECULE\n",
-      " MOLECULE ISOLATED\n"};
+      " CLUSTER\n", " CHECK CLUSTER\n", " POISSON SOLVER TUCKERMAN\n",
+      " ISOLATED MOLECULE\n", " MOLECULE ISOLATED\n"};
   const double ortho[9] = {14.5, 0.0, 0.0, 0.0, 15.0, 0.0, 0.0, 0.0, 16.0};
   const double skew[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
                           0.0,  0.0, 12.0};

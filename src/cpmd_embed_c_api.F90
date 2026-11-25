@@ -73,6 +73,7 @@ END MODULE
 MODULE cpmd_embed_c_api
   USE, INTRINSIC :: iso_c_binding
   USE, INTRINSIC :: iso_fortran_env, ONLY: real64, error_unit
+  USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_nan
   IMPLICIT NONE
   PRIVATE
 
@@ -1799,6 +1800,14 @@ CONTAINS
     END DO
   END FUNCTION
 
+  LOGICAL FUNCTION deck_names_cluster(deck, nlen)
+    CHARACTER(LEN=*), INTENT(IN) :: deck
+    INTEGER, INTENT(IN) :: nlen
+    deck_names_cluster = .FALSE.
+    IF (nlen < 8) RETURN
+    deck_names_cluster = INDEX(deck(1:nlen), ' CLUSTER') > 0
+  END FUNCTION
+
   ! A deck with no symmetry line takes cubic, orthorhombic, or isolated
   ! symmetry from the box. An explicit symmetry, Poisson solver, cluster,
   ! or isolated-molecule keyword stays as written. CELL VECTORS is the
@@ -1816,7 +1825,7 @@ CONTAINS
     ierr = 0
     IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
     IF (INDEX(deck(1:nlen), 'POISSON SOLVER') > 0) RETURN
-    IF (INDEX(deck(1:nlen), ' CLUSTER') > 0) RETURN
+    IF (deck_names_cluster(deck, nlen)) RETURN
     IF (INDEX(deck(1:nlen), ' ISOLATED MOLECULE') > 0) RETURN
     IF (INDEX(deck(1:nlen), ' MOLECULE ISOLATED') > 0) RETURN
     IF (deck_names_symmetry(deck, nlen)) RETURN
@@ -1922,9 +1931,10 @@ CONTAINS
       ! The caller's box is the cell. A deck CELL is replaced by it. An
       ! all-zero box is a system without a cell (eOn's non-periodic
       ! convention), so the deck's CELL, or the default, stays. A NaN
-      ! component compares unequal to zero, so impose_box_cell rejects it.
+      ! component selects impose_box_cell so that routine rejects it.
       use_box = .FALSE.
-      IF (has_cell /= 0) use_box = ANY(cell(1:9) /= 0.0_c_double)
+      IF (has_cell /= 0) use_box = ANY(ABS(cell(1:9)) > 0.0_c_double) .OR. &
+          ANY(IEEE_IS_NAN(cell(1:9)))
       IF (use_box) THEN
         CALL impose_box_cell(deck, nlen, cell, ierr)
       ELSE
@@ -1971,7 +1981,7 @@ CONTAINS
     angstrom = .FALSE.
     cubic_deck = .FALSE.
     isolated_deck = .FALSE.
-    has_cluster = .FALSE.
+    has_cluster = deck_names_cluster(deck, nlen)
     isolated_keyword = .FALSE.
     skip = 0
     osym = 0
@@ -2001,8 +2011,6 @@ CONTAINS
         angstrom = .TRUE.
       ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY' .AND. osym == 0) THEN
         osym = 1
-      ELSE IF (in_sys .AND. TRIM(tok) == 'CLUSTER') THEN
-        has_cluster = .TRUE.
       ELSE IF (in_sys .AND. (INDEX(head, 'POISSON SOLVER') > 0 .OR. &
                INDEX(head, 'ISOLATED MOLECULE') > 0 .OR. &
                INDEX(head, 'MOLECULE ISOLATED') > 0)) THEN
