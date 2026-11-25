@@ -2327,8 +2327,8 @@ The `pbc` flags choose the boundaries:
 | `atoms.pbc` and `atoms.cell` | Step | Stress |
 |------------------------------+------+--------|
 | all false | no cell is sent: the deck sets the box and the Poisson solver, and `atoms.cell` is ignored | raises `PropertyNotImplementedError` |
-| all true, three independent cell vectors | `atoms.cell` is sent as the periodic cell | computed when the deck is periodic |
-| all true, fewer than three independent cell vectors | raises `UnsupportedAtoms` | |
+| all true, three independent cell vectors, a volume in the normal float64 range | `atoms.cell` is sent as the periodic cell | computed when the deck is periodic |
+| all true, fewer than three independent cell vectors or a volume below the normal float64 range | raises `UnsupportedAtoms` | |
 | a mix of true and false | raises `UnsupportedAtoms` that names the open axes | |
 
 A periodic cell with an isolated deck, such as `water.params.bin`, gives the
@@ -9353,7 +9353,7 @@ The properties `CPMDCCalculator` implements, in ASE units.
 
 | Property | Units | Shape and dtype | Sign and convention | Raises |
 |--------+--------+--------+--------+--------|
-| energy | eV | scalar `float` | The potential energy of the step; the library separates no electronic entropy. | `CalculationFailed` when the library rejects the step or returns a non-finite value; `UnsupportedAtoms` for mixed `pbc` flags or a cell of rank below 3; `ValueError` for other invalid atoms. |
+| energy | eV | scalar `float` | The potential energy of the step; the library separates no electronic entropy. | `CalculationFailed` when the library rejects the step or returns a non-finite value; `UnsupportedAtoms` for mixed `pbc` flags, a cell of rank below 3, or a cell volume below the normal float64 range; `ValueError` for other invalid atoms. |
 | free_energy | eV | scalar `float` | Equal to `energy`. | As for `energy`. |
 | forces | eV/Angstrom | (N, 3) `float64` array | The negative nuclear gradient `-dE/dR`. | As for `energy`. |
 | stress | eV/Angstrom^3 | (6,) `float64` array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, `(1/V) dE/d(strain)`, the opposite of the OpenCPMD sign; shear parts are averaged. | `PropertyNotImplementedError` for a cluster (every `pbc` flag false) or for a step the library gave no stress for; `ValueError` for a partly periodic cell. |
@@ -12105,7 +12105,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
-| `cpmdc.ase.UnsupportedAtoms` | a structure the calculator cannot take: mixed `pbc` flags or a periodic cell of rank below 3; both ASE's `CalculatorSetupError` and a `ValueError` |
+| `cpmdc.ase.UnsupportedAtoms` | a structure the calculator cannot take: mixed `pbc` flags, a periodic cell of rank below 3, or a periodic cell with a volume below the normal float64 range; both ASE's `CalculatorSetupError` and a `ValueError` |
 | `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
 | `cpmdc.ipi.Driver` | `Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)`: answer i-PI protocol requests from one `Session` |
 | `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree |

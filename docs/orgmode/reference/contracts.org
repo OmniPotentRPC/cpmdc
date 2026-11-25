@@ -2359,7 +2359,7 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 
 | Property | Units | Shape and dtype | Sign and convention | Raises |
 |--------+--------+--------+--------+--------|
-| energy | eV | scalar ~float~ | The potential energy of the step; the library separates no electronic entropy. | ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~UnsupportedAtoms~ for mixed ~pbc~ flags or a cell of rank below 3; ~ValueError~ for other invalid atoms. |
+| energy | eV | scalar ~float~ | The potential energy of the step; the library separates no electronic entropy. | ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~UnsupportedAtoms~ for mixed ~pbc~ flags, a cell of rank below 3, or a cell volume below the normal float64 range; ~ValueError~ for other invalid atoms. |
 | free_energy | eV | scalar ~float~ | Equal to ~energy~. | As for ~energy~. |
 | forces | eV/Angstrom | (N, 3) ~float64~ array | The negative nuclear gradient ~-dE/dR~. | As for ~energy~. |
 | stress | eV/Angstrom^3 | (6,) ~float64~ array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, ~(1/V) dE/d(strain)~, the opposite of the OpenCPMD sign; shear parts are averaged. | ~PropertyNotImplementedError~ for a cluster (every ~pbc~ flag false) or for a step the library gave no stress for; ~ValueError~ for a partly periodic cell. |

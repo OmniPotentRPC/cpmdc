@@ -130,8 +130,8 @@ The ~pbc~ flags choose the boundaries:
 | ~atoms.pbc~ and ~atoms.cell~ | Step | Stress |
 |------------------------------+------+--------|
 | all false | no cell is sent: the deck sets the box and the Poisson solver, and ~atoms.cell~ is ignored | raises ~PropertyNotImplementedError~ |
-| all true, three independent cell vectors | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
-| all true, fewer than three independent cell vectors | raises ~UnsupportedAtoms~ | |
+| all true, three independent cell vectors, a volume in the normal float64 range | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
+| all true, fewer than three independent cell vectors or a volume below the normal float64 range | raises ~UnsupportedAtoms~ | |
 | a mix of true and false | raises ~UnsupportedAtoms~ that names the open axes | |
 
 A periodic cell with an isolated deck, such as ~water.params.bin~, gives the

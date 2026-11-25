@@ -80,7 +80,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~CPMDCCalculator.read~ | ~read(label)~: always raises ~ase.calculators.calculator.ReadError~, because a step stores no file that holds results; ~parameters~ reads a file written by ~Parameters.write~ |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | ~close()~: close that potential; the next step opens a new one |
-| ~cpmdc.ase.UnsupportedAtoms~ | a structure the calculator cannot take: mixed ~pbc~ flags or a periodic cell of rank below 3; both ASE's ~CalculatorSetupError~ and a ~ValueError~ |
+| ~cpmdc.ase.UnsupportedAtoms~ | a structure the calculator cannot take: mixed ~pbc~ flags, a periodic cell of rank below 3, or a periodic cell with a volume below the normal float64 range; both ASE's ~CalculatorSetupError~ and a ~ValueError~ |
 | ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message |
 | ~cpmdc.ipi.Driver~ | ~Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)~: answer i-PI protocol requests from one ~Session~ |
 | ~Driver.compute~ | ~compute(positions, cell)~: one step from ~3N~ Bohr ~positions~ and the wire's ~cell~ ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
