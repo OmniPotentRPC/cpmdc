@@ -572,11 +572,13 @@ class CPMDCCalculator(Calculator):
                     numbers,
                     None if cell is None else cell.tolist(),
                 )
+            # The session now holds this composition even when the result
+            # is refused, so the next step must compare against it.
+            self._composition = composition
             checked = _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
             raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
-        self._composition = composition
         energy = float(checked["energy"])
         self.results["energy"] = energy
         self.results["free_energy"] = energy

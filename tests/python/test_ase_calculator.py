@@ -786,6 +786,40 @@ def test_a_new_composition_opens_a_new_session(calc, opencpmd):
     assert atoms.get_potential_energy() == pytest.approx(first, rel=0, abs=1e-5 if opencpmd else 0)
 
 
+@pytest.mark.parametrize("name", ["energy", "forces"])
+def test_a_refused_step_records_its_composition(calc, opencpmd, monkeypatch, name):
+    """A non-finite step still leaves its composition on the session it ran in."""
+    evaluate = Potential.evaluate
+
+    def refuse_two_atoms(self, positions, numbers, box=None):
+        out = evaluate(self, positions, numbers, box)
+        if len(numbers) == 2:
+            if name == "energy":
+                out["energy"] = float("nan")
+            else:
+                out["forces"][0][0] = float("inf")
+        return out
+
+    monkeypatch.setattr(Potential, "evaluate", refuse_two_atoms)
+    atoms = water()
+    atoms.calc = calc
+    first = atoms.get_potential_energy()
+    session = calc.potential
+    smaller = Atoms("OH", positions=WATER[:2])
+    smaller.calc = calc
+    with pytest.raises(CalculationFailed, match=f"non-finite {name}"):
+        smaller.get_potential_energy()
+    refused = calc.potential
+    assert refused is not session
+    assert calc._composition == np.sort(smaller.numbers).tobytes()
+    atoms.positions[0, 0] += 0.01
+    atoms.get_potential_energy()
+    atoms.positions[0, 0] -= 0.01
+    assert calc.potential is not refused
+    assert calc._composition == np.sort(atoms.numbers).tobytes()
+    assert atoms.get_potential_energy() == pytest.approx(first, rel=0, abs=1e-5 if opencpmd else 0)
+
+
 def test_deprecated_arguments_warn(params):
     with pytest.warns(DeprecationWarning, match="schema"):
         Session(params, schema="Potentials.capnp").close()

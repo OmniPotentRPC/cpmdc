@@ -261,9 +261,11 @@ class _SessionPotential:
             forces=self._forces,
             virial=self._virial,
         )
+        # The session now holds this composition even when the result is
+        # refused, so the next step must compare against it.
+        self.composition = composition
         if not (math.isfinite(energy) and np.isfinite(self._buffer).all()):
             self._require_finite(energy)
-        self.composition = composition
         stress = None
         if self.periodic:
             stress = self._virial.reshape(3, 3) * (-self._energy_scale / _volume(cell))
