@@ -1547,7 +1547,8 @@ if get_option('with_tests')
            water_blyp_aspc_params_bin.full_path()],
     depends: [water_params_bin, water_blyp_aspc_params_bin],
     suite: ['e2e', 'cmocka'],
-    timeout: 300,
+    # Every case converges real SCF steps on an OpenCPMD build.
+    timeout: has_cpmd ? 900 : 300,
   )
   test(
     'orbital-note-stored',
