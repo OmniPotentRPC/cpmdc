@@ -97,7 +97,7 @@ jobs:
           export CPMDC_LIBRARY="$PWD/build-lammps/libcpmdc.so"
           export CPMDC_TEST_PARAMS="$PWD/build-lammps/water_blyp_params.bin"
           export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-lammps/water_blyp_periodic_params.bin"
-          pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py -k 'not plugin' | tee lammps-pytest.log
+          pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py tests/python/test_lammps_rgpot_adapter.py -k 'not plugin' | tee lammps-pytest.log
           grep -E '[1-9][0-9]* passed' lammps-pytest.log
           if grep -E 'SKIPPED.*lammps Python module' lammps-pytest.log; then
             echo "LAMMPS route tests skipped"
