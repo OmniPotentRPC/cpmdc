@@ -409,6 +409,7 @@ static void test_finalize_frees_and_reinitializes_the_ledger(void **state) {
   size_t n = 0;
   unsigned char *params = read_file(g_params, &n);
   CPMDCSession *session;
+  CPMDCSession *fresh;
   double forces[9];
   double pos[9];
   CPMDCResult result;
@@ -427,6 +428,15 @@ static void test_finalize_frees_and_reinitializes_the_ledger(void **state) {
   }
   assert_true(cpmdc_orbital_ledger_capacity() > 0);
   cpmdc_session_destroy(session);
+
+  /* A fresh session starts from an empty ledger after destroy. */
+  fresh = cpmdc_session_create(params, n);
+  assert_non_null(fresh);
+  positions_for(2, pos);
+  assert_int_equal(cpmdc_session_select_orbitals(fresh, 63), 0);
+  result = cpmdc_session_energy_forces(fresh, 3, pos, k_z, forces);
+  assert_int_equal(result.ok, 1);
+  cpmdc_session_destroy(fresh);
 
   cpmdc_finalize();
   assert_int_equal(cpmdc_orbital_ledger_capacity(), 0);

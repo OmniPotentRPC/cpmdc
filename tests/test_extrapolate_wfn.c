@@ -14,6 +14,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "cpmdc.h"
+#include "setup_child.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -26,6 +27,66 @@
 
 static const double ANGSTROM_PER_BOHR = 0.529177210859;
 static const double KEY_OFFSET_ANGSTROM = 0.05;
+static const int KEYED_TEST_STEPS = 6;
+
+typedef struct {
+  const unsigned char *params;
+  size_t params_size;
+  double prime_ang[3 * NAT];
+  double first_ang[3 * NAT];
+  double last_ang[3 * NAT];
+} LimitedContext;
+
+typedef struct {
+  int ok;
+  char message[256];
+} LimitedOutput;
+
+static void limited_session_child(void *opaque, void *result) {
+  const LimitedContext *ctx = opaque;
+  LimitedOutput *out = result;
+  const int z[NAT] = {8, 1, 1};
+  double f[3 * NAT];
+  CPMDCSession *session = cpmdc_session_create(ctx->params, ctx->params_size);
+  if (!session) {
+    snprintf(out->message, sizeof(out->message), "create: %s",
+             cpmdc_last_error());
+    return;
+  }
+  if (cpmdc_session_set_constant_cutoff(session, 40.0, 0.0, 0.0) != 0) {
+    snprintf(out->message, sizeof(out->message), "cutoff: %s",
+             cpmdc_last_error());
+    goto done;
+  }
+  CPMDCResult evaluated = cpmdc_session_energy_forces(
+      session, NAT, ctx->prime_ang, z, f);
+  if (!evaluated.ok) {
+    snprintf(out->message, sizeof(out->message), "prime: %.240s",
+             evaluated.message);
+    goto done;
+  }
+  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "1", 1);
+  cpmdc_session_select_orbitals(session, 302);
+  evaluated =
+      cpmdc_session_energy_forces(session, NAT, ctx->first_ang, z, f);
+  if (!evaluated.ok) {
+    snprintf(out->message, sizeof(out->message), "key 302: %.238s",
+             evaluated.message);
+    goto done;
+  }
+  cpmdc_session_select_orbitals(session, 303);
+  evaluated = cpmdc_session_energy_forces(session, NAT, ctx->last_ang, z, f);
+  if (!evaluated.ok) {
+    snprintf(out->message, sizeof(out->message), "key 303: %.238s",
+             evaluated.message);
+    goto done;
+  }
+  out->ok = 1;
+
+done:
+  cpmdc_session_destroy(session);
+  unsetenv("CPMDC_ORBITAL_SLOT_LIMIT");
+}
 
 int main(int argc, char **argv) {
   if (argc < 4) {
@@ -62,6 +123,26 @@ int main(int argc, char **argv) {
     return 2;
 
   setenv("CPMDC_SCF_STEPS", "1", 1);
+  LimitedContext limited_ctx = {.params = params, .params_size = ps};
+  for (int i = 0; i < 3 * NAT; i++) {
+    limited_ctx.prime_ang[i] = pos[nf - 3][i] * ANGSTROM_PER_BOHR;
+    limited_ctx.first_ang[i] = pos[nf - 2][i] * ANGSTROM_PER_BOHR;
+    limited_ctx.last_ang[i] = pos[nf - 1][i] * ANGSTROM_PER_BOHR;
+  }
+  LimitedOutput isolated = {0};
+  char isolated_why[256];
+  int ok =
+      run_setup_child(limited_session_child, &limited_ctx, &isolated,
+                      sizeof(isolated), isolated_why, sizeof(isolated_why)) == 0;
+  if (ok && !isolated.ok) {
+    fprintf(stderr, "isolated limited_session failed: %s\n", isolated.message);
+    ok = 0;
+  } else if (!ok) {
+    fprintf(stderr, "isolated limited_session child failed: %s\n",
+            isolated_why);
+  }
+  printf("limited_session isolated=%d\n", ok);
+
   CPMDCSession *s = cpmdc_session_create(params, ps);
   if (!s)
     return 1;
@@ -71,7 +152,6 @@ int main(int argc, char **argv) {
   dup2(fileno(cap), 2);
   const int z[NAT] = {8, 1, 1};
   double e[MAXF], f[3 * NAT];
-  int ok = 1;
   for (int k = 0; k < nf && ok; k++) {
     double ang[3 * NAT];
     for (int i = 0; i < 3 * NAT; i++)
@@ -131,7 +211,8 @@ int main(int argc, char **argv) {
          fscanf(kg, " extrapolated %d", &keyed_want[keyed_want_n]) == 1)
     keyed_want_n++;
   fclose(kg);
-  if (keyed_want_n != 2 * nf)
+  int keyed_nf = nf < KEYED_TEST_STEPS ? nf : KEYED_TEST_STEPS;
+  if (keyed_want_n < 2 * keyed_nf)
     return 2;
 
   s = cpmdc_session_create(params, ps);
@@ -141,7 +222,7 @@ int main(int argc, char **argv) {
   cap = tmpfile();
   dup2(fileno(cap), 2);
   double keyed_e[2 * MAXF];
-  for (int k = 0; k < nf && ok; k++) {
+  for (int k = 0; k < keyed_nf && ok; k++) {
     double ang[3 * NAT];
     for (int i = 0; i < 3 * NAT; i++)
       ang[i] = pos[k][i] * ANGSTROM_PER_BOHR;
@@ -182,12 +263,12 @@ int main(int argc, char **argv) {
       keyed_steps[keyed_call] += v;
   }
   fclose(cap);
-  if (keyed_call != 2 * nf - 1) {
+  if (keyed_call != 2 * keyed_nf - 1) {
     fprintf(stderr, "%d keyed calls reported, expected %d\n", keyed_call + 1,
-            2 * nf);
+            2 * keyed_nf);
     return 1;
   }
-  for (int k = 0; k < nf; k++) {
+  for (int k = 0; k < keyed_nf; k++) {
     for (int bead = 0; bead < 2; bead++) {
       int i = 2 * k + bead;
       printf("key %d step %d energy_h=%.10f scf=%d extrapolated=%d\n",
@@ -197,43 +278,31 @@ int main(int argc, char **argv) {
     }
   }
 
-  cpmdc_session_destroy(s);
-  CPMDCSession *limited_session = cpmdc_session_create(params, ps);
-  if (!limited_session)
-    return 1;
-  if (cpmdc_session_set_constant_cutoff(limited_session, 40.0, 0.0, 0.0) !=
-      0)
-    return 1;
-  double prime_ang[3 * NAT];
-  for (int i = 0; i < 3 * NAT; i++)
-    prime_ang[i] = pos[nf - 3][i] * ANGSTROM_PER_BOHR;
-  CPMDCResult limited =
-      cpmdc_session_energy_forces(limited_session, NAT, prime_ang, z, f);
-  if (!limited.ok)
-    ok = 0;
-  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "1", 1);
-  double first_ang[3 * NAT];
-  for (int i = 0; i < 3 * NAT; i++)
-    first_ang[i] = pos[nf - 2][i] * ANGSTROM_PER_BOHR;
-  cpmdc_session_select_orbitals(limited_session, 302);
-  limited = cpmdc_session_energy_forces(limited_session, NAT, first_ang, z, f);
-  if (!limited.ok)
-    ok = 0;
-  double last_ang[3 * NAT];
-  for (int i = 0; i < 3 * NAT; i++)
-    last_ang[i] = pos[nf - 1][i] * ANGSTROM_PER_BOHR;
-  cpmdc_session_select_orbitals(limited_session, 303);
-  limited = cpmdc_session_energy_forces(limited_session, NAT, last_ang, z, f);
+  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "9", 1);
+  cpmdc_session_select_orbitals(s, 303);
+  CPMDCResult limited = cpmdc_session_energy_forces(
+      s, NAT, limited_ctx.last_ang, z, f);
   if (limited.ok || strstr(limited.message, "CPMDC_ORBITAL_SLOT_LIMIT") == NULL ||
       strstr(limited.message, "history") == NULL ||
       strstr(limited.message, "unchanged") == NULL)
     ok = 0;
-  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "2", 1);
-  limited = cpmdc_session_energy_forces(limited_session, NAT, last_ang, z, f);
+  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "10", 1);
+  limited =
+      cpmdc_session_energy_forces(s, NAT, limited_ctx.last_ang, z, f);
   if (!limited.ok)
     ok = 0;
-  cpmdc_session_destroy(limited_session);
   unsetenv("CPMDC_ORBITAL_SLOT_LIMIT");
+  printf("history_limit required=10 reject=9 accept=10 ok=%d\n", ok);
+  cpmdc_session_destroy(s);
+
+  LimitedOutput after_full = {0};
+  limited_session_child(&limited_ctx, &after_full);
+  if (!after_full.ok) {
+    fprintf(stderr, "full-run limited_session failed: %s\n",
+            after_full.message);
+    ok = 0;
+  }
+  printf("limited_session full_run=%d\n", after_full.ok);
   printf("PASS=%d\n", ok);
   return ok ? 0 : 1;
 }

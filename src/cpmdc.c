@@ -31,6 +31,8 @@ int cpmdc_stop_code(void);
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
 int cpmdc_embed_reset_state(CPMDCEmbedImage *image);
+void cpmdc_embed_clear_orbital_key(void);
+void cpmdc_orbital_ledger_reset(void);
 int cpmdc_embed_detach_image(CPMDCEmbedImage *image);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
@@ -2619,8 +2621,11 @@ void cpmdc_session_destroy(CPMDCSession *session) {
     g_live_sessions--;
   if (session->evaluated && g_evaluated_sessions > 0)
     g_evaluated_sessions--;
-  if (g_active_session == session)
+  if (g_active_session == session) {
+    cpmdc_embed_clear_orbital_key();
+    cpmdc_orbital_ledger_reset();
     g_active_session = NULL;
+  }
   free(session->params_bytes);
   if (session->image.input_deck != session->input_deck)
     free(session->image.input_deck);

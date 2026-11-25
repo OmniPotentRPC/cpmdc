@@ -83,6 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_clear_orbital_key
   PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_abort_orbitals
   PUBLIC :: cpmdc_embed_commit_orbitals
   PUBLIC :: cpmdc_embed_drop_stale_orbitals
@@ -525,6 +526,14 @@ CONTAINS
     CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
 #else
     IF (key == 0_c_long_long) CONTINUE
+#endif
+  END SUBROUTINE
+
+  SUBROUTINE cpmdc_embed_clear_orbital_key() &
+      BIND(C, NAME='cpmdc_embed_clear_orbital_key')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_clear_orbital_key
+    CALL embed_clear_orbital_key()
 #endif
   END SUBROUTINE
 

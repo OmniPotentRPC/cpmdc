@@ -297,6 +297,10 @@ def assert_embed_extrapolate(patch: Path) -> None:
         "LOGICAL, PUBLIC, SAVE :: embed_extrap_wfn = .FALSE.",
         "+    embed_extrap_wfn = cntl%textrap",
         "PUBLIC :: embed_extrapolation_used",
+        "PUBLIC :: embed_clear_orbital_key",
+        "SUBROUTINE embed_clear_orbital_key()",
+        "embed_have_key = .FALSE.",
+        "embed_current_key = 0",
         "CALL extrapwf(0, cx, gam, embed_xhist, embed_xnow, embed_xcount, n, m)",
         "+    CALL embed_extrapolate_orbitals(c0, cx)",
     ):

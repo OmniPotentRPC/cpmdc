@@ -1,7 +1,7 @@
 /* Keyed-orbital cap for CPMDC_ORBITAL_SLOT_LIMIT.
  *
- * The OpenCPMD table in tools/opencpmd_embed_rwfopt.patch is the store when
- * this build links CPMD; that table counts parked c0 plus populated
+ * The OpenCPMD table in tools/opencpmd_embed_extrapolate.patch is the store
+ * when this build links CPMD; that table counts parked c0 plus populated
  * extrapolation histories. This file agrees the cap across calculator ranks
  * and, on the reference evaluator, applies the same rule to keyed evaluations.
  * The reference evaluator has no orbital or extrapolation storage, so its
