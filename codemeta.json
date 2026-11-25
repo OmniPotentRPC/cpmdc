@@ -1,0 +1,55 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "cpmdc",
+  "description": "cpmdc is the C ABI layer for embedding OpenCPMD (https://github.com/OpenCPMD/CPMD) in OmniPotentRPC tools. It gives non-Fortran callers one stable boundary for CPMD setup, geometry steps, feature discovery, and result messages.",
+  "version": "0.7.0",
+  "softwareVersion": "0.7.0",
+  "license": "https://spdx.org/licenses/MIT",
+  "codeRepository": "https://github.com/OmniPotentRPC/cpmdc",
+  "url": "https://cpmdc.rgoswami.me",
+  "issueTracker": "https://github.com/OmniPotentRPC/cpmdc/issues",
+  "datePublished": "2026-11-24",
+  "copyrightYear": 2026,
+  "programmingLanguage": ["C", "Fortran", "Python"],
+  "keywords": ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Rohit",
+      "familyName": "Goswami",
+      "email": "rgoswami@ieee.org",
+      "@id": "https://orcid.org/0000-0002-2393-8056",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "TurtleTech ehf"
+      }
+    }
+  ],
+  "citation": {
+    "@type": "SoftwareSourceCode",
+    "name": "CPMD",
+    "description": "CPMD, http://www.cpmd.org/, Copyright IBM Corp 1990-2019, Copyright MPI für Festkörperforschung Stuttgart 1997-2001.",
+    "url": "http://www.cpmd.org/",
+    "codeRepository": "https://github.com/CPMD-code/CPMD",
+    "version": "4.3",
+    "softwareVersion": "4.3",
+    "license": "https://spdx.org/licenses/MIT",
+    "author": [
+      {
+        "@type": "Organization",
+        "name": "The CPMD consortium"
+      }
+    ],
+    "copyrightHolder": [
+      {
+        "@type": "Organization",
+        "name": "IBM Corp"
+      },
+      {
+        "@type": "Organization",
+        "name": "MPI für Festkörperforschung Stuttgart"
+      }
+    ]
+  }
+}

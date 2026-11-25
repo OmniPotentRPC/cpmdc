@@ -1,28 +1,49 @@
 cff-version: 1.2.0
 message: "If you use cpmdc, please cite it as below."
 type: software
-title: "cpmdc: a C ABI for embedding OpenCPMD with Cap'n Proto parameters"
+title: cpmdc
 authors:
   - family-names: Goswami
     given-names: Rohit
+    email: rgoswami@ieee.org
     orcid: "https://orcid.org/0000-0002-2393-8056"
+    affiliation: "TurtleTech ehf"
 repository-code: "https://github.com/OmniPotentRPC/cpmdc"
 url: "https://cpmdc.rgoswami.me"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23652379"
+    description: "Concept DOI for all versions."
 # [[[cog cog.outl(f'version: "{open("version.txt").read().strip()}"') ]]]
 version: "0.7.0"
 # [[[end]]]
+date-released: 2026-11-24
 license: MIT
 keywords:
   - CPMD
   - OpenCPMD
-  - Car-Parrinello
-  - density functional theory
-  - Cap'n Proto
-  - C ABI
+  - ASE
+  - rgpot
+  - capnproto
+  - ctypes
 abstract: >-
-  The C application binary interface (ABI) layer for embedding OpenCPMD in
-  OmniPotentRPC tools.
+  cpmdc is the C ABI layer for embedding OpenCPMD
+  (https://github.com/OpenCPMD/CPMD) in OmniPotentRPC tools.
   It gives non-Fortran callers one stable boundary for CPMD setup,
-  geometry steps, feature discovery, and result messages, with method
-  setup passed as a serialized Cap'n Proto CPMDParams message and each
-  geometry step as a ForceInput message.
+  geometry steps, feature discovery, and result messages.
+references:
+  - type: software
+    title: CPMD
+    authors:
+      - name: "The CPMD consortium"
+    abstract: >-
+      The CPMD code is a parallelized plane wave / pseudopotential
+      implementation of Density Functional Theory, particularly designed
+      for ab-initio molecular dynamics.
+    url: "http://www.cpmd.org/"
+    repository-code: "https://github.com/CPMD-code/CPMD"
+    version: "4.3"
+    license: MIT
+    copyright: >-
+      Copyright IBM Corp 1990-2019, Copyright MPI für Festkörperforschung
+      Stuttgart 1997-2001.

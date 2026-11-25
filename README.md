@@ -340,7 +340,19 @@ GitHub reads that file and offers the record as "Cite this repository" on the
 repository page, as the
 [GitHub documentation on citation files](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files)
 describes.
-The record carries no digital object identifier (DOI).
+The Citation File Format record lists the Zenodo concept DOI for all versions.
+This release has no version DOI.
+[`codemeta.json`](codemeta.json) is the CodeMeta 2.0 record, and
+[`.zenodo.json`](.zenodo.json) is the Zenodo deposit metadata.
+`version-sync` writes the version in `CITATION.cff` and `codemeta.json` from
+`version.txt`.
+`.zenodo.json` has no version field, because the Zenodo legacy deposit schema
+rejects it.
+The Citation File Format record references CPMD.
+Its reference uses the citation in the CPMD manual and the version, license, and
+repository of [CPMD-code/CPMD](https://github.com/CPMD-code/CPMD).
+It credits the CPMD consortium, the author that the manual names.
+IBM Corp and the MPI für Festkörperforschung Stuttgart hold the copyright.
 
 An OpenCPMD archive build computes its energies and forces with OpenCPMD, so a
 paper that reports them cites OpenCPMD as well.
