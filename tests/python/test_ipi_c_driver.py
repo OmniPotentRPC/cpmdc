@@ -9,7 +9,9 @@ which ``test_ipi_driver.py`` checks against the direct calculator.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -30,6 +32,7 @@ from test_ipi_driver import (  # noqa: F401  (fixtures are used by name)
     MiniServer,
     codata2018,
     free_port,
+    ipi_parse_extra,
     mini,
     native,
     socket_dir,
@@ -53,13 +56,31 @@ pytestmark = pytest.mark.skipif(C_CLIENT is None, reason="cpmdc-ipi-c is not bui
 class CClient(Client):
     """``cpmdc-ipi-c`` in a subprocess."""
 
-    def __init__(self, *args: str) -> None:
+    def __init__(self, *args: str, env: dict[str, str] | None = None) -> None:
         self.proc = subprocess.Popen(
             [str(C_CLIENT), *args],
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
+
+
+DIPOLE_SHIM = Path(
+    os.environ.get("CPMDC_IPI_DIPOLE_SHIM") or ROOT / "build" / "ipi_dipole_shim.so"
+)
+needs_dipole_shim = pytest.mark.skipif(
+    not DIPOLE_SHIM.is_file(), reason="the cpmdc_session_last_dipole shim is not built"
+)
+
+
+def dipole_env(text: str) -> dict[str, str]:
+    """Preload the shim after any sanitizer runtime and give it ``text``."""
+    env = os.environ.copy()
+    preload = env.get("LD_PRELOAD")
+    env["LD_PRELOAD"] = f"{preload}:{DIPOLE_SHIM}" if preload else str(DIPOLE_SHIM)
+    env["CPMDC_TEST_DIPOLE"] = text
+    return env
 
 
 @pytest.fixture
@@ -182,6 +203,55 @@ def test_full_handshake_and_exit(mini, socket_dir, params, drivers):
     mini.send(mini.header("EXIT"))
     code, err = client.finish()
     assert code == 0, err
+
+
+@needs_dipole_shim
+def test_recomputed_dipole_matches_python_driver(mini, socket_dir, params):
+    dipole = [0.1, -2.5e-7, 3.0]
+    client = CClient("--unix", str(socket_dir / "s"), "--params", str(params),
+                     "--species", "OHH", env=dipole_env("0.1 -2.5e-7 3"))
+    try:
+        mini.accept()
+        mini.status()
+        mini.init()
+        for _ in range(2):
+            energy, forces, _, extra = mini.step(np.zeros((3, 3)), WATER)
+            expected = python_step(params, np.zeros((3, 3)), WATER)
+            assert energy == expected[0]
+            np.testing.assert_array_equal(forces, expected[1])
+            assert re.fullmatch(rb'\{"dipole":\[[^,\]]+,[^,\]]+,[^,\]]+\]\}', extra)
+            assert json.loads(extra) == {"dipole": dipole}
+            assert ipi_parse_extra(extra)["dipole"] == dipole
+            python_extra = Driver._extra(Driver.__new__(Driver), dipole)
+            assert json.loads(python_extra) == json.loads(extra)
+        mini.send(mini.header("EXIT"))
+        code, err = client.finish()
+    finally:
+        client.kill()
+    assert code == 0, err
+
+
+@needs_dipole_shim
+@pytest.mark.parametrize("text", ["nan 0 0", "0 inf 0", "0 0 -inf"],
+                         ids=["nan", "inf", "minus-inf"])
+def test_non_finite_dipole_sends_an_empty_extra_string(mini, socket_dir, params, text):
+    client = CClient("--unix", str(socket_dir / "s"), "--params", str(params),
+                     "--species", "OHH", "--verbose", env=dipole_env(text))
+    try:
+        mini.accept()
+        mini.status()
+        mini.init()
+        for _ in range(2):
+            energy, _, _, extra = mini.step(np.zeros((3, 3)), WATER)
+            assert energy == python_step(params, np.zeros((3, 3)), WATER)[0]
+            assert extra == b""
+        mini.send(mini.header("EXIT"))
+        code, err = client.finish()
+    finally:
+        client.kill()
+    assert code == 0, err
+    assert err.count("the library returned a dipole that is not finite") == 1
+    assert "2 steps" in err
 
 
 def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, drivers, opencpmd):

@@ -11,6 +11,7 @@ through the socket and a direct step do the same arithmetic.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import socket
@@ -670,27 +671,127 @@ def test_ipi_nve_run(params, clients, socket_dir, tmp_path):
 
 
 class _FixedStress:
-    """A session stand-in that returns one stress tensor for every step."""
+    """A session stand-in that returns one stress tensor and dipole for every step."""
 
-    def __init__(self, stress: list[float]) -> None:
+    def __init__(self, stress: list[float], dipole: list[float] | None = None) -> None:
         self.stress = stress
+        self.dipole = dipole
 
     def energy_forces(self, coords, numbers, rows) -> Evaluation:
-        return Evaluation(-1.0, [[0.0, 0.0, 0.0] for _ in coords], list(self.stress))
+        dipole = None if self.dipole is None else list(self.dipole)
+        return Evaluation(-1.0, [[0.0, 0.0, 0.0] for _ in coords], list(self.stress), dipole)
 
     def close(self) -> None:
         pass
 
 
-def _fixed_stress_driver(stress: list[float]) -> Driver:
+def _fixed_stress_driver(stress: list[float], dipole: list[float] | None = None) -> Driver:
     driver = Driver.__new__(Driver)
     driver.atomic_numbers = [8, 1, 1]
     driver.cluster = False
     driver.steps = 0
     driver._log = None
     driver._warned_virial = False
-    driver._session = _FixedStress(stress)
+    driver._warned_dipole = False
+    driver._session = _FixedStress(stress, dipole)
     return driver
+
+
+def _serve_extras(driver: Driver, steps: int) -> list[bytes]:
+    """Extra strings of ``steps`` cluster steps served in process."""
+    server_end, client_end = socket.socketpair()
+    worker = threading.Thread(target=driver.serve, args=(client_end,))
+    worker.start()
+    server = MiniServer(conn=server_end)
+    try:
+        assert server.status() == "NEEDINIT"
+        server.init()
+        extras = []
+        for _ in range(steps):
+            energy, forces, _, extra = server.step(np.zeros((3, 3)), WATER)
+            assert energy == -1.0
+            assert not forces.any()
+            extras.append(extra)
+        server.send(server.header("EXIT"))
+        worker.join(TIMEOUT)
+        assert not worker.is_alive()
+    finally:
+        server.close()
+        client_end.close()
+    return extras
+
+
+def ipi_parse_extra(extra: bytes) -> dict:
+    """i-PI's own decoder, as its socket interface applies it to the bytes."""
+    utils = pytest.importorskip("ipi.interfaces.utils")
+    return utils.parse_extra(extra.decode("utf-8"))
+
+
+DIPOLE_E_BOHR = [0.1, -2.5e-7, 3.0]
+
+
+def test_recomputed_dipole_is_sent_as_json_in_electron_bohr() -> None:
+    driver = _fixed_stress_driver([0.0] * 9, DIPOLE_E_BOHR)
+    extras = _serve_extras(driver, 2)
+    assert extras == [b'{"dipole":[0.1,-2.5e-07,3.0]}'] * 2
+    assert json.loads(extras[0]) == {"dipole": DIPOLE_E_BOHR}
+    assert driver.steps == 2
+
+
+def test_ipi_parse_extra_reads_the_dipole() -> None:
+    extra = _serve_extras(_fixed_stress_driver([0.0] * 9, DIPOLE_E_BOHR), 1)[0]
+    parsed = ipi_parse_extra(extra)
+    assert parsed["dipole"] == DIPOLE_E_BOHR
+    assert parsed["raw"] == extra.decode("ascii")
+    assert ipi_parse_extra(b"") == {}
+
+
+def test_no_recomputed_dipole_sends_an_empty_extra_string() -> None:
+    assert _serve_extras(_fixed_stress_driver([0.0] * 9), 2) == [b"", b""]
+
+
+def test_dipole_extra_needs_three_components() -> None:
+    driver = _fixed_stress_driver([0.0] * 9)
+    assert driver._extra([0.1, 0.2]) == b""
+    assert driver._extra([0.1, 0.2, 0.3, 0.4]) == b""
+    assert driver._warned_dipole is False
+
+
+@pytest.mark.parametrize(
+    "dipole",
+    [[float("nan"), 0.0, 0.0], [0.0, float("inf"), 0.0], [0.0, 0.0, -float("inf")]],
+    ids=["nan", "inf", "minus-inf"],
+)
+def test_non_finite_dipole_sends_an_empty_extra_string_and_warns_once(dipole, capsys) -> None:
+    driver = _fixed_stress_driver([0.0] * 9, dipole)
+    assert _serve_extras(driver, 2) == [b"", b""]
+    assert driver.steps == 2
+    err = capsys.readouterr().err
+    assert err.count("the library returned a dipole that is not finite") == 1
+
+
+def test_ase_accepts_the_dipole_extra() -> None:
+    name = "cpmdc-" + uuid.uuid4().hex[:12]
+    calc = SocketIOCalculator(unixsocket=name, timeout=TIMEOUT)
+    driver = _fixed_stress_driver([0.0] * 9, DIPOLE_E_BOHR)
+    served: list[int] = []
+
+    def run() -> None:
+        with connect(unix=name, wait=TIMEOUT) as sock:
+            served.append(driver.serve(sock))
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    try:
+        with calc:
+            atoms = water()
+            atoms.calc = calc
+            assert atoms.get_potential_energy() == pytest.approx(-ase.units.Ha, rel=1e-12)
+            assert not atoms.get_forces().any()
+    finally:
+        worker.join(TIMEOUT)
+    assert not worker.is_alive()
+    assert served == [1]
 
 
 _POSITIONS_BOHR = [coord / BOHR_TO_ANGSTROM for row in WATER for coord in row]

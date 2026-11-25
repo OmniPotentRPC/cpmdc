@@ -290,6 +290,7 @@ returns.
 | energy | Hartree | ~Evaluation.energy_h~ |
 | forces | Hartree/Bohr, ~3N~ reals | ~Evaluation.forces_h_bohr~ |
 | virial | Hartree, nine reals laid out as the cell | ~-dE/d(strain)~, the library stress times the volume in Bohr^3 |
+| extra string | ~{"dipole":[x,y,z]}~ in electron Bohr, or empty | ~Evaluation.dipole_e_bohr~ |
 
 The virial is what ASE's ~SocketClient~ sends as ~-volume * stress~ and what
 i-PI's ASE driver sends, so ASE's ~stress = -virial / volume~ comes back with
@@ -308,7 +309,15 @@ agree to 1e-10, which the pytest suite checks.
 - One structure per request: ~INIT~ must be UTF-8, and ~batch_size~, when
   present, must appear once with the integer value 1.
   There is no shared-memory (~mode="shm"~) transport.
-- The extra string after the virial is empty.
+- The extra string after the virial is the JSON ~{"dipole":[x,y,z]}~ when the
+  library recomputed the molecular dipole for that step, and empty otherwise.
+  The values are electron Bohr, the atomic unit of i-PI's ~electric-dipole~, and
+  i-PI's ~parse_extra~ exposes them as ~extras["dipole"]~.
+  Only an OpenCPMD periodic Gamma-point deck with ~DIPOLE DYNAMICS~ or
+  ~PROP / DIPOLE MOMENT BERRY~ recomputes a dipole.
+  A dipole that is NaN or infinite sends an empty extra string and warns once on
+  standard error; the energy, forces, and virial of that step are still sent.
+  ASE's ~SocketIOCalculator~ reads the extra string and ignores it.
 - A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver.

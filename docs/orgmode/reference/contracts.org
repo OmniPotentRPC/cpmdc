@@ -2134,8 +2134,8 @@ The i-PI protocol driver.
 | Item | Description |
 |--------+--------|
 | Signature | ~serve(sock)~ |
-| Units | Atomic units on the wire, as for ~compute~. |
-| Shape and dtype | ~sock~ a connected stream socket; returns the number of steps served as an ~int~. |
+| Units | Atomic units on the wire, as for ~compute~; the extra string after the virial carries the dipole in electron Bohr. |
+| Shape and dtype | ~sock~ a connected stream socket; returns the number of steps served as an ~int~. The extra string is the ASCII JSON ~{"dipole":[x,y,z]}~ when ~Evaluation.dipole_e_bohr~ holds three finite values for the step, and empty otherwise; a non-finite dipole warns once on standard error. |
 | Ownership and threads | The caller owns the socket and closes it. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | ~ProtocolError~ for a connection closed in the middle of a message, a message out of order, an unknown header, an ~INIT~ that is not UTF-8 or whose ~batch_size~ appears more than once or is not the integer 1, or a negative announced size; ~OSError~ for a socket failure; ~CPMDCError~ from the session. A close between messages ends the run like ~EXIT~. |
 | Defaults | none |

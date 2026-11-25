@@ -21,6 +21,12 @@ the byte layout of i-PI's ``ipi/interfaces/sockets.py`` and
   length-prefixed extra string;
 * ``EXIT`` ends the run.
 
+The extra string is ``{"dipole":[x,y,z]}``, the molecular dipole in
+electron Bohr, when the library recomputed a finite dipole for the step,
+and empty otherwise. i-PI's ``parse_extra`` (``ipi/interfaces/utils.py``)
+decodes that JSON, and its atomic unit of ``electric-dipole`` is electron
+Bohr. ASE's ``SocketIOCalculator`` reads the bytes and ignores them.
+
 Every quantity on the wire is in atomic units: Bohr, Hartree, Hartree/Bohr.
 The library computes in those units, so the driver passes them through. A
 position goes to :class:`cpmdc.Session` as Angstrom through
@@ -39,6 +45,7 @@ sees the trajectory in order.
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import re
@@ -239,6 +246,7 @@ class Driver:
         self.steps = 0
         self._log = log
         self._warned_virial = False
+        self._warned_dipole = False
         self._session = Session(params, library=library)
 
     def _say(self, text: str) -> None:
@@ -280,6 +288,39 @@ class Driver:
         energy in Hartree, 3N forces in Hartree/Bohr, and the row-major
         virial ``-dE/d(strain)`` in Hartree, zero for a cluster.
         """
+        energy, forces, virial, _ = self._evaluate(positions, cell)
+        return energy, forces, virial
+
+    def _extra(self, dipole: Sequence[float] | None) -> bytes:
+        """The FORCEREADY extra string for one dipole, or empty bytes.
+
+        i-PI's ``parse_extra`` uses ``json.loads``, which accepts ``NaN``
+        and ``Infinity``. A non-finite dipole is omitted, the same as a
+        step that computed none, so the energy, forces, and virial still
+        go out and the server does not receive a non-finite dipole.
+        """
+        if dipole is None or len(dipole) != 3:
+            return b""
+        if not all(map(math.isfinite, dipole)):
+            if not self._warned_dipole:
+                self._warned_dipole = True
+                print(
+                    "cpmdc-ipi: warning: the library returned a dipole that is not "
+                    "finite; the extra string is empty for such steps",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            return b""
+        text = json.dumps(
+            {"dipole": [float(value) for value in dipole]},
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        return text.encode("ascii")
+
+    def _evaluate(
+        self, positions: Sequence[float], cell: Sequence[float]
+    ) -> tuple[float, list[float], list[float], bytes]:
         if len(positions) % 3:
             raise ProtocolError("positions must have three components per atom")
         n_atoms = len(positions) // 3
@@ -313,8 +354,9 @@ class Driver:
                 file=sys.stderr,
                 flush=True,
             )
+        extra = self._extra(done.dipole_e_bohr)
         self.steps += 1
-        return float(done.energy_h), forces, virial
+        return float(done.energy_h), forces, virial, extra
 
     def serve(self, sock: socket.socket) -> int:
         """Answer the server on ``sock`` until ``EXIT`` and return the step count.
@@ -327,7 +369,7 @@ class Driver:
         """
         wire = _Wire(sock)
         initialised = False
-        pending: tuple[float, list[float], list[float]] | None = None
+        pending: tuple[float, list[float], list[float], bytes] | None = None
         while True:
             head = wire.header()
             if head is None:
@@ -364,12 +406,12 @@ class Driver:
                     raise ProtocolError(f"POSDATA announced {n_atoms} atoms")
                 self._check_count(n_atoms)
                 positions = wire.reals(3 * n_atoms, "POSDATA")
-                pending = self.compute(positions, cell)
+                pending = self._evaluate(positions, cell)
                 initialised = True
             elif head == "GETFORCE":
                 if pending is None:
                     raise ProtocolError("GETFORCE arrived before POSDATA")
-                energy, forces, virial = pending
+                energy, forces, virial, extra = pending
                 n_atoms = len(forces) // 3
                 transposed = [virial[3 * j + i] for i in range(3) for j in range(3)]
                 sock.sendall(
@@ -378,7 +420,8 @@ class Driver:
                     + struct.pack("=i", n_atoms)
                     + struct.pack(f"={3 * n_atoms}d", *forces)
                     + struct.pack("=9d", *transposed)
-                    + struct.pack("=i", 0)
+                    + struct.pack("=i", len(extra))
+                    + extra
                 )
                 self._say("sent FORCEREADY")
                 pending = None
