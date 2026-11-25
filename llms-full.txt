@@ -6104,7 +6104,7 @@ GitHub documentation on citation files (https://docs.github.com/en/repositories/
 describes.
 The Citation File Format record lists the Zenodo concept DOI for all versions.
 This release has no version DOI.
-`codemeta.json` is the CodeMeta 3 record, and `.zenodo.json` is the Zenodo
+`codemeta.json` is the CodeMeta 2.0 record, and `.zenodo.json` is the Zenodo
 deposit metadata.
 `version-sync` writes the version in each file from `version.txt`.
 The Citation File Format record references CPMD.
