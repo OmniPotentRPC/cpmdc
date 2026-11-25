@@ -87,13 +87,20 @@ Each of these events empties the affected key's history:
   empties the ring on the same branch
 - stored orbitals farther than ~CPMDC_WARM_RMSD~ from the new geometry
 - adopting another key's nearer parked orbitals as a distance donor
+- ~cpmdc_session_copy_orbitals()~ from another key onto the key, which empties
+  the destination key's ring; a copy of a key onto itself changes neither its
+  orbitals nor its ring
+- an unkeyed evaluation after a keyed one, which empties the ring of the key it
+  clears
+- destroying the session that evaluated last, keyed or not
 
 Anything that clears the stored orbitals, such as a cell, cutoff, or composition
 change, clears every key's history.
 A constant-cutoff cell that moves in place under ~CPMDC_CELL_IN_PLACE~ keeps
 every history.
-~CPMDC_ORBITAL_SLOT_LIMIT~ counts every parked orbital set and every populated
-entry in the keyed history rings.
+On an OpenCPMD build ~CPMDC_ORBITAL_SLOT_LIMIT~ counts every parked orbital set
+and every populated entry in the keyed history rings; the reference build has no
+rings and counts parked keys only.
 An evaluation that would exceed it fails before switching the key or changing
 any stored state.
 

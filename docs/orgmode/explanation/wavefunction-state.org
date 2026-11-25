@@ -117,8 +117,14 @@ Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
 Each key also parks its ~EXTRAPOLATE WFN~ ring, and restores that ring when it
 is selected again.
+A copy from another key empties the destination key's ring, since the copied
+orbitals did not converge along that key's trajectory.
+A copy of a key onto itself changes neither its orbitals nor its ring.
+An unkeyed evaluation after a keyed one empties the ring of the key it clears,
+and destroying the session that evaluated last empties the ring as well.
 ~CPMDC_ORBITAL_SLOT_LIMIT~, a positive integer, counts every parked ~c0~ copy
 and every populated history entry, including entries of the selected key.
+The reference build stores neither and counts parked keys only.
 An operation that would pass it fails the evaluation or the copy, the result
 names the variable through ~cpmdc_last_error()~, and the selected key and all
 copies already stored stay unchanged.

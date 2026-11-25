@@ -1917,8 +1917,14 @@ Every rank of a calculator selects the same key, and each rank parks its own
 slice of `c0`.
 Each key also parks its `EXTRAPOLATE WFN` ring, and restores that ring when it
 is selected again.
+A copy from another key empties the destination key's ring, since the copied
+orbitals did not converge along that key's trajectory.
+A copy of a key onto itself changes neither its orbitals nor its ring.
+An unkeyed evaluation after a keyed one empties the ring of the key it clears,
+and destroying the session that evaluated last empties the ring as well.
 `CPMDC_ORBITAL_SLOT_LIMIT`, a positive integer, counts every parked `c0` copy
 and every populated history entry, including entries of the selected key.
+The reference build stores neither and counts parked keys only.
 An operation that would pass it fails the evaluation or the copy, the result
 names the variable through `cpmdc_last_error()`, and the selected key and all
 copies already stored stay unchanged.
@@ -3218,8 +3224,9 @@ and
 the session section of the reference (file:../reference/c-abi.org::*Sessions)
 for the calls.
 `CPMDC_ORBITAL_SLOT_LIMIT` caps parked orbital copies plus populated
-extrapolation-history entries, including the selected key's entries, and a new
-park past the cap fails without discarding the ones already stored; see environment variables (file:../reference/environment.org).
+extrapolation-history entries, including the selected key's entries, on an
+OpenCPMD build; the reference build counts parked keys only.
+A new park past the cap fails without discarding the ones already stored; see environment variables (file:../reference/environment.org).
 
 # Choose a CPMDParams carrier
 Structured `inputSections` should be preferred over raw blocks when a typed arm
@@ -3439,13 +3446,20 @@ Each of these events empties the affected key's history:
   empties the ring on the same branch
 - stored orbitals farther than `CPMDC_WARM_RMSD` from the new geometry
 - adopting another key's nearer parked orbitals as a distance donor
+- `cpmdc_session_copy_orbitals()` from another key onto the key, which empties
+  the destination key's ring; a copy of a key onto itself changes neither its
+  orbitals nor its ring
+- an unkeyed evaluation after a keyed one, which empties the ring of the key it
+  clears
+- destroying the session that evaluated last, keyed or not
 
 Anything that clears the stored orbitals, such as a cell, cutoff, or composition
 change, clears every key's history.
 A constant-cutoff cell that moves in place under `CPMDC_CELL_IN_PLACE` keeps
 every history.
-`CPMDC_ORBITAL_SLOT_LIMIT` counts every parked orbital set and every populated
-entry in the keyed history rings.
+On an OpenCPMD build `CPMDC_ORBITAL_SLOT_LIMIT` counts every parked orbital set
+and every populated entry in the keyed history rings; the reference build has no
+rings and counts parked keys only.
 An evaluation that would exceed it fails before switching the key or changing
 any stored state.
 
@@ -6663,7 +6677,7 @@ The output array holds `3 * n_atoms` doubles.
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
-| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; `CPMDC_ORBITAL_SLOT_LIMIT` is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's entries; an evaluation that would park another copy past that limit fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
+| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; on an OpenCPMD build `CPMDC_ORBITAL_SLOT_LIMIT` is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's entries, and the reference build, which stores neither, counts parked keys only; an evaluation that would park another copy past that limit fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
 | `int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)` | duplicate the converged orbitals of `from_key`, and the geometry they converged at, into `to_key`, replacing any previous copy; the selected key is unchanged; when `to_key` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting `to_key` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past `CPMDC_ORBITAL_SLOT_LIMIT` returns -1, `cpmdc_last_error()` names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule `cpmdc_session_select_orbitals()` has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a `NULL` session, before any evaluation, when `from_key` has no converged orbitals, or on backend copy failure |
 
 `cpmdc_session_set_constant_cutoff()` sets the constant-cutoff kinetic
@@ -10691,7 +10705,7 @@ for the lowering rules.
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | `CPMDC_RANK_CONSENSUS` | `src/cpmdc.c`, each evaluation under a running MPI | `1` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
-| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, and `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value | unset leaves keyed orbital storage unbounded; a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's history; empty, zero, negative, and non-integer values fail the call |
+| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value, and `tools/opencpmd_embed_extrapolate.patch`, which adds the extrapolation history to the count | unset leaves keyed orbital storage unbounded; on an OpenCPMD build a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's history; the reference build stores neither and counts parked keys only; empty, zero, negative, and non-integer values fail the call |
 
 A cold OpenCPMD evaluation fails when neither `CPMDC_PSEUDO_DIR` nor
 `CPMD_PP_LIBRARY_PATH` names an existing directory.
