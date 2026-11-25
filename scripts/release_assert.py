@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -16,6 +17,13 @@ COG_FILES = [
     "docs/orgmode/tutorials/first-energy.org",
     "docs/source/Doxyfile_cpmdc.cfg",
 ]
+# JSON has no comment syntax, so these version fields are not cog blocks.
+# version-sync still owns them: --sync rewrites the strings, and a check
+# fails when they differ from version.txt.
+JSON_VERSION_FILES = {
+    "codemeta.json": ("version", "softwareVersion"),
+    ".zenodo.json": ("version",),
+}
 
 
 def read_version() -> str:
@@ -39,6 +47,43 @@ def require_no_literals() -> None:
         r'^dynamic\s*=\s*\[\s*"version"\s*\]', pyproject, re.M
     ):
         raise SystemExit("pyproject.toml must take its version from meson.build")
+
+
+def sync_json_versions(*, write: bool) -> None:
+    version = read_version()
+    for rel, keys in JSON_VERSION_FILES.items():
+        path = ROOT / rel
+        text = path.read_text()
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"{rel} is not JSON: {exc}") from exc
+        if not isinstance(data, dict):
+            raise SystemExit(f"{rel} must be a JSON object")
+        updated = text
+        for key in keys:
+            if key not in data:
+                raise SystemExit(f"{rel} has no {key} field for version-sync")
+            current = data[key]
+            if not isinstance(current, str):
+                raise SystemExit(f"{rel} {key} must be a string")
+            if current == version:
+                continue
+            if not write:
+                raise SystemExit(
+                    f"{rel} {key} is {current!r}, expected {version};"
+                    " run `pixi run version-sync`"
+                )
+            pattern = rf'("{re.escape(key)}"\s*:\s*)"{re.escape(current)}"'
+            updated, count = re.subn(
+                pattern, rf'\1"{version}"', updated, count=1
+            )
+            if count != 1:
+                raise SystemExit(f"{rel} {key} could not be updated in place")
+            data[key] = version
+        if write and updated != text:
+            path.write_text(updated)
+            json.loads(path.read_text())
 
 
 def cog(*args: str) -> None:
@@ -75,6 +120,7 @@ def main() -> int:
             VERSION_FILE.write_text(f"{args.version}\n")
         read_version()
         cog("-r")
+        sync_json_versions(write=True)
         return 0
 
     version = read_version()
@@ -83,6 +129,7 @@ def main() -> int:
     if args.require_changelog:
         require_changelog(version)
     cog("--check")
+    sync_json_versions(write=False)
     return 0
 
 

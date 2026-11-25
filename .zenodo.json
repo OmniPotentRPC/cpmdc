@@ -1,0 +1,33 @@
+{
+  "title": "cpmdc",
+  "description": "cpmdc is the C ABI layer for embedding OpenCPMD (https://github.com/OpenCPMD/CPMD) in OmniPotentRPC tools. It gives non-Fortran callers one stable boundary for CPMD setup, geometry steps, feature discovery, and result messages.",
+  "upload_type": "software",
+  "license": "MIT",
+  "publication_date": "2026-11-24",
+  "version": "0.7.0",
+  "keywords": ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"],
+  "creators": [
+    {
+      "name": "Goswami, Rohit",
+      "affiliation": "TurtleTech ehf",
+      "orcid": "0000-0002-2393-8056"
+    }
+  ],
+  "references": [
+    "CPMD, http://www.cpmd.org/, Copyright IBM Corp 1990-2019, Copyright MPI für Festkörperforschung Stuttgart 1997-2001."
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "http://www.cpmd.org/",
+      "relation": "references",
+      "scheme": "url",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "https://github.com/CPMD-code/CPMD",
+      "relation": "references",
+      "scheme": "url",
+      "resource_type": "software"
+    }
+  ]
+}

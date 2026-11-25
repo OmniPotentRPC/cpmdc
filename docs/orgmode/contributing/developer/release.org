@@ -16,7 +16,8 @@ Meson reads it with ~files()~, and ~docs/source/conf.py~ reads it for the Sphinx
 ~version~ and ~release~.
 ~pixi run version-sync~ regenerates the cog copies in ~pixi.toml~,
 ~CITATION.cff~, ~README.md~, ~include/cpmdc.h~, the Doxygen configuration, and
-the first-energy tutorial.
+the first-energy tutorial, and the version fields in ~codemeta.json~ and
+~.zenodo.json~.
 ~pixi run release-assert~ fails when one of them differs from ~version.txt~.
 The first cocogitto pre-bump hook writes the new version to ~version.txt~ and
 then regenerates the copies.
