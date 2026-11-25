@@ -20,6 +20,11 @@ jobs:
             'main' }}
           environments: docs
           pixi-version: v0.70.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Check changelog and newsfragments
+        run: |
+          python3 scripts/towncrier_check.py
+          python3 tests/test_towncrier_check.py
       - name: Link-check documentation sources
         run: pixi run -e docs lychee
         shell: pixi run bash -e {0}

@@ -142,6 +142,17 @@
 - `libcpmdc_gromacs` again ignores multi-value `&SECTION` headers outside
   `&CPMDC` on explicit `&CPMDC` inputs while keeping `&XC_FUNCTIONAL` arity
   checks for GROMACS-generated `&DFT` inputs.
+- `libcpmdc_gromacs` refuses a `-qmi` input whose first `CHARGE` or
+  `MULTIPLICITY` anywhere in the file differs from the charge or
+  multiplicity of the `CPMDParams` message in `&CPMDC PARAMS`, matching
+  GROMACS' own token-stream reader just as it does for the input that
+  GROMACS generates. The explicit route ran the message's system and
+  ignored the values that GROMACS used for the QM charge. Later
+  `CHARGE` or `MULTIPLICITY` lines do not override the first occurrence,
+  and a line without a single value or a non-integer first value is
+  refused too. `qmi_input()` and `write_qmi()` take the deck's `charge`
+  and `multiplicity` for a deck that is not neutral and singlet. A link
+  hydrogen is not counted into either value.
 - `test_extended_surface` now calls `cpmdc_finalize()` only in its final shutdown regression test rather than mid-suite, so `test_topology_change_is_reported_before_the_gradient_limit` evaluates on a live embed runtime and post-finalize checks confirm that failed embed preflight leaves open topologies uncommitted while preserving topology checks on already-fixed sessions.
 
 ### Developer
