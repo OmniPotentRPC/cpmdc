@@ -54,13 +54,31 @@ To keep the deck's PCG line instead, use a directive:
 Set only one optimiser in a message.
 Check the rendered ~&CPMD~ section with ~CPMDC_DECK_OUT~ (see [[file:debug-deck.org][debugging a deck]]).
 
-* When to keep PCG
+* ODIIS continuation and when to keep PCG
 ~cpmdc~ applies one deck to every call of a session, so the optimiser chosen for
 the warm calls also runs the cold first call from atomic orbitals.
-Keep ~PCG MINIMIZE~ for a system whose ODIIS calls stop at ~MAXITER~: each such
-call is reported as a failure (see [[file:troubleshooting.org][troubleshooting]]),
-and the optimiser choice does not change the converged state, only the path to
-it.
+
+On the OpenCPMD path the first pass of a call is one ~wfopts~ with the deck's
+optimiser.
+~cpmdc~ turns DIIS off and continues once with preconditioned ~PCG MINIMIZE~
+when that pass leaves the orbitals unconverged, DIIS is selected, and ~stopgm~
+has not fired.
+An ~ODIIS~ line selects DIIS.
+So does a wavefunction optimisation that names no wavefunction optimiser:
+OpenCPMD then uses preconditioned DIIS with 10 vectors.
+A ~PCG~ line, or electronic steepest descent (~TSDE~ or
+~STEEPEST DESCENT ELECTRONS~), with no ~ODIIS~ line, leaves DIIS unselected, so
+that pass does not continue.
+The continuation restores the previous converged orbitals when a converged copy
+is already stored.
+With no converged copy yet, it starts from the orbitals of the pass that just
+returned, instead of rebuilding the atomic guess.
+It runs once per call.
+If the continuation also fails to converge, the call fails.
+
+Keep ~PCG MINIMIZE~ in the deck when that single continuation still fails, or
+when the first pass hits ~stopgm~ and the continuation is not attempted (see [[file:troubleshooting.org][troubleshooting]]).
+The optimiser choice does not change the converged state, only the path to it.
 
 * Always set MAXITER
 Without ~maxIter~, the OpenCPMD path inserts ~MAXITER 40~ into the first deck.
