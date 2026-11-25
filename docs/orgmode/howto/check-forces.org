@@ -28,6 +28,13 @@ The numerical force is ~-(E(+DX) - E(-DX)) / (2 DX)~.
 | ~--max-relative-error~ | ~0.2~ percent | ~DEBUG%MAX_RELATIVE_ERROR~ |
 | ~--eps-no-error-check~ | ~1e-5~ a.u. | ~DEBUG%EPS_NO_ERROR_CHECK~ |
 | ~--stress~ | off | ~DEBUG%DEBUG_STRESS_TENSOR~ |
+| ~--external-charge X,Y,Z,Q[,WIDTH_ANG]~ | none | repeatable; Gaussian MM point charge in Angstrom and elementary charge |
+
+With ~--external-charge~, each entry installs a Gaussian MM charge (default
+width ~0.30~ Angstrom when omitted) on the session before evaluating the energy
+and forces, and checks the MM forces from
+~cpmdc_session_last_external_charge_forces()~ (~mm_forces~) alongside the QM
+~forces~ against central differences of ~+/- DX~ Bohr on each coordinate.
 
 A component whose analytic value is below ~--eps-no-error-check~ is printed and
 not checked.

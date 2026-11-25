@@ -32,6 +32,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | ~opencpmd_pcg_step.patch~ (optional) | ~src/pcgrad_driver.mod.F90~ | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see [[file:wavefunction-optimiser.org][the optimiser how-to]] |
 | ~opencpmd_constant_cutoff_precon.patch~ (optional) | ~src/hesele_utils.mod.F90~ | with ~CONSTANT CUTOFF~ the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and ~cpmdc~ falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see [[file:constant-cutoff.org][relaxing a cell at a constant cutoff]] |
 | ~opencpmd_atomwf_kpts_ortho.patch~ | ~src/atomwf_utils.mod.F90~, ~src/gsortho_utils.mod.F90~ | k-point atomic wavefunction initialization with randomized extra states overflows ~zmatat~ because ~gs_ortho_c~ passes ~2*np*n0~ to ~mp_sum~ on a ~COMPLEX(real_8)~ array and ~atomwf~ passes ~zmatat(atwp%nattot, atwp%nattot)~ instead of sizing the orthogonalization scratch to ~(nleft, MAX(atwp%nattot, nleft))~ |
+| ~opencpmd_external_charges.patch~ | ~src/efld.mod.F90~, ~src/eextern_utils.mod.F90~ | external-charge embedding has no density-force hook on the real-space grid, and ~libcpmdc~ does not link against ~set_cpmdc_external_force_hook~ |
 
 The loops below apply every patch but the optional
 ~pcg_step~ and ~constant_cutoff_precon~; ~scripts/ci/build_opencpmd.sh~ applies
@@ -71,7 +72,7 @@ git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
          embed_teardown embed_extrapolate embed_dipole omp_info \
-         atomwf_kpts_ortho; do
+         atomwf_kpts_ortho external_charges; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 #+end_src
@@ -114,7 +115,7 @@ cd /path/to/opencpmd-source
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
          embed_teardown embed_extrapolate embed_dipole omp_info \
-         atomwf_kpts_ortho; do
+         atomwf_kpts_ortho external_charges; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
@@ -122,14 +123,15 @@ done
 #+end_src
 
 ~rebuild_opencpmd_embed.sh~ recompiles the object of the embedding patch,
-~error_handling.mod.o~, ~embed_ctrl.mod.o~, ~control_test_utils.mod.o~,
-~rinitwf_driver.mod.o~, ~initrun_driver.mod.o~,
-~rwfopt_utils.mod.o~, ~ddipo_utils.mod.o~,
-~wfopts_utils.mod.o~, ~updwf_utils.mod.o~,
-~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~, ~gsortho_utils.mod.o~,
-~atomwf_utils.mod.o~, the 34 modules of the teardown patch, and ~embed_teardown.mod.o~
-after them, and ~scex_utils.mod.o~ for the module order, with one Make job, then
-replaces those members with ~ar r~ and runs ~ranlib~.
+~efld.mod.o~, ~eextern_utils.mod.o~, ~error_handling.mod.o~,
+~embed_ctrl.mod.o~, ~control_test_utils.mod.o~, ~rinitwf_driver.mod.o~,
+~initrun_driver.mod.o~, ~rwfopt_utils.mod.o~,
+~ddipo_utils.mod.o~, ~wfopts_utils.mod.o~,
+~updwf_utils.mod.o~, ~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~,
+~gsortho_utils.mod.o~, ~atomwf_utils.mod.o~, the 34 modules of the teardown
+patch, and ~embed_teardown.mod.o~ after them, and ~scex_utils.mod.o~ for the
+module order, with one Make job, then replaces those members with ~ar r~ and
+runs ~ranlib~.
 ~tests/test_opencpmd_embed_objects.py~ fails when a source file in ~tools/opencpmd_*.patch~
 has no object in that list or in the dedicated rebuild scripts.
 It runs one job because gfortran stores a copy of
