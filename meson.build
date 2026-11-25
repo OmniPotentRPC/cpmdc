@@ -2011,6 +2011,18 @@ if get_option('with_tests')
   if not is_disabler(cpmdc_ipi_exe)
     pytest_env += {'CPMDC_IPI_C': cpmdc_ipi_exe.full_path()}
     pytest_depends += cpmdc_ipi_exe
+    # Stands in for cpmdc_session_last_dipole() under LD_PRELOAD.
+    ipi_dipole_shim = shared_module(
+      'ipi_dipole_shim',
+      'tests/ipi_dipole_shim.c',
+      name_prefix: '',
+      name_suffix: 'so',
+      include_directories: include_directories('include'),
+      c_args: common_c_args,
+      install: false,
+    )
+    pytest_env += {'CPMDC_IPI_DIPOLE_SHIM': ipi_dipole_shim.full_path()}
+    pytest_depends += ipi_dipole_shim
   endif
   if not is_disabler(cpmdc_lammps_plugin)
     pytest_env += {'CPMDC_LAMMPS_PLUGIN': cpmdc_lammps_plugin.full_path()}
