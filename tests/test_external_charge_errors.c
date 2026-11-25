@@ -254,8 +254,8 @@ static void test_typed_failure_replaces_previous_code(void **state) {
 
 static void test_isolated_cell_is_accepted_and_evaluates(void **state) {
   CPMDCSession *session = open_params(g_params);
-  double positions[3] = {3.0, 0.0, 0.0};
-  double charges[1] = {1.0};
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
   double widths[1] = {0.30};
   double water_bohr[9];
   double cell_bohr[9] = {20.0, 0.0, 0.0, 0.0, 22.0,
@@ -307,8 +307,8 @@ static void test_cluster_cell_accepted_and_unset_cell_refused(void **state) {
       "&SYSTEM\n CLUSTER\n POISSON SOLVER HOCKNEY\n ANGSTROM\n"
       " CELL\n  10.0 1.0 1.0 0.0 0.0 0.0\n CUTOFF\n  50.0\n&END\n");
   CPMDCSession *unset = open_custom_water_params(NULL);
-  double positions[3] = {3.0, 0.0, 0.0};
-  double charges[1] = {1.0};
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
   double widths[1] = {0.30};
   double water_bohr[9];
   double cell_bohr[9] = {20.0, 0.0, 0.0, 0.0, 20.0,

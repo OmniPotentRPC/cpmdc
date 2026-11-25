@@ -1619,13 +1619,13 @@ if get_option('with_tests')
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     args: [
-      water_embedding_params_bin.full_path(),
+      water_params_bin.full_path(),
       water_external_potential_bin.full_path(),
       water_external_potential_add_bin.full_path(),
       water_periodic_params_bin.full_path(),
     ],
     depends: [
-      water_embedding_params_bin,
+      water_params_bin,
       water_external_potential_bin,
       water_external_potential_add_bin,
       water_periodic_params_bin,
