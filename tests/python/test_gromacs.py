@@ -29,7 +29,7 @@ from ase.calculators.calculator import Calculator, all_changes
 from ase_fd import calculate_numerical_stress
 from conftest import ROOT
 import cpmdc.gromacs as cpmdc_gromacs
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Session
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.gromacs import (
     BOHR_TO_NM,
@@ -122,6 +122,34 @@ def test_qmi_input_has_the_keys_grompp_checks(tmp_path):
         qmi_input("w.bin", epsilon_r=2.5)
     with pytest.raises(ValueError, match="PERIODIC or NONE"):
         qmi_input("w.bin", cell="XY")
+    electrostatic = qmi_input(
+        "w.bin", embedding="electrostatic", cell="none", mm_width=0.025, epsilon_r=2.5
+    )
+    assert "EMBEDDING ELECTROSTATIC" in electrostatic
+    assert "MM_WIDTH 0.025" in electrostatic
+    assert "EPSILON_R 2.5" in electrostatic
+    with pytest.raises(ValueError, match="mm_width needs embedding='ELECTROSTATIC'"):
+        qmi_input("w.bin", embedding="NONE", mm_width=0.03)
+    with pytest.raises(ValueError, match="mm_width needs embedding='ELECTROSTATIC'"):
+        qmi_input("w.bin", mm_width=0.03)
+    for bad in (0.0, -0.01, float("nan"), float("inf"), 1.0e-14):
+        with pytest.raises(ValueError, match="mm_width"):
+            qmi_input("w.bin", embedding="ELECTROSTATIC", cell="none", mm_width=bad)
+
+
+def test_write_qmi_passes_the_mm_width_through(tmp_path):
+    target = cpmdc_gromacs.write_qmi(
+        tmp_path / "sys.qmi",
+        "w.bin",
+        embedding="ELECTROSTATIC",
+        cell="NONE",
+        mm_width=0.025,
+        epsilon_r=2.5,
+    )
+    text = target.read_text(encoding="utf-8")
+    assert "EMBEDDING ELECTROSTATIC" in text
+    assert "MM_WIDTH 0.025" in text
+    assert "EPSILON_R 2.5" in text
 
 
 # --- the library, as QMMMForceProvider calls it ---------------------------
@@ -574,6 +602,208 @@ def test_pdb_and_qm_charges_keep_double_precision(params, tmp_path):
     assert e_lo == pytest.approx(qm_e + coul_lo, rel=1e-14, abs=1e-15)
     np.testing.assert_allclose(f_hi[:3], qm_f + fq_hi, rtol=1e-13, atol=1e-15)
     np.testing.assert_allclose(f_hi[3:], fm_hi, rtol=1e-13, atol=1e-15)
+
+
+@needs_lib
+def test_electrostatic_embedding_accepts_charged_mm_atoms(params, tmp_path):
+    qm = [True] * 3 + [False] * 9
+    mm_q = np.array([gc.TIP3P[s] for s in "OHH" * 3])
+    charges = np.concatenate([np.zeros(3), mm_q])
+    qmi = qmi_input(
+        params, embedding="ELECTROSTATIC", cell="NONE", mm_width=0.03
+    )
+    inp = setup_env(tmp_path, qmi, "OHH" * 4, qm, charges, QMMM_NM)
+    shim = Shim(inp, tmp_path / "sys.out")
+    energy, forces = shim.step(QMMM_NM / BOHR_TO_NM, QMMM_BOX_NM / BOHR_TO_NM)
+    shim.close()
+    rows = QMMM_BOX_NM / BOHR_TO_NM
+    x = QMMM_NM / BOHR_TO_NM
+    qm_x = x[:3].copy()
+    qm_x[1:] -= np.rint((qm_x[1:] - qm_x[0]) @ np.linalg.inv(rows)) @ rows
+    mm_x = x[3:].copy()
+    mm_x -= np.rint((mm_x - qm_x[0]) @ np.linalg.inv(rows)) @ rows
+    with Session(params) as session:
+        session.set_external_charges(
+            mm_x.reshape(-1) * BOHR_TO_ANGSTROM, mm_q, np.full(9, 0.30)
+        )
+        ref = session.energy_forces(
+            qm_x * BOHR_TO_ANGSTROM, [8, 1, 1]
+        )
+        mm_forces = np.asarray(session.external_charge_forces_au(9)).reshape(-1, 3)
+    assert energy == pytest.approx(ref.energy_h, rel=1e-12)
+    np.testing.assert_allclose(forces[:3], ref.forces_h_bohr, rtol=1e-11, atol=1e-13)
+    np.testing.assert_allclose(forces[3:], mm_forces, rtol=1e-11, atol=1e-13)
+
+
+def _electrostatic_step(tmp_path, params, x_nm, box_nm, *, mm_width=0.03, epsilon_r=None):
+    qm = [True] * 3 + [False] * 9
+    mm_q = np.array([gc.TIP3P[s] for s in "OHH" * 3])
+    charges = np.concatenate([np.zeros(3), mm_q])
+    tmp_path.mkdir(exist_ok=True)
+    qmi = qmi_input(
+        params, embedding="ELECTROSTATIC", cell="NONE", mm_width=mm_width, epsilon_r=epsilon_r
+    )
+    inp = setup_env(tmp_path, qmi, "OHH" * 4, qm, charges, x_nm)
+    shim = Shim(inp, tmp_path / "sys.out")
+    energy, forces = shim.step(x_nm / BOHR_TO_NM, box_nm / BOHR_TO_NM)
+    stress, available = shim.stress()
+    shim.close()
+    return energy, forces, stress, available, mm_q
+
+
+@needs_lib
+@pytest.mark.parametrize("mm_width", [0.02, 0.03])
+def test_electrostatic_embedding_epsilon_r_one_matches_default(mm_width, params, tmp_path):
+    """EPSILON_R=1 matches omitting EPSILON_R for energy, forces, and virial."""
+    e_def, f_def, s_def, avail_def, _ = _electrostatic_step(
+        tmp_path / "default", params, QMMM_NM, QMMM_BOX_NM, mm_width=mm_width
+    )
+    e_one, f_one, s_one, avail_one, _ = _electrostatic_step(
+        tmp_path / "one", params, QMMM_NM, QMMM_BOX_NM, mm_width=mm_width, epsilon_r=1.0
+    )
+    assert avail_def == 1 and avail_one == 1
+    assert e_one == pytest.approx(e_def, rel=1e-14, abs=1e-15)
+    np.testing.assert_allclose(f_one, f_def, rtol=1e-14, atol=1e-15)
+    np.testing.assert_allclose(s_one, s_def, rtol=1e-14, atol=1e-15)
+    words = (tmp_path / "one" / "sys.out").read_text().split()
+    assert float(words[words.index("epsilon_r") + 1]) == pytest.approx(1.0, rel=1e-15)
+
+
+@needs_lib
+@pytest.mark.parametrize("epsilon_r", [2.5, 78.4])
+@pytest.mark.parametrize("mm_width", [0.02, 0.06])
+def test_electrostatic_embedding_epsilon_r_and_mm_width(mm_width, epsilon_r, params, tmp_path):
+    """Under ELECTROSTATIC, EPSILON_R passes q / epsilon_r with MM_WIDTH to cpmdc.
+
+    The QM density sees each MM charge as q / epsilon_r while the QM
+    self-energy stays unscaled. In the reference evaluator, the embedding
+    term is pure quadratic polarization (-0.5 * alpha * |E|^2), so the
+    embedding energy shift, QM embedding force shift, and MM-site forces scale
+    by 1 / epsilon_r^2, matching Session(params) with mm_q / epsilon_r.
+    """
+    e_bare, f_bare = ase_au(params, "OHH", QMMM_NM[:3] / BOHR_TO_NM)
+    e1, f1, _, _, mm_q = _electrostatic_step(
+        tmp_path / "eps1", params, QMMM_NM, QMMM_BOX_NM, mm_width=mm_width, epsilon_r=1.0
+    )
+    e_eps, f_eps, _, _, _ = _electrostatic_step(
+        tmp_path / "eps", params, QMMM_NM, QMMM_BOX_NM, mm_width=mm_width, epsilon_r=epsilon_r
+    )
+    rows = QMMM_BOX_NM / BOHR_TO_NM
+    x = QMMM_NM / BOHR_TO_NM
+    qm_x = x[:3].copy()
+    qm_x[1:] -= np.rint((qm_x[1:] - qm_x[0]) @ np.linalg.inv(rows)) @ rows
+    mm_x = x[3:].copy()
+    mm_x -= np.rint((mm_x - qm_x[0]) @ np.linalg.inv(rows)) @ rows
+    with Session(params) as session:
+        session.set_external_charges(
+            mm_x.reshape(-1) * BOHR_TO_ANGSTROM,
+            mm_q / epsilon_r,
+            np.full(len(mm_q), mm_width * 10.0),
+        )
+        ref = session.energy_forces(qm_x * BOHR_TO_ANGSTROM, [8, 1, 1])
+        ref_mm_forces = np.asarray(session.external_charge_forces_au(len(mm_q))).reshape(-1, 3)
+
+    assert e_eps == pytest.approx(ref.energy_h, rel=1e-12, abs=1e-13)
+    np.testing.assert_allclose(f_eps[:3], ref.forces_h_bohr, rtol=1e-11, atol=1e-13)
+    np.testing.assert_allclose(f_eps[3:], ref_mm_forces, rtol=1e-11, atol=1e-13)
+
+    assert abs(e1 - e_bare) > 1e-8
+    assert np.max(np.abs(f1[3:])) > 1e-8
+    assert (e_eps - e_bare) == pytest.approx((e1 - e_bare) / (epsilon_r**2), rel=1e-11, abs=1e-14)
+    np.testing.assert_allclose(
+        f_eps[:3] - f_bare, (f1[:3] - f_bare) / (epsilon_r**2), rtol=1e-11, atol=1e-14
+    )
+    np.testing.assert_allclose(f_eps[3:], f1[3:] / (epsilon_r**2), rtol=1e-11, atol=1e-14)
+    words = (tmp_path / "eps" / "sys.out").read_text().split()
+    assert float(words[words.index("epsilon_r") + 1]) == pytest.approx(epsilon_r, rel=1e-15)
+
+
+@needs_lib
+def test_electrostatic_embedding_epsilon_r_is_conservative(params, tmp_path):
+    """Under ELECTROSTATIC with EPSILON_R and MM_WIDTH, forces equal -dE/dx."""
+    epsilon_r = 3.25
+    mm_width = 0.025
+    box_nm = np.diag([1.7, 1.7, 1.7])
+    e0, f0, _, _, _ = _electrostatic_step(
+        tmp_path / "c", params, QMMM_NM, box_nm, mm_width=mm_width, epsilon_r=epsilon_r
+    )
+    e_other, _, _, _, _ = _electrostatic_step(
+        tmp_path / "w", params, QMMM_NM, box_nm, mm_width=0.06, epsilon_r=epsilon_r
+    )
+    assert np.isfinite(e0)
+    assert abs(e0 - e_other) > 1e-8
+    h = 1e-4
+    for atom, axis in [(0, 0), (2, 1), (4, 2), (9, 0)]:
+        plus, minus = QMMM_NM.copy(), QMMM_NM.copy()
+        plus[atom, axis] += h * BOHR_TO_NM
+        minus[atom, axis] -= h * BOHR_TO_NM
+        ep, _, _, _, _ = _electrostatic_step(
+            tmp_path / f"p{atom}{axis}", params, plus, box_nm,
+            mm_width=mm_width, epsilon_r=epsilon_r,
+        )
+        em, _, _, _, _ = _electrostatic_step(
+            tmp_path / f"m{atom}{axis}", params, minus, box_nm,
+            mm_width=mm_width, epsilon_r=epsilon_r,
+        )
+        assert -(ep - em) / (2 * h) == pytest.approx(f0[atom, axis], abs=1e-7)
+
+
+@needs_lib
+def test_electrostatic_embedding_with_link_applies_z1_and_distributes_link_force(
+    params, tmp_path
+):
+    """Under ELECTROSTATIC + &LINK, the link MM host charge is zeroed (Z1) and link forces map to QM/MM hosts."""
+    qm = [True] * 3 + [False] * 9
+    mm_q = np.array([gc.TIP3P[s] for s in "OHH" * 3])
+    charges = np.concatenate([np.zeros(3), mm_q])
+    link_alpha = 1.4
+    qmi = qmi_input(
+        params,
+        embedding="ELECTROSTATIC",
+        cell="NONE",
+        mm_width=0.03,
+        links=[(1, 4)],
+        link_alpha=link_alpha,
+    )
+    inp = setup_env(tmp_path, qmi, "OHH" * 4, qm, charges, QMMM_NM)
+    shim = Shim(inp, tmp_path / "sys.out")
+    energy, forces = shim.step(QMMM_NM / BOHR_TO_NM, QMMM_BOX_NM / BOHR_TO_NM)
+    shim.close()
+
+    rows = QMMM_BOX_NM / BOHR_TO_NM
+    inv_rows = np.linalg.inv(rows)
+    x = QMMM_NM / BOHR_TO_NM
+    qm_x = x[:3].copy()
+    qm_x[1:] -= np.rint((qm_x[1:] - qm_x[0]) @ inv_rows) @ rows
+    link_mm = x[3].copy()
+    link_mm -= np.rint((link_mm - qm_x[0]) @ inv_rows) @ rows
+    h_link = qm_x[0] + (link_mm - qm_x[0]) / link_alpha
+    calc_x = np.vstack([qm_x, h_link])
+
+    mm_x = x[3:].copy()
+    mm_x -= np.rint((mm_x - qm_x[0]) @ inv_rows) @ rows
+    expected_q = mm_q.copy()
+    expected_q[0] = 0.0
+
+    with Session(params) as session:
+        session.set_external_charges(
+            mm_x.reshape(-1) * BOHR_TO_ANGSTROM, expected_q, np.full(9, 0.30)
+        )
+        ref = session.energy_forces(calc_x * BOHR_TO_ANGSTROM, [8, 1, 1, 1])
+        mm_forces = np.asarray(session.external_charge_forces_au(9)).reshape(-1, 3)
+
+    a = 1.0 / link_alpha
+    qm_ref_forces = np.asarray(ref.forces_h_bohr, dtype=float)
+    expected_forces = np.zeros_like(forces)
+    expected_forces[:3] = qm_ref_forces[:3]
+    expected_forces[0] += (1.0 - a) * qm_ref_forces[3]
+    expected_forces[3:] = mm_forces
+    expected_forces[3] += a * qm_ref_forces[3]
+
+    assert energy == pytest.approx(ref.energy_h, rel=1e-12)
+    np.testing.assert_allclose(forces, expected_forces, rtol=1e-11, atol=1e-13)
+    np.testing.assert_allclose(mm_forces[0], 0.0, atol=1e-15)
+    assert np.linalg.norm(forces[3]) > 1e-6
 
 
 # --- stress -------------------------------------------------------------------
@@ -1087,7 +1317,6 @@ def test_explicit_cpmdc_ignores_multivalue_section_headers(params, tmp_path):
         ("missing params", "cannot open the CPMDParams message"),
         ("link", "has a &LINK section without QM_INDEX"),
         ("unknown", "unknown &CPMDC keyword BASIS"),
-        ("electrostatic", "EMBEDDING ELECTROSTATIC is not implemented"),
         ("unset embedding", "the MM atoms carry charges: set &CPMDC EMBEDDING"),
         ("epsilon zero", "&CPMDC EPSILON_R must be positive"),
         ("epsilon negative", "&CPMDC EPSILON_R must be positive"),
@@ -1095,6 +1324,8 @@ def test_explicit_cpmdc_ignores_multivalue_section_headers(params, tmp_path):
         ("epsilon none", "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL"),
         ("epsilon unset", "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL"),
         ("pdb nan", "atom 4 has no finite charge"),
+        ("width without electrostatic", "&CPMDC MM_WIDTH needs EMBEDDING ELECTROSTATIC"),
+        ("tiny width", "&CPMDC MM_WIDTH must be a finite width of at least 1e-13 nm"),
         ("charge count", "QM_CHARGES lists 2 charges for 3 QM atoms"),
         ("vsite", "QM atom 3 is X, not an element"),
         ("atom count", "cp2k_set_positions got 6 values; the PDB file has 3 atoms"),
@@ -1114,8 +1345,6 @@ def test_refused_inputs_stop_with_a_message(case, message, params, tmp_path):
         qmi = good.replace("&END CPMDC", "&END CPMDC\n  &LINK\n  &END LINK")
     elif case == "unknown":
         qmi = good.replace("&END CPMDC", "  BASIS DZVP\n&END CPMDC")
-    elif case == "electrostatic":
-        qmi = good.replace("&END CPMDC", "  EMBEDDING ELECTROSTATIC\n&END CPMDC")
     elif case == "unset embedding":
         qmi = good
         kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
@@ -1146,6 +1375,12 @@ def test_refused_inputs_stop_with_a_message(case, message, params, tmp_path):
         qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES)
         kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
                   "charges": (0.0,) * 3 + (float("nan"), 0.417, 0.417)}
+    elif case == "width without electrostatic":
+        qmi = good.replace("&END CPMDC", "  EMBEDDING NONE\n  MM_WIDTH 0.03\n&END CPMDC")
+    elif case == "tiny width":
+        qmi = good.replace(
+            "&END CPMDC", "  EMBEDDING ELECTROSTATIC\n  MM_WIDTH 1e-14\n&END CPMDC"
+        )
     elif case == "charge count":
         qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=[-0.834, 0.417])
         kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
@@ -1492,7 +1727,6 @@ def test_gromacs_qmmm_virial_is_the_strain_derivative_of_the_energy(box, params,
     "case, message",
     [
         ("generated", "CPMDC_GROMACS_PARAMS is not set"),
-        ("electrostatic", "EMBEDDING ELECTROSTATIC is not implemented"),
         ("unset embedding", "the MM atoms carry charges: set &CPMDC EMBEDDING"),
     ],
 )
@@ -1501,9 +1735,6 @@ def test_gromacs_unsupported_configs_stop_mdrun(case, message, params, tmp_path)
         done = qmmm_system(tmp_path, params, "", with_qmi=False,
                            env_extra={"CPMDC_GROMACS_PARAMS": ""},
                            **{"qmmm-cp2k-qmmethod": "PBE"})
-    elif case == "electrostatic":
-        done = qmmm_system(tmp_path, params, qmi_input(params).replace(
-            "&END CPMDC", "  EMBEDDING ELECTROSTATIC\n  &END CPMDC"))
     else:
         done = qmmm_system(tmp_path, params, qmi_input(params))
     assert done.returncode != 0
