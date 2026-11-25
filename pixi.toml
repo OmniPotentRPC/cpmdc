@@ -84,6 +84,11 @@ check-api-reference = { cmd = "python3 tests/test_reference_contract.py .", desc
 prek-validate = { cmd = "prek validate-config prek.toml", description = "Validate prek/pre-commit config" }
 prek = { cmd = "prek run --all-files", description = "Run all prek hooks on the tree" }
 prek-install = { cmd = "prek install", description = "Install prek git hooks in this clone" }
+# Meson reads meson.format only from parents of a directory source, so the
+# root configuration needs -c for ".". The GROMACS pkgconfig file is named
+# too so it stays checked even if its conditional subdir() call moves.
+fmt-meson = { cmd = "meson format -i -r -c meson.format . tools/gromacs/pkgconfig/meson.build", description = "Format the in-tree meson.build files in place" }
+fmt-meson-check = { cmd = "meson format -q -r -c meson.format . tools/gromacs/pkgconfig/meson.build", description = "Fail when meson format would change an in-tree meson.build" }
 fortran-lint = { cmd = "bash -c 'for f in src/*.f90; do [ -f \"$f\" ] || continue; fprettify --diff \"$f\" >/dev/null || { echo \"fprettify would change $f\"; exit 1; }; done'", description = "Fortran fprettify check on src/" }
 
 [feature.docs.tasks.lychee]

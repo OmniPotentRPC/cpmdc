@@ -33,7 +33,10 @@ if 'address' in get_option('b_sanitize').split(',')
       asan_runtime = asan_probe
     endif
   elif cc.get_id() == 'clang' and host_machine.system() == 'linux'
-    foreach asan_rt_name : ['libclang_rt.asan-' + host_machine.cpu_family() + '.so', 'libclang_rt.asan.so']
+    foreach asan_rt_name : [
+      'libclang_rt.asan-' + host_machine.cpu_family() + '.so',
+      'libclang_rt.asan.so',
+    ]
       asan_probe = run_command(
         cc.cmd_array(),
         '-print-file-name=' + asan_rt_name,
@@ -41,7 +44,9 @@ if 'address' in get_option('b_sanitize').split(',')
       )
       if asan_probe.returncode() == 0
         asan_candidate = asan_probe.stdout().strip()
-        if asan_candidate != '' and asan_candidate != asan_rt_name and fs.is_file(asan_candidate)
+        if asan_candidate != '' and asan_candidate != asan_rt_name and fs.is_file(
+          asan_candidate,
+        )
           asan_runtime = asan_candidate
           break
         endif
@@ -71,11 +76,13 @@ asan_preload_missing = 'address' in get_option('b_sanitize').split(',') and asan
 # keyword still wins on conflicts.
 add_test_setup(
   'blasthreads',
-  env: environment({
-    'OPENBLAS_NUM_THREADS': '1',
-    'OMP_NUM_THREADS': '1',
-    'MKL_NUM_THREADS': '1',
-  }),
+  env: environment(
+    {
+      'OPENBLAS_NUM_THREADS': '1',
+      'OMP_NUM_THREADS': '1',
+      'MKL_NUM_THREADS': '1',
+    },
+  ),
   is_default: true,
 )
 quadmath_dep = fc.find_library('quadmath', required: false)
@@ -118,11 +125,13 @@ if get_option('with_tests')
     }
   '''
   if not cc.links(
-      cmocka_header_library_probe,
-      name: 'cmocka-header-library-match',
-      dependencies: [cmocka_dep],
+    cmocka_header_library_probe,
+    name: 'cmocka-header-library-match',
+    dependencies: [cmocka_dep],
+  )
+    error(
+      'cmocka header/library mismatch: Meson resolved libcmocka via dependency("cmocka"), but the active include path resolves a different cmocka.h. Point pkg-config/CMake and CFLAGS includes at one cmocka install (for pixi, set PKG_CONFIG to ${CONDA_PREFIX}/bin/pkgconf, which the pixi activation does, so the host pkg-config is not used), or use a pure system cmocka toolchain.',
     )
-    error('cmocka header/library mismatch: Meson resolved libcmocka via dependency("cmocka"), but the active include path resolves a different cmocka.h. Point pkg-config/CMake and CFLAGS includes at one cmocka install (for pixi, set PKG_CONFIG to ${CONDA_PREFIX}/bin/pkgconf, which the pixi activation does, so the host pkg-config is not used), or use a pure system cmocka toolchain.')
   endif
 endif
 
@@ -184,13 +193,18 @@ if need_capnp_c
   capnp = find_program('capnp')
   # b_sanitize=none: sanitizer lanes cover first-party code; the vendored
   # c-capnproto runtime has known UB (left-shift negative, null memcpy).
-  capnp_c_project = subproject('c-capnproto', default_options: ['b_sanitize=none'])
+  capnp_c_project = subproject(
+    'c-capnproto',
+    default_options: ['b_sanitize=none'],
+  )
   capnp_c_dep = capnp_c_project.get_variable('capnp_c_dep')
   capnpc_c = capnp_c_project.get_variable('capnpc_c')
   # Canonical contract pinned via subprojects/potentials-schema.wrap; the
   # vendored schema/Potentials.capnp must stay byte-identical (schema-sync test).
   potentials_schema_proj = subproject('potentials-schema')
-  potentials_schema_canonical = potentials_schema_proj.get_variable('potentials_capnp_file')
+  potentials_schema_canonical = potentials_schema_proj.get_variable(
+    'potentials_capnp_file',
+  )
   subdir('schema')
   potentials_capnp_c_dep = declare_dependency(sources: potentials_capnp_c)
   cpmdc_params_sources = [
@@ -277,7 +291,9 @@ if has_cpmd
     check: false,
   )
   if lib_check.returncode() != 0
-    error('with_cpmd requires ' + cpmd_lib + ' (build OpenCPMD in cpmd_root first)')
+    error(
+      'with_cpmd requires ' + cpmd_lib + ' (build OpenCPMD in cpmd_root first)',
+    )
   endif
   cpmd_timetag_obj = cpmd_obj / 'timetag.o'
   timetag_check = run_command(
@@ -290,7 +306,9 @@ if has_cpmd
     check: false,
   )
   if timetag_check.returncode() != 0
-    error('with_cpmd requires ' + cpmd_timetag_obj + '. OpenCPMD leaves timetag out of libcpmd.a; build it with make -C ' + cpmd_obj + ' -f ' + cpmd_root + '/Makefile timetag.o')
+    error(
+      'with_cpmd requires ' + cpmd_timetag_obj + '. OpenCPMD leaves timetag out of libcpmd.a; build it with make -C ' + cpmd_obj + ' -f ' + cpmd_root + '/Makefile timetag.o',
+    )
   endif
   # header calls timetag. OpenCPMD compiles that file outside libcpmd.a.
   cpmd_extra_objects += [cpmd_timetag_obj]
@@ -302,7 +320,11 @@ if has_cpmd
   cpmd_embed_link += [cpmd_lib]
   cpmd_mpi_dep = [
     dependency('mpi', language: 'fortran', required: true),
-    mpi_c_dep.found() ? mpi_c_dep : dependency('mpi', language: 'c', required: true),
+    mpi_c_dep.found() ? mpi_c_dep : dependency(
+      'mpi',
+      language: 'c',
+      required: true,
+    ),
   ]
   # foss puts BLAS behind FlexiBLAS. OpenBLAS is the backend that module loads.
   flexiblas = cc.find_library('flexiblas', required: false)
@@ -338,11 +360,19 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
-cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmdc_orbital_limit.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
-                      'src/cpmdc_scf_report.c',
-                      'src/cpmdc_features.c',
-                      'src/cpmdc_capabilities.c'] + cpmdc_params_sources
+cpmd_embed_sources = [
+  'src/cpmdc.c',
+  'src/cpmdc_adopt.c',
+  'src/cpmdc_orbital_limit.c',
+  'src/cpmd_embed_c_api.F90',
+  'src/cpmd_stop_intercept.c',
+  'src/cpmdc_memfd.c',
+  'src/cpmdc_embed_host.c',
+  'src/cpmdc_geometry.c',
+  'src/cpmdc_scf_report.c',
+  'src/cpmdc_features.c',
+  'src/cpmdc_capabilities.c',
+] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
 if has_cpmd
   cpmd_embed_c_args += ['-DCPMDC_HAS_CPMD=1', '-DCPMDC_HAVE_MPI=1']
@@ -365,13 +395,26 @@ if has_cpmd
   else
     blas_link = ['-llapack', '-lblas']
   endif
-  cpmd_archive_math_libs = blas_link \
-      + (fftw3_omp.found() ? ['-lfftw3_omp'] : []) \
-      + (fftw3.found() ? ['-lfftw3'] : []) \
-      + (gomp.found() ? ['-lgomp'] : []) \
-      + ['-lgfortran', '-lquadmath', '-lm']
-  cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
-      + cpmd_archive_math_libs
+  cpmd_archive_math_libs = blas_link + (
+    fftw3_omp.found() ? ['-lfftw3_omp'] : []
+  ) + (
+    fftw3.found() ? [
+        '-lfftw3',
+      ] : []
+  ) + (
+    gomp.found() ? [
+        '-lgomp',
+      ] : []
+  ) + [
+    '-lgfortran',
+    '-lquadmath',
+    '-lm',
+  ]
+  cpmdc_shared_link_args = cpmd_link_multi + [
+    '-Wl,--start-group',
+    cpmd_root / 'lib' / 'libcpmd.a',
+    '-Wl,--end-group',
+  ] + cpmd_archive_math_libs
 endif
 
 cpmdc_embed_shell = static_library(
@@ -408,9 +451,16 @@ if fc.get_linker_id() in ['ld.bfd', 'ld.gold', 'ld.lld', 'ld.mold']
     'libcpmdc-version-script',
     input: cpmdc_public_headers,
     output: 'libcpmdc.map',
-    command: [python, files('scripts/abi_inventory.py'), '--version-script', '@OUTPUT@'],
+    command: [
+      python,
+      files('scripts/abi_inventory.py'),
+      '--version-script',
+      '@OUTPUT@',
+    ],
   )
-  cpmdc_shared_link_args += ['-Wl,--version-script=' + cpmdc_export_list.full_path()]
+  cpmdc_shared_link_args += [
+    '-Wl,--version-script=' + cpmdc_export_list.full_path(),
+  ]
   cpmdc_shared_link_depends += [cpmdc_export_list]
 elif fc.get_linker_id().startswith('ld64')
   # ld64 requires every literal -exported_symbols_list name to be defined,
@@ -432,7 +482,9 @@ elif fc.get_linker_id().startswith('ld64')
     output: 'libcpmdc.exp',
     command: cpmdc_export_command,
   )
-  cpmdc_shared_link_args += ['-Wl,-exported_symbols_list,' + cpmdc_export_list.full_path()]
+  cpmdc_shared_link_args += [
+    '-Wl,-exported_symbols_list,' + cpmdc_export_list.full_path(),
+  ]
   cpmdc_shared_link_depends += [cpmdc_export_list]
 endif
 
@@ -462,9 +514,18 @@ resolved_bindir = fs.is_absolute(bindir_opt) ? bindir_opt : install_prefix / bin
 resolved_libdir = fs.is_absolute(libdir_opt) ? libdir_opt : install_prefix / libdir_opt
 includedir_opt = get_option('includedir')
 resolved_includedir = fs.is_absolute(includedir_opt) ? includedir_opt : install_prefix / includedir_opt
-install_lib_from_bin = fs.relative_to(resolved_libdir, resolved_bindir).replace('\\', '/')
-if install_lib_from_bin == '' or fs.is_absolute(install_lib_from_bin) or install_lib_from_bin.contains(':') or install_lib_from_bin.contains('$')
-  error('cannot express an install run path from ' + resolved_bindir + ' to ' + resolved_libdir + ' (' + install_lib_from_bin + ')')
+install_lib_from_bin = fs.relative_to(resolved_libdir, resolved_bindir).replace(
+  '\\',
+  '/',
+)
+if install_lib_from_bin == '' or fs.is_absolute(install_lib_from_bin) or install_lib_from_bin.contains(
+  ':',
+) or install_lib_from_bin.contains(
+  '$',
+)
+  error(
+    'cannot express an install run path from ' + resolved_bindir + ' to ' + resolved_libdir + ' (' + install_lib_from_bin + ')',
+  )
 endif
 if install_lib_from_bin == '.'
   install_exe_rpath = install_origin
@@ -543,7 +604,11 @@ cpmdc_restart_con_dep = disabler()
 if get_option('with_readcon')
   readcon_proj = subproject(
     'readcon-core',
-    default_options: ['default_library=static', 'with_tests=false', 'with_examples=false'],
+    default_options: [
+      'default_library=static',
+      'with_tests=false',
+      'with_examples=false',
+    ],
   )
   readcon_dep = readcon_proj.get_variable('readcon_dep')
   cpmdc_restart_con_lib = static_library(
@@ -631,14 +696,18 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
       install_rpath: install_plugin_rpath,
     )
   elif lammps_plugin_opt.enabled()
-    error('with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package')
+    error(
+      'with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package',
+    )
   endif
 endif
 # libcpmdc_gromacs serves the libcp2k C API that GROMACS' QM/MM module calls
 # (GROMACS configured with -DGMX_CP2K=ON -DCP2K_DIR=<dir holding
 # pkgconfig/libcp2k.pc>). It is a consumer of the public header only.
 cpmdc_gromacs_lib = disabler()
-if not get_option('with_gromacs_shim').disabled() and not get_option('with_python')
+if not get_option('with_gromacs_shim').disabled() and not get_option(
+  'with_python',
+)
   gromacs_c_args = common_c_args
   gromacs_deps = [math_dep, dl_dep]
   if mpi_c_dep.found()
@@ -667,11 +736,16 @@ endif
 # file. fs.relative_to from the pkgconfig directory matches install_exe_rpath.
 pc_pkgdir = resolved_libdir / 'pkgconfig'
 pc_prefix_rel = fs.relative_to(install_prefix, pc_pkgdir).replace('\\', '/')
-pc_includedir_rel = fs.relative_to(resolved_includedir, pc_pkgdir).replace('\\', '/')
+pc_includedir_rel = fs.relative_to(resolved_includedir, pc_pkgdir).replace(
+  '\\',
+  '/',
+)
 pc_libdir_rel = fs.relative_to(resolved_libdir, pc_pkgdir).replace('\\', '/')
 foreach rel : [pc_prefix_rel, pc_includedir_rel, pc_libdir_rel]
   if rel == '' or fs.is_absolute(rel) or rel.contains(':') or rel.contains('$')
-    error('cannot express a pkg-config path from ' + pc_pkgdir + ' (' + rel + ')')
+    error(
+      'cannot express a pkg-config path from ' + pc_pkgdir + ' (' + rel + ')',
+    )
   endif
 endforeach
 pc_prefix = pc_prefix_rel == '.' ? '${pcfiledir}' : '${pcfiledir}/' + pc_prefix_rel
@@ -725,7 +799,13 @@ cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep, quadmath_dep] + cpmd_mpi_dep,
-  link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] + cpmd_archive_math_libs) : [],
+  link_args: has_cpmd ? (
+    cpmd_extra_objects + cpmd_link_multi + [
+        '-Wl,--start-group',
+      cpmd_root / 'lib' / 'libcpmd.a',
+      '-Wl,--end-group',
+      ] + cpmd_archive_math_libs
+  ) : [],
 )
 
 if get_option('with_tests')
@@ -747,11 +827,20 @@ if get_option('with_tests')
     'warm-selector-source',
     input: 'tools/opencpmd_embed_rwfopt.patch',
     output: 'warm_selector.F90',
-    command: [python, files('tests/extract_warm_selector.py'), '@INPUT@', '@OUTPUT@'],
+    command: [
+      python,
+      files('tests/extract_warm_selector.py'),
+      '@INPUT@',
+      '@OUTPUT@',
+    ],
   )
   warm_selector_test = executable(
     'test_warm_selector',
-    [warm_selector_source, 'tests/test_warm_selector.F90', 'src/cpmdc_geometry.c'],
+    [
+      warm_selector_source,
+      'tests/test_warm_selector.F90',
+      'src/cpmdc_geometry.c',
+    ],
     include_directories: inc,
     dependencies: [minimage_dep, math_dep],
   )
@@ -783,7 +872,9 @@ if get_option('with_tests')
   )
   # A macro the active platform branch never expands is dead code.
   cc_cmd = cc.cmd_array()
-  if host_machine.system() != 'windows' and cc_cmd.length() == 1 and cc.has_argument('-Wunused-macros')
+  if host_machine.system() != 'windows' and cc_cmd.length() == 1 and cc.has_argument(
+    '-Wunused-macros',
+  )
     test(
       'restart-unused-macros',
       find_program(cc_cmd[0]),
@@ -1048,7 +1139,9 @@ if get_option('with_tests')
       'tests/test_periodic_cell_mpi.c',
       dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+      c_args: common_c_args + capnp_generated_c_args + (
+        has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []
+      ),
     )
     test(
       'periodic-cell-mpi',
@@ -1116,8 +1209,7 @@ if get_option('with_tests')
     'capabilities-cmocka',
     executable(
       'test_capabilities_cmocka',
-      ['tests/test_capabilities_cmocka.c', 'src/cpmdc_capabilities.c'] +
-      cpmdc_params_sources,
+      ['tests/test_capabilities_cmocka.c', 'src/cpmdc_capabilities.c'] + cpmdc_params_sources,
       dependencies: [cpmdc_stub_dep, cmocka_dep] + cpmdc_params_deps,
       include_directories: [inc] + cpmdc_params_includes,
       c_args: common_c_args + capnp_generated_c_args,
@@ -1543,8 +1635,7 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
-    args: [water_params_bin.full_path(),
-           water_blyp_aspc_params_bin.full_path()],
+    args: [water_params_bin.full_path(), water_blyp_aspc_params_bin.full_path()],
     depends: [water_params_bin, water_blyp_aspc_params_bin],
     suite: ['e2e', 'cmocka'],
     # Every case converges real SCF steps on an OpenCPMD build.
@@ -1626,7 +1717,12 @@ if get_option('with_tests')
         water_periodic_params_bin.full_path(),
         water_force_bin.full_path(),
       ],
-      depends: [fd_check_exe, water_params_bin, water_periodic_params_bin, water_force_bin],
+      depends: [
+        fd_check_exe,
+        water_params_bin,
+        water_periodic_params_bin,
+        water_force_bin,
+      ],
       suite: ['e2e', 'fd-check'],
       timeout: 120,
     )
@@ -1762,12 +1858,13 @@ if get_option('with_tests')
     python,
     args: [
       meson.current_source_dir() / 'tests/test_cpmd_inscan_token_fidelity.py',
-      '--cpmdc-root', meson.current_source_dir(),
+      '--cpmdc-root',
+      meson.current_source_dir(),
     ],
     suite: ['params', 'inventory', 'embed'],
   )
 
-test(
+  test(
     'cpmd-escape-hatch-coverage',
     python,
     args: [
@@ -1839,7 +1936,10 @@ test(
     ],
     suite: ['docs', 'examples'],
   )
-  asan_skip_args = ['-c', 'import sys; print("skipped: shared ASan runtime not available for preload"); sys.exit(77)']
+  asan_skip_args = [
+    '-c',
+    'import sys; print("skipped: shared ASan runtime not available for preload"); sys.exit(77)',
+  ]
   test(
     'reference-audit',
     python,
@@ -1881,7 +1981,11 @@ test(
       water_periodic_params_bin.full_path(),
     ],
     env: asan_preload_env,
-    depends: asan_preload_missing ? [] : [cpmdc_shared, water_params_bin, water_periodic_params_bin],
+    depends: asan_preload_missing ? [] : [
+      cpmdc_shared,
+      water_params_bin,
+      water_periodic_params_bin,
+    ],
     suite: ['python', 'e2e'],
     timeout: has_cpmd ? 900 : 120,
   )
@@ -1919,7 +2023,12 @@ test(
   test(
     'python-pytest',
     python,
-    args: asan_preload_missing ? asan_skip_args : ['-m', 'pytest', '-q', meson.current_source_dir() / 'tests/python'],
+    args: asan_preload_missing ? asan_skip_args : [
+      '-m',
+      'pytest',
+      '-q',
+      meson.current_source_dir() / 'tests/python',
+    ],
     env: asan_preload_missing ? {} : pytest_env,
     depends: asan_preload_missing ? [] : pytest_depends,
     suite: ['python', 'e2e'],
@@ -2128,7 +2237,9 @@ test(
       'tests/test_periodic_cell_deck.c',
       dependencies: [cpmdc_embed_shell_dep, math_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+      c_args: common_c_args + capnp_generated_c_args + (
+        has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []
+      ),
     ),
     args: [params_scalar_blyp_bin.full_path()],
     depends: [params_scalar_blyp_bin],
@@ -2244,9 +2355,13 @@ test(
         water_dipole_40ry_params_bin.full_path(),
         water_dipole_50ry_params_bin.full_path(),
       ],
-      depends: [water_params_bin, silylamine_params_bin,
-                water_pbe0_hockney_params_bin, water_dipole_40ry_params_bin,
-                water_dipole_50ry_params_bin],
+      depends: [
+        water_params_bin,
+        silylamine_params_bin,
+        water_pbe0_hockney_params_bin,
+        water_dipole_40ry_params_bin,
+        water_dipole_50ry_params_bin,
+      ],
       suite: ['e2e', 'cmocka'],
       timeout: 900,
     )
@@ -2297,9 +2412,11 @@ test(
       dependencies: [cpmdc_embed_shell_dep, math_dep],
       c_args: common_c_args,
     ),
-    args: [water_aspc_params_bin.full_path(),
-           meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt',
-           meson.current_source_dir() / 'tests/golden/water_aspc_two_key.txt'],
+    args: [
+      water_aspc_params_bin.full_path(),
+      meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt',
+      meson.current_source_dir() / 'tests/golden/water_aspc_two_key.txt',
+    ],
     depends: [water_aspc_params_bin],
     env: cpmd_x_parity_env,
     suite: ['e2e'],
@@ -2321,9 +2438,13 @@ test(
   water_params_70_txt = custom_target(
     'water_params_70_txt',
     output: 'water_blyp_params_70.capnp.txt',
-    command: [python, '-c',
+    command: [
+      python,
+      '-c',
       'import pathlib,sys; t=pathlib.Path(sys.argv[1]).read_text().replace("50.0","70.0"); pathlib.Path(sys.argv[2]).write_text(t)',
-      meson.current_source_dir() / 'tests/water_blyp_params.capnp.txt', '@OUTPUT@'],
+      meson.current_source_dir() / 'tests/water_blyp_params.capnp.txt',
+      '@OUTPUT@',
+    ],
   )
   water_params_70_bin = custom_target(
     'water_params_70_bin',
@@ -2536,7 +2657,9 @@ test(
       'tests/test_capnp_fortran_apply.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+      c_args: common_c_args + capnp_generated_c_args + (
+        has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []
+      ),
     ),
     args: [
       effective_top_params_bin.full_path(),
@@ -2564,7 +2687,9 @@ test(
       'tests/test_long_method_deck.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+      c_args: common_c_args + capnp_generated_c_args + (
+        has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []
+      ),
     ),
     suite: ['cmocka', 'params'],
   )
@@ -2759,9 +2884,14 @@ if get_option('with_pwscale')
       input: 'src/cpmdc_pwscale_cuda.cu',
       output: 'cpmdc_pwscale_cuda.o',
       command: [
-        nvcc, '-O2', '-arch=sm_70',
+        nvcc,
+        '-O2',
+        '-arch=sm_70',
         '-I' + meson.current_source_dir() / 'include',
-        '-c', '@INPUT@', '-o', '@OUTPUT@',
+        '-c',
+        '@INPUT@',
+        '-o',
+        '@OUTPUT@',
       ],
     )
     pwscale_objects += [pwscale_cuda]

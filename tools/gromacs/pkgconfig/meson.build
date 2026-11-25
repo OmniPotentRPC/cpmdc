@@ -4,12 +4,23 @@
 # must not be copied verbatim.
 gromacs_pc_dir = resolved_libdir / 'cpmdc' / 'gromacs' / 'pkgconfig'
 gromacs_inc_dir = resolved_includedir / 'cpmdc' / 'gromacs'
-cp2k_prefix_rel = fs.relative_to(install_prefix, gromacs_pc_dir).replace('\\', '/')
-cp2k_libdir_rel = fs.relative_to(resolved_libdir, gromacs_pc_dir).replace('\\', '/')
-cp2k_includedir_rel = fs.relative_to(gromacs_inc_dir, gromacs_pc_dir).replace('\\', '/')
+cp2k_prefix_rel = fs.relative_to(install_prefix, gromacs_pc_dir).replace(
+  '\\',
+  '/',
+)
+cp2k_libdir_rel = fs.relative_to(resolved_libdir, gromacs_pc_dir).replace(
+  '\\',
+  '/',
+)
+cp2k_includedir_rel = fs.relative_to(gromacs_inc_dir, gromacs_pc_dir).replace(
+  '\\',
+  '/',
+)
 foreach rel : [cp2k_prefix_rel, cp2k_libdir_rel, cp2k_includedir_rel]
   if rel == '' or fs.is_absolute(rel) or rel.contains(':') or rel.contains('$')
-    error('cannot express a libcp2k pkg-config path from ' + gromacs_pc_dir + ' (' + rel + ')')
+    error(
+      'cannot express a libcp2k pkg-config path from ' + gromacs_pc_dir + ' (' + rel + ')',
+    )
   endif
 endforeach
 cp2k_prefix = cp2k_prefix_rel == '.' ? '${pcfiledir}' : '${pcfiledir}/' + cp2k_prefix_rel

@@ -45,6 +45,7 @@ public change:
 | Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
 | LLM index files match Org sources | ~python3 scripts/generate_llms_txt.py --check~ or ~meson test -C build llms-txt --print-errorlogs~ |
 | Snapper prose wrapping stays canonical | ~pixi run snapper-check~ |
+| ~meson.build~ files match ~meson format~ with ~meson.format~ | ~pixi run fmt-meson-check~ |
 | Snapper ~--write~ refuses symlinks and paths outside the repository | ~meson test -C build check-snapper --print-errorlogs~ |
 | Public inventory JSON coverage report | ~python3 scripts/docs_coverage_inventory.py~ or ~meson test -C build docs-coverage-inventory --print-errorlogs~ |
 | Every README and Org code block runs, compiles, or names why not | ~meson test -C build docs-examples --print-errorlogs~ |
