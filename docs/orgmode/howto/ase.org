@@ -435,7 +435,7 @@ says.
 | a keyword other than ~params~, ~library~, ~constant_cutoff~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | ~cpmdc.ase.UnsupportedAtoms~ |
-| a cell volume below the normal float64 range | ~ValueError~ |
+| a cell volume below the normal float64 range | ~cpmdc.ase.UnsupportedAtoms~ |
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |
 
