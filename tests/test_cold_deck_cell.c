@@ -162,9 +162,11 @@ static void test_minimal_deck_rejects_invalid_diagonal_boxes(void **state) {
   const double underflow[9] = {1.0e-110, 0.0, 0.0, 0.0, 1.0e-110, 0.0,
                                0.0,      0.0, 1.0e-110};
   const double flat[9] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0e-20};
+  const double nan_only[9] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
   assert_minimal_deck_rejects(underflow, "cell volume is too small for binary64");
   assert_minimal_deck_rejects(flat,
                               "cell does not have three independent vectors");
+  assert_minimal_deck_rejects(nan_only, "cell contains a non-finite component");
 }
 
 static void test_box_replaces_the_deck_cell(void **state) {

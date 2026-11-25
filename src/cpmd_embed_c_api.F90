@@ -1921,9 +1921,10 @@ CONTAINS
     IF (ierr == 0 .AND. nlen > 0) THEN
       ! The caller's box is the cell. A deck CELL is replaced by it. An
       ! all-zero box is a system without a cell (eOn's non-periodic
-      ! convention), so the deck's CELL, or the default, stays.
+      ! convention), so the deck's CELL, or the default, stays. A NaN
+      ! component compares unequal to zero, so impose_box_cell rejects it.
       use_box = .FALSE.
-      IF (has_cell /= 0) use_box = ANY(ABS(cell(1:9)) > 0.0_c_double)
+      IF (has_cell /= 0) use_box = ANY(cell(1:9) /= 0.0_c_double)
       IF (use_box) THEN
         CALL impose_box_cell(deck, nlen, cell, ierr)
       ELSE
