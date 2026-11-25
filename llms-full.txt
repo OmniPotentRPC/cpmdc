@@ -2445,6 +2445,10 @@ A call on an unchanged structure returns the stored step.
 A change of `positions`, `numbers`, `cell`, or `pbc` evaluates the structure
 again, and `calc.calculation_required(atoms, properties)` returns true for such
 a structure until it is evaluated.
+The one exception is a change of `cell` while every `pbc` flag stays false: a
+free-boundary step sends no cell, so `check_state` does not list `cell` and the
+stored step stays valid.
+A change of `pbc` always evaluates again.
 A change of `initial_charges` or `initial_magmoms` evaluates the structure
 again, because the calculator reads both; the next section says how.
 A change of `tags`, `momenta`, `info`, or a constraint reuses the step as well,
@@ -8901,6 +8905,17 @@ Importing it imports ASE.
 | Raises | `CPMDCError` when the library or the message cannot be opened. |
 | Defaults | none |
 
+### ~cpmdc.ase.CPMDCCalculator.check_state~
+
+| Item | Description |
+|--------+--------|
+| Signature | `check_state(atoms, tol=1e-15)` |
+| Units | none |
+| Shape and dtype | `atoms` an `ase.Atoms`; returns a `list` of ASE system-change names, empty when the stored step is valid for `atoms`. |
+| Ownership and threads | Reads the calculator's copy of the atoms and changes nothing. Not thread-safe. |
+| Raises | none |
+| Defaults | `tol` is ASE's `1e-15`. The list is ASE's, except that `cell` is left out while the stored structure and `atoms` both have every `pbc` flag false, because a cluster step sends no cell. |
+
 ### ~cpmdc.ase.CPMDCCalculator.reset~
 
 | Item | Description |
@@ -12073,6 +12088,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge only when `params` leaves the charge unset (`hasCharge` false and effective charge 0), and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves the multiplicity at its default of 1; an explicit charge, including 0 with `hasCharge` true, is kept, and a nonzero total that differs from a set value of `params` raises `ValueError` that names both values and both sources; a total that is not an integer within `n * eps * sum(abs(x))` and non-collinear moments raise `ValueError`; zero totals change nothing |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is encoded as standard Base64 under `{"cpmdparams_base64": ...}`, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
+| `CPMDCCalculator.check_state` | `check_state(atoms, tol=1e-15)`: ASE's list of system changes since the stored step, without `cell` while both structures have every `pbc` flag false, because a cluster step sends no cell |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
 | `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
