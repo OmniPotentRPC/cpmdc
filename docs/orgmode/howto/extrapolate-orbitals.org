@@ -8,9 +8,12 @@ Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer
 molecular dynamics (BO-MD) with ~EXTRAPOLATE WFN~.
 Use it when the host takes equal time steps, as a molecular dynamics (MD)
 integrator does.
-An optimiser, a saddle search, or a nudged elastic band moves by unequal steps,
-and the plain warm start of [[file:../explanation/wavefunction-state.org][wavefunction state between calls]]
+An optimiser or a saddle search moves by unequal steps, and the plain warm start
+of [[file:../explanation/wavefunction-state.org][wavefunction state between calls]]
 suits them.
+A band or ring polymer whose images or beads each advance at equal intervals can
+name every trajectory with ~cpmdc_session_select_orbitals()~; each key then
+extrapolates from its own earlier converged orbitals.
 
 * Apply the patch
 ~tools/opencpmd_embed_extrapolate.patch~ goes onto the OpenCPMD tree after
@@ -71,7 +74,10 @@ From the third call on, ~K~ grows to the order.
 * Know when the history restarts
 The prediction is valid only when the stored orbitals come from the previous
 calls of one trajectory.
-Each of these events empties the history:
+Without a key, the process keeps the single history it always did.
+With keys, each key keeps its own ring, and switching keys parks and restores
+that ring together with the key's converged orbitals.
+Each of these events empties the affected key's history:
 
 - a call whose SCF does not converge, including one that already held a
   converged copy, or an orbital direct inversion in the iterative subspace
@@ -79,11 +85,17 @@ Each of these events empties the history:
   ~MINIMIZE~ continuation.
   ~tools/opencpmd_embed_rwfopt.patch~ marks that donor stale, and ~tools/opencpmd_embed_extrapolate.patch~
   empties the ring on the same branch
-- ~cpmdc_session_select_orbitals()~ with another key
 - stored orbitals farther than ~CPMDC_WARM_RMSD~ from the new geometry
-- anything that clears the stored orbitals, such as a cell, cutoff, or
-  composition change; a constant-cutoff cell that moves in place under
-  ~CPMDC_CELL_IN_PLACE~ keeps the history
+- adopting another key's nearer parked orbitals as a distance donor
+
+Anything that clears the stored orbitals, such as a cell, cutoff, or composition
+change, clears every key's history.
+A constant-cutoff cell that moves in place under ~CPMDC_CELL_IN_PLACE~ keeps
+every history.
+~CPMDC_ORBITAL_SLOT_LIMIT~ counts every parked orbital set and every populated
+entry in the keyed history rings.
+An evaluation that would exceed it fails before switching the key or changing
+any stored state.
 
 The next calls then build the history again from the stored orbitals.
 ~STORE~ and ~CSTEPS~ have no effect on this route.

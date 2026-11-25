@@ -1474,7 +1474,7 @@ turns off for every job other than Born-Oppenheimer molecular dynamics.
 `control_test` copies `cntl%textrap` into `embed_extrap_wfn` in `embed_ctrl`
 before it does so.
 Only the
-I/O rank runs `control_test`, so `rwfopt` broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip `extrapwf` and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, `rwfopt` passes them to the `extrapwf` that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. `embed_extrapolation_used` returns how many sets the last prediction combined. The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it. `cpmd.x` never sets `embed_warm_orbitals` and never takes this path. Its molecular dynamics runs are unchanged. The extrapolation how-to (file:../howto/extrapolate-orbitals.org) shows the message and the check.
+I/O rank runs `control_test`, so `rwfopt` broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip `extrapwf` and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, `rwfopt` passes them to the `extrapwf` that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. `embed_extrapolation_used` returns how many sets the last prediction combined. The ring keeps one trajectory per key: switching keys parks and restores that key's ring with its stored orbitals, and a call that does not converge, a store beyond the distance limit, or a reset empties the affected key's ring. `cpmd.x` never sets `embed_warm_orbitals` and never takes this path. Its molecular dynamics runs are unchanged. The extrapolation how-to (file:../howto/extrapolate-orbitals.org) shows the message and the check.
 
 The constant-cutoff patch is optional and changes no physics.
 With `CONSTANT CUTOFF` in `&SYSTEM`, `kin_energy`, `vpsi`, and the kinetic
@@ -1915,11 +1915,13 @@ refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of `c0`.
-`CPMDC_ORBITAL_SLOT_LIMIT`, a positive integer, is the most of those parked
-copies.
-A park that would pass it fails the evaluation or the copy, the result names the
-variable through `cpmdc_last_error()`, and the copies already stored stay in the
-table.
+Each key also parks its `EXTRAPOLATE WFN` ring, and restores that ring when it
+is selected again.
+`CPMDC_ORBITAL_SLOT_LIMIT`, a positive integer, counts every parked `c0` copy
+and every populated history entry, including entries of the selected key.
+An operation that would pass it fails the evaluation or the copy, the result
+names the variable through `cpmdc_last_error()`, and the selected key and all
+copies already stored stay unchanged.
 Lowering the limit does not drop a copy that is already parked.
 Unset, the table is unbounded.
 A value that is not a positive integer fails the call.
@@ -2008,8 +2010,12 @@ entries and calls CPMD's `extrapwf`, which builds the prediction, rotates the
 earlier sets onto the newest one by their overlap, and orthonormalises the
 result.
 The SCF then runs from that prediction to the same convergence threshold.
-The ring is one per process, not one per key, so a key change, an unconverged
-pass, or a start past the distance limit empties it.
+An unkeyed session keeps the one process ring and behaves as before.
+A keyed session moves the active ring into the key's orbital slot and restores
+that key's ring when it returns, so interleaved equal-time-step trajectories
+each build their own ASPC or polynomial prediction.
+An unconverged pass, a start past the distance limit, or adopting another key's
+orbitals as a nearer distance donor empties the affected key's ring.
 An unconverged pass empties it even when a converged copy was already stored.
 `opencpmd_embed_rwfopt.patch` marks that copy stale on that branch, and
 `opencpmd_embed_extrapolate.patch` calls `embed_break_history` there.
@@ -3357,9 +3363,12 @@ Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer
 molecular dynamics (BO-MD) with `EXTRAPOLATE WFN`.
 Use it when the host takes equal time steps, as a molecular dynamics (MD)
 integrator does.
-An optimiser, a saddle search, or a nudged elastic band moves by unequal steps,
-and the plain warm start of wavefunction state between calls (file:../explanation/wavefunction-state.org)
+An optimiser or a saddle search moves by unequal steps, and the plain warm start
+of wavefunction state between calls (file:../explanation/wavefunction-state.org)
 suits them.
+A band or ring polymer whose images or beads each advance at equal intervals can
+name every trajectory with `cpmdc_session_select_orbitals()`; each key then
+extrapolates from its own earlier converged orbitals.
 
 # Apply the patch
 `tools/opencpmd_embed_extrapolate.patch` goes onto the OpenCPMD tree after
@@ -3416,7 +3425,10 @@ From the third call on, `K` grows to the order.
 # Know when the history restarts
 The prediction is valid only when the stored orbitals come from the previous
 calls of one trajectory.
-Each of these events empties the history:
+Without a key, the process keeps the single history it always did.
+With keys, each key keeps its own ring, and switching keys parks and restores
+that ring together with the key's converged orbitals.
+Each of these events empties the affected key's history:
 
 - a call whose SCF does not converge, including one that already held a
   converged copy, or an orbital direct inversion in the iterative subspace
@@ -3424,11 +3436,17 @@ Each of these events empties the history:
   `MINIMIZE` continuation.
   `tools/opencpmd_embed_rwfopt.patch` marks that donor stale, and `tools/opencpmd_embed_extrapolate.patch`
   empties the ring on the same branch
-- `cpmdc_session_select_orbitals()` with another key
 - stored orbitals farther than `CPMDC_WARM_RMSD` from the new geometry
-- anything that clears the stored orbitals, such as a cell, cutoff, or
-  composition change; a constant-cutoff cell that moves in place under
-  `CPMDC_CELL_IN_PLACE` keeps the history
+- adopting another key's nearer parked orbitals as a distance donor
+
+Anything that clears the stored orbitals, such as a cell, cutoff, or composition
+change, clears every key's history.
+A constant-cutoff cell that moves in place under `CPMDC_CELL_IN_PLACE` keeps
+every history.
+`CPMDC_ORBITAL_SLOT_LIMIT` counts every parked orbital set and every populated
+entry in the keyed history rings.
+An evaluation that would exceed it fails before switching the key or changing
+any stored state.
 
 The next calls then build the history again from the stored orbitals.
 `STORE` and `CSTEPS` have no effect on this route.
@@ -10672,7 +10690,7 @@ for the lowering rules.
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | `CPMDC_RANK_CONSENSUS` | `src/cpmdc.c`, each evaluation under a running MPI | `1` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
-| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, and `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value | unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call |
+| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, and `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value | unset leaves keyed orbital storage unbounded; a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's history; empty, zero, negative, and non-integer values fail the call |
 
 A cold OpenCPMD evaluation fails when neither `CPMDC_PSEUDO_DIR` nor
 `CPMD_PP_LIBRARY_PATH` names an existing directory.

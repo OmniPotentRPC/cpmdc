@@ -28,8 +28,9 @@ passes them to `extrapwf`.
 From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC)
 or polynomial prediction.
 `embed_extrapolation_used` returns how many sets that prediction combined.
-A call that does not converge, another orbital key, a store beyond the distance
-limit, or a reset empties the ring.
+A call that does not converge, a store beyond the distance limit, or a reset
+empties the active key's ring.
+Switching keys parks and restores each key's own ring with its stored orbitals.
 An unconverged pass does so even when a converged copy is already stored.
 The rwfopt patch marks that donor stale, and the extrapolate patch breaks the
 ring on that branch.

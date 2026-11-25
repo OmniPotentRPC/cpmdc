@@ -25,10 +25,11 @@
 #define MAXF 64
 
 static const double ANGSTROM_PER_BOHR = 0.529177210859;
+static const double KEY_OFFSET_ANGSTROM = 0.001;
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "usage: %s PARAMS_BIN GOLDEN_TXT\n", argv[0]);
+  if (argc < 4) {
+    fprintf(stderr, "usage: %s PARAMS_BIN GOLDEN_TXT KEYED_GOLDEN_TXT\n", argv[0]);
     return 2;
   }
   if (!cpmdc_available()) {
@@ -121,6 +122,101 @@ int main(int argc, char **argv) {
          total, scf_aspc, scf_none);
   ok = ok && worst < 1e-8 && abs(total - scf_aspc) <= 0.1 * scf_aspc &&
        total < scf_none;
+
+  FILE *kg = fopen(argv[3], "r");
+  if (!kg)
+    return 2;
+  int keyed_want[2 * MAXF], keyed_want_n = 0;
+  while (keyed_want_n < 2 * MAXF &&
+         fscanf(kg, " extrapolated %d", &keyed_want[keyed_want_n]) == 1)
+    keyed_want_n++;
+  fclose(kg);
+  if (keyed_want_n != 2 * nf)
+    return 2;
+
+  s = cpmdc_session_create(params, ps);
+  if (!s)
+    return 1;
+  saved = dup(2);
+  cap = tmpfile();
+  dup2(fileno(cap), 2);
+  double keyed_e[2 * MAXF];
+  for (int k = 0; k < nf && ok; k++) {
+    double ang[3 * NAT];
+    for (int i = 0; i < 3 * NAT; i++)
+      ang[i] = pos[k][i] * ANGSTROM_PER_BOHR;
+    for (int bead = 0; bead < 2; bead++) {
+      CPMDCResult r;
+      double bead_ang[3 * NAT];
+      memcpy(bead_ang, ang, sizeof(bead_ang));
+      for (int atom = 0; atom < NAT; atom++)
+        bead_ang[3 * atom] += bead * KEY_OFFSET_ANGSTROM;
+      cpmdc_session_select_orbitals(s, 101 + bead);
+      r = cpmdc_session_energy_forces(s, NAT, bead_ang, z, f);
+      ok = r.ok;
+      keyed_e[2 * k + bead] = r.energy_h;
+      if (!ok)
+        break;
+    }
+  }
+  fflush(stderr);
+  dup2(saved, 2);
+  close(saved);
+  cpmdc_session_destroy(s);
+  if (!ok) {
+    fprintf(stderr, "keyed evaluation failed: %s\n", cpmdc_last_error());
+    return 1;
+  }
+
+  int keyed_call = -1, keyed_used[2 * MAXF] = {0};
+  int keyed_steps[2 * MAXF] = {0};
+  rewind(cap);
+  while (fgets(line, sizeof line, cap)) {
+    if (strncmp(line, "cpmdc_warm_start ", 17) == 0 &&
+        keyed_call + 1 < 2 * MAXF)
+      keyed_call++;
+    else if (keyed_call >= 0 &&
+             sscanf(line, "cpmdc_wfn_extrapolated %d", &v) == 1)
+      keyed_used[keyed_call] = v;
+    else if (keyed_call >= 0 && sscanf(line, "cpmdc_scf_steps %d", &v) == 1)
+      keyed_steps[keyed_call] += v;
+  }
+  fclose(cap);
+  if (keyed_call != 2 * nf - 1) {
+    fprintf(stderr, "%d keyed calls reported, expected %d\n", keyed_call + 1,
+            2 * nf);
+    return 1;
+  }
+  for (int k = 0; k < nf; k++) {
+    for (int bead = 0; bead < 2; bead++) {
+      int i = 2 * k + bead;
+      printf("key %d step %d energy_h=%.10f scf=%d extrapolated=%d\n",
+             101 + bead, k, keyed_e[i], keyed_steps[i], keyed_used[i]);
+      if (keyed_used[i] != keyed_want[i] ||
+          fabs(keyed_e[i] - eks[k]) >= 1e-8)
+        ok = 0;
+    }
+  }
+
+  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "9", 1);
+  s = cpmdc_session_create(params, ps);
+  if (!s)
+    return 1;
+  double last_ang[3 * NAT];
+  for (int i = 0; i < 3 * NAT; i++)
+    last_ang[i] = pos[nf - 1][i] * ANGSTROM_PER_BOHR;
+  cpmdc_session_select_orbitals(s, 303);
+  CPMDCResult limited =
+      cpmdc_session_energy_forces(s, NAT, last_ang, z, f);
+  if (limited.ok || strstr(limited.message, "CPMDC_ORBITAL_SLOT_LIMIT") == NULL ||
+      strstr(limited.message, "unchanged") == NULL)
+    ok = 0;
+  setenv("CPMDC_ORBITAL_SLOT_LIMIT", "10", 1);
+  limited = cpmdc_session_energy_forces(s, NAT, last_ang, z, f);
+  if (!limited.ok)
+    ok = 0;
+  cpmdc_session_destroy(s);
+  unsetenv("CPMDC_ORBITAL_SLOT_LIMIT");
   printf("PASS=%d\n", ok);
   return ok ? 0 : 1;
 }

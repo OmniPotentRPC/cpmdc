@@ -115,11 +115,13 @@ refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
-~CPMDC_ORBITAL_SLOT_LIMIT~, a positive integer, is the most of those parked
-copies.
-A park that would pass it fails the evaluation or the copy, the result names the
-variable through ~cpmdc_last_error()~, and the copies already stored stay in the
-table.
+Each key also parks its ~EXTRAPOLATE WFN~ ring, and restores that ring when it
+is selected again.
+~CPMDC_ORBITAL_SLOT_LIMIT~, a positive integer, counts every parked ~c0~ copy
+and every populated history entry, including entries of the selected key.
+An operation that would pass it fails the evaluation or the copy, the result
+names the variable through ~cpmdc_last_error()~, and the selected key and all
+copies already stored stay unchanged.
 Lowering the limit does not drop a copy that is already parked.
 Unset, the table is unbounded.
 A value that is not a positive integer fails the call.
@@ -208,8 +210,12 @@ entries and calls CPMD's ~extrapwf~, which builds the prediction, rotates the
 earlier sets onto the newest one by their overlap, and orthonormalises the
 result.
 The SCF then runs from that prediction to the same convergence threshold.
-The ring is one per process, not one per key, so a key change, an unconverged
-pass, or a start past the distance limit empties it.
+An unkeyed session keeps the one process ring and behaves as before.
+A keyed session moves the active ring into the key's orbital slot and restores
+that key's ring when it returns, so interleaved equal-time-step trajectories
+each build their own ASPC or polynomial prediction.
+An unconverged pass, a start past the distance limit, or adopting another key's
+orbitals as a nearer distance donor empties the affected key's ring.
 An unconverged pass empties it even when a converged copy was already stored.
 ~opencpmd_embed_rwfopt.patch~ marks that copy stale on that branch, and
 ~opencpmd_embed_extrapolate.patch~ calls ~embed_break_history~ there.

@@ -1,11 +1,13 @@
-/* Parked-orbital cap for CPMDC_ORBITAL_SLOT_LIMIT.
+/* Keyed-orbital cap for CPMDC_ORBITAL_SLOT_LIMIT.
  *
  * The OpenCPMD table in tools/opencpmd_embed_rwfopt.patch is the store when
- * this build links CPMD. This file agrees the cap across calculator ranks
- * and, on the reference evaluator, applies the same rule to keyed
- * evaluations. Exceeding the cap reports an error and leaves the parked
- * keys in place. The codes ok, invalid and exceeded match the Fortran
- * parameters embed_slot_limit_ok, embed_slot_limit_invalid and
+ * this build links CPMD; that table counts parked c0 plus populated
+ * extrapolation histories. This file agrees the cap across calculator ranks
+ * and, on the reference evaluator, applies the same rule to keyed evaluations.
+ * The reference evaluator has no orbital or extrapolation storage, so its
+ * ledger counts parked keys only. Exceeding the cap reports an error and
+ * leaves the parked keys in place. The codes ok, invalid and exceeded match
+ * the Fortran parameters embed_slot_limit_ok, embed_slot_limit_invalid and
  * embed_slot_limit_exceeded. The no memory code has no Fortran twin. */
 #include "cpmdc.h"
 

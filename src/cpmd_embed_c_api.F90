@@ -585,8 +585,10 @@ CONTAINS
 #endif
   END FUNCTION
 
-  ! limit > 0 is the most parked copies. -1 leaves them unbounded.
-  ! -2 makes the next park read CPMDC_ORBITAL_SLOT_LIMIT.
+  ! limit > 0 is the most parked orbital copies plus populated
+  ! extrapolation history entries, the selected key's entries included.
+  ! -1 leaves them unbounded. -2 makes the next park read
+  ! CPMDC_ORBITAL_SLOT_LIMIT.
   SUBROUTINE cpmdc_embed_set_orbital_slot_limit(limit) &
       BIND(C, NAME='cpmdc_embed_set_orbital_slot_limit')
 #if defined(CPMDC_HAS_CPMD)
