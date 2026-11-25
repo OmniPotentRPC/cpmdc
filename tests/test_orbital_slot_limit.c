@@ -33,6 +33,14 @@
 /* Slots the reference ledger holds for parked keys. Zero on a CPMD build,
  * whose store lives in Fortran. Exported by the embed layer for tests. */
 size_t cpmdc_orbital_ledger_capacity(void);
+/* Keys the reference ledger holds parked, and whether it holds a selected
+ * key. Both stay empty on a CPMD build. */
+size_t cpmdc_orbital_ledger_parked(void);
+int cpmdc_orbital_ledger_selected(long long *key);
+void cpmdc_orbital_ledger_reset(void);
+/* Keys with parked orbitals in the OpenCPMD table, the selected key
+ * excluded. Zero on the reference evaluator. */
+int cpmdc_embed_orbital_slots(void);
 int cpmdc_embed_init(void);
 
 static const char *g_params = NULL;
@@ -99,6 +107,15 @@ static unsigned char *read_file(const char *path, size_t *size) {
 static void positions_for(int step, double out[9]) {
   memcpy(out, k_pos, sizeof(k_pos));
   out[0] = k_pos[0] + k_geometry_step * (double)step;
+}
+
+/* Parked keys in whichever store this build counts against the limit. */
+static int orbital_slots(void) {
+#if defined(CPMDC_HAS_CPMD)
+  return cpmdc_embed_orbital_slots();
+#else
+  return (int)cpmdc_orbital_ledger_parked();
+#endif
 }
 
 static void copy_text(char *dst, size_t dst_n, const char *src) {
@@ -645,6 +662,206 @@ static void test_preflight_errors_do_not_latch_topology(void **state) {
   free(params);
 }
 
+struct unkeyed_ctx {
+  const unsigned char *params;
+  size_t params_n;
+};
+
+struct unkeyed_result {
+  int keyed_ok;
+  int unkeyed_ok;
+  int selected_after_unkeyed;
+  int keyed_after_unkeyed_ok;
+  char keyed_after_unkeyed_message[k_msg];
+  char keyed_after_unkeyed_error[k_msg];
+  int slots_after_keyed;
+  int next_key_ok;
+  char next_key_message[k_msg];
+  int slots_after_next_key;
+};
+
+/* Evaluates `session` under key 303 and then 304. Key 303 starts with no
+ * key selected, so it parks nothing, and the switch to 304 parks 303 alone
+ * under a limit of 1. */
+static void keyed_after_unkeyed(CPMDCSession *session,
+                                struct unkeyed_result *out) {
+  CPMDCResult r;
+  double pos[9];
+  double forces[9];
+  positions_for(2, pos);
+  cpmdc_session_select_orbitals(session, 303);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  out->keyed_after_unkeyed_ok = r.ok;
+  copy_text(out->keyed_after_unkeyed_message, k_msg, r.message);
+  copy_text(out->keyed_after_unkeyed_error, k_msg, cpmdc_last_error());
+  out->slots_after_keyed = orbital_slots();
+
+  positions_for(3, pos);
+  cpmdc_session_select_orbitals(session, 304);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  out->next_key_ok = r.ok;
+  copy_text(out->next_key_message, k_msg, r.message);
+  out->slots_after_next_key = orbital_slots();
+}
+
+static void unkeyed_session_switch_case(void *ctx_void, void *out_void) {
+  struct unkeyed_ctx *ctx = ctx_void;
+  struct unkeyed_result *out = out_void;
+  CPMDCSession *session_a = NULL;
+  CPMDCSession *session_b = NULL;
+  CPMDCResult r;
+  double pos[9];
+  double forces[9];
+
+  setenv(k_limit_name, "1", 1);
+  session_a = cpmdc_session_create(ctx->params, ctx->params_n);
+  session_b = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session_a || !session_b) {
+    copy_text(out->keyed_after_unkeyed_error, k_msg, cpmdc_last_error());
+    goto done;
+  }
+
+  positions_for(0, pos);
+  cpmdc_session_select_orbitals(session_a, 302);
+  r = cpmdc_session_energy_forces(session_a, 3, pos, k_z, forces);
+  out->keyed_ok = r.ok;
+
+  positions_for(1, pos);
+  r = cpmdc_session_energy_forces(session_b, 3, pos, k_z, forces);
+  out->unkeyed_ok = r.ok;
+  out->selected_after_unkeyed = cpmdc_orbital_ledger_selected(NULL);
+
+  keyed_after_unkeyed(session_b, out);
+
+done:
+  cpmdc_session_destroy(session_b);
+  cpmdc_session_destroy(session_a);
+}
+
+static void global_unkeyed_switch_case(void *ctx_void, void *out_void) {
+  struct unkeyed_ctx *ctx = ctx_void;
+  struct unkeyed_result *out = out_void;
+  CPMDCSession *session = NULL;
+  CPMDCResult r;
+  double pos[9];
+  double forces[9];
+
+  setenv(k_limit_name, "1", 1);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session) {
+    copy_text(out->keyed_after_unkeyed_error, k_msg, cpmdc_last_error());
+    goto done;
+  }
+
+  positions_for(0, pos);
+  cpmdc_session_select_orbitals(session, 302);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  out->keyed_ok = r.ok;
+
+  positions_for(1, pos);
+  r = cpmdc_energy_forces(3, pos, k_z, ctx->params, ctx->params_n, forces);
+  out->unkeyed_ok = r.ok;
+  out->selected_after_unkeyed = cpmdc_orbital_ledger_selected(NULL);
+
+  keyed_after_unkeyed(session, out);
+
+done:
+  cpmdc_session_destroy(session);
+}
+
+static void test_unkeyed_context_clears_selected_key(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct unkeyed_ctx ctx;
+  struct unkeyed_result session_out;
+  struct unkeyed_result global_out;
+  char why[256];
+  (void)state;
+  assert_non_null(params);
+  memset(&session_out, 0, sizeof(session_out));
+  memset(&global_out, 0, sizeof(global_out));
+  ctx.params = params;
+  ctx.params_n = n;
+
+  assert_int_equal(
+      run_setup_child(unkeyed_session_switch_case, &ctx, &session_out,
+                      sizeof(session_out), why, sizeof(why)),
+      0);
+  assert_int_equal(session_out.keyed_ok, 1);
+  assert_int_equal(session_out.unkeyed_ok, 1);
+  assert_int_equal(session_out.keyed_after_unkeyed_ok, 1);
+  assert_string_equal(session_out.keyed_after_unkeyed_error, "");
+  assert_int_equal(session_out.selected_after_unkeyed, 0);
+  assert_int_equal(session_out.slots_after_keyed, 0);
+  assert_int_equal(session_out.next_key_ok, 1);
+  assert_string_equal(session_out.next_key_message, "ok");
+  assert_int_equal(session_out.slots_after_next_key, 1);
+
+  assert_int_equal(
+      run_setup_child(global_unkeyed_switch_case, &ctx, &global_out,
+                      sizeof(global_out), why, sizeof(why)),
+      0);
+  assert_int_equal(global_out.keyed_ok, 1);
+  assert_int_equal(global_out.unkeyed_ok, 1);
+  assert_int_equal(global_out.keyed_after_unkeyed_ok, 1);
+  assert_string_equal(global_out.keyed_after_unkeyed_error, "");
+  assert_int_equal(global_out.selected_after_unkeyed, 0);
+  assert_int_equal(global_out.slots_after_keyed, 0);
+  assert_int_equal(global_out.next_key_ok, 1);
+  assert_string_equal(global_out.next_key_message, "ok");
+  assert_int_equal(global_out.slots_after_next_key, 1);
+  free(params);
+}
+
+#if !defined(CPMDC_HAS_CPMD)
+/* A reset empties the ledger, the selected key included, so the store the
+ * next evaluation leaves is not credited to the key selected before it. */
+static void ledger_reset_case(void *ctx_void, void *out_void) {
+  struct unkeyed_ctx *ctx = ctx_void;
+  struct unkeyed_result *out = out_void;
+  CPMDCSession *session;
+  CPMDCResult r;
+  double pos[9];
+  double forces[9];
+  unsetenv(k_limit_name);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session)
+    return;
+  positions_for(0, pos);
+  cpmdc_session_select_orbitals(session, 71);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  out->keyed_ok = r.ok;
+  copy_text(out->keyed_after_unkeyed_message, k_msg, r.message);
+  out->unkeyed_ok = cpmdc_orbital_ledger_selected(NULL);
+  cpmdc_orbital_ledger_reset();
+  out->selected_after_unkeyed = cpmdc_orbital_ledger_selected(NULL);
+  out->slots_after_keyed = orbital_slots();
+  cpmdc_session_destroy(session);
+}
+
+static void test_ledger_reset_clears_the_selected_key(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct unkeyed_ctx ctx;
+  struct unkeyed_result out;
+  char why[256];
+  (void)state;
+  assert_non_null(params);
+  memset(&out, 0, sizeof(out));
+  ctx.params = params;
+  ctx.params_n = n;
+  assert_int_equal(run_setup_child(ledger_reset_case, &ctx, &out, sizeof(out),
+                                   why, sizeof(why)),
+                   0);
+  assert_string_equal(out.keyed_after_unkeyed_message, "ok");
+  assert_int_equal(out.keyed_ok, 1);
+  assert_int_equal(out.unkeyed_ok, 1);
+  assert_int_equal(out.selected_after_unkeyed, 0);
+  assert_int_equal(out.slots_after_keyed, 0);
+  free(params);
+}
+#endif
+
 #if defined(CPMDC_HAS_CPMD)
 /* A basis change frees every key's orbitals, so a limit the old basis
  * filled does not refuse the first key of the new one. */
@@ -729,9 +946,11 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_bad_call_is_not_reported_as_the_limit),
       cmocka_unit_test(test_empty_limit_orders_errors_the_same_way),
       cmocka_unit_test(test_preflight_errors_do_not_latch_topology),
+      cmocka_unit_test(test_unkeyed_context_clears_selected_key),
 #if defined(CPMDC_HAS_CPMD)
       cmocka_unit_test(test_new_basis_clears_a_saturated_limit),
 #else
+      cmocka_unit_test(test_ledger_reset_clears_the_selected_key),
       cmocka_unit_test(test_finalize_frees_and_reinitializes_the_ledger),
 #endif
   };

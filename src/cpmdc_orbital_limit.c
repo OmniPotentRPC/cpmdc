@@ -70,6 +70,7 @@ int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_prepare_orbitals(long long key, int fail_allocation);
 void cpmdc_embed_abort_orbitals(void);
 void cpmdc_embed_commit_orbitals(void);
+void cpmdc_embed_clear_orbital_key(void);
 
 const char *cpmdc_orbital_limit_message(int code) {
   if (code == CPMDC_ORBITAL_SLOT_INVALID)
@@ -81,8 +82,19 @@ const char *cpmdc_orbital_limit_message(int code) {
 
 void cpmdc_orbital_ledger_reset(void) {
   g_parked_n = 0;
+  g_have_selected = 0;
+  g_selected_key = 0;
   g_selected_has_store = 0;
   g_live_store = 0;
+}
+
+/* No key is selected afterwards, in the embed and in this ledger, so the
+ * next keyed evaluation does not park the store under the cleared key. */
+void cpmdc_orbital_clear_key(void) {
+  cpmdc_embed_clear_orbital_key();
+  g_have_selected = 0;
+  g_selected_key = 0;
+  g_selected_has_store = 0;
 }
 
 void cpmdc_orbital_ledger_finalize(void) {
@@ -100,6 +112,16 @@ void cpmdc_orbital_ledger_finalize(void) {
 
 /* Slots allocated for parked keys. For tests that bound the table. */
 size_t cpmdc_orbital_ledger_capacity(void) { return g_parked_cap; }
+
+/* Keys the reference ledger holds parked, and the key it holds selected.
+ * For tests. Both stay empty on a CPMD build. */
+size_t cpmdc_orbital_ledger_parked(void) { return g_parked_n; }
+
+int cpmdc_orbital_ledger_selected(long long *key) {
+  if (key)
+    *key = g_selected_key;
+  return g_have_selected;
+}
 
 #if !defined(CPMDC_HAS_CPMD)
 static const size_t k_parked_not_found = SIZE_MAX;
