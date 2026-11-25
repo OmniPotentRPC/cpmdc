@@ -2002,9 +2002,18 @@ CONTAINS
       c(k) = REAL(cell(k), KIND=real64)
     END DO
     cell_state = cpmdc_cell_rank3_state(cell(1:9))
-    IF (.NOT. isolated_deck .AND. cell_state /= 1_c_int) THEN
-      CALL cpmdc_note_embed_failure('the periodic cell does not have a ' // &
-           'representable rank-3 volume' // c_null_char)
+    IF (cell_state /= 1_c_int) THEN
+      SELECT CASE (cell_state)
+      CASE (-3_c_int)
+        CALL cpmdc_note_embed_failure( &
+             'cell volume is too small for binary64' // c_null_char)
+      CASE (-2_c_int)
+        CALL cpmdc_note_embed_failure( &
+             'cell contains a non-finite component' // c_null_char)
+      CASE DEFAULT
+        CALL cpmdc_note_embed_failure( &
+             'cell does not have three independent vectors' // c_null_char)
+      END SELECT
       ierr = 3
       RETURN
     END IF

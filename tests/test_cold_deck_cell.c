@@ -11,6 +11,7 @@
 #include "cpmdc.h"
 #include "cpmdc_embed_image.h"
 
+#include <math.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -133,6 +134,26 @@ static void test_minimal_deck_uses_cluster_for_a_skewed_box(void **state) {
   lines_within_80(deck);
 }
 
+static void test_minimal_deck_rejects_invalid_skewed_boxes(void **state) {
+  (void)state;
+  const double singular[9] = {10.0, 1.0, 0.0, 20.0, 2.0, 0.0,
+                              0.0,  0.0, 12.0};
+  const double nonfinite[9] = {10.0, NAN, 0.0, 0.0, 11.0, 0.0,
+                               0.0,  0.0, 12.0};
+  char deck[8192];
+  int len = -1;
+
+  assert_int_equal(cpmdc_embed_compose_cold_deck(
+                       2, kPos, kZ, singular, 1, deck, (int)sizeof(deck), &len),
+                   0);
+  assert_int_equal(len, 0);
+  len = -1;
+  assert_int_equal(cpmdc_embed_compose_cold_deck(
+                       2, kPos, kZ, nonfinite, 1, deck, (int)sizeof(deck), &len),
+                   0);
+  assert_int_equal(len, 0);
+}
+
 static void test_box_replaces_the_deck_cell(void **state) {
   (void)state;
   char deck[8192];
@@ -249,6 +270,7 @@ int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_minimal_deck_orthorhombic_box),
       cmocka_unit_test(test_minimal_deck_uses_cluster_for_a_skewed_box),
+      cmocka_unit_test(test_minimal_deck_rejects_invalid_skewed_boxes),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
       cmocka_unit_test(test_small_triclinic_components_are_preserved),
       cmocka_unit_test(test_triclinic_tilt_deck_rejects_transpose),
