@@ -83,6 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_clear_orbital_key, cpmdc_embed_extrapolation_state
   PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_abort_orbitals
   PUBLIC :: cpmdc_embed_commit_orbitals
   PUBLIC :: cpmdc_embed_drop_stale_orbitals
@@ -528,6 +529,39 @@ CONTAINS
 #endif
   END SUBROUTINE
 
+  ! drop_history nonzero empties the extrapolation ring even when no key
+  ! is selected, for a caller whose trajectory ends.
+  SUBROUTINE cpmdc_embed_clear_orbital_key(drop_history) &
+      BIND(C, NAME='cpmdc_embed_clear_orbital_key')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_clear_orbital_key
+#endif
+    INTEGER(c_int), INTENT(IN), VALUE :: drop_history
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_clear_orbital_key(drop_history /= 0_c_int)
+#else
+    IF (drop_history == 0_c_int) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! The converged c0 in the selected extrapolation ring and the count the
+  ! last SCF combined. Both are 0 on the reference evaluator.
+  SUBROUTINE cpmdc_embed_extrapolation_state(count, used) &
+      BIND(C, NAME='cpmdc_embed_extrapolation_state')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_extrapolation_count, &
+        embed_extrapolation_used
+#endif
+    INTEGER(c_int), INTENT(OUT) :: count, used
+#if defined(CPMDC_HAS_CPMD)
+    count = INT(embed_extrapolation_count(), c_int)
+    used = INT(embed_extrapolation_used(), c_int)
+#else
+    count = 0_c_int
+    used = 0_c_int
+#endif
+  END SUBROUTINE
+
   ! Reserve a key selection without changing orbital state. C agrees the
   ! result across ranks before calling the matching commit entry point.
   FUNCTION cpmdc_embed_prepare_orbitals(key, fail_allocation) RESULT(rc) &
@@ -585,8 +619,10 @@ CONTAINS
 #endif
   END FUNCTION
 
-  ! limit > 0 is the most parked copies. -1 leaves them unbounded.
-  ! -2 makes the next park read CPMDC_ORBITAL_SLOT_LIMIT.
+  ! limit > 0 is the most parked orbital copies plus populated
+  ! extrapolation history entries, the selected key's entries included.
+  ! -1 leaves them unbounded. -2 makes the next park read
+  ! CPMDC_ORBITAL_SLOT_LIMIT.
   SUBROUTINE cpmdc_embed_set_orbital_slot_limit(limit) &
       BIND(C, NAME='cpmdc_embed_set_orbital_slot_limit')
 #if defined(CPMDC_HAS_CPMD)

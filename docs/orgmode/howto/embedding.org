@@ -225,8 +225,10 @@ see [[file:extrapolate-orbitals.org][extrapolate the orbitals]] for the workflow
 and
 [[file:../reference/c-abi.org::*Sessions][the session section of the reference]]
 for the calls.
-~CPMDC_ORBITAL_SLOT_LIMIT~ caps how many of those copies stay parked, and a new
-park past the cap fails without discarding the ones already stored; see [[file:../reference/environment.org][environment variables]].
+~CPMDC_ORBITAL_SLOT_LIMIT~ caps parked orbital copies plus populated
+extrapolation-history entries, including the selected key's entries, on an
+OpenCPMD build; the reference build counts parked keys only.
+A new park past the cap fails without discarding the ones already stored; see [[file:../reference/environment.org][environment variables]].
 
 * Choose a CPMDParams carrier
 Structured ~inputSections~ should be preferred over raw blocks when a typed arm

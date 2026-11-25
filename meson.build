@@ -866,6 +866,12 @@ if get_option('with_tests')
     output: 'water_blyp_params.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  water_blyp_aspc_params_bin = custom_target(
+    'water_blyp_aspc_params_bin',
+    input: 'tests/water_blyp_aspc_params.capnp.txt',
+    output: 'water_blyp_aspc_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   water_force_bin = custom_target(
     'water_force_bin',
     input: 'tests/force_input_water.capnp.txt',
@@ -1537,10 +1543,12 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
-    args: [water_params_bin.full_path()],
-    depends: [water_params_bin],
+    args: [water_params_bin.full_path(),
+           water_blyp_aspc_params_bin.full_path()],
+    depends: [water_params_bin, water_blyp_aspc_params_bin],
     suite: ['e2e', 'cmocka'],
-    timeout: 300,
+    # Every case converges real SCF steps on an OpenCPMD build.
+    timeout: has_cpmd ? 900 : 300,
   )
   test(
     'orbital-note-stored',
@@ -2290,7 +2298,8 @@ test(
       c_args: common_c_args,
     ),
     args: [water_aspc_params_bin.full_path(),
-           meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'],
+           meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt',
+           meson.current_source_dir() / 'tests/golden/water_aspc_two_key.txt'],
     depends: [water_aspc_params_bin],
     env: cpmd_x_parity_env,
     suite: ['e2e'],

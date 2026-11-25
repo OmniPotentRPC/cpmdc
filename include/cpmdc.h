@@ -602,11 +602,19 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
  * Every rank of a calculator names the same key before the same
  * evaluation. The call records the key. The evaluation applies it, so a
  * key that is named and then replaced before an evaluation does not park
- * orbitals. CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked
- * copies. An evaluation that would park another copy past that limit fails,
- * cpmdc_last_error() names the variable, and the copies already stored are
- * left unchanged. Unset storage is unbounded. A basis change clears every
- * key's orbitals. A session that never names a key keeps one stored copy.
+ * orbitals. A key also keeps its own `EXTRAPOLATE WFN` ring, so switching
+ * keys preserves each trajectory's predictor history.
+ * CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked orbital
+ * copies plus populated extrapolation-ring entries, including the selected
+ * key's entries, on an OpenCPMD build. The reference build stores neither
+ * orbitals nor rings and counts parked keys only. An evaluation that would
+ * add another copy past that limit fails, cpmdc_last_error() names the
+ * variable, and every stored copy and the selected key are left unchanged.
+ * Unset storage is unbounded. A basis change clears every key's orbitals and
+ * history. A session that never names a key keeps the single process history
+ * exactly as the unkeyed route does. An unkeyed evaluation after a keyed one
+ * empties the history, and so does destroying the session that evaluated
+ * last.
  *
  * @return 0, or -1 when `session` is `NULL`.
  */

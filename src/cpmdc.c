@@ -31,6 +31,8 @@ int cpmdc_stop_code(void);
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
 int cpmdc_embed_reset_state(CPMDCEmbedImage *image);
+void cpmdc_orbital_clear_key(int drop_history);
+void cpmdc_orbital_ledger_reset(void);
 int cpmdc_embed_detach_image(CPMDCEmbedImage *image);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
@@ -164,6 +166,10 @@ struct CPMDCSession {
 };
 
 static CPMDCSession *g_active_session = NULL;
+/* The session whose evaluation last selected or cleared the orbital key.
+ * It owns the selected key and its history, which configuring another
+ * session does not change. */
+static CPMDCSession *g_orbital_owner = NULL;
 static int g_live_sessions = 0;
 /* Live sessions that have started an evaluation. Only these tie CPMD state
  * to the stored communicator, so only these block an adopt. */
@@ -1867,6 +1873,8 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   (void)multiplicity;
   (void)cpmd_root;
   g_active_session = NULL;
+  g_orbital_owner = NULL;
+  cpmdc_orbital_clear_key(0);
   cpmdc_store_error("");
   return 0;
 }
@@ -2619,6 +2627,11 @@ void cpmdc_session_destroy(CPMDCSession *session) {
     g_live_sessions--;
   if (session->evaluated && g_evaluated_sessions > 0)
     g_evaluated_sessions--;
+  if (g_orbital_owner == session) {
+    cpmdc_orbital_clear_key(1);
+    cpmdc_orbital_ledger_reset();
+    g_orbital_owner = NULL;
+  }
   if (g_active_session == session)
     g_active_session = NULL;
   free(session->params_bytes);
@@ -2749,7 +2762,10 @@ static CPMDCResult session_energy_gradient_cell(
         free(pending_topology);
         return fail_msg(slot_err);
       }
+    } else {
+      cpmdc_orbital_clear_key(0);
     }
+    g_orbital_owner = session;
   }
   if (pending_topology) {
     session->fixed_atomic_numbers = pending_topology;
@@ -3486,6 +3502,7 @@ int cpmdc_available(void) {
 
 void cpmdc_finalize(void) {
   g_active_session = NULL;
+  g_orbital_owner = NULL;
   free(g_image.input_deck);
   g_image.input_deck = NULL;
   g_image.input_deck_len = 0;
