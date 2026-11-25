@@ -28,6 +28,16 @@ Rank 0 first adopts ``MPI_COMM_SELF`` as the calculator communicator, so
 an OpenCPMD build never waits for ranks that do not call it. More than one
 rank needs ``mpi4py``.
 
+Electrostatic embedding. ``qm_types`` names the atom types that are QM; every
+other atom is an MM point charge whose ``q`` LAMMPS holds. The charges enter
+as Gaussians of width ``mm_width_angstrom``, which must be finite and at least
+``_MIN_MM_WIDTH_ANGSTROM`` (``1e-12`` Angstrom). The MM atoms get their forces
+from the library and the QM atoms theirs, all in LAMMPS units. An isolated
+system only: a periodic box with MM atoms is an error, and the virial is zero.
+The charge set is sent on every step that has MM atoms and cleared on the first
+step that has none after a step that had some, so a deleted or retyped MM atom
+leaves no charge behind.
+
 A failed evaluation cannot raise through LAMMPS. The callback stores it in
 :attr:`FixExternal.error`, sends zero forces, and sets a LAMMPS internal
 variable that a ``fix halt`` added beside the fix turns into a LAMMPS error
@@ -55,6 +65,9 @@ from cpmdc import (
     find_library,
 )
 from cpmdc._elements import species_numbers
+
+_DEFAULT_MM_WIDTH_ANGSTROM = 0.30
+_MIN_MM_WIDTH_ANGSTROM = 1.0e-12
 
 
 def _rgpot_fix_external() -> type | None:
@@ -200,6 +213,10 @@ class _SessionPotential:
         self._buffer = np.zeros(0)
         self._forces = self._buffer
         self._virial = self._buffer
+        self.mm_width_angstrom = _DEFAULT_MM_WIDTH_ANGSTROM
+        self.external_active = False
+        self.pending_charges: np.ndarray | None = None
+        self.pending_qm: np.ndarray | None = None
         self.set_units(1.0, 1.0, BOHR_TO_ANGSTROM, HARTREE_TO_EV)
 
     def set_units(
@@ -240,7 +257,19 @@ class _SessionPotential:
     def evaluate(
         self, positions: np.ndarray, numbers: np.ndarray, cell: np.ndarray
     ) -> dict[str, Any]:
-        composition = tuple(np.sort(numbers).tolist())
+        charges, qm = self.pending_charges, self.pending_qm
+        self.pending_charges = self.pending_qm = None
+        if qm is None:
+            qm = np.ones(len(numbers), dtype=bool)
+        elif charges is None or charges.shape != qm.shape or qm.shape != (len(numbers),):
+            raise CPMDCError("the MM charges do not match the atoms")
+        mm = ~qm
+        if not np.any(qm):
+            raise CPMDCError("qm_types selects no QM atoms")
+        if self.periodic and np.any(mm):
+            raise CPMDCError("periodic electrostatic embedding is unsupported")
+        qm_numbers = numbers[qm]
+        composition = tuple(np.sort(qm_numbers).tolist())
         if self.session is None or (
             self.composition is not None and composition != self.composition
         ):
@@ -248,31 +277,53 @@ class _SessionPotential:
             self.open()
         session = self.session
         assert session is not None
-        size = positions.size
+        nqm = int(qm.sum())
+        size = 3 * nqm
         if self._forces.size != size:
             self._buffer = np.zeros(size + 9)
             self._forces = self._buffer[:size]
             self._virial = self._buffer[size:]
         scale = self._angstrom_per_bohr
+        bohr = positions / scale
+        cell_au = cell / scale if self.periodic else None
         # Record before calculate_au because C latches topology_fixed before
         # evaluating, so a CPMDCError after latching still binds this session
         # to this composition.
         self.composition = composition
+        if np.any(mm) or self.external_active:
+            mm_charges = np.ascontiguousarray(charges[mm] if charges is not None else [])
+            session.set_external_charges(
+                bohr[mm].reshape(-1) * BOHR_TO_ANGSTROM,
+                mm_charges,
+                np.full(mm_charges.size, self.mm_width_angstrom),
+            )
+            self.external_active = bool(np.any(mm))
         energy, _, _ = session.calculate_au(
-            positions / scale,
-            numbers,
-            cell / scale if self.periodic else None,
+            np.ascontiguousarray(bohr[qm]),
+            qm_numbers,
+            cell_au,
             forces=self._forces,
             virial=self._virial,
         )
         if not (math.isfinite(energy) and np.isfinite(self._buffer).all()):
             self._require_finite(energy)
+        if np.any(mm):
+            mm_forces = np.asarray(
+                session.external_charge_forces_au(int(mm.sum()))
+            ).reshape(-1, 3)
+            if not np.isfinite(mm_forces).all():
+                raise CPMDCError("the library returned a non-finite forces")
+            forces_au = np.zeros(positions.shape)
+            forces_au[qm] = self._forces.reshape(nqm, 3)
+            forces_au[mm] = mm_forces
+        else:
+            forces_au = self._forces.reshape(positions.shape)
         stress = None
         if self.periodic:
             stress = self._virial.reshape(3, 3) * (-self._energy_scale / _volume(cell))
         return {
             "energy": float(energy) * self._energy_scale,
-            "forces": self._forces.reshape(positions.shape) * self._force_scale,
+            "forces": forces_au * self._force_scale,
             "stress": stress,
         }
 
@@ -281,6 +332,7 @@ class _SessionPotential:
             self.session.close()
             self.session = None
         self.composition = None
+        self.external_active = False
 
 
 class FixExternal(_RgpotFixExternal):
@@ -304,6 +356,13 @@ class FixExternal(_RgpotFixExternal):
     comm:
         The ``mpi4py`` communicator of the lammps object, for more than one
         rank. ``MPI.COMM_WORLD`` is used when omitted.
+    qm_types:
+        Optional LAMMPS atom types evaluated as QM. Every other atom is an MM
+        point charge with its LAMMPS ``q``. All atoms are QM when omitted.
+    mm_width_angstrom:
+        Gaussian width of the MM charges in Angstrom (default 0.30). It must
+        be finite and at least ``1e-12``; a smaller value raises
+        ``ValueError``.
     """
 
     def __init__(
@@ -316,8 +375,17 @@ class FixExternal(_RgpotFixExternal):
         create: bool = True,
         library: str | os.PathLike[str] | None = None,
         comm: Any = None,
+        qm_types: Sequence[int] | None = None,
+        mm_width_angstrom: float = _DEFAULT_MM_WIDTH_ANGSTROM,
     ) -> None:
         _require_rgpot()
+        if qm_types is not None and not len(qm_types):
+            raise ValueError("qm_types must contain at least one atom type")
+        width = float(mm_width_angstrom)
+        if not np.isfinite(width) or width < _MIN_MM_WIDTH_ANGSTROM:
+            raise ValueError(
+                f"mm_width_angstrom must be finite and at least {_MIN_MM_WIDTH_ANGSTROM:g}"
+            )
         blob = params if isinstance(params, bytes) else Path(params).read_bytes()
         periodicity = list(lmp.extract_box()[5])
         self.fix_id = fix_id
@@ -325,11 +393,15 @@ class FixExternal(_RgpotFixExternal):
         self.length_per_bohr, self.energy_per_hartree = unit_factors(self.units)
         numbers = type_numbers(elements, int(lmp.extract_global("ntypes")))
         self.type_numbers = numbers
+        self.qm_types = None if qm_types is None else frozenset(int(t) for t in qm_types)
+        self.mm_width_angstrom = width
+        self._side: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
         self.periodic = all(periodicity)
         self.energy = 0.0
         self.error = None
         self.evaluations = 0
         adapter = _SessionPotential(blob, library, self.periodic)
+        adapter.mm_width_angstrom = width
         self._adapter = adapter
         try:
             super().__init__(
@@ -389,11 +461,50 @@ class FixExternal(_RgpotFixExternal):
         frontend, which evaluates through the session adapter. Forces come
         back in the order of ``tags``.
         """
-        dense = _dense_atom_ids(np.asarray(tags))
-        step: tuple[float, np.ndarray, np.ndarray] = super()._evaluate(
-            dense, xu, numbers, rows
-        )
+        tags = np.asarray(tags)
+        dense = _dense_atom_ids(tags)
+        side, self._side = self._side, None
+        if side is not None:
+            side_tags, side_charges, side_qm = side
+            if not np.array_equal(side_tags, tags):
+                raise CPMDCError("the MM charges do not follow the atom order")
+            charges = np.zeros(tags.size)
+            qm = np.ones(tags.size, dtype=bool)
+            charges[dense - 1] = side_charges
+            qm[dense - 1] = side_qm
+            self._adapter.pending_charges = charges
+            self._adapter.pending_qm = qm
+        try:
+            step: tuple[float, np.ndarray, np.ndarray] = super()._evaluate(
+                dense, xu, numbers, rows
+            )
+        finally:
+            self._adapter.pending_charges = self._adapter.pending_qm = None
         return step
+
+    def _step(self, nlocal: int, tag: Any, x: Any, f: Any) -> None:
+        if self.qm_types is None:
+            super()._step(nlocal, tag, x, f)
+            return
+        lmp = self._lmp
+        tags = np.asarray(tag[:nlocal], dtype=np.int64)
+        types = np.asarray(lmp.numpy.extract_atom("type")[:nlocal], dtype=np.int64)
+        charge_data = lmp.numpy.extract_atom("q")
+        if charge_data is None:
+            raise CPMDCError("the LAMMPS atom style does not provide charges")
+        charges = np.asarray(charge_data[:nlocal], dtype=float)
+        qm = np.isin(types, tuple(self.qm_types))
+        if self._comm is None:
+            self._side = (tags, charges, qm)
+        else:
+            parts = self._comm.gather((tags, charges, qm), root=0)
+            if self._root:
+                self._side = (
+                    np.concatenate([part[0] for part in parts]),
+                    np.concatenate([part[1] for part in parts]),
+                    np.concatenate([part[2] for part in parts]),
+                )
+        super()._step(nlocal, tag, x, f)
 
     def run(self, steps: int, *keywords: str) -> None:
         """``run steps keywords...``; raise :class:`CPMDCError` for a failed step."""
