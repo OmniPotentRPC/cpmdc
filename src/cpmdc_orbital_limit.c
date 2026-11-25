@@ -70,7 +70,7 @@ int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_prepare_orbitals(long long key, int fail_allocation);
 void cpmdc_embed_abort_orbitals(void);
 void cpmdc_embed_commit_orbitals(void);
-void cpmdc_embed_clear_orbital_key(void);
+void cpmdc_embed_clear_orbital_key(int drop_history);
 
 const char *cpmdc_orbital_limit_message(int code) {
   if (code == CPMDC_ORBITAL_SLOT_INVALID)
@@ -90,8 +90,8 @@ void cpmdc_orbital_ledger_reset(void) {
 
 /* No key is selected afterwards, in the embed and in this ledger, so the
  * next keyed evaluation does not park the store under the cleared key. */
-void cpmdc_orbital_clear_key(void) {
-  cpmdc_embed_clear_orbital_key();
+void cpmdc_orbital_clear_key(int drop_history) {
+  cpmdc_embed_clear_orbital_key(drop_history);
   g_have_selected = 0;
   g_selected_key = 0;
   g_selected_has_store = 0;

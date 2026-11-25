@@ -12,7 +12,13 @@
  * below cpmd.x without it.
  *
  * tests/golden/water_aspc_two_key.txt holds one line per keyed call of
- * the first KEYED_TEST_STEPS steps, two interleaved keys per step.
+ * the first KEYED_TEST_STEPS steps, two interleaved keys per step. A
+ * key that an unkeyed call clears must not lend its history to that
+ * call, and a destroyed session must not lend its history to the next.
+ *
+ * A build without the OpenCPMD embed checks the link stub and reference
+ * session contract instead, fails when it breaks, and then skips the
+ * cpmd.x comparison.
  */
 #define _POSIX_C_SOURCE 200809L
 
@@ -27,10 +33,19 @@
 
 #define NAT 3
 #define MAXF 64
+#define CLEARED_TEST_STEPS 6
+#define CLEARED_KEYED_STEPS 4
 
 static const double ANGSTROM_PER_BOHR = 0.529177210859;
 static const double KEY_OFFSET_ANGSTROM = 0.05;
 static const int KEYED_TEST_STEPS = 6;
+static const long long CLEARED_KEY = 401;
+
+/* Converged c0 in the selected extrapolation ring and the count the last
+ * SCF combined. */
+void cpmdc_embed_extrapolation_state(int *count, int *used);
+void cpmdc_embed_clear_orbital_key(int drop_history);
+int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 
 typedef struct {
   const unsigned char *params;
@@ -44,6 +59,21 @@ typedef struct {
   int ok;
   char message[256];
 } LimitedOutput;
+
+typedef struct {
+  const unsigned char *params;
+  size_t params_size;
+  double ang[CLEARED_TEST_STEPS][3 * NAT];
+} ClearedContext;
+
+typedef struct {
+  int ok;
+  int keyed_used;
+  int unkeyed_used;
+  int unkeyed_ring;
+  int destroyed_ring;
+  char message[256];
+} ClearedOutput;
 
 /* Counts the calls in captured stderr and records, per call, the
  * extrapolation each reported and, when steps is not NULL, its SCF
@@ -136,14 +166,103 @@ done:
   unsetenv("CPMDC_ORBITAL_SLOT_LIMIT");
 }
 
+/* One keyed session fills its history along the trajectory, then a live
+ * unkeyed session evaluates the next steps, clearing the key, and is
+ * destroyed with a ring of its own. */
+static void cleared_key_child(void *opaque, void *result) {
+  const ClearedContext *ctx = opaque;
+  ClearedOutput *out = result;
+  const int z[NAT] = {8, 1, 1};
+  double f[3 * NAT];
+  int used[CLEARED_TEST_STEPS] = {0};
+  int saved = -1, calls, last_used;
+  FILE *cap = NULL;
+  CPMDCSession *keyed = NULL, *unkeyed = NULL;
+  CPMDCResult r;
+
+  if (capture_stderr(&cap, &saved) != 0) {
+    snprintf(out->message, sizeof(out->message), "stderr capture failed");
+    return;
+  }
+  keyed = cpmdc_session_create(ctx->params, ctx->params_size);
+  unkeyed = cpmdc_session_create(ctx->params, ctx->params_size);
+  if (!keyed || !unkeyed) {
+    snprintf(out->message, sizeof(out->message), "create: %.240s",
+             cpmdc_last_error());
+    goto done;
+  }
+  cpmdc_session_select_orbitals(keyed, CLEARED_KEY);
+  for (int k = 0; k < CLEARED_TEST_STEPS; k++) {
+    CPMDCSession *s = k < CLEARED_KEYED_STEPS ? keyed : unkeyed;
+    r = cpmdc_session_energy_forces(s, NAT, ctx->ang[k], z, f);
+    if (!r.ok) {
+      snprintf(out->message, sizeof(out->message), "step %d: %.230s", k,
+               r.message);
+      goto done;
+    }
+  }
+  cpmdc_embed_extrapolation_state(&out->unkeyed_ring, &last_used);
+  cpmdc_session_destroy(unkeyed);
+  unkeyed = NULL;
+  cpmdc_embed_extrapolation_state(&out->destroyed_ring, &last_used);
+  out->ok = 1;
+
+done:
+  restore_stderr(&saved);
+  if (out->ok) {
+    calls = read_capture(cap, CLEARED_TEST_STEPS, used, NULL);
+    if (calls != CLEARED_TEST_STEPS) {
+      snprintf(out->message, sizeof(out->message),
+               "%d calls reported, expected %d", calls, CLEARED_TEST_STEPS);
+      out->ok = 0;
+    }
+    out->keyed_used = used[CLEARED_KEYED_STEPS - 1];
+    out->unkeyed_used = used[CLEARED_KEYED_STEPS];
+  }
+  fclose(cap);
+  cpmdc_session_destroy(unkeyed);
+  cpmdc_session_destroy(keyed);
+}
+
+/* Without OpenCPMD the ring entry points are the link stub: it reports an
+ * empty ring and refuses every orbital copy, a copy of a key onto itself
+ * included. The reference session has no orbital store, so a keyed
+ * evaluation and a copy of its key onto itself both succeed and leave the
+ * stub ring empty. */
+static int reference_contract_holds(const unsigned char *params, size_t ps,
+                                    const double *ang) {
+  const int z[NAT] = {8, 1, 1};
+  double f[3 * NAT];
+  int count = -1, used = -1, ok;
+  CPMDCSession *s;
+  CPMDCResult r;
+
+  cpmdc_embed_clear_orbital_key(1);
+  cpmdc_embed_extrapolation_state(&count, &used);
+  ok = count == 0 && used == 0 &&
+       cpmdc_embed_copy_orbitals(CLEARED_KEY, CLEARED_KEY) == -1 &&
+       cpmdc_embed_copy_orbitals(CLEARED_KEY, CLEARED_KEY + 1) == -1;
+  printf("stub ring=%d used=%d ok=%d\n", count, used, ok);
+
+  s = cpmdc_session_create(params, ps);
+  if (!s)
+    return 0;
+  cpmdc_session_select_orbitals(s, CLEARED_KEY);
+  r = cpmdc_session_energy_forces(s, NAT, ang, z, f);
+  count = used = -1;
+  cpmdc_embed_extrapolation_state(&count, &used);
+  ok = ok && r.ok && isfinite(r.energy_h) &&
+       cpmdc_session_copy_orbitals(s, CLEARED_KEY, CLEARED_KEY) == 0 &&
+       count == 0 && used == 0;
+  cpmdc_session_destroy(s);
+  printf("reference keyed=%d self_copy ring=%d ok=%d\n", r.ok, count, ok);
+  return ok;
+}
+
 int main(int argc, char **argv) {
   if (argc < 4) {
     fprintf(stderr, "usage: %s PARAMS_BIN GOLDEN_TXT KEYED_GOLDEN_TXT\n", argv[0]);
     return 2;
-  }
-  if (!cpmdc_available()) {
-    fprintf(stderr, "SKIP embed not available\n");
-    return 77;
   }
   FILE *g = fopen(argv[2], "r");
   FILE *pf = fopen(argv[1], "rb");
@@ -174,6 +293,19 @@ int main(int argc, char **argv) {
   fclose(g);
   if (nf < 6 || scf_aspc <= 0 || scf_none <= 0)
     return 2;
+  if (!cpmdc_available()) {
+    double ang[3 * NAT];
+    for (int i = 0; i < 3 * NAT; i++)
+      ang[i] = pos[0][i] * ANGSTROM_PER_BOHR;
+    if (!reference_contract_holds(params, ps, ang)) {
+      fprintf(stderr, "reference build broke the link stub contract: %s\n",
+              cpmdc_last_error());
+      return 1;
+    }
+    fprintf(stderr, "SKIP cpmd.x parity needs the OpenCPMD embed; "
+                    "link stub contract checked\n");
+    return 77;
+  }
 
   int keyed_nf = nf < KEYED_TEST_STEPS ? nf : KEYED_TEST_STEPS;
   int keyed_want[2 * MAXF], keyed_want_n = 0;
@@ -215,6 +347,30 @@ int main(int argc, char **argv) {
             isolated_why);
   }
   printf("limited_session isolated=%d\n", ok);
+
+  ClearedContext cleared_ctx = {.params = params, .params_size = ps};
+  for (int k = 0; k < CLEARED_TEST_STEPS; k++)
+    for (int i = 0; i < 3 * NAT; i++)
+      cleared_ctx.ang[k][i] = pos[k][i] * ANGSTROM_PER_BOHR;
+  ClearedOutput cleared = {0};
+  char cleared_why[256];
+  if (run_setup_child(cleared_key_child, &cleared_ctx, &cleared,
+                      sizeof(cleared), cleared_why,
+                      sizeof(cleared_why)) != 0) {
+    fprintf(stderr, "cleared_key child failed: %s\n", cleared_why);
+    ok = 0;
+  } else if (!cleared.ok) {
+    fprintf(stderr, "cleared_key failed: %s\n", cleared.message);
+    ok = 0;
+  } else if (cleared.keyed_used != CLEARED_KEYED_STEPS - 1 ||
+             cleared.unkeyed_used != 0 || cleared.unkeyed_ring != 1 ||
+             cleared.destroyed_ring != 0) {
+    ok = 0;
+  }
+  printf("cleared_key keyed=%d unkeyed=%d unkeyed_ring=%d destroyed_ring=%d "
+         "ok=%d\n",
+         cleared.keyed_used, cleared.unkeyed_used, cleared.unkeyed_ring,
+         cleared.destroyed_ring, ok);
 
   const int z[NAT] = {8, 1, 1};
   double e[MAXF], f[3 * NAT], keyed_e[2 * MAXF];

@@ -33,7 +33,7 @@ index 80ca9e6..1ab8a43 100644
 +
  END MODULE embed_ctrl
 diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
-index d9b302a..aa17647 100644
+index d9b302a..87cbcfb 100644
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
 @@ -21,7 +21,8 @@ MODULE rwfopt_utils
@@ -72,7 +72,7 @@ index d9b302a..aa17647 100644
    PUBLIC :: embed_select_orbital_slot
    PUBLIC :: embed_prepare_orbital_slot
    PUBLIC :: embed_abort_orbital_slot
-@@ -175,6 +178,11 @@ MODULE rwfopt_utils
+@@ -175,6 +178,16 @@ MODULE rwfopt_utils
    !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
    !     returns the smallest distance, HUGE when nothing is stored.
    PUBLIC :: embed_choose_warm_start_metric_v2
@@ -80,11 +80,16 @@ index d9b302a..aa17647 100644
 +  !     extrapwf combined for the SCF that rwfopt last started, 0 or 1
 +  !     when it started from the store as it is.
 +  PUBLIC :: embed_extrapolation_used
++  !   embed_extrapolation_count(): converged c0 in the selected ring.
++  PUBLIC :: embed_extrapolation_count
++  !   embed_clear_orbital_key(drop_history): no key is selected
++  !     afterwards. The ring is emptied when a key was selected or when
++  !     drop_history is set.
 +  PUBLIC :: embed_clear_orbital_key
    INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
    TYPE :: embed_orbital_slot
      INTEGER(embed_key_kind) :: key = 0
-@@ -182,11 +190,13 @@ MODULE rwfopt_utils
+@@ -182,11 +195,13 @@ MODULE rwfopt_utils
      LOGICAL :: converged = .FALSE.
      COMPLEX(real_8), ALLOCATABLE :: c0(:,:,:)
      REAL(real_8), ALLOCATABLE :: geo(:)
@@ -100,7 +105,7 @@ index d9b302a..aa17647 100644
    INTEGER, PARAMETER :: embed_slot_limit_read_env = -2
    INTEGER, PARAMETER :: embed_slot_limit_unlimited = -1
    INTEGER, PARAMETER :: embed_slot_limit_ok = 0
-@@ -210,12 +220,25 @@ MODULE rwfopt_utils
+@@ -210,12 +225,25 @@ MODULE rwfopt_utils
    TYPE(embed_orbital_slot), ALLOCATABLE, SAVE :: embed_pending_slots(:)
    COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_pending_c0(:,:,:)
    REAL(real_8), ALLOCATABLE, SAVE :: embed_pending_geo(:)
@@ -126,7 +131,7 @@ index d9b302a..aa17647 100644
    !public :: lseprof
  
  CONTAINS
-@@ -256,6 +279,8 @@ CONTAINS
+@@ -256,6 +284,8 @@ CONTAINS
      embed_have_partial = .FALSE.
      embed_store_converged = .FALSE.
      embed_history_set = .FALSE.
@@ -135,7 +140,7 @@ index d9b302a..aa17647 100644
      IF (ALLOCATED(embed_c0_store)) THEN
        DEALLOCATE(embed_c0_store,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -276,11 +301,18 @@ CONTAINS
+@@ -276,11 +306,23 @@ CONTAINS
      IF (ALLOCATED(embed_pending_slots)) DEALLOCATE(embed_pending_slots)
      IF (ALLOCATED(embed_pending_c0)) DEALLOCATE(embed_pending_c0)
      IF (ALLOCATED(embed_pending_geo)) DEALLOCATE(embed_pending_geo)
@@ -146,7 +151,12 @@ index d9b302a..aa17647 100644
    END SUBROUTINE embed_reset_warm_orbitals
  
 +  ! ==================================================================
-+  SUBROUTINE embed_clear_orbital_key()
++  SUBROUTINE embed_clear_orbital_key(drop_history)
++    ! The ring belongs to the key being cleared, or with drop_history to
++    ! the caller that is leaving, and an unkeyed call that extrapolated
++    ! from it would predict from another trajectory.
++    LOGICAL, INTENT(IN) :: drop_history
++    IF (embed_have_key .OR. drop_history) CALL embed_break_history()
 +    embed_have_key = .FALSE.
 +    embed_current_key = 0
 +  END SUBROUTINE embed_clear_orbital_key
@@ -154,7 +164,7 @@ index d9b302a..aa17647 100644
    ! ==================================================================
    INTEGER FUNCTION embed_count_parked()
      ! ==--------------------------------------------------------------==
-@@ -293,6 +325,19 @@ CONTAINS
+@@ -293,6 +335,19 @@ CONTAINS
      ENDDO
    END FUNCTION embed_count_parked
  
@@ -174,7 +184,7 @@ index d9b302a..aa17647 100644
    ! ==================================================================
    INTEGER FUNCTION embed_orbital_slot_count()
      ! ==--------------------------------------------------------------==
-@@ -421,7 +466,7 @@ CONTAINS
+@@ -421,7 +476,7 @@ CONTAINS
        embed_park_fits = .TRUE.
        RETURN
      ENDIF
@@ -183,7 +193,7 @@ index d9b302a..aa17647 100644
      IF (parked > limit - extra) THEN
        embed_slot_limit_code = embed_slot_limit_exceeded
        RETURN
-@@ -468,6 +513,11 @@ CONTAINS
+@@ -468,6 +523,11 @@ CONTAINS
             CALL MOVE_ALLOC(embed_slots(i)%c0, grown(i)%c0)
        IF (ALLOCATED(embed_slots(i)%geo)) &
             CALL MOVE_ALLOC(embed_slots(i)%geo, grown(i)%geo)
@@ -195,7 +205,7 @@ index d9b302a..aa17647 100644
      ENDDO
      CALL MOVE_ALLOC(grown, embed_slots)
      embed_slots(n+1)%used = .TRUE.
-@@ -508,6 +558,7 @@ CONTAINS
+@@ -508,6 +568,7 @@ CONTAINS
      embed_store_s3 = s3
      embed_c0_store = c0
      ! copied c0 replaces the selected key
@@ -203,7 +213,7 @@ index d9b302a..aa17647 100644
      embed_store_key = key
      embed_have_orbitals = .TRUE.
      embed_have_partial = .FALSE.
-@@ -588,6 +639,10 @@ CONTAINS
+@@ -588,6 +649,10 @@ CONTAINS
                 __LINE__,__FILE__)
          ENDIF
          IF (ALLOCATED(embed_slots(dst)%geo)) DEALLOCATE(embed_slots(dst)%geo)
@@ -214,7 +224,7 @@ index d9b302a..aa17647 100644
        ENDIF
      ELSE
        dst = embed_slot_index(to_key, .TRUE.)
-@@ -603,6 +658,10 @@ CONTAINS
+@@ -603,6 +668,10 @@ CONTAINS
        embed_slots(dst)%converged = .TRUE.
        IF (ALLOCATED(embed_slots(dst)%geo)) DEALLOCATE(embed_slots(dst)%geo)
        IF (ALLOCATED(tmp_geo)) embed_slots(dst)%geo = tmp_geo
@@ -225,7 +235,7 @@ index d9b302a..aa17647 100644
      ENDIF
      embed_copy_orbital_slot = .TRUE.
    END FUNCTION embed_copy_orbital_slot
-@@ -626,10 +685,14 @@ CONTAINS
+@@ -626,10 +695,14 @@ CONTAINS
      ! agree this result across ranks before committing the prepared move.
      INTEGER(embed_key_kind), INTENT(IN) :: key
      LOGICAL, INTENT(IN) :: fail_allocation
@@ -241,7 +251,7 @@ index d9b302a..aa17647 100644
      embed_pending_key = key
      embed_pending_index = 0
      embed_pending_grow = .FALSE.
-@@ -652,7 +715,19 @@ CONTAINS
+@@ -652,7 +725,19 @@ CONTAINS
          IF (ALLOCATED(embed_slots(held)%c0)) park_extra = 0
        ENDIF
      ENDIF
@@ -262,7 +272,7 @@ index d9b302a..aa17647 100644
        embed_prepare_orbital_slot = embed_slot_limit_code
        RETURN
      ENDIF
-@@ -699,6 +774,20 @@ CONTAINS
+@@ -699,6 +784,20 @@ CONTAINS
          IF (ierr /= 0) GOTO 900
          embed_pending_geo = embed_store_geo
        ENDIF
@@ -283,7 +293,7 @@ index d9b302a..aa17647 100644
      ENDIF
      RETURN
  
-@@ -708,6 +797,7 @@ CONTAINS
+@@ -708,6 +807,7 @@ CONTAINS
      IF (ALLOCATED(embed_pending_slots)) DEALLOCATE(embed_pending_slots)
      IF (ALLOCATED(embed_pending_c0)) DEALLOCATE(embed_pending_c0)
      IF (ALLOCATED(embed_pending_geo)) DEALLOCATE(embed_pending_geo)
@@ -291,7 +301,7 @@ index d9b302a..aa17647 100644
    END FUNCTION embed_prepare_orbital_slot
  
    SUBROUTINE embed_abort_orbital_slot()
-@@ -715,6 +805,7 @@ CONTAINS
+@@ -715,6 +815,7 @@ CONTAINS
      IF (ALLOCATED(embed_pending_slots)) DEALLOCATE(embed_pending_slots)
      IF (ALLOCATED(embed_pending_c0)) DEALLOCATE(embed_pending_c0)
      IF (ALLOCATED(embed_pending_geo)) DEALLOCATE(embed_pending_geo)
@@ -299,7 +309,7 @@ index d9b302a..aa17647 100644
      embed_pending_action = .FALSE.
      embed_pending_index = 0
      embed_pending_grow = .FALSE.
-@@ -724,6 +815,8 @@ CONTAINS
+@@ -724,6 +825,8 @@ CONTAINS
      ! ==--------------------------------------------------------------==
      INTEGER :: i, n
      IF (.NOT. embed_pending_action) RETURN
@@ -308,7 +318,7 @@ index d9b302a..aa17647 100644
      IF (embed_pending_grow) THEN
        n = 0
        IF (ALLOCATED(embed_slots)) n = SIZE(embed_slots)
-@@ -735,6 +828,11 @@ CONTAINS
+@@ -735,6 +838,11 @@ CONTAINS
               CALL MOVE_ALLOC(embed_slots(i)%c0, embed_pending_slots(i)%c0)
          IF (ALLOCATED(embed_slots(i)%geo)) &
               CALL MOVE_ALLOC(embed_slots(i)%geo, embed_pending_slots(i)%geo)
@@ -320,7 +330,7 @@ index d9b302a..aa17647 100644
        ENDDO
        CALL MOVE_ALLOC(embed_pending_slots, embed_slots)
      ENDIF
-@@ -745,6 +843,12 @@ CONTAINS
+@@ -745,6 +853,12 @@ CONTAINS
        IF (ALLOCATED(embed_slots(i)%geo)) DEALLOCATE(embed_slots(i)%geo)
        IF (ALLOCATED(embed_pending_geo)) &
             CALL MOVE_ALLOC(embed_pending_geo, embed_slots(i)%geo)
@@ -333,7 +343,7 @@ index d9b302a..aa17647 100644
        embed_slots(i)%used = .TRUE.
        embed_slots(i)%key = embed_current_key
        embed_slots(i)%converged = embed_store_converged
-@@ -767,6 +871,14 @@ CONTAINS
+@@ -767,6 +881,14 @@ CONTAINS
          embed_have_orbitals = .TRUE.
          embed_have_partial = .FALSE.
          embed_store_converged = embed_slots(i)%converged
@@ -348,7 +358,7 @@ index d9b302a..aa17647 100644
        ENDIF
      ENDIF
      embed_pending_action = .FALSE.
-@@ -893,6 +1005,7 @@ CONTAINS
+@@ -893,6 +1015,7 @@ CONTAINS
        RETURN
      ENDIF
      IF (dist > rmax) THEN
@@ -356,7 +366,7 @@ index d9b302a..aa17647 100644
        embed_have_orbitals = .FALSE.
        embed_have_partial = .FALSE.
        embed_store_converged = .FALSE.
-@@ -907,6 +1020,7 @@ CONTAINS
+@@ -907,6 +1030,7 @@ CONTAINS
             __LINE__,__FILE__)
      ENDIF
      embed_c0_store = embed_slots(best)%c0
@@ -364,7 +374,7 @@ index d9b302a..aa17647 100644
      embed_store_key = embed_slots(best)%key
      embed_store_s1 = SIZE(embed_c0_store, 1)
      embed_store_s2 = SIZE(embed_c0_store, 2)
-@@ -918,6 +1032,70 @@ CONTAINS
+@@ -918,6 +1042,75 @@ CONTAINS
      source = 1
    END SUBROUTINE embed_choose_warm_start_metric_v2
  
@@ -380,6 +390,11 @@ index d9b302a..aa17647 100644
 +  INTEGER FUNCTION embed_extrapolation_used()
 +    embed_extrapolation_used = embed_xused
 +  END FUNCTION embed_extrapolation_used
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_extrapolation_count()
++    embed_extrapolation_count = embed_xcount
++  END FUNCTION embed_extrapolation_count
 +
 +  ! ==================================================================
 +  SUBROUTINE embed_extrapolate_orbitals(c0, cx)
@@ -435,7 +450,7 @@ index d9b302a..aa17647 100644
  
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
-@@ -931,7 +1109,7 @@ CONTAINS
+@@ -931,7 +1124,7 @@ CONTAINS
      CHARACTER(len=11), PARAMETER             :: filename = 'LOCPOT.cube'
  
      CHARACTER(len=30)                        :: filen, tag
@@ -444,7 +459,7 @@ index d9b302a..aa17647 100644
                                                  rsave(:), rsave2(:),c2u(:,:)
  
  #if defined(_HAS_CUDA)
-@@ -1126,10 +1304,15 @@ CONTAINS
+@@ -1126,10 +1319,15 @@ CONTAINS
      IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
          (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
          CALL embed_restore_orbitals(c0)
@@ -460,7 +475,7 @@ index d9b302a..aa17647 100644
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -1748,13 +1931,16 @@ CONTAINS
+@@ -1748,13 +1946,16 @@ CONTAINS
        CALL embed_save_orbitals(c0)
        embed_have_partial = .FALSE.
        embed_store_converged = .TRUE.

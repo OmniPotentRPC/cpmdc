@@ -42,8 +42,16 @@ void cpmdc_orbital_ledger_reset(void);
  * excluded. Zero on the reference evaluator. */
 int cpmdc_embed_orbital_slots(void);
 int cpmdc_embed_init(void);
+/* Converged c0 in the selected extrapolation ring and the count the last
+ * SCF combined. Both stay 0 on the reference evaluator. */
+void cpmdc_embed_extrapolation_state(int *count, int *used);
+/* The embed copy. The link stub of a reference build refuses every copy,
+ * a copy of a key onto itself included. */
+int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 
 static const char *g_params = NULL;
+/* The water of g_params with EXTRAPOLATE WFN ASPC, for the ring cases. */
+static const char *g_aspc_params = NULL;
 
 static const double k_pos[9] = {
     0.0, 0.0, 0.1173, 0.0, 0.7572, -0.4692, 0.0, -0.7572, -0.4692,
@@ -52,6 +60,9 @@ static const int k_z[3] = {8, 1, 1};
 /* Small enough that the real SCF converges from a cold start at every step,
  * and still a new geometry for each step. */
 static const double k_geometry_step = 0.25;
+/* Close enough that each step starts from the stored c0 and extends the
+ * ring instead of dropping it. */
+static const double k_ring_step = 0.02;
 
 static const char k_limit_name[] = "CPMDC_ORBITAL_SLOT_LIMIT";
 static const char k_exceeded[] = "exceeded";
@@ -107,6 +118,23 @@ static unsigned char *read_file(const char *path, size_t *size) {
 static void positions_for(int step, double out[9]) {
   memcpy(out, k_pos, sizeof(k_pos));
   out[0] = k_pos[0] + k_geometry_step * (double)step;
+}
+
+static void ring_positions_for(int step, double out[9]) {
+  memcpy(out, k_pos, sizeof(k_pos));
+  out[0] = k_pos[0] + k_ring_step * (double)step;
+}
+
+static int ring_count(void) {
+  int count = -1, used = -1;
+  cpmdc_embed_extrapolation_state(&count, &used);
+  return count;
+}
+
+static int ring_used(void) {
+  int count = -1, used = -1;
+  cpmdc_embed_extrapolation_state(&count, &used);
+  return used;
 }
 
 /* Parked keys in whichever store this build counts against the limit. */
@@ -667,9 +695,20 @@ struct unkeyed_ctx {
   size_t params_n;
 };
 
+struct destroy_ctx {
+  const unsigned char *params;
+  size_t params_n;
+  int destroy_evaluating;
+};
+
 struct unkeyed_result {
   int keyed_ok;
+  int ring_before_unkeyed;
+  int selected_after_keyed;
+  long long selected_key_after_keyed;
   int unkeyed_ok;
+  int ring_after_unkeyed;
+  int used_unkeyed;
   int selected_after_unkeyed;
   int keyed_after_unkeyed_ok;
   char keyed_after_unkeyed_message[k_msg];
@@ -678,17 +717,43 @@ struct unkeyed_result {
   int next_key_ok;
   char next_key_message[k_msg];
   int slots_after_next_key;
+  int selected_after_next_key;
+  long long selected_key_after_next_key;
+  int self_copy_rc;
+  int stub_self_copy_rc;
+  int ring_before_self_copy;
+  int ring_after_self_copy;
+  int slots_after_self_copy;
 };
+
+/* Evaluates `session` under key 302 at two nearby geometries, so an
+ * OpenCPMD build holds one converged c0 in the key's ring. */
+static void keyed_twice(CPMDCSession *session, struct unkeyed_result *out) {
+  int step;
+  out->keyed_ok = 1;
+  cpmdc_session_select_orbitals(session, 302);
+  for (step = -1; step <= 0; ++step) {
+    CPMDCResult r;
+    double pos[9];
+    double forces[9];
+    ring_positions_for(step, pos);
+    r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+    out->keyed_ok = out->keyed_ok && r.ok;
+  }
+  out->ring_before_unkeyed = ring_count();
+  out->selected_after_keyed =
+      cpmdc_orbital_ledger_selected(&out->selected_key_after_keyed);
+}
 
 /* Evaluates `session` under key 303 and then 304. Key 303 starts with no
  * key selected, so it parks nothing, and the switch to 304 parks 303 alone
- * under a limit of 1. */
+ * under a limit of 1. A copy of 304 onto itself then changes nothing. */
 static void keyed_after_unkeyed(CPMDCSession *session,
                                 struct unkeyed_result *out) {
   CPMDCResult r;
   double pos[9];
   double forces[9];
-  positions_for(2, pos);
+  ring_positions_for(2, pos);
   cpmdc_session_select_orbitals(session, 303);
   r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
   out->keyed_after_unkeyed_ok = r.ok;
@@ -696,12 +761,64 @@ static void keyed_after_unkeyed(CPMDCSession *session,
   copy_text(out->keyed_after_unkeyed_error, k_msg, cpmdc_last_error());
   out->slots_after_keyed = orbital_slots();
 
-  positions_for(3, pos);
+  ring_positions_for(3, pos);
   cpmdc_session_select_orbitals(session, 304);
   r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
   out->next_key_ok = r.ok;
   copy_text(out->next_key_message, k_msg, r.message);
   out->slots_after_next_key = orbital_slots();
+  out->selected_after_next_key =
+      cpmdc_orbital_ledger_selected(&out->selected_key_after_next_key);
+
+  out->ring_before_self_copy = ring_count();
+  out->self_copy_rc = cpmdc_session_copy_orbitals(session, 304, 304);
+  out->ring_after_self_copy = ring_count();
+  out->slots_after_self_copy = orbital_slots();
+#if defined(CPMDC_HAS_CPMD)
+  out->stub_self_copy_rc = -1;
+#else
+  out->stub_self_copy_rc = cpmdc_embed_copy_orbitals(304, 304);
+#endif
+}
+
+/* The OpenCPMD build keeps the key and ring in Fortran, and the reference
+ * ledger stays empty. The reference build keeps the key in its ledger, and
+ * the link stub reports an empty ring and refuses every embed copy. */
+static void assert_keyed_after_unkeyed(const struct unkeyed_result *out) {
+  assert_int_equal(out->keyed_after_unkeyed_ok, 1);
+  assert_string_equal(out->keyed_after_unkeyed_error, "");
+  assert_int_equal(out->slots_after_keyed, 0);
+  assert_int_equal(out->next_key_ok, 1);
+  assert_string_equal(out->next_key_message, "ok");
+  assert_int_equal(out->slots_after_next_key, 1);
+  assert_int_equal(out->self_copy_rc, 0);
+  assert_int_equal(out->ring_after_self_copy, out->ring_before_self_copy);
+  assert_int_equal(out->slots_after_self_copy, 1);
+  assert_int_equal(out->stub_self_copy_rc, -1);
+#if defined(CPMDC_HAS_CPMD)
+  assert_int_equal(out->selected_after_next_key, 0);
+#else
+  assert_int_equal(out->selected_after_next_key, 1);
+  assert_int_equal(out->selected_key_after_next_key, 304);
+  assert_int_equal(out->ring_before_self_copy, 0);
+#endif
+}
+
+static void assert_unkeyed_result(const struct unkeyed_result *out) {
+  assert_int_equal(out->keyed_ok, 1);
+#if defined(CPMDC_HAS_CPMD)
+  assert_true(out->ring_before_unkeyed > 0);
+  assert_int_equal(out->selected_after_keyed, 0);
+#else
+  assert_int_equal(out->ring_before_unkeyed, 0);
+  assert_int_equal(out->selected_after_keyed, 1);
+  assert_int_equal(out->selected_key_after_keyed, 302);
+#endif
+  assert_int_equal(out->unkeyed_ok, 1);
+  assert_int_equal(out->ring_after_unkeyed, 0);
+  assert_int_equal(out->used_unkeyed, 0);
+  assert_int_equal(out->selected_after_unkeyed, 0);
+  assert_keyed_after_unkeyed(out);
 }
 
 static void unkeyed_session_switch_case(void *ctx_void, void *out_void) {
@@ -721,14 +838,13 @@ static void unkeyed_session_switch_case(void *ctx_void, void *out_void) {
     goto done;
   }
 
-  positions_for(0, pos);
-  cpmdc_session_select_orbitals(session_a, 302);
-  r = cpmdc_session_energy_forces(session_a, 3, pos, k_z, forces);
-  out->keyed_ok = r.ok;
+  keyed_twice(session_a, out);
 
-  positions_for(1, pos);
+  ring_positions_for(1, pos);
   r = cpmdc_session_energy_forces(session_b, 3, pos, k_z, forces);
   out->unkeyed_ok = r.ok;
+  out->ring_after_unkeyed = ring_count();
+  out->used_unkeyed = ring_used();
   out->selected_after_unkeyed = cpmdc_orbital_ledger_selected(NULL);
 
   keyed_after_unkeyed(session_b, out);
@@ -753,14 +869,13 @@ static void global_unkeyed_switch_case(void *ctx_void, void *out_void) {
     goto done;
   }
 
-  positions_for(0, pos);
-  cpmdc_session_select_orbitals(session, 302);
-  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
-  out->keyed_ok = r.ok;
+  keyed_twice(session, out);
 
-  positions_for(1, pos);
+  ring_positions_for(1, pos);
   r = cpmdc_energy_forces(3, pos, k_z, ctx->params, ctx->params_n, forces);
   out->unkeyed_ok = r.ok;
+  out->ring_after_unkeyed = ring_count();
+  out->used_unkeyed = ring_used();
   out->selected_after_unkeyed = cpmdc_orbital_ledger_selected(NULL);
 
   keyed_after_unkeyed(session, out);
@@ -771,7 +886,7 @@ done:
 
 static void test_unkeyed_context_clears_selected_key(void **state) {
   size_t n = 0;
-  unsigned char *params = read_file(g_params, &n);
+  unsigned char *params = read_file(g_aspc_params, &n);
   struct unkeyed_ctx ctx;
   struct unkeyed_result session_out;
   struct unkeyed_result global_out;
@@ -787,29 +902,125 @@ static void test_unkeyed_context_clears_selected_key(void **state) {
       run_setup_child(unkeyed_session_switch_case, &ctx, &session_out,
                       sizeof(session_out), why, sizeof(why)),
       0);
-  assert_int_equal(session_out.keyed_ok, 1);
-  assert_int_equal(session_out.unkeyed_ok, 1);
-  assert_int_equal(session_out.keyed_after_unkeyed_ok, 1);
-  assert_string_equal(session_out.keyed_after_unkeyed_error, "");
-  assert_int_equal(session_out.selected_after_unkeyed, 0);
-  assert_int_equal(session_out.slots_after_keyed, 0);
-  assert_int_equal(session_out.next_key_ok, 1);
-  assert_string_equal(session_out.next_key_message, "ok");
-  assert_int_equal(session_out.slots_after_next_key, 1);
+  assert_unkeyed_result(&session_out);
 
   assert_int_equal(
       run_setup_child(global_unkeyed_switch_case, &ctx, &global_out,
                       sizeof(global_out), why, sizeof(why)),
       0);
-  assert_int_equal(global_out.keyed_ok, 1);
-  assert_int_equal(global_out.unkeyed_ok, 1);
-  assert_int_equal(global_out.keyed_after_unkeyed_ok, 1);
-  assert_string_equal(global_out.keyed_after_unkeyed_error, "");
-  assert_int_equal(global_out.selected_after_unkeyed, 0);
-  assert_int_equal(global_out.slots_after_keyed, 0);
-  assert_int_equal(global_out.next_key_ok, 1);
-  assert_string_equal(global_out.next_key_message, "ok");
-  assert_int_equal(global_out.slots_after_next_key, 1);
+  assert_unkeyed_result(&global_out);
+  free(params);
+}
+
+/* Session B is created after keyed session A evaluated, so B is the
+ * configured session when A is destroyed. A still owns the selected key and
+ * its history, and destroying A clears them. Destroying B instead leaves
+ * them in place. */
+struct destroy_result {
+  int keyed_ok[2];
+  int ring_before_destroy;
+  int selected_before_destroy;
+  long long selected_key_before_destroy;
+  int ring_after_destroy;
+  int selected_after_destroy;
+  long long selected_key;
+  struct unkeyed_result after;
+};
+
+static void destroy_after_later_create_case(void *ctx_void, void *out_void) {
+  struct destroy_ctx *ctx = ctx_void;
+  struct destroy_result *out = out_void;
+  CPMDCSession *session_a = NULL;
+  CPMDCSession *session_b = NULL;
+  int step;
+
+  setenv(k_limit_name, "1", 1);
+  session_a = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session_a)
+    goto done;
+  cpmdc_session_select_orbitals(session_a, 302);
+  for (step = 0; step < 2; ++step) {
+    CPMDCResult r;
+    double pos[9];
+    double forces[9];
+    ring_positions_for(step, pos);
+    r = cpmdc_session_energy_forces(session_a, 3, pos, k_z, forces);
+    out->keyed_ok[step] = r.ok;
+  }
+  session_b = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session_b)
+    goto done;
+  out->ring_before_destroy = ring_count();
+  out->selected_before_destroy =
+      cpmdc_orbital_ledger_selected(&out->selected_key_before_destroy);
+  if (ctx->destroy_evaluating) {
+    cpmdc_session_destroy(session_a);
+    session_a = NULL;
+  } else {
+    cpmdc_session_destroy(session_b);
+    session_b = NULL;
+  }
+  out->ring_after_destroy = ring_count();
+  out->selected_after_destroy =
+      cpmdc_orbital_ledger_selected(&out->selected_key);
+  if (ctx->destroy_evaluating)
+    keyed_after_unkeyed(session_b, &out->after);
+
+done:
+  cpmdc_session_destroy(session_b);
+  cpmdc_session_destroy(session_a);
+}
+
+/* Before either destroy, key 302 holds a ring on an OpenCPMD build and is
+ * the reference ledger's selected key on the reference build, so the
+ * checks after the destroy do not pass on state that was never there. */
+static void assert_destroy_starting_state(const struct destroy_result *out) {
+#if defined(CPMDC_HAS_CPMD)
+  assert_true(out->ring_before_destroy > 0);
+  assert_int_equal(out->selected_before_destroy, 0);
+#else
+  assert_int_equal(out->ring_before_destroy, 0);
+  assert_int_equal(out->selected_before_destroy, 1);
+  assert_int_equal(out->selected_key_before_destroy, 302);
+#endif
+}
+
+static void test_destroy_clears_the_evaluating_session_key(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_aspc_params, &n);
+  struct destroy_ctx ctx;
+  struct destroy_result out;
+  char why[256];
+  (void)state;
+  assert_non_null(params);
+  ctx.params = params;
+  ctx.params_n = n;
+
+  memset(&out, 0, sizeof(out));
+  ctx.destroy_evaluating = 1;
+  assert_int_equal(run_setup_child(destroy_after_later_create_case, &ctx, &out,
+                                   sizeof(out), why, sizeof(why)),
+                   0);
+  assert_int_equal(out.keyed_ok[0], 1);
+  assert_int_equal(out.keyed_ok[1], 1);
+  assert_destroy_starting_state(&out);
+  assert_int_equal(out.ring_after_destroy, 0);
+  assert_int_equal(out.selected_after_destroy, 0);
+  assert_keyed_after_unkeyed(&out.after);
+
+  memset(&out, 0, sizeof(out));
+  ctx.destroy_evaluating = 0;
+  assert_int_equal(run_setup_child(destroy_after_later_create_case, &ctx, &out,
+                                   sizeof(out), why, sizeof(why)),
+                   0);
+  assert_int_equal(out.keyed_ok[0], 1);
+  assert_int_equal(out.keyed_ok[1], 1);
+  assert_destroy_starting_state(&out);
+  assert_int_equal(out.ring_after_destroy, out.ring_before_destroy);
+#if !defined(CPMDC_HAS_CPMD)
+  assert_int_equal(out.selected_after_destroy, 1);
+  assert_int_equal(out.selected_key, 302);
+#endif
   free(params);
 }
 
@@ -947,6 +1158,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_empty_limit_orders_errors_the_same_way),
       cmocka_unit_test(test_preflight_errors_do_not_latch_topology),
       cmocka_unit_test(test_unkeyed_context_clears_selected_key),
+      cmocka_unit_test(test_destroy_clears_the_evaluating_session_key),
 #if defined(CPMDC_HAS_CPMD)
       cmocka_unit_test(test_new_basis_clears_a_saturated_limit),
 #else
@@ -954,8 +1166,9 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_finalize_frees_and_reinitializes_the_ledger),
 #endif
   };
-  if (argc < 2)
+  if (argc < 3)
     return 1;
   g_params = argv[1];
+  g_aspc_params = argv[2];
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

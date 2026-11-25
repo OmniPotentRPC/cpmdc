@@ -298,7 +298,8 @@ def assert_embed_extrapolate(patch: Path) -> None:
         "+    embed_extrap_wfn = cntl%textrap",
         "PUBLIC :: embed_extrapolation_used",
         "PUBLIC :: embed_clear_orbital_key",
-        "SUBROUTINE embed_clear_orbital_key()",
+        "SUBROUTINE embed_clear_orbital_key(drop_history)",
+        "PUBLIC :: embed_extrapolation_count",
         "embed_have_key = .FALSE.",
         "embed_current_key = 0",
         "CALL extrapwf(0, cx, gam, embed_xhist, embed_xnow, embed_xcount, n, m)",
@@ -306,6 +307,16 @@ def assert_embed_extrapolate(patch: Path) -> None:
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
+    clear = text.split("+  SUBROUTINE embed_clear_orbital_key(drop_history)", 1)
+    if len(clear) != 2 or (
+        "+    IF (embed_have_key .OR. drop_history) CALL embed_break_history()"
+    ) not in (
+        clear[1].split("END SUBROUTINE embed_clear_orbital_key", 1)[0]
+    ):
+        raise AssertionError(
+            f"{patch.name}: clearing a selected key must empty its "
+            "extrapolation history"
+        )
     stale = text.split(
         "ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN", 1
     )
