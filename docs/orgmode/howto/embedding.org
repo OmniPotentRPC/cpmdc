@@ -3,13 +3,12 @@
 
 * Goal
 Call ~libcpmdc~ from a host program: pick an entry point, send the method
-message and one geometry message per step, step a session, read the result,
-and keep orbitals, RESTART files, and MPI ranks consistent between steps.
+message and one geometry message per step, step a session, read the result, and
+keep orbitals, RESTART files, and MPI ranks consistent between steps.
 This page names the call for each task.
 [[file:../reference/c-abi.org][The C ABI reference]] states what each call
-promises (arguments, return codes, size rules, units), and
-[[file:../reference/contracts.org][API contracts]] adds ownership, thread and
-MPI behaviour, errors, and defaults.
+promises (arguments, return codes, size rules, units), and [[file:../reference/contracts.org][API contracts]]
+adds ownership, thread and MPI behaviour, errors, and defaults.
 
 * Pick the entry point
 
@@ -33,20 +32,14 @@ Molecular dynamics engines with their own integrator and units usually want
 ~cpmdc_session_calculate_au()~: one copy of the positions in, the forces and the
 virial out.
 ~tools/lammps/pair_cpmdc.cpp~, the LAMMPS ~pair_style cpmdc~, is a complete host
-on it, with unit conversion, the triclinic cell, and the MPI gather to one rank;
-[[file:lammps.org][Run LAMMPS on cpmdc forces]] documents it beside the Python
-~fix external~ route.
+on it, with unit conversion, the triclinic cell, and the MPI gather to one rank; [[file:lammps.org][Run LAMMPS on cpmdc forces]]
+documents it beside the Python ~fix external~ route.
 ~tools/gromacs/cpmdc_gromacs.c~ is a host on the same call behind another
-program's C API, libcp2k, with mechanical QM-MM embedding; see
-[[file:gromacs.org][Run GROMACS on cpmdc forces]].
+program's C API, libcp2k, with mechanical QM-MM embedding; see [[file:gromacs.org][Run GROMACS on cpmdc forces]].
 
-Arguments, units, and return conventions of each row are in
-[[file:../reference/c-abi.org::*Conventions][the C ABI conventions]] and the
-section for its call family
-([[file:../reference/c-abi.org::*Global array calls][global array calls]],
-[[file:../reference/c-abi.org::*Sessions][sessions]],
-[[file:../reference/c-abi.org::*One-shot message calls][one-shot calls]],
-[[file:../reference/c-abi.org::*Discovery][discovery]]).
+Arguments, units, and return conventions of each row are in [[file:../reference/c-abi.org::*Conventions][the C ABI conventions]]
+and the section for its call family
+([[file:../reference/c-abi.org::*Global array calls][global array calls]], [[file:../reference/c-abi.org::*Sessions][sessions]], [[file:../reference/c-abi.org::*One-shot message calls][one-shot calls]], [[file:../reference/c-abi.org::*Discovery][discovery]]).
 
 * Check what the build supports
 ~cpmdc.h~ also exposes a small feature table.
@@ -70,9 +63,8 @@ if (pimd != NULL && pimd->embed_applicable) {
 says which builds expose a feature.
 [[file:../reference/cpmd-options.org][The CPMD option mapping]] lists the ID
 namespaces (~catalog.section.*~, ~catalog.cpmd.*~, ~catalog.dft.*~, ~params.*~,
-~abi.*~) and the ~params.inputSections.<section>.<field>~ field IDs;
-[[file:../reference/feature-inventory.org][the feature inventory]] describes the
-table.
+~abi.*~) and the ~params.inputSections.<section>.<field>~ field IDs; [[file:../reference/feature-inventory.org][the feature inventory]]
+describes the table.
 
 The public C entry points are feature rows too.
 Use those rows when a host needs to negotiate the serialized result path before
@@ -103,8 +95,8 @@ The runtime renders a CPMD ~INPUT~ deck from ~CPMDParams~ and merges the step
 geometry into it on each cold evaluation.
 
 Build ~CPMDParams~ once and serialize it as an unpacked flat Cap'n Proto
-message; [[file:write-cpmdparams.org][Writing a CPMDParams message]] shows how to
-write one by hand.
+message; [[file:write-cpmdparams.org][Writing a CPMDParams message]] shows how
+to write one by hand.
 Build one ~ForceInput~ per geometry step.
 The ~PotentialResult~ path converts the output to ~ForceInput.energyUnit~ and
 ~ForceInput.energyUnit / ForceInput.lengthUnit~.
@@ -127,9 +119,8 @@ CPMDCResult forces = cpmdc_energy_forces(
     forces_h_bohr);
 #+end_src
 
-The reference covers these under
-[[file:../reference/c-abi.org::*Global array calls][global array calls]] and
-[[file:../reference/c-abi.org::*Session array steps][session array steps]].
+The reference covers these under [[file:../reference/c-abi.org::*Global array calls][global array calls]]
+and [[file:../reference/c-abi.org::*Session array steps][session array steps]].
 
 * Step a session
 Callers that drive multiple geometry steps keep method state in a session and
@@ -184,8 +175,7 @@ Three habits keep a host loop correct:
   fixed).
 
 Read the energy terms of the last evaluation in Hartree with
-~cpmdc_last_energy_components()~ instead of parsing CLI ~ENERGY~ files; see
-[[file:../reference/c-abi.org::*Results of the last evaluation][results of the last evaluation]].
+~cpmdc_last_energy_components()~ instead of parsing CLI ~ENERGY~ files; see [[file:../reference/c-abi.org::*Results of the last evaluation][results of the last evaluation]].
 
 For a complete host-side skeleton, see ~examples/host_step.c~.
 The checked ~example-host-step~ Meson test runs that program with generated
@@ -199,23 +189,21 @@ message=...
 
 * Handle status and errors
 Check every call before using its outputs.
-A call that returns ~CPMDCResult~ reports success in ~ok~ and carries the
-status or error text in ~message~.
-A session helper that returns ~int~, such as ~cpmdc_session_calculate_au()~,
-~cpmdc_session_select_orbitals()~, or ~cpmdc_session_copy_orbitals()~, returns 0
-or -1 and puts the reason in ~cpmdc_last_error()~ instead of filling
-~CPMDCResult~.
+A call that returns ~CPMDCResult~ reports success in ~ok~ and carries the status
+or error text in ~message~.
+A session helper that returns ~int~, such as
+~cpmdc_session_calculate_au()~, ~cpmdc_session_select_orbitals()~, or
+~cpmdc_session_copy_orbitals()~, returns 0 or -1 and puts the reason in ~cpmdc_last_error()~
+instead of filling ~CPMDCResult~.
 [[file:../reference/c-abi.org::*Conventions][The C ABI conventions]] list the
-return convention of each call, and
-[[file:../reference/c-abi.org::*Library status][library status]] lists which
-calls write ~cpmdc_last_error()~ and how it behaves.
+return convention of each call, and [[file:../reference/c-abi.org::*Library status][library status]]
+lists which calls write ~cpmdc_last_error()~ and how it behaves.
 
 To find the cause of a failure, read ~message~ or ~cpmdc_last_error()~, then
 look the text up in [[file:troubleshooting.org][Troubleshooting]], which lists
 common ~message~ values.
-From Python the same failures arrive as ~CPMDCError~,
-~cpmdc.ipi.ProtocolError~ on the i-PI driver, and ASE's ~CalculationFailed~; see
-[[file:../reference/python.org][the Python reference]].
+From Python the same failures arrive as ~CPMDCError~, ~cpmdc.ipi.ProtocolError~
+on the i-PI driver, and ASE's ~CalculationFailed~; see [[file:../reference/python.org][the Python reference]].
 
 * Keep orbitals between steps
 OpenCPMD keeps one set of converged orbitals for the whole process, not inside a
@@ -232,14 +220,13 @@ explains warm starts, extrapolation, and when a step restarts from atomic
 orbitals.
 
 To run several trajectories on one session, name an orbital store with
-~cpmdc_session_select_orbitals()~ and duplicate one with
-~cpmdc_session_copy_orbitals()~; see
-[[file:extrapolate-orbitals.org][extrapolate the orbitals]] for the workflow and
+~cpmdc_session_select_orbitals()~ and duplicate one with ~cpmdc_session_copy_orbitals()~;
+see [[file:extrapolate-orbitals.org][extrapolate the orbitals]] for the workflow
+and
 [[file:../reference/c-abi.org::*Sessions][the session section of the reference]]
 for the calls.
-~CPMDC_ORBITAL_SLOT_LIMIT~ caps how many of those copies stay parked, and a
-new park past the cap fails without discarding the ones already stored; see
-[[file:../reference/environment.org][environment variables]].
+~CPMDC_ORBITAL_SLOT_LIMIT~ caps how many of those copies stay parked, and a new
+park past the cap fails without discarding the ones already stored; see [[file:../reference/environment.org][environment variables]].
 
 * Choose a CPMDParams carrier
 Structured ~inputSections~ should be preferred over raw blocks when a typed arm
@@ -274,10 +261,9 @@ Choose the least lossy structured carrier:
 | A complete section fragment must be preserved as text | ~raw~ | ~params.inputSections.raw~ |
 | A complete deck fragment must be prepended before structured sections | top-level ~inputBlocks~ | ~params.inputBlocks~ |
 
-On a geometry render that is not the OpenCPMD merge, typed ~atoms~ sections
-must cover every element present in the step, and a missing ~atoms~ section
-covers H and O only
-([[file:../reference/cpmd-options.org][CPMD option mapping]]).
+On a geometry render that is not the OpenCPMD merge, typed ~atoms~ sections must
+cover every element present in the step, and a missing ~atoms~ section covers H
+and O only ([[file:../reference/cpmd-options.org][CPMD option mapping]]).
 On the OpenCPMD path the ~&ATOMS~ block is rebuilt from each step: elements in
 ~atoms.pseudopotentials~ supply the file, ~LMAX~, ~LOC~, and
 ~KLEINMAN-BYLANDER~, elements the message omits use the built-in table for H, C,
@@ -290,11 +276,10 @@ Read and rewrite it with ~cpmdc-restart~ or
 ~cpmdc_restart.h~ (~libcpmdc_restart~).
 To keep orbitals while the host owns the next geometry:
 
-1. Read the file with ~cpmdc_restart_read_path()~ or
-   ~cpmdc_restart_read_mem()~.
+1. Read the file with ~cpmdc_restart_read_path()~ or ~cpmdc_restart_read_mem()~.
 2. Replace the positions with ~cpmdc_restart_set_coordinates()~.
-3. Write the file back with ~cpmdc_restart_write_path()~ or
-   ~cpmdc_restart_write_mem()~.
+3. Write the file back with
+   ~cpmdc_restart_write_path()~ or ~cpmdc_restart_write_mem()~.
 
 Coordinates in that file are Bohr in species order.
 A coordinate patch copies the wavefunction records unchanged, which is how a
@@ -302,36 +287,31 @@ host keeps orbitals while it owns the next geometry.
 [[file:../reference/c-abi.org::*RESTART file library][The RESTART file library]]
 section of the reference gives every call's contract.
 
-Put ~RESTART WAVEFUNCTION~ in the deck to start a cold SCF from
-the patched file; the OpenCPMD path ignores restarted coordinates, velocities,
-and geometry, because each step supplies them.
+Put ~RESTART WAVEFUNCTION~ in the deck to start a cold SCF from the patched
+file; the OpenCPMD path ignores restarted coordinates, velocities, and geometry,
+because each step supplies them.
 
 * Adopt an MPI communicator
 When a host already split ~MPI_COMM_WORLD~ into calculator groups, call
-~cpmdc_adopt_calculator_comm()~ before the first session evaluates, instead of
-~cpmdc_bind_calculator()~.
+~cpmdc_adopt_calculator_comm()~ before the first session evaluates, instead of ~cpmdc_bind_calculator()~.
 The call borrows the communicator: keep it alive until the last session is
 destroyed or a later adopt replaces it.
 The rules and a sketch are in [[file:mpi.org][Run under mpirun]], and the
-contracts of both calls are under
-[[file:../reference/c-abi.org::*MPI][MPI in the C ABI reference]].
+contracts of both calls are under [[file:../reference/c-abi.org::*MPI][MPI in the C ABI reference]].
 
-The optional plane-wave scaffold in ~include/cpmdc_pwscale.h~ times FFT and
-MPI paths separately from production ~libcpmdc~; see
-[[file:../reference/pwscale.org][Plane-wave scaffold reference]] and
-[[file:pwscale-ranks.org][Time plane-wave scaling across ranks]].
-~cpmdc_pwscale_eval_cuda()~ runs the CUDA kernel when the build uses
-~-Dwith_pwscale_cuda=true~.
+The optional plane-wave scaffold in
+~include/cpmdc_pwscale.h~ times FFT and MPI paths separately from production ~libcpmdc~; see [[file:../reference/pwscale.org][Plane-wave
+scaffold reference]] and [[file:pwscale-ranks.org][Time plane-wave scaling across ranks]].
+~cpmdc_pwscale_eval_cuda()~ runs the CUDA kernel when the build uses ~-Dwith_pwscale_cuda=true~.
 
 * Set the OpenCPMD runtime inputs
 Archive builds require ~-Dwith_cpmd=true~ and ~-Dcpmd_root=/path/to/OpenCPMD~.
 That tree must contain ~lib/libcpmd.a~ and the OpenCPMD object/include files
-from a completed executable build with the patches in ~tools/~; see
-[[file:opencpmd-archive.org][building the archive]].
+from a completed executable build with the patches in ~tools/~; see [[file:opencpmd-archive.org][building the archive]].
 
 Set ~CPMDC_PSEUDO_DIR~ to the directory holding the pseudopotential files.
-A cold evaluation changes into that directory while CPMD reads
-them (~ratom~ and ~recpnew~), then returns to the host's directory.
+A cold evaluation changes into that directory while CPMD reads them (~ratom~ and
+~recpnew~), then returns to the host's directory.
 ~CPMD_PP_LIBRARY_PATH~ is the fallback when ~CPMDC_PSEUDO_DIR~ is unset; with
 neither set, a cold evaluation fails.
 [[file:../reference/environment.org][Environment variables]] name
@@ -343,9 +323,8 @@ the rest.
 OpenCPMD path adds before CPMD parses it.
 
 On a cold OpenCPMD evaluation the Fortran bridge in
-~src/cpmd_embed_c_api.F90~ composes the full deck, and ~src/cpmdc_memfd.c~ puts
-it in an anonymous Linux ~memfd_create~ file that CPMD reads as
-~/proc/self/fd/N~, so no ~INPUT~ file reaches the disk.
+~src/cpmd_embed_c_api.F90~ composes the full deck, and ~src/cpmdc_memfd.c~ puts it in an anonymous Linux ~memfd_create~
+file that CPMD reads as ~/proc/self/fd/N~, so no ~INPUT~ file reaches the disk.
 ~src/cpmdc_embed_host.c~ resolves the pseudopotential directory and maps
 species-block gradients back to atom order.
 [[file:../explanation/architecture.org][Architecture]] walks the layer list.
@@ -354,17 +333,16 @@ species-block gradients back to atom order.
 [[https://github.com/OmniPotentRPC/rgpot][rgpot]] loads ~libcpmdc.so~ in
 ~CPMDPot~, maps host coordinates into ~ForceInput~, and reads a serialized
 ~PotentialResult~ from ~cpmdc_session_calculate_result()~.
-~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~ name the
-library path; see [[file:../reference/environment.org][environment variables]]
-and [[file:../tutorials/eon-rgpot.org][eOn through rgpot]] for a full
-minimisation.
+~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~ name the library
+path; see [[file:../reference/environment.org][environment variables]] and [[file:../tutorials/eon-rgpot.org][eOn through rgpot]]
+for a full minimisation.
 
 [[file:socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] documents
 ~cpmdc-ipi~, which holds one Python ~Session~, and ~cpmdc-ipi-c~, which holds
 one ~CPMDCSession *~ and calls ~cpmdc_session_calculate_au()~ with Bohr arrays
 and the virial output.
-Each evaluates when the server's ~POSDATA~ message arrives and sends the
-stored result when ~GETFORCE~ asks for it.
+Each evaluates when the server's ~POSDATA~ message arrives and sends the stored
+result when ~GETFORCE~ asks for it.
 The page also names the C ABI call that ~cpmdc-ipi~ makes for each step.
 
 * Check forces from a live link

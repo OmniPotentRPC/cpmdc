@@ -1,12 +1,12 @@
 #+TITLE: Minimise a structure from eOn through rgpot
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-This tutorial relaxes the water molecule of the
-[[file:first-energy.org][first tutorial]] with eOn's minimiser, with every force
-call going through ~rgpot~ into ~libcpmdc~ inside the ~eonclient~ process.
-It reuses ~water.params.bin~ from that tutorial and runs against either build
-of ~libcpmdc~ that the tutorial made: the default build in ~$CPMDC/build~, and
-the OpenCPMD build in ~$CPMDC/build-cpmd~.
+This tutorial relaxes the water molecule of the [[file:first-energy.org][first tutorial]]
+with eOn's minimiser, with every force call going through ~rgpot~ into
+~libcpmdc~ inside the ~eonclient~ process.
+It reuses ~water.params.bin~ from that tutorial and runs against either build of
+~libcpmdc~ that the tutorial made: the default build in
+~$CPMDC/build~, and the OpenCPMD build in ~$CPMDC/build-cpmd~.
 The default build evaluates the reference well, finishes in about a second, and
 needs no OpenCPMD and no pseudopotentials.
 The OpenCPMD build computes a BLYP energy and takes about a minute.
@@ -15,10 +15,10 @@ Run every command in the Pixi shell that the first tutorial opened.
 
 * What connects to what
 eOn's ~RGPOT~ potential loads rgpot's ~CPMDPot~, which opens ~libcpmdc.so~ with
-~dlopen~ and keeps one ~CPMDCSession~ for the life of the client. eOn hands each
-geometry to ~CPMDPot~, ~CPMDPot~ turns it into a ~ForceInput~, and ~cpmdc~ runs
-the SCF in the same process, starting every call after the first from the
-previous orbitals.
+~dlopen~ and keeps one ~CPMDCSession~ for the life of the client.
+eOn hands each geometry to ~CPMDPot~, ~CPMDPot~ turns it into a ~ForceInput~,
+and ~cpmdc~ runs the SCF in the same process, starting every call after the
+first from the previous orbitals.
 The method comes from a ~CPMDParams~ message file that eOn reads through
 ~[RgpotPot] params_path~.
 
@@ -37,9 +37,10 @@ stays isolated.
 
 * Build eonclient
 This section builds rgpot and eOn into one prefix with the compilers and
-libraries of cpmdc's Pixi environment. eOn's own ~pixi.toml~ does not load under
-Pixi 0.84.2: its task ~mkeon~ depends on an environment ~eon~ that the file does
-not define. cpmdc's environment has no Eigen, and eOn needs Eigen 3.4.
+libraries of cpmdc's Pixi environment.
+eOn's own ~pixi.toml~ does not load under Pixi 0.84.2: its task ~mkeon~ depends
+on an environment ~eon~ that the file does not define. cpmdc's environment has
+no Eigen, and eOn needs Eigen 3.4.
 Install it as a separate Pixi environment:
 
 #+begin_src bash
@@ -71,8 +72,8 @@ cd ..
 
 ~with_rpc~ builds ~CPMDPot~.
 ~with_mpi~ builds ~librgpot_mpi~, which rgpot loads only when the client runs
-under ~mpirun~. eOn's configure stops when the installed rgpot has no Fortran
-potentials.
+under ~mpirun~.
+eOn's configure stops when the installed rgpot has no Fortran potentials.
 ~with_expr~ matches the rgpot that eOn builds when it finds none installed.
 Then build eOn against the installed rgpot:
 
@@ -88,8 +89,10 @@ export PATH=$EON_PREFIX/bin:$PATH
 
 Meson reports ~rgpot found: YES 3.7.0~ and uses the installed rgpot instead of
 its own copy.
-~-Dwith_mpi=enabled~ makes eOn build ~librgpot_pot_mpi~, which starts MPI for the calculator groups and ends it at exit. eOn builds that library when ~rgpot.pc~ defines ~RGPOT_HAS_MPI~ or when its own ~with_mpi~
-is on. rgpot 5fec533f puts the define in ~rgpot-mpi.pc~ instead, so ~with_mpi~
+~-Dwith_mpi=enabled~ makes eOn build ~librgpot_pot_mpi~, which starts MPI for
+the calculator groups and ends it at exit.
+eOn builds that library when ~rgpot.pc~ defines ~RGPOT_HAS_MPI~ or when its own
+~with_mpi~ is on. rgpot 5fec533f puts the define in ~rgpot-mpi.pc~ instead, so ~with_mpi~
 is the switch that works here.
 The same ~eonclient~ runs on one rank without ~mpirun~.
 
@@ -231,15 +234,15 @@ of its ~develop~ branch when this page was written, gave the same force-call
 counts and final energies in both builds.
 Each ~[Matter]~ row lists the iteration, the step size in Angstrom, the force
 norm in eV per Angstrom, and the energy in eV.
-eOn's ~[Optimizer]~ defaults apply: the conjugate-gradient optimiser stops
-when the force norm falls below ~converged_force~, 0.01, and moves no atom
-more than ~max_move~, 0.2 Angstrom, in one step.
+eOn's ~[Optimizer]~ defaults apply: the conjugate-gradient optimiser stops when
+the force norm falls below
+~converged_force~, 0.01, and moves no atom more than ~max_move~, 0.2 Angstrom,
+in one step.
 Both runs made one force call before the first iteration and two per iteration.
 
 ** Default build
-This is the default build of ~libcpmdc~, so the energies come from the
-reference well and mean nothing physically, as in the
-[[file:first-energy.org][first tutorial]].
+This is the default build of ~libcpmdc~, so the energies come from the reference
+well and mean nothing physically, as in the [[file:first-energy.org][first tutorial]].
 The minimisation took 39 iterations and 79 force calls.
 The step stayed at the 0.2 Angstrom limit for the first 37 iterations.
 The sed command printed:
@@ -323,8 +326,8 @@ eon.rgpot.v1 rgpot_schema
 3.2.0 rgpot_version
 #+end_src
 
-The final energy is 10.63288405405 eV and the final force norm is
-8.63448e-03 eV/Angstrom.
+The final energy is 10.63288405405 eV and the final force norm is 8.63448e-03
+eV/Angstrom.
 The three timing lines depend on the machine.
 ~engine_build_identity~ is the eOn commit.
 ~rgpot_version~ is a constant compiled into eOn (~rgpot_pin~), not the version
@@ -402,19 +405,18 @@ In ~min.con~ the oxygen sits at z = 5.1332 Angstrom and the hydrogens at y =
 
 ** What to expect
 - Default build: the run is deterministic arithmetic.
-  Expect ~GOOD~, 39 iterations, 79 force calls, and a final energy within
-  1e-6 eV of 10.63288405405.
+  Expect ~GOOD~, 39 iterations, 79 force calls, and a final energy within 1e-6
+  eV of 10.63288405405.
 - OpenCPMD build: expect ~GOOD~, a final force norm below 0.01 eV/Angstrom, and
   a final energy within 1e-4 eV of -464.1301944953.
   The test below does not compare SCF iteration counts or timings.
-- A run that stops with a termination status other than 0, prints no
-  ~[Matter]~ rows, or reports an energy outside these bounds did not
-  reproduce this page.
+- A run that stops with a termination status other than 0, prints no ~[Matter]~
+  rows, or reports an energy outside these bounds did not reproduce this page.
 
-~tests/test_tutorials_run.py~ runs this page's ~pos.con~ and ~config.ini~ through
-~eonclient~ and compares ~results.dat~ and the ~[Matter]~ rows with the transcript
-for the build under test: the default-build transcript for a default library,
-and the OpenCPMD transcript for a library that links OpenCPMD when
+~tests/test_tutorials_run.py~ runs this page's ~pos.con~ and ~config.ini~
+through ~eonclient~ and compares ~results.dat~ and the ~[Matter]~ rows with the
+transcript for the build under test: the default-build transcript for a default
+library, and the OpenCPMD transcript for a library that links OpenCPMD when
 ~CPMDC_PSEUDO_DIR~ is set.
 It skips this check when no ~eonclient~ is on ~PATH~; set ~EONCLIENT~ to the
 path of one to run it.
@@ -430,10 +432,8 @@ capnp encode "$CPMDC/schema/Potentials.capnp" CPMDParams \
 To see what CPMD receives, set
 ~CPMDC_DECK_OUT=$PWD/deck.inp~ before ~eonclient~ (see [[file:../howto/debug-deck.org][debugging
 a deck]]).
-For a periodic system or a larger cluster, write the message as the
-[[file:../howto/write-cpmdparams.org][CPMDParams how-to]] shows, and choose the
-optimiser for warm starts with the
-[[file:../howto/wavefunction-optimiser.org][optimiser how-to]].
+For a periodic system or a larger cluster, write the message as the [[file:../howto/write-cpmdparams.org][CPMDParams how-to]]
+shows, and choose the optimiser for warm starts with the [[file:../howto/wavefunction-optimiser.org][optimiser how-to]].
 
 * Run on several ranks
 Start ~eonclient~ under ~mpirun~ to let CPMD spread each SCF over the ranks:
@@ -444,8 +444,8 @@ mpirun -np 4 eonclient
 
 Every rank runs the whole client. rgpot binds the four ranks into one calculator
 and hands its communicator to ~cpmdc_adopt_calculator_comm()~.
-Only CPMD's parent rank holds the calculator's result. eOn broadcasts that
-result to every rank, and rgpot finalizes MPI at exit.
+Only CPMD's parent rank holds the calculator's result.
+eOn broadcasts that result to every rank, and rgpot finalizes MPI at exit.
 [[file:../howto/mpi.org][Running under mpirun]] explains these rules.
 
 With the build above and the same files, CPMD split each SCF over four

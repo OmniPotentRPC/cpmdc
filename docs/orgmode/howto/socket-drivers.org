@@ -2,33 +2,37 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Migration status
-Protocol frontends belong in [[https://github.com/OmniPotentRPC/rgpot][rgpot]], where they can wrap every potential.
+Protocol frontends belong in [[https://github.com/OmniPotentRPC/rgpot][rgpot]],
+where they can wrap every potential.
 The primary socket route is rgpot's =IPIDriver= over =CPMDPot=, while direct
-=Session.calculate_au()= calls and rgpot's Cap'n Proto RPC remain the
-preferred in-process and remote interfaces.
+=Session.calculate_au()= calls and rgpot's Cap'n Proto RPC remain the preferred
+in-process and remote interfaces.
 
-The audit covered the rgpot develop branch as of this change.  In that
-snapshot,
-=engines/pot_spec.cpp:182-218= reads a flat serialized =CPMDParams= file and
-constructs =CPMDPot=; =engines/pot_spec.cpp:223-225= selects it and
-=engines/pot_spec.cpp:325-328= lists it.  Both
-=--pot "CPMD params FILE"= and =-m CPMD -o params=FILE= completed a
+The audit covered the rgpot develop branch as of this change.
+In that snapshot,
+=engines/pot_spec.cpp:182-218= reads a flat serialized =CPMDParams= file and constructs =CPMDPot=; =engines/pot_spec.cpp:223-225= selects it and =engines/pot_spec.cpp:325-328=
+lists it.
+Both =--pot "CPMD params FILE"= and =-m CPMD -o params=FILE= completed a
 stub-backed CPMD force request in the audit.
 
 The three protocol and cell differences from the earlier audit are closed:
 
-- =CppCore/rgpot/IPIPot/IPIDriver.cc:410-417= still pads a zero-volume cell
-  by default.  Pass =--preserve-open-cell= for CPMD.  The same branch then
-  passes an all-zero cell through so cpmdc keeps the deck cell, and passes a
-  nonzero singular cell through so cpmdc rejects it.  The audit exercised
-  all four default and preserved cases.  Left-handed full-rank cells still
-  have positive absolute volume and follow the periodic path.
-- =CppCore/rgpot/IPIPot/IPIDriver.cc:347-351= marks a completed direct
-  =POSDATA= as initialized.  The audit sent =POSDATA= without =INIT= and the
-  following =STATUS= returned =HAVEDATA=.
+- =CppCore/rgpot/IPIPot/IPIDriver.cc:410-417= still pads a zero-volume cell by
+  default.
+  Pass =--preserve-open-cell= for CPMD.
+  The same branch then passes an all-zero cell through so cpmdc keeps the deck
+  cell, and passes a nonzero singular cell through so cpmdc rejects it.
+  The audit exercised all four default and preserved cases.
+  Left-handed full-rank cells still have positive absolute volume and follow the
+  periodic path.
+- =CppCore/rgpot/IPIPot/IPIDriver.cc:347-351= marks a completed direct =POSDATA=
+  as initialized.
+  The audit sent =POSDATA= without =INIT= and the following =STATUS= returned
+  =HAVEDATA=.
 - =CppCore/rgpot/IPIPot/IPIDriver.cc:315-318= rejects an =INIT= request whose
-  =batch_size= is greater than one.  The audit sent =batch_size: 2= and the
-  driver exited with the explicit one-structure error.
+  =batch_size= is greater than one.
+  The audit sent =batch_size: 2= and the driver exited with the explicit
+  one-structure error.
 
 | Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
 |------------+--------------+----------------------------------|
@@ -57,41 +61,42 @@ CPMDC_LIBRARY=/path/to/libcpmdc.so rgpot-ipi-driver \
 
 The first command uses the i-PI UNIX socket name =water=; the second uses TCP.
 The audit ran both potential spellings against the cpmdc stub library and
-completed a force request.  The cpmdc documentation harness cannot run this
-block because rgpot is a separate checkout.  rgpot's =IPIDriverTest= and the
-audit socket probe cover the protocol behavior.
+completed a force request.
+The cpmdc documentation harness cannot run this block because rgpot is a
+separate checkout. rgpot's =IPIDriverTest= and the audit socket probe cover the
+protocol behavior.
 
 * cpmdc driver fallback
 The cpmdc-specific drivers remain as compatibility fallbacks for installations
-that do not yet ship the generic rgpot i-PI driver.  No audited protocol
-gap in the audited snapshot requires them.  Do not copy them into a new engine
-frontend.
+that do not yet ship the generic rgpot i-PI driver.
+No audited protocol gap in the audited snapshot requires them.
+Do not copy them into a new engine frontend.
 
 ~cpmdc-ipi~ is a client for the i-PI wire protocol.
-It connects to a server over a UNIX or TCP socket, receives positions and
-cells, and returns energies, forces, and virials from one ~Session~.
+It connects to a server over a UNIX or TCP socket, receives positions and cells,
+and returns energies, forces, and virials from one ~Session~.
 The servers it works with are i-PI, ASE's ~SocketIOCalculator~, and ASE's
 ~SocketServer~.
 LAMMPS ~fix ipi~ is a client too, so LAMMPS and cpmdc meet through an i-PI
 server; a later section shows that setup.
-For LAMMPS to integrate on cpmdc forces in one process, with less overhead
-per step, see [[file:lammps.org][Run LAMMPS on cpmdc forces]].
-GROMACS has no i-PI client; it reaches cpmdc in process through
-[[file:gromacs.org][its CP2K QM/MM interface]].
+For LAMMPS to integrate on cpmdc forces in one process, with less overhead per
+step, see [[file:lammps.org][Run LAMMPS on cpmdc forces]].
+GROMACS has no i-PI client; it reaches cpmdc in process through [[file:gromacs.org][its CP2K QM/MM interface]].
 ~cpmdc-ipi-c~ is the same fallback client written in C, for hosts without
 Python.
 
-The protocol is the one in the i-PI documentation,
-[[https://docs.ipi-code.org/distributed.html][Distributed execution: communication protocol]], with the byte layout of
-i-PI's ~ipi/interfaces/sockets.py~ and ASE's ~ase/calculators/socketio.py~.
+The protocol is the one in the i-PI documentation, [[https://docs.ipi-code.org/distributed.html][Distributed execution: communication protocol]],
+with the byte layout of i-PI's ~ipi/interfaces/sockets.py~ and ASE's
+~ase/calculators/socketio.py~.
 ~python/cpmdc/ipi.py~ cites both.
 
 ** Start the fallback driver
-~pip install cpmdc~ installs the ~cpmdc-ipi~ command; ~python -m cpmdc.ipi~
-is the same program.
-It needs a ~CPMDParams~ file (see [[file:python.org][Call cpmdc from Python]]) and the
-species in the order the server sends positions, because the protocol
-carries no species.  For a UNIX socket, use
+~pip install cpmdc~ installs the ~cpmdc-ipi~ command; ~python -m cpmdc.ipi~ is
+the same program.
+It needs a ~CPMDParams~ file (see [[file:python.org][Call cpmdc from Python]])
+and the species in the order the server sends positions, because the protocol
+carries no species.
+For a UNIX socket, use
 ~cpmdc-ipi --unix water --params water.params.bin --species "O H H"~.
 For TCP, use
 ~cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2~.
@@ -109,26 +114,24 @@ For TCP, use
 | ~--wait SECONDS~ | retry the connection until the server listens |
 | ~--verbose~ | log each protocol message on standard error |
 
-The driver opens the session before it connects, so a bad ~CPMDParams~
-file fails at once.
-It exits with status 0 after ~EXIT~ or when the server closes the
-connection between messages, with status 1 and a message on standard
-error after an error, and with status 2 for a usage error.
+The driver opens the session before it connects, so a bad ~CPMDParams~ file
+fails at once.
+It exits with status 0 after ~EXIT~ or when the server closes the connection
+between messages, with status 1 and a message on standard error after an error,
+and with status 2 for a usage error.
 
-Each driver evaluates when the server's ~POSDATA~ message arrives and sends
-the stored result when ~GETFORCE~ asks for it.
+Each driver evaluates when the server's ~POSDATA~ message arrives and sends the
+stored result when ~GETFORCE~ asks for it.
 ~cpmdc-ipi~ holds one Python ~Session~ and evaluates through
-~Session.energy_forces()~ in ~python/cpmdc/ipi.py~, which calls
-~cpmdc_session_energy_forces()~ without a cell, or
-~cpmdc_session_calculate_forces()~ when the step sends a cell that is not all
-zero and ~--cluster~ is not set.
+~Session.energy_forces()~ in ~python/cpmdc/ipi.py~, which calls ~cpmdc_session_energy_forces()~
+without a cell, or ~cpmdc_session_calculate_forces()~ when the step sends a cell
+that is not all zero and ~--cluster~ is not set.
 
 ** From ASE
 ~SocketIOCalculator~ without ~calc~ binds the socket and waits for a client.
-Start ~cpmdc-ipi~ against the same name, then use the calculator as any
-other.
-This relaxes the isolated water message from the Python how-to through a
-UNIX socket:
+Start ~cpmdc-ipi~ against the same name, then use the calculator as any other.
+This relaxes the isolated water message from the Python how-to through a UNIX
+socket:
 
 #+begin_src python
 import subprocess
@@ -154,17 +157,16 @@ with SocketIOCalculator(unixsocket=name, timeout=60) as calc:
 print("driver exit status", driver.wait())
 #+end_src
 
-~port=31415~ in place of ~unixsocket~, with ~--port 31415~ on the driver,
-uses TCP.
+~port=31415~ in place of ~unixsocket~, with ~--port 31415~ on the driver, uses
+TCP.
 A fully periodic structure gives ~get_stress()~: ASE turns the virial into
 stress as ~-virial / volume~.
-A structure without a cell is sent as an all-zero cell, which the driver
-takes as a cluster.
-The calculator accepts changes of ~positions~ and ~cell~ only, as ASE's
-socket calculators do; another composition needs a new calculator and a
-new driver.
-~SocketServer~, the class under ~SocketIOCalculator~, works the same way
-for a host that wants the raw ~energy~, ~forces~, and ~virial~.
+A structure without a cell is sent as an all-zero cell, which the driver takes
+as a cluster.
+The calculator accepts changes of ~positions~ and ~cell~ only, as ASE's socket
+calculators do; another composition needs a new calculator and a new driver.
+~SocketServer~, the class under ~SocketIOCalculator~, works the same way for a
+host that wants the raw ~energy~, ~forces~, and ~virial~.
 
 ** From i-PI
 Declare an ~ffsocket~ and point the system at it:
@@ -191,25 +193,25 @@ i-pi input.xml &
 cpmdc-ipi --unix water --params water.params.bin --species OHH --cluster --wait 60
 #+end_src
 
-i-PI always sends a cell. For an isolated molecule, ~pbc="false"~ keeps i-PI
-from wrapping positions and ~--cluster~ keeps the box in the deck.
-For a periodic deck, drop both and the driver sends the virial, so i-PI
-can run constant-pressure ensembles.
+i-PI always sends a cell.
+For an isolated molecule, ~pbc="false"~ keeps i-PI from wrapping positions and
+~--cluster~ keeps the box in the deck.
+For a periodic deck, drop both and the driver sends the virial, so i-PI can run
+constant-pressure ensembles.
 Leave ~batch_size~ at 1: the driver refuses a batched ~INIT~.
-Wavefunction extrapolation wants each driver to see one continuous
-trajectory; with several beads, start one driver per bead and set
-~matching="lock"~ on the ~ffsocket~ so i-PI keeps each bead on its driver.
+Wavefunction extrapolation wants each driver to see one continuous trajectory;
+with several beads, start one driver per bead and set ~matching="lock"~ on the
+~ffsocket~ so i-PI keeps each bead on its driver.
 The pytest suite runs a short NVE trajectory through i-PI 3.3.
 
 ** With LAMMPS fix ipi
 Untested as written: LAMMPS was not run with this input.
 ~bench/lammps_routes.py~ runs the same arrangement with ~pair_style zero~.
-In it i-PI integrates; for LAMMPS to integrate, use the in-process routes
-of [[file:lammps.org][Run LAMMPS on cpmdc forces]].
+In it i-PI integrates; for LAMMPS to integrate, use the in-process routes of [[file:lammps.org][Run LAMMPS on cpmdc forces]].
 ~fix ipi~ makes LAMMPS an i-PI client, as ~cpmdc-ipi~ is, so the two cannot
 connect to each other.
-They meet through an i-PI server that sums their forces, for example a
-classical term from LAMMPS added to the cpmdc energy:
+They meet through an i-PI server that sums their forces, for example a classical
+term from LAMMPS added to the cpmdc energy:
 
 #+begin_src xml
 <ffsocket name="cpmdc" mode="unix"> <address> cpmdc </address> </ffsocket>
@@ -222,8 +224,8 @@ classical term from LAMMPS added to the cpmdc energy:
 </system>
 #+end_src
 
-The LAMMPS input defines its force field and ends in ~fix ipi~; ~unix~
-selects a UNIX socket with the name ~lammps~, and the port is ignored:
+The LAMMPS input defines its force field and ends in ~fix ipi~; ~unix~ selects a
+UNIX socket with the name ~lammps~, and the port is ignored:
 
 #+begin_src text
 units           real
@@ -242,19 +244,20 @@ cpmdc-ipi --unix cpmdc --params water.params.bin --species OHH --wait 60 &
 lmp -in in.lammps
 #+end_src
 
-The species in i-PI's structure, in the LAMMPS data file, and in
-~--species~ must be in the same order: none of the three clients checks.
+The species in i-PI's structure, in the LAMMPS data file, and in ~--species~
+must be in the same order: none of the three clients checks.
 
 ** The C driver
 ~cpmdc-ipi-c~ speaks the same protocol from C, through
-~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]], with no Python
-interpreter.
-It holds one ~CPMDCSession *~ and calls ~cpmdc_session_calculate_au()~ in
-~tools/cpmdc_ipi.c~ directly with Bohr arrays and the virial output.
+~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]],
+with no Python interpreter.
+It holds one ~CPMDCSession *~ and calls
+~cpmdc_session_calculate_au()~ in ~tools/cpmdc_ipi.c~ directly with Bohr arrays
+and the virial output.
 Meson builds it from ~tools/cpmdc_ipi.c~ on platforms with UNIX sockets and
 installs it in ~bin~ beside ~libcpmdc~; the wheel ships ~cpmdc-ipi~ instead.
-It links ~libcpmdc~ and finds it through its run path, so no
-~--library~ option exists.
+It links ~libcpmdc~ and finds it through its run path, so no ~--library~ option
+exists.
 
 #+begin_src bash
 cpmdc-ipi-c --unix water --params water.params.bin --species OHH --cluster --wait 60
@@ -264,21 +267,20 @@ cpmdc-ipi-c --host localhost --port 31415 --params water.params.bin --species "O
 The options are those of ~cpmdc-ipi~ without ~--structure~ and ~--library~:
 ~--unix~ or ~--host~ and ~--port~, ~--params~, ~--species~ in the same
 spellings, ~--cluster~, ~--socket-prefix~, ~--wait~, and ~--verbose~.
-A bare ~--unix~ name gets the same default prefix as i-PI, ASE, and
-~cpmdc-ipi~.
+A bare ~--unix~ name gets the same default prefix as i-PI, ASE, and ~cpmdc-ipi~.
 The wire messages, units, and limits below are shared with ~cpmdc-ipi~.
-For ~cpmdc-ipi-c~, status 0 follows ~EXIT~ or a close between messages,
-status 1 reports a protocol or calculation error, and status 2 reports a
-command-line usage error.
+For ~cpmdc-ipi-c~, status 0 follows ~EXIT~ or a close between messages, status 1
+reports a protocol or calculation error, and status 2 reports a command-line
+usage error.
 Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and both drivers
 take the virial volume from the same routine, LU with partial pivoting on the
-cell scaled by a power of two: the pytest suite checks both drivers
-to 1e-10 through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets,
-through a minimal server, and through a short i-PI NVE run.
+cell scaled by a power of two: the pytest suite checks both drivers to 1e-10
+through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets, through a minimal
+server, and through a short i-PI NVE run.
 
 ** Units
-Everything on the wire is atomic units, and the driver converts nothing
-it returns.
+Everything on the wire is atomic units, and the driver converts nothing it
+returns.
 
 | Quantity | On the wire | cpmdc |
 |----------+-------------+-------|
@@ -289,50 +291,52 @@ it returns.
 | forces | Hartree/Bohr, ~3N~ reals | ~Evaluation.forces_h_bohr~ |
 | virial | Hartree, nine reals laid out as the cell | ~-dE/d(strain)~, the library stress times the volume in Bohr^3 |
 
-The virial is what ASE's ~SocketClient~ sends as ~-volume * stress~ and
-what i-PI's ASE driver sends, so ASE's ~stress = -virial / volume~ comes
-back with ASE's sign, ~(1/V) dE/d(strain)~.
+The virial is what ASE's ~SocketClient~ sends as ~-volume * stress~ and what
+i-PI's ASE driver sends, so ASE's ~stress = -virial / volume~ comes back with
+ASE's sign, ~(1/V) dE/d(strain)~.
 cpmdc converts with CODATA 2018 constants and ASE with CODATA 2014 ones.
-Through ~SocketIOCalculator~ the energy therefore differs from
-~CPMDCCalculator~ by about one part in 10^8, from ASE's conversions on its
-side of the socket.
-With ASE's ~Bohr~ and ~Ha~ set to ~BOHR_TO_ANGSTROM~ and ~HARTREE_TO_EV~
-the two agree to 1e-10, which the pytest suite checks.
+Through ~SocketIOCalculator~ the energy therefore differs from ~CPMDCCalculator~
+by about one part in 10^8, from ASE's conversions on its side of the socket.
+With ASE's ~Bohr~ and ~Ha~ set to ~BOHR_TO_ANGSTROM~ and ~HARTREE_TO_EV~ the two
+agree to 1e-10, which the pytest suite checks.
 
 ** Limits
-- The species are fixed at start. A step with another atom count stops the
-  driver with a message; a change of composition at the same count cannot
-  be seen on the wire, so restart the driver with the new ~--species~.
+- The species are fixed at start.
+  A step with another atom count stops the driver with a message; a change of
+  composition at the same count cannot be seen on the wire, so restart the
+  driver with the new ~--species~.
 - One structure per request: ~INIT~ must be UTF-8, and ~batch_size~, when
-  present, must appear once with the integer value 1. There is no shared-memory
-  (~mode="shm"~) transport.
+  present, must appear once with the integer value 1.
+  There is no shared-memory (~mode="shm"~) transport.
 - The extra string after the virial is empty.
 - A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
-- A cell that is neither all zero nor rank 3 stops the driver. Rank 3
-  uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
+- A cell that is neither all zero nor rank 3 stops the driver.
+  Rank 3 uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
   when it exceeds the largest times 3 times the float64 unit roundoff.
   Both drivers and the library compute the singular values with the same
-  one-sided Jacobi iteration on the cell scaled by a power of two, so they
-  agree on every cell, including those within rounding of the cutoff,
-  where two SVD routines can disagree.
+  one-sided Jacobi iteration on the cell scaled by a power of two, so they agree
+  on every cell, including those within rounding of the cutoff, where two SVD
+  routines can disagree.
 - Both drivers judge the cell on the wire values, in Bohr, before any
-  conversion. A full-rank cell whose volume in Bohr^3 is below the least
-  normal float64 stops the driver with "the server sent a cell whose volume
-  is too small for binary64", so the virial volume cannot underflow. The
-  library then checks the Angstrom cell it is given; a cell that passes in
+  conversion.
+  A full-rank cell whose volume in Bohr^3 is below the least normal float64
+  stops the driver with "the server sent a cell whose volume is too small for
+  binary64", so the virial volume cannot underflow.
+  The library then checks the Angstrom cell it is given; a cell that passes in
   Bohr but whose Angstrom volume is below that value, such as a diagonal of
-  3.1072325e-103 Bohr, stops either driver with the library's "cell volume
-  is too small for binary64".
-- A wire position or, unless ~--cluster~ is given, a cell value that is NaN
-  or infinite stops either driver with "positions must be finite" or "cell
-  must be finite", before the step is evaluated and with no reply. The
-  positions are checked first; a non-finite cell skips the rank checks above.
+  3.1072325e-103 Bohr, stops either driver with the library's "cell volume is
+  too small for binary64".
+- A wire position or, unless ~--cluster~ is given, a cell value that is NaN or
+  infinite stops either driver with "positions must be finite" or "cell must be
+  finite", before the step is evaluated and with no reply.
+  The positions are checked first; a non-finite cell skips the rank checks
+  above.
 - A cell whose volume is above the largest float64 stops either driver with
-  "cell volume is too large for binary64" before the step is evaluated, and
-  a virial component that is not finite stops it with "virial is not
-  finite". Neither driver sends a non-finite virial.
+  "cell volume is too large for binary64" before the step is evaluated, and a
+  virial component that is not finite stops it with "virial is not finite".
+  Neither driver sends a non-finite virial.
 - ~--wait~ must be finite and zero or positive.
-- The driver is one process with one session. It does not run under
-  ~mpirun~; start several drivers for several beads.
+- The driver is one process with one session.
+  It does not run under ~mpirun~; start several drivers for several beads.
 - ~cpmdc-ipi-c~ takes the species from ~--species~ only.

@@ -3,26 +3,31 @@
 
 * Names
 The public names live in ~python/cpmdc~.
-~Session.energy_forces~ and ~Potential.evaluate~ take positions and cells in Angstrom (~Session.calculate_au~ takes Bohr).
-~Session~ returns Hartree, Hartree/Bohr, and Hartree/Bohr^3 (with the virial in Hartree from ~calculate_au~), the native units of the C ABI.
-~Potential~ returns eV, eV/Angstrom, and eV/Angstrom^3 with the ASE stress sign ~(1/V) dE/d(strain)~.
-The [[file:contracts.org][API contracts]] page gives each name its signature, units, shape and dtype, ownership, thread behaviour, exceptions and defaults, and the ~reference-audit~ test keeps it in step with the code.
+~Session.energy_forces~ and ~Potential.evaluate~ take positions and cells in Angstrom (~Session.calculate_au~
+takes Bohr).
+~Session~ returns Hartree, Hartree/Bohr, and Hartree/Bohr^3 (with the virial in
+Hartree from ~calculate_au~), the native units of the C ABI.
+~Potential~ returns eV, eV/Angstrom, and eV/Angstrom^3 with the ASE stress sign
+~(1/V) dE/d(strain)~.
+The [[file:contracts.org][API contracts]] page gives each name its signature,
+units, shape and dtype, ownership, thread behaviour, exceptions and defaults,
+and the ~reference-audit~ test keeps it in step with the code.
 Importing ~cpmdc~ does not import ASE.
 Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
 Importing ~cpmdc.ase~ registers ~CPMDCCalculator~ under ~"cpmdc"~ with
 ~ase.calculators.calculator.register_calculator_class~ (idempotently), so
 ~get_calculator_class("cpmdc")~ returns ~CPMDCCalculator~; ~pyproject.toml~ also
 declares ~cpmdc = "cpmdc.ase"~ in the ~ase.plugins~ entry-point group.
-The module reads ~__ase_plugins__~ as a ~CalculatorPlugin~ set built on first
-access, which is empty on an ASE release without ~ase._4.plugins~, so importing
-~cpmdc.ase~ never imports ~ase._4~ and cannot hide the plugin from ASE's own
-discovery.
+The module reads
+~__ase_plugins__~ as a ~CalculatorPlugin~ set built on first access, which is empty on an ASE release without ~ase._4.plugins~,
+so importing ~cpmdc.ase~ never imports ~ase._4~ and cannot hide the plugin from
+ASE's own discovery.
 ~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
 ~--structure~.
-~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module. Loading
-it uses ~rgpot.lammps~ when that frontend is installed, and stays importable
-when the module is absent. It imports neither LAMMPS nor ~mpi4py~ until a run
-needs them.
+~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module.
+Loading it uses ~rgpot.lammps~ when that frontend is installed, and stays
+importable when the module is absent.
+It imports neither LAMMPS nor ~mpi4py~ until a run needs them.
 ~cpmdc.gromacs~ writes the grompp ~-qmi~ input of ~libcpmdc_gromacs~ and holds
 GROMACS' unit factors; it imports nothing outside the standard library.
 

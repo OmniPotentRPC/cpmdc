@@ -29,11 +29,12 @@ writes in ~rwfopt~.
 ~rwfopt~ leaves ~fion~ allocated only when ~embed_need_forces~ is true, and
 frees a surviving ~fion~ before its own ~ALLOCATE~.
 It saves ~c0~ only when ~embed_warm_orbitals~ is true and the SCF converged.
-An unconverged pass leaves the previous copy and marks it stale, so a
-later copy from that key is refused.
+An unconverged pass leaves the previous copy and marks it stale, so a later copy
+from that key is refused.
 When a converged copy was already stored, that pass also empties the
-extrapolation ring. The rwfopt hunk records the stale donor, and
-~opencpmd_embed_extrapolate.patch~ breaks the history on the same branch.
+extrapolation ring.
+The rwfopt hunk records the stale donor, and ~opencpmd_embed_extrapolate.patch~
+breaks the history on the same branch.
 A failed store allocation calls ~stopgm~.
 On the next call it copies that ~c0~ in before ~initrun~.
 ~rinitwf~ then returns after the phase factors when ~embed_have_orbitals~ is
@@ -62,8 +63,8 @@ The catch and the code it records live in ~src/cpmd_stop_intercept.c~, inside
 not exported.
 A serial build, including the default wheel, does not reference
 ~cpmd_stopgm_hook~.
-The reference is compiled only with ~CPMDC_HAS_CPMD~, and on that build it
-stays a weak reference, so an archive without the hook leaves the catch unset.
+The reference is compiled only with ~CPMDC_HAS_CPMD~, and on that build it stays
+a weak reference, so an archive without the hook leaves the catch unset.
 An undefined weak reference links on ELF.
 ld64 rejects it, which is why the serial object omits the symbol instead of
 marking the declaration weak or ~weak_import~.
@@ -95,8 +96,8 @@ setup, the Vanderbilt and core-charge splines, ~localize2~, and others.
 The SCF of a ~DIPOLE DYNAMICS~ deck calls ~localize2~, which keeps its orbital
 maps and dipole matrices in ~SAVE~ arrays sized by the first basis.
 A second evaluation at another cutoff overran them in ~opeigr~.
-Each of these routines compares the count it last saw with ~embed_teardowns~, and on a change
-frees its own ~SAVE~ arrays and runs as the first call again.
+Each of these routines compares the count it last saw with ~embed_teardowns~,
+and on a change frees its own ~SAVE~ arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
 ~tistart~ keeps its state: it executes ~STOP~ on a second call, so the embed
 calls it once per process.
@@ -134,24 +135,24 @@ Reading either module after an ordinary in-process evaluation would therefore
 return stale state.
 
 The dipole patch adds an embed-only request to ~wfopts_utils~.
-After a converged periodic Gamma-point, non-broken-symmetry evaluation,
-~wfopts~ calls ~ddipo_embed~ when the deck requests ~DIPOLE DYNAMICS~ or
+After a converged periodic Gamma-point, non-broken-symmetry evaluation, ~wfopts~
+calls ~ddipo_embed~ when the deck requests ~DIPOLE DYNAMICS~ or
 ~PROP / DIPOLE MOMENT BERRY~.
 ~ddipo_embed~ is a new entry point of ~ddipo_utils~ that sets a module flag and
 calls ~ddipo~ with its original argument list.
 The flag forces the dipole matrices to be recomputed even when a Wannier
 sampling interval would reuse them.
 ~ddipo~ itself keeps the argument list that its eleven callers (~mdclas~,
-~mdmain~, ~mdshop_cp~, ~mm_mdmain~, ~mm_mdshop_cp~, ~pi_md~, ~pi_npt_cpmd~,
-~prbomd~, ~prcpmd~, ~proppt~, and ~secder_driver~, which calls it at two sites
-for the minimum structure and for the displaced ones) were compiled with, so an
-already built tree needs only ~ddipo_utils~ and ~wfopts_utils~ recompiled, which
+~mdmain~, ~mdshop_cp~, ~mm_mdmain~, ~mm_mdshop_cp~,
+~pi_md~, ~pi_npt_cpmd~, ~prbomd~, ~prcpmd~, ~proppt~, and ~secder_driver~, which
+calls it at two sites for the minimum structure and for the displaced ones) were
+compiled with, so an already built tree needs only
+~ddipo_utils~ and ~wfopts_utils~ recompiled, which
 ~tools/rebuild_opencpmd_embed.sh~ does.
-~secder_driver~ needs no patch: it passes the same seven arguments, runs only in
-a frequency calculation, which an embedded evaluation never enters, and
-~embed_force_recompute~ stays false there.
-An optional argument on ~ddipo~ would be read by those callers from a
-register they never set.
+~secder_driver~ needs no patch: it passes the same seven arguments, runs only in a frequency calculation, which an embedded evaluation never enters, and ~embed_force_recompute~
+stays false there.
+An optional argument on ~ddipo~ would be read by those callers from a register
+they never set.
 It snapshots ~moment%dmom~ and marks that evaluation valid.
 All other evaluations clear validity.
 After an embed teardown, ~ddipo~ frees its saved maps and starts from the new
@@ -160,26 +161,26 @@ basis.
 
 The electronic part is a Berry-phase quantity.
 The dipole is defined only for a neutral cell, and only modulo the lattice
-quantum: moving one electron through a lattice vector changes it by that
-vector.
-The patch publishes what ~ddipo~ computes and does not unwrap that jump or
-check the net charge.
+quantum: moving one electron through a lattice vector changes it by that vector.
+The patch publishes what ~ddipo~ computes and does not unwrap that jump or check
+the net charge.
 
-The k-point orthogonalization patch fixes two heap buffer overflows when ~atomwf~
-initializes a k-point calculation with more electronic states than atomic
-orbitals (~nstate > atwp%nattot~, or ~nsup > atwp%nattot~ or ~nsdown > atwp%nattot~
-under ~LSD~).
-~gs_ortho_c~ fills ~np * n0~ complex entries in ~ovlap2_c~ and then calls
-~mp_sum(smat, 2*np*n0, parai%allgrp)~ on a ~COMPLEX(real_8)~ matrix, which
-dispatches to ~MPI_Allreduce~ with ~MPI_DOUBLE_COMPLEX~ and reads and overwrites
-twice the overlap matrix size.
+The k-point orthogonalization patch fixes two heap buffer overflows when
+~atomwf~ initializes a k-point calculation with more electronic states than
+atomic orbitals (~nstate > atwp%nattot~, or ~nsup > atwp%nattot~ or
+~nsdown > atwp%nattot~ under ~LSD~).
+~gs_ortho_c~ fills ~np * n0~ complex entries in
+~ovlap2_c~ and then calls ~mp_sum(smat, 2*np*n0, parai%allgrp)~ on a
+~COMPLEX(real_8)~ matrix, which dispatches to ~MPI_Allreduce~ with
+~MPI_DOUBLE_COMPLEX~ and reads and overwrites twice the overlap matrix size.
 Changing that count to ~np*n0~ matches ~rgs_c~.
 In ~atomwf~, passing ~zmatat(atwp%nattot, atwp%nattot)~ to ~gs_ortho_c~ also
-overflows whenever ~nleft > atwp%nattot~, and the ~tlsd2~ spin-up call passes the
-rank-1 slice ~c0(:, atwp%nattot+1, ikind)~ instead of
-~c0(:, atwp%nattot+1:, ikind)~.
-The patch allocates a local ~smat_c(nleft, MAX(atwp%nattot, nleft))~ around each
-~gs_ortho_c~ call and fixes the spin-up slice.
+overflows whenever ~nleft > atwp%nattot~, and the ~tlsd2~ spin-up call passes
+the rank-1 slice
+~c0(:, atwp%nattot+1, ikind)~ instead of ~c0(:, atwp%nattot+1:, ikind)~.
+The patch allocates a local
+~smat_c(nleft, MAX(atwp%nattot, nleft))~ around each ~gs_ortho_c~ call and fixes
+the spin-up slice.
 
 * Nuclear forces from repeated SCF calls
 A live OpenCPMD link evaluates each geometry with fixed nuclei

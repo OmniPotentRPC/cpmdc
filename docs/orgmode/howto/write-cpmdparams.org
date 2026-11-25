@@ -51,9 +51,8 @@ inside CPMD.
 
 * Map deck lines to fields
 Each deck line has one preferred carrier.
-Look for a typed field first; the
-[[file:../reference/cpmd-options.org][option mapping]] lists every one of them
-with its feature ID.
+Look for a typed field first; the [[file:../reference/cpmd-options.org][option mapping]]
+lists every one of them with its feature ID.
 
 | Deck line | Section | Field |
 |-----------+---------+-------|

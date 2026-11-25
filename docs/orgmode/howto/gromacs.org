@@ -4,10 +4,12 @@
 GROMACS can integrate on cpmdc energies and forces in process, for a QM group
 that is part of the system or all of it.
 ~libcpmdc_gromacs~ implements the libcp2k C API that GROMACS' CP2K QM/MM interface calls, and answers each call with one ~cpmdc_session_calculate_au()~
-of the [[file:../reference/c-abi.org][C ABI]]. GROMACS links it in place of
-CP2K, so ~mdrun~ needs no extra process and no socket. Energies and forces need
-no change to GROMACS' source; the QM virial, and so the pressure and NPT, needs
-a short patch to GROMACS' QM/MM module (see [[*Pressure and NPT][Pressure and NPT]]).
+of the [[file:../reference/c-abi.org][C ABI]].
+
+GROMACS links it in place of CP2K, so ~mdrun~ needs no extra process and no
+socket.
+Energies and forces need no change to GROMACS' source; the QM virial, and so the
+pressure and NPT, needs a short patch to GROMACS' QM/MM module (see [[*Pressure and NPT][Pressure and NPT]]).
 
 | Route | GROMACS side | Needs |
 |-------+--------------+-------|
@@ -64,9 +66,9 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
 The installed ~libcp2k.pc~ gives ~-L~, ~-Wl,-rpath~ and the two libraries in
 ~Libs~, and ~-I~ for ~include/cpmdc/gromacs~ in ~Cflags~, so any pkg-config
 consumer compiles, links and runs against it with no further flags.
-~libcpmdc_gromacs~ records ~$ORIGIN~ on Linux and ~@loader_path~ on macOS, so
-it opens ~libcpmdc~ from its own directory after the prefix is moved. The
-installed library does not keep the build tree or the original prefix in
+~libcpmdc_gromacs~ records ~$ORIGIN~ on Linux and ~@loader_path~ on macOS, so it
+opens ~libcpmdc~ from its own directory after the prefix is moved.
+The installed library does not keep the build tree or the original prefix in
 ~RPATH~ or ~RUNPATH~.
 GROMACS takes only the library names, directories, and include directories from
 it, not the ~-Wl,-rpath~; it finds the library at run time because it records
@@ -113,19 +115,18 @@ CPMDC_GROMACS_PARAMS=water.params.bin \
   gmx_d mdrun -deffnm md -ntmpi 1
 #+end_src
 
-~PBE~ works in place of ~BLYP~ when the deck's effective functional is
-~PBE~.
-The library refuses a disagreement in the functional, charge, or
-multiplicity instead of replacing the deck value.
+~PBE~ works in place of ~BLYP~ when the deck's effective functional is ~PBE~.
+The library refuses a disagreement in the functional, charge, or multiplicity
+instead of replacing the deck value.
 
-GROMACS writes zero, not the original topology charge, for every QM atom in
-its generated PDB.
-A generated run with charged MM atoms therefore cannot obtain the
-~QM_CHARGES~ needed for mechanical embedding and is refused.
+GROMACS writes zero, not the original topology charge, for every QM atom in its
+generated PDB.
+A generated run with charged MM atoms therefore cannot obtain the ~QM_CHARGES~
+needed for mechanical embedding and is refused.
 Use the explicit route below for that case.
 
-The explicit route sets ~qmmm-cp2k-qmmethod = INPUT~ and makes grompp take
-the cpmdc settings from the file of ~-qmi~:
+The explicit route sets ~qmmm-cp2k-qmmethod = INPUT~ and makes grompp take the
+cpmdc settings from the file of ~-qmi~:
 
 #+begin_src text
 qmmm-cp2k-active      = true
@@ -149,39 +150,35 @@ gmx_d grompp -f md.mdp -c conf.gro -p topol.top -n index.ndx -qmi cpmdc.inp -o m
 gmx_d mdrun -deffnm md -ntmpi 1
 #+end_src
 
-The ~CHARGE~ and ~MULTIPLICITY~ that ~write_qmi()~ writes in ~&DFT~ (or the
-first ~CHARGE~ and ~MULTIPLICITY~ anywhere in a hand-written ~-qmi~ input,
-which GROMACS reads for the QM charge) must equal the charge and multiplicity
-of the ~CPMDParams~ message: pass ~charge=~ and ~multiplicity=~ to
-~write_qmi()~ for a deck that is not neutral and singlet, and ~mdrun~ stops
-with both values when they differ.
-A ~CHARGE~ line added above ~&DFT~, even inside ~&CPMDC~, is the
-one GROMACS and the library read.
+The ~CHARGE~ and ~MULTIPLICITY~ that
+~write_qmi()~ writes in ~&DFT~ (or the first ~CHARGE~ and ~MULTIPLICITY~ anywhere in a hand-written ~-qmi~ input, which GROMACS reads for the QM charge) must equal the charge and multiplicity of the ~CPMDParams~ message: pass ~charge=~ and ~multiplicity=~ to ~write_qmi()~
+for a deck that is not neutral and singlet, and ~mdrun~ stops with both values
+when they differ.
+A ~CHARGE~ line added above ~&DFT~, even inside ~&CPMDC~, is the one GROMACS and
+the library read.
 The file of ~-qmi~ holds a ~&CPMDC~ section inside
 ~&FORCE_EVAL~: ~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the cell and the QM-MM Coulomb term, ~QM_CHARGES~
-gives the QM atoms' classical charges, ~EPSILON_R~ scales the mechanical-embedding
-QM-MM Coulomb term when ~.mdp~ sets ~epsilon-r~ other than 1 (because GROMACS'
-CP2K module does not forward ~epsilon-r~ to ~libcp2k~), and ~QM_RANKS~ sets the
-ranks of an MPI GROMACS.
+gives the QM atoms' classical charges,
+~EPSILON_R~ scales the mechanical-embedding QM-MM Coulomb term when ~.mdp~ sets ~epsilon-r~ other than 1 (because GROMACS' CP2K module does not forward ~epsilon-r~ to ~libcp2k~), and ~QM_RANKS~
+sets the ranks of an MPI GROMACS.
 The [[file:../reference/gromacs.org][reference]] lists every key and what the
 library writes to ~md_cp2k.out~.
-An explicit ~&CPMDC~ section takes precedence over
-~CPMDC_GROMACS_PARAMS~.
+An explicit ~&CPMDC~ section takes precedence over ~CPMDC_GROMACS_PARAMS~.
 
 * Cap a bond across the QM boundary
 A QM group that cuts a covalent bond needs no extra step with the generated
 input: grompp finds each bond between a QM atom and an MM atom and writes a
-~&LINK~ section for it, and the library caps the bond with a hydrogen in the
-QM calculation.
-The ~CPMDParams~ message describes the QM atoms only; the hydrogens are added
-to them for you, so their number does not appear in the deck.
+~&LINK~ section for it, and the library caps the bond with a hydrogen in the QM
+calculation.
+The ~CPMDParams~ message describes the QM atoms only; the hydrogens are added to
+them for you, so their number does not appear in the deck.
 The input ~CHARGE~ and ~MULTIPLICITY~ (placed in ~&DFT~ by ~write_qmi()~) stay
-the charge and multiplicity of that message when a bond is capped. The hydrogen
-is not counted into either value.
+the charge and multiplicity of that message when a bond is capped.
+The hydrogen is not counted into either value.
 ~md_cp2k.out~ reports ~links N~ on its line of atom counts.
 
-With ~qmmm-cp2k-qmmethod = INPUT~ name each bond beside ~&CPMDC~, by the
-1-based atom numbers of the GROMACS system, QM atom first:
+With ~qmmm-cp2k-qmmethod = INPUT~ name each bond beside ~&CPMDC~, by the 1-based
+atom numbers of the GROMACS system, QM atom first:
 
 #+begin_src python
 from cpmdc.gromacs import write_qmi

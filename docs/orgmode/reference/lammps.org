@@ -48,15 +48,16 @@ A box with some axes periodic and others not is refused; ~FixExternal~ raises
 
 * Atom IDs
 Both routes gather the system and order their call to cpmdc by increasing atom
-ID. IDs must be positive and unique, but need not be the consecutive integers
-1 through N: deleting atoms without compression leaves holes that are
-preserved while each force is returned to its original atom.
+ID.
+IDs must be positive and unique, but need not be the consecutive integers 1
+through N: deleting atoms without compression leaves holes that are preserved
+while each force is returned to its original atom.
 
 Changing the atoms' elemental composition, including by
-~delete_atoms ... compress no~ or ~fix evaporate~, closes the current
-cpmdc session before the next
-evaluation and opens a new session for the changed topology. An unchanged
-composition continues on the existing session.
+~delete_atoms ... compress no~ or ~fix evaporate~, closes the current cpmdc
+session before the next evaluation and opens a new session for the changed
+topology.
+An unchanged composition continues on the existing session.
 
 * Virial and pressure
 cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.
@@ -75,18 +76,21 @@ The energy and the virial are totals of the whole system, and ~pair_style cpmdc~
 splits neither:
 
 - A density functional energy is a functional of the electron density, not a sum
-  of terms that belong to atoms, so any per-atom share of it would be a choice of
-  partition, not a result of cpmdc.
-- The virial ~-dE/d(strain)~ is a derivative with respect to the cell. It holds
-  kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts that are not
-  ~sum r f~ over atoms, so it has no per-atom form that adds up to the pressure.
+  of terms that belong to atoms, so any per-atom share of it would be a choice
+  of partition, not a result of cpmdc.
+- The virial ~-dE/d(strain)~ is a derivative with respect to the cell.
+  It holds kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts
+  that are not ~sum r f~ over atoms, so it has no per-atom form that adds up to
+  the pressure.
 
 ~pair_style cpmdc~ therefore refuses a run in which a compute asks for a split:
-~compute pe/atom~, ~compute stress/atom~, or ~compute centroid/stress/atom~, with
-any keywords, even one that is never printed.
-The error ~pair_style cpmdc computes no per-atom energy or virial (compute ID)~
-names the compute and comes from ~init_style~, before the first evaluation.
+~compute pe/atom~, ~compute stress/atom~, or ~compute centroid/stress/atom~,
+with any keywords, even one that is never printed.
+The error
+~pair_style cpmdc computes no per-atom energy or virial (compute ID)~ names the compute and comes from ~init_style~,
+before the first evaluation.
 ~uncompute ID~ removes the request.
-~FixExternal~ hands LAMMPS one energy and one virial and sets no per-atom values,
-so ~compute pe/atom~ and ~compute stress/atom~ take nothing from it.
-Per-atom forces work with every compute, for example ~compute property/atom fx fy fz~.
+~FixExternal~ hands LAMMPS one energy and one virial and sets no per-atom
+values, so ~compute pe/atom~ and ~compute stress/atom~ take nothing from it.
+Per-atom forces work with every compute, for example
+~compute property/atom fx fy fz~.

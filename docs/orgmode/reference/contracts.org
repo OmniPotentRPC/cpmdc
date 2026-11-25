@@ -1,35 +1,71 @@
 #+TITLE: API contracts
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-Every public name of cpmdc has one entry on this page: the exported C functions, the C types and constants, the Python names that each module lists in ~__all__~ with the public members of its classes, and the properties and parameters of the ASE calculator. Each entry states the units, the array layout or shape, who owns every pointer or object, what threads and MPI ranks may do, every return or error code with the Python exception it becomes, and the defaults.
+Every public name of cpmdc has one entry on this page: the exported C functions,
+the C types and constants, the Python names that each module lists in ~__all__~
+with the public members of its classes, and the properties and parameters of the
+ASE calculator.
+Each entry states the units, the array layout or shape, who owns every pointer
+or object, what threads and MPI ranks may do, every return or error code with
+the Python exception it becomes, and the defaults.
 
-The ~reference-audit~ test keeps the page and the code together. It reads the C names from the headers that ~meson install~ places, and the Python names from the imported package. It fails when a public name has no entry, when an entry names a symbol that does not exist, when a Python signature row differs from the one ~inspect~ reports, and when a row that must say something is empty. The other reference pages explain the behaviour at more length: the [[file:c-abi.org][C ABI reference]], the [[file:python.org][Python reference]], the [[file:gromacs.org][GROMACS page]] and the [[file:lammps.org][LAMMPS page]].
+The ~reference-audit~ test keeps the page and the code together.
+It reads the C names from the headers that ~meson install~ places, and the
+Python names from the imported package.
+It fails when a public name has no entry, when an entry names a symbol that does
+not exist, when a Python signature row differs from the one ~inspect~ reports,
+and when a row that must say something is empty.
+The other reference pages explain the behaviour at more length: the [[file:c-abi.org][C ABI reference]],
+the [[file:python.org][Python reference]], the [[file:gromacs.org][GROMACS page]]
+and the [[file:lammps.org][LAMMPS page]].
 
 * Conventions
 
-Units are stated in every entry. The array calls of the C library take positions in Angstrom and give Hartree and Hartree/Bohr. ~cpmdc_session_calculate_au()~ takes Bohr and gives Hartree, Hartree/Bohr and a virial ~-dE/d(strain)~ in Hartree. The stress of the C library has the OpenCPMD sign ~-(1/V) dE/d(strain)~ in Hartree/Bohr^3, which is the opposite of ASE's. The Python ~Potential~ and the ASE calculator return eV, eV/Angstrom and eV/Angstrom^3 with the ASE sign. ~Session~ returns the atomic units of the C ABI.
+Units are stated in every entry.
+The array calls of the C library take positions in Angstrom and give Hartree and
+Hartree/Bohr. ~cpmdc_session_calculate_au()~ takes Bohr and gives Hartree, Hartree/Bohr
+and a virial ~-dE/d(strain)~ in Hartree.
+The stress of the C library has the OpenCPMD sign ~-(1/V) dE/d(strain)~ in
+Hartree/Bohr^3, which is the opposite of ASE's. The Python ~Potential~ and the ASE calculator return eV, eV/Angstrom
+and eV/Angstrom^3 with the ASE sign.
+~Session~ returns the atomic units of the C ABI.
 
-Arrays are C order and atom-major: ~x0 y0 z0 x1 ...~. A matrix is row-major with one lattice vector per row, except in the i-PI wire, where the cell holds the lattice vectors as columns. Atomic numbers are ~int~ values in 1..118.
+Arrays are C order and atom-major: ~x0 y0 z0 x1 ...~.
+A matrix is row-major with one lattice vector per row, except in the i-PI wire,
+where the cell holds the lattice vectors as columns.
+Atomic numbers are ~int~ values in 1..118.
 
-Threads: the C library keeps the active calculator, its stored orbitals and the OpenCPMD state in process globals, so evaluation, configuration and session calls are used by one thread at a time. The error text of ~cpmdc_last_error()~ is per thread. The snapshot readers share the globals of the evaluation. The static restart library has no global state.
+Threads: the C library keeps the active calculator, its stored orbitals and the
+OpenCPMD state in process globals, so evaluation, configuration and session
+calls are used by one thread at a time.
+The error text of ~cpmdc_last_error()~ is per thread.
+The snapshot readers share the globals of the evaluation.
+The static restart library has no global state.
 
-MPI: a build compiled without MPI never calls it. A reference build compiled
-with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache
-path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized, so every rank
-agrees before a stored result is returned. The same setting runs the
-collectives in ~rank_consensus~ on an evaluation. An OpenCPMD build also runs
-the evaluation as a collective on the calculator communicator, so every rank
-of a calculator makes the same call in the same order. The Python package
-never calls MPI itself; ~cpmdc.lammps.FixExternal~ gathers on rank 0 with
-~mpi4py~.
+MPI: a build compiled without MPI never calls it.
+A reference build compiled with MPI calls
+~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~
+is ~1~ and MPI is initialized, so every rank agrees before a stored result is
+returned.
+The same setting runs the collectives in ~rank_consensus~ on an evaluation.
+An OpenCPMD build also runs the evaluation as a collective on the calculator
+communicator, so every rank of a calculator makes the same call in the same
+order.
+The Python package never calls MPI itself; ~cpmdc.lammps.FixExternal~ gathers on
+rank 0 with ~mpi4py~.
 
-Errors: a C call reports failure in the return value and writes the reason to ~cpmdc_last_error()~ of the calling thread. The Python package turns every such failure into ~cpmdc.CPMDCError~, and it raises ~ValueError~ or ~TypeError~ for an argument that it can reject before the call.
+Errors: a C call reports failure in the return value and writes the reason to
+~cpmdc_last_error()~ of the calling thread.
+The Python package turns every such failure into ~cpmdc.CPMDCError~, and it
+raises ~ValueError~ or ~TypeError~ for an argument that it can reject before the
+call.
 
 * C functions
 
 ** Library status
 
-Calls that report the build and the failure text. None of them evaluates.
+Calls that report the build and the failure text.
+None of them evaluates.
 
 *** ~cpmdc_version~
 
@@ -93,7 +129,8 @@ Calls that report the build and the failure text. None of them evaluates.
 
 ** MPI calculator binding
 
-Calls that choose the communicator of one calculator. See the MPI how-to for the sequence.
+Calls that choose the communicator of one calculator.
+See the MPI how-to for the sequence.
 
 *** ~cpmdc_bind_calculator~
 
@@ -134,8 +171,8 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 ** Configuration and one-shot arrays without a session
 
 These calls use the process-wide state.
-An evaluation is cold when the process has no stored basis or the basis
-differs, and warm when the basis matches.
+An evaluation is cold when the process has no stored basis or the basis differs,
+and warm when the basis matches.
 
 *** ~cpmdc_params_method~
 
@@ -211,7 +248,8 @@ differs, and warm when the basis matches.
 
 ** Session lifetime and configuration
 
-A session is created by one of two functions and released by ~cpmdc_session_destroy()~.
+A session is created by one of two functions and released by
+~cpmdc_session_destroy()~.
 
 *** ~cpmdc_session_create~
 
@@ -312,12 +350,13 @@ A session is created by one of two functions and released by ~cpmdc_session_dest
 ** Session evaluation
 
 ~session_accept_topology~ fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable; see the C ABI reference.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable; see the C ABI reference.
 More than 1365 atoms fails that preflight with
-~property gradient snapshot supports at most 1365 atoms~, before the topology
-is fixed. A session that already holds another system reports the topology
-change instead of the atom limit.
+~property gradient snapshot supports at most 1365 atoms~, before the topology is
+fixed.
+A session that already holds another system reports the topology change instead
+of the atom limit.
 
 *** ~cpmdc_session_energy_gradient~
 
@@ -693,7 +732,8 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 
 ** RESTART file library
 
-These functions live in ~libcpmdc_restart~, not in ~libcpmdc~, and keep no error state.
+These functions live in ~libcpmdc_restart~, not in ~libcpmdc~, and keep no error
+state.
 
 *** ~cpmdc_restart_read_mem~
 
@@ -937,7 +977,8 @@ These functions live in ~libcpmdc_restart~, not in ~libcpmdc~, and keep no error
 
 ** libcp2k shim for GROMACS
 
-Declared in the installed ~gromacs/libcp2k.h~ with CP2K's signatures and served by ~libcpmdc_gromacs~.
+Declared in the installed ~gromacs/libcp2k.h~ with CP2K's signatures and served
+by ~libcpmdc_gromacs~.
 
 *** ~cp2k_get_version~
 
@@ -1145,7 +1186,8 @@ Declared in the installed ~gromacs/libcp2k.h~ with CP2K's signatures and served 
 
 * C types
 
-Each type of the installed headers, with the rows Layout, Units, Ownership and Python.
+Each type of the installed headers, with the rows Layout, Units, Ownership and
+Python.
 
 ** ~CPMDCResult~
 
@@ -1307,7 +1349,9 @@ Every macro and enum constant of the installed headers.
 
 * Python names
 
-The Signature row is what ~inspect.signature~ reports for the object, without ~self~; the audit compares the two. A name that is a context manager says so in its Ownership and threads row.
+The Signature row is what ~inspect.signature~ reports for the object, without
+~self~; the audit compares the two.
+A name that is a context manager says so in its Ownership and threads row.
 
 ** ~cpmdc~
 
@@ -1766,7 +1810,8 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 
 ** ~cpmdc.ase~
 
-The ASE calculator. Importing it imports ASE.
+The ASE calculator.
+Importing it imports ASE.
 
 *** ~cpmdc.ase.CalculationFailed~
 
@@ -2300,7 +2345,8 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 
 * ASE parameters
 
-The parameters of ~CPMDCCalculator~; ~set~ and the constructor take them as keywords.
+The parameters of ~CPMDCCalculator~; ~set~ and the constructor take them as
+keywords.
 
 | Parameter | Units | Type | Default | Meaning |
 |--------+--------+--------+--------+--------|
@@ -2310,7 +2356,9 @@ The parameters of ~CPMDCCalculator~; ~set~ and the constructor take them as keyw
 
 * Deprecated aliases
 
-Names kept for existing callers. A Python name warns with ~DeprecationWarning~ and will be removed in a later release.
+Names kept for existing callers.
+A Python name warns with ~DeprecationWarning~ and will be removed in a later
+release.
 
 | Old name | New name | Behaviour |
 |--------+--------+--------|

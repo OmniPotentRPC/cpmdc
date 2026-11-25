@@ -40,8 +40,8 @@ The result-carrier call, ~cpmdc_session_calculate_result()~, writes the same
 ~PotentialResult~ message used by ~rgpot~ RPC clients.
 
 ~session_accept_topology~ fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.
@@ -157,8 +157,9 @@ feature table, sessions, result sizing, and unit conversion.
 * Reference at a glance
 [[file:reference/c-abi.org][The C ABI reference]] lists every public call with
 its contract, [[file:reference/pwscale.org][the plane-wave scaffold reference]]
-does the same for the opt-in scaffold, and [[file:reference/cpmd-options.org][CPMD option mapping]] says
-which ~CPMDParams~ field or feature ID carries each line of the CPMD manual.
+does the same for the opt-in scaffold, and [[file:reference/cpmd-options.org][CPMD option mapping]]
+says which ~CPMDParams~ field or feature ID carries each line of the CPMD
+manual.
 An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 
 #+begin_export rst

@@ -9,9 +9,10 @@ Importing ~cpmdc.ase~ registers ~CPMDCCalculator~ under ~"cpmdc"~ with
 ~ase.calculators.calculator.register_calculator_class~, so
 ~get_calculator_class("cpmdc")~ returns it, and an installed package also
 exposes ~cpmdc.ase~ in the ~ase.plugins~ entry-point group.
-ASE releases that ship ~ase._4.plugins~ (3.29 and later) list the calculator in
-~ase._4.plugins.plugins.calculators~ whichever of ~cpmdc.ase~ and ~ase._4.plugins~
-is imported first; earlier releases have no plugin API and use only the registry.
+ASE releases that ship
+~ase._4.plugins~ (3.29 and later) list the calculator in ~ase._4.plugins.plugins.calculators~
+whichever of ~cpmdc.ase~ and ~ase._4.plugins~ is imported first; earlier
+releases have no plugin API and use only the registry.
 It starts no ~cpmd.x~ process and writes no input file.
 [[file:python.org][Call cpmdc from Python]] covers ~Session~ and ~Potential~,
 the same library without ASE.
@@ -299,8 +300,8 @@ That value is the top-level ~charge~ when no typed ~system~ charge is explicit,
 and the typed ~system~ charge when ~system.hasCharge~ is true or that charge is
 not 0.
 Zero with ~hasCharge~ true is explicit.
-The deck renderer and the Fortran embed record that same charge for the
-message the session opens with.
+The deck renderer and the Fortran embed record that same charge for the message
+the session opens with.
 Neither reads ~Atoms.initial_charges~, and the C API does not read the
 ~ForceInput~ charge fields.
 The calculator decides the total before that handoff.
@@ -361,10 +362,10 @@ with CPMDCCalculator("water.params.bin") as calc:
 #+end_src
 
 A keyword such as ~charge~, ~multiplicity~, or ~xc~ raises ~TypeError~ in the
-constructor and in ~set()~, and the message names the key and points at
-~params~ and at the ~Atoms~ arrays.
-To change the rest of the method, encode another message and pass it to
-~set()~; this example switches to the periodic message:
+constructor and in ~set()~, and the message names the key and points at ~params~
+and at the ~Atoms~ arrays.
+To change the rest of the method, encode another message and pass it to ~set()~;
+this example switches to the periodic message:
 
 #+begin_src python
 from cpmdc.ase import CPMDCCalculator
@@ -406,9 +407,9 @@ A library step writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or ~GEOMETRY.xyz~,
 and the orbitals for the next step stay in memory.
 ~params~ is read when it is set, relative to the directory of the process at
 that moment, not to ~directory~.
-~calc.parameters~ keeps that file, and a ~library~ path, as an absolute path,
-so a copy that opens its session in another directory and a calculator rebuilt
-from ~calc.todict()~ there use the same files.
+~calc.parameters~ keeps that file, and a ~library~ path, as an absolute path, so
+a copy that opens its session in another directory and a calculator rebuilt from
+~calc.todict()~ there use the same files.
 The ~restart~ argument is deprecated and ignored, and passing it warns with
 ~DeprecationWarning~.
 
@@ -436,11 +437,11 @@ The calculator stays usable, and the next call evaluates the step again.
 
 * Sessions and copies
 ~session_accept_topology~ fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of the same atoms stays on the session.
-After a successful step, a structure with another composition closes the
-session and opens a new one from the same ~params~.
+After a successful step, a structure with another composition closes the session
+and opens a new one from the same ~params~.
 
 ~calc.parameters~ holds ~params~, ~library~, and ~constant_cutoff~, with
 absolute paths.
@@ -461,15 +462,14 @@ copy opens its own session on its first step.
 ~close()~ closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
 
-~calc.read(label)~ always raises ASE's ~ReadError~, because a step stores no file
-that holds results, and ASE's default would only set the label and let the
+~calc.read(label)~ always raises ASE's ~ReadError~, because a step stores no
+file that holds results, and ASE's default would only set the label and let the
 caller think that results were restored.
 The ~restart~ keyword stays deprecated and ignored, as the reference page says.
 ~parameters=~ is the supported way to load a saved calculator.
 
 ~ase.calculators.mixing.SumCalculator~ takes several ~CPMDCCalculator~ objects,
-or one beside another ASE calculator, and evaluates each one once per
-structure.
+or one beside another ASE calculator, and evaluates each one once per structure.
 Its stress for a cluster raises ~PropertyNotImplementedError~, as the
 calculator's own does.
 
@@ -478,8 +478,7 @@ calculator's own does.
 user asks of a calculator, and answers with ASE's own tools.
 It runs on the default build, which needs no OpenCPMD archive.
 ~pixi run test-stub~ builds it, and
-~pixi run pytest tests/python/test_ase_conformance.py~
-runs the file.
+~pixi run pytest tests/python/test_ase_conformance.py~ runs the file.
 The file checks these points:
 
 | Question | ASE tool |
@@ -503,7 +502,7 @@ The file checks these points:
 | each Voigt stress component has the sign and the size of a central difference of the energy over strain, taken in the test | ~Atoms.set_cell(..., scale_atoms=True)~ |
 | a few steps of a cell relaxation lower the energy and the largest stress component | ~BFGS~ with ~FrechetCellFilter~ |
 
-~cpmdc.lammps.FixExternal~ follows the same conventions where it shares them: the
-same units, a failed step reported as ~CPMDCError~, a step with a NaN or infinite
-result refused, and a new session opened after a change of composition even when
-the previous attempt to open one failed.
+~cpmdc.lammps.FixExternal~ follows the same conventions where it shares them:
+the same units, a failed step reported as ~CPMDCError~, a step with a NaN or
+infinite result refused, and a new session opened after a change of composition
+even when the previous attempt to open one failed.

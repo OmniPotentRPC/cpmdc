@@ -28,17 +28,19 @@ Configuration stops when ~with_cpmd=true~, ~cpmd_root=DIR~ is non-empty, and
 OpenCPMD keeps ~timetag~ outside the archive, and ~header~ calls it.
 
 * Darwin link behavior for wheels
-The serial wheel (~with_cpmd=false~) builds ~libcpmdc~ without a reference to
-~cpmd_stopgm_hook~. On ELF, an undefined weak reference can remain unresolved,
-but ~ld64~ reports that same reference as undefined at link time. The Darwin
-stop hook is used only when ~with_cpmd=true~ and ~cpmd_root~ is non-empty.
+The serial wheel
+(~with_cpmd=false~) builds ~libcpmdc~ without a reference to ~cpmd_stopgm_hook~.
+On ELF, an undefined weak reference can remain unresolved, but ~ld64~ reports
+that same reference as undefined at link time.
+The Darwin stop hook is used only when ~with_cpmd=true~ and ~cpmd_root~ is
+non-empty.
 ~has_cpmd~ is the pair that passes ~-DCPMDC_HAS_CPMD=1~ and links ~libcpmd.a~.
 
 On Darwin, the export list also differs by build mode: the serial library
 exports the literal public C ABI symbols, while an OpenCPMD build adds wildcard
-patterns for MPI Fortran sentinel COMMON blocks. ~ld64~ requires every literal
-~-exported_symbols_list~ name to exist in the linked image, but wildcard entries
-match only symbols that are present.
+patterns for MPI Fortran sentinel COMMON blocks.
+~ld64~ requires every literal ~-exported_symbols_list~ name to exist in the
+linked image, but wildcard entries match only symbols that are present.
 
 * Installed artifacts
 ~meson install~ writes these under the prefix.
@@ -55,8 +57,8 @@ match only symbols that are present.
 | ~cpmdcplugin.so~ | ~lib/cpmdc/cpmdcplugin.so~ | ~with_lammps_plugin~ is not disabled, ~with_python~ is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
 | ~libcpmdc_gromacs~ | ~lib/libcpmdc_gromacs.so~, ~include/cpmdc/gromacs/libcp2k.h~, ~lib/cpmdc/gromacs/pkgconfig/libcp2k.pc~ | ~with_gromacs_shim~ is not disabled and ~with_python~ is off |
 
-~MAJOR~ is the soversion, the first field of ~version.txt~. A ~with_python~ build sets
-no soversion, because a wheel stores no symlinks.
+~MAJOR~ is the soversion, the first field of ~version.txt~.
+A ~with_python~ build sets no soversion, because a wheel stores no symlinks.
 The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 
 * Meson test suites
@@ -79,21 +81,23 @@ These suites group the tests of the default build by layer.
 | ~packaging~ | installed ~RUNPATH~, relocatable ~pkg-config~ layouts, and CMake/pkg-config consumer build |
 | ~docs~, ~examples~ | ~example-host-step~, runnable documentation blocks, ~llms.txt~ freshness, and API reference contracts |
 
-The ~mpi~ tests above are added when ~with_tests=true~ and the C MPI
-dependency is found (~rank-consensus~ also requires ~has_cpmd~ to be false).
+The ~mpi~ tests above are added when
+~with_tests=true~ and the C MPI dependency is found (~rank-consensus~ also requires ~has_cpmd~
+to be false).
 They launch through ~tests/run_mpi_test.py~, which uses ~mpirun~ or ~mpiexec~
 when one is on ~PATH~, and otherwise exits 77 so Meson marks the test skipped.
 
-Opt-in options add ~restart-con~ (~-Dwith_readcon=true~), ~pwscale~
-(~-Dwith_pwscale=true~), and ~opencpmd~ plus ~water~ (~-Dwith_cpmd=true~ with a
-non-empty ~cpmd_root~).
+Opt-in options add ~restart-con~
+(~-Dwith_readcon=true~), ~pwscale~ (~-Dwith_pwscale=true~), and ~opencpmd~ plus
+~water~ (~-Dwith_cpmd=true~ with a non-empty ~cpmd_root~).
 
 In the ~e2e~ suite, ~e2e-single-point~ runs ~cpmdc_calculate_result~ and a
 session force call on one ~ForceInput~, then ~cpmdc_energy_forces~ on bare
 positions.
 ~e2e-optimizer-session~ runs three geometry steps on one ~CPMDCSession~, the
 topology rejection, and a second session for a change of species.
-Both skip when ~cpmdc_available()~ is ~0~, which is every build without OpenCPMD.
+Both skip when ~cpmdc_available()~ is ~0~, which is every build without
+OpenCPMD.
 
 cmocka is resolved through pkg-config or CMake.
 The parser tests use Cap'n Proto text fixtures encoded by the ~capnp~ CLI
@@ -124,17 +128,19 @@ linked.
 Run a docs task with ~pixi run -e docs docbld~.
 
 One sanitizer CI failure was traced to libfabric's memhooks monitor replacing
-AddressSanitizer's ~mprotect~ interceptor during ~MPI_Init~.  In a separate
-Open MPI 5 reproduction, ~FI_MR_CACHE_MONITOR=disabled~ alone still ended in
-SIGILL, while ~--mca memory ^patcher~ prevented it.  Selecting a non-UCX
-transport also prevented that reproduction.  The sanitize job disables the
-observed libfabric path, and ~tests/run_mpi_test.py~ passes the Open MPI memory
-and transport exclusions in both the environment and launcher arguments.
+AddressSanitizer's ~mprotect~ interceptor during ~MPI_Init~.
+In a separate Open MPI 5 reproduction, ~FI_MR_CACHE_MONITOR=disabled~ alone
+still ended in SIGILL, while ~--mca memory ^patcher~ prevented it.
+Selecting a non-UCX transport also prevented that reproduction.
+The sanitize job disables the observed libfabric path, and
+~tests/run_mpi_test.py~ passes the Open MPI memory and transport exclusions in
+both the environment and launcher arguments.
 
 * Meson test parallelism and BLAS threads
 The default test setup (~blasthreads~) sets ~OPENBLAS_NUM_THREADS~,
-~OMP_NUM_THREADS~, and ~MKL_NUM_THREADS~ to ~1~ so parallel ~meson test~
-workers do not each spawn a full OpenBLAS pool. Meson applies those values to
-every test child; exports of the same names in the shell that runs ~meson test~
-are not passed through. To force different caps, set them on the ~env:~ keyword
-of the individual test or run the executable outside Meson.
+~OMP_NUM_THREADS~, and ~MKL_NUM_THREADS~ to ~1~ so parallel ~meson test~ workers
+do not each spawn a full OpenBLAS pool.
+Meson applies those values to every test child; exports of the same names in the
+shell that runs ~meson test~ are not passed through.
+To force different caps, set them on the ~env:~ keyword of the individual test
+or run the executable outside Meson.

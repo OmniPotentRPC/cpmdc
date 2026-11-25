@@ -59,25 +59,29 @@ Full default suite:
 meson test -C build --print-errorlogs
 ```
 
-Focused suites: `--suite docs`, `--suite inventory`, `--suite e2e`, `--suite cmocka`.
+Focused suites: `--suite docs`, `--suite inventory`, `--suite e2e`,
+`--suite cmocka`.
 Prose wrapping check: `pixi run snapper-check`.
 It fails on files that would reformat and on fused lines, and reports the `long`
 and `wrap` diagnostics; `SNAPPER_FAIL_ON=long,wrap` enforces those too.
 Rewrap with `bash tools/check_snapper.sh --write`, which refuses symlinks and
 paths outside the repository.
 
-Documentation and API coverage checks include `reference-contract`, `public-api-docs`,
-`cpmd-embedding-docs-coverage`, `llms-txt`, and `docs-coverage-inventory`.
+Documentation and API coverage checks include `reference-contract`,
+`public-api-docs`, `cpmd-embedding-docs-coverage`, `llms-txt`, and
+`docs-coverage-inventory`.
 
 ## Documentation build
 
-Edit `docs/orgmode/` only. Generated `docs/source/**/*.rst` is not committed.
+Edit `docs/orgmode/` only.
+Generated `docs/source/**/*.rst` is not committed.
 
 ```bash
 pixi run -e docs docbld
 ```
 
-Steps: `mkrst` (Org to RST), `doxybuild` (C API pages), `sphinxbld` (HTML to `docs/build/`).
+Steps: `mkrst` (Org to RST), `doxybuild` (C API pages), `sphinxbld` (HTML to
+`docs/build/`).
 
 After changing Org sources or the public inventory, regenerate LLM index files:
 
@@ -85,7 +89,8 @@ After changing Org sources or the public inventory, regenerate LLM index files:
 python3 scripts/generate_llms_txt.py
 ```
 
-`llms.txt` follows [llmstxt.org](https://llmstxt.org/); `llms-full.txt` holds plain text from every Org page.
+`llms.txt` follows [llmstxt.org](https://llmstxt.org/); `llms-full.txt` holds
+plain text from every Org page.
 
 Coverage report (JSON on stdout):
 
@@ -97,11 +102,13 @@ python3 scripts/docs_coverage_inventory.py
 
 Use conventional prefixes: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`.
 
-Keep the subject at most 72 characters. Wrap body lines at 72 characters. Use
-backticks for code identifiers. Do not use dashes as sentence punctuation in
-subjects or bodies. Do not put pull request numbers, SHAs, or ticket ids in
-messages. Do not use `!` or breaking-change framing unless the project explicitly
-requires it.
+Keep the subject at most 72 characters.
+Wrap body lines at 72 characters.
+Use backticks for code identifiers.
+Do not use dashes as sentence punctuation in subjects or bodies.
+Do not put pull request numbers, SHAs, or ticket ids in messages.
+Do not use `!` or breaking-change framing unless the project explicitly requires
+it.
 
 Reference GitLab issues with `#number` when applicable.
 
@@ -109,13 +116,15 @@ Reference GitLab issues with `#number` when applicable.
 
 [rgpot](https://github.com/OmniPotentRPC/rgpot) loads `libcpmdc.so` through
 `CPMDPot`: it maps coordinates into `ForceInput`, keeps one `CPMDCSession` per
-calculator group, and reads `PotentialResult` from `cpmdc_session_calculate_result()`.
+calculator group, and reads `PotentialResult` from
+`cpmdc_session_calculate_result()`.
 
-Environment variables tried in order: `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`,
-`RGPOT_CPMD_ENGINE`.
+Environment variables tried in order:
+`CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, `RGPOT_CPMD_ENGINE`.
 
 Python mirrors the contract with `cpmdc.Potential` for in-process rgpot-style
-providers. eOn uses rgpot via `[RgpotPot]`; see `docs/orgmode/tutorials/eon-rgpot.org`.
+providers.
+eOn uses rgpot via `[RgpotPot]`; see `docs/orgmode/tutorials/eon-rgpot.org`.
 
 Cap'n Proto messages and units match the shared OmniPotentRPC `Potentials.capnp`
 schema used across backends.
