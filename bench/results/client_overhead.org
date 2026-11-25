@@ -1,18 +1,20 @@
 #+TITLE: Client overhead of one evaluation, base against tip
 
 Measured with =bench/client_overhead.py= on the base commit and on the tip of
-the change that packs step inputs with =array= and =memoryview=. Both sides
-import their own =python/cpmdc= and load the same stub-build =libcpmdc.so=, so
-only the Python client differs. Three base files and three tip files were taken
-alternately, pinned to one CPU, 15 runs of about 50 ms per path in each file.
+the change that packs step inputs with =array= and =memoryview=.
+Both sides import their own =python/cpmdc= and load the same stub-build
+=libcpmdc.so=, so only the Python client differs.
+Three base files and three tip files were taken alternately, pinned to one CPU,
+15 runs of about 50 ms per path in each file.
 The comparison table pools the three files of each side: the base/tip column is
 the ratio of the medians of the file medians, and "beyond noise" requires the
-pooled interquartile ranges not to overlap and a ratio beyond 1.05. The
-=floor= rows run identical code on both sides and stay within 3 percent. N = 4096
-is refused by the reference evaluator (at most 1365 atoms), so it appears for
-the mock library only. The mock does one pass over the positions and one over
-the forces; the reference rows add the C session layer and the reference
-evaluator, which is the same on both sides.
+pooled interquartile ranges not to overlap and a ratio beyond 1.05.
+The =floor= rows run identical code on both sides and stay within 3 percent.
+N = 4096 is refused by the reference evaluator (at most 1365 atoms), so it
+appears for the mock library only.
+The mock does one pass over the positions and one over the forces; the reference
+rows add the C session layer and the reference evaluator, which is the same on
+both sides.
 
 * Comparison, mock library
 

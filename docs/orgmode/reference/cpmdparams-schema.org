@@ -1,11 +1,11 @@
 #+TITLE: CPMDParams schema fields
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-The schema is ~schema/Potentials.capnp~, a vendored copy of the shared
-~potentials-schema~ release pinned in ~subprojects/potentials-schema.wrap~.
+The schema is
+~schema/Potentials.capnp~, a vendored copy of the shared ~potentials-schema~ release pinned in ~subprojects/potentials-schema.wrap~.
 This page lists the fields that decide what CPMD computes.
-The [[file:cpmd-options.org][option mapping]] lists every typed field with its feature ID
-and deck spelling.
+The [[file:cpmd-options.org][option mapping]] lists every typed field with its
+feature ID and deck spelling.
 
 * ~CPMDParams~
 
@@ -27,12 +27,12 @@ and deck spelling.
 
 A section missing from ~inputSections~ gets a default: ~&CPMD~ with
 ~OPTIMIZE WAVEFUNCTION~ and ~CONVERGENCE ORBITALS~ 1e-6, ~&SYSTEM~ with
-~ANGSTROM~ and the top-level cutoff, charge, and multiplicity, and ~&DFT~
-with the top-level functional.
+~ANGSTROM~ and the top-level cutoff, charge, and multiplicity, and ~&DFT~ with
+the top-level functional.
 That deck has no ~SYMMETRY~ line.
-A force call with a positive volume writes symmetry 1 for a cube, symmetry 8
-for unequal orthogonal edges, or ~CELL VECTORS~ with no symmetry line when
-the box is tilted.
+A force call with a positive volume writes symmetry 1 for a cube, symmetry 8 for
+unequal orthogonal edges, or ~CELL VECTORS~ with no symmetry line when the box
+is tilted.
 A zero box stays ~SYMMETRY 0~ and adds ~POISSON SOLVER HOCKNEY~.
 
 * ~CPMDInputSection~
@@ -57,8 +57,7 @@ A union; each list entry sets exactly one arm.
 | ~keyword~ | the line, for example ~"PCG MINIMIZE"~ |
 | ~args~ | ~List(Text)~; each entry becomes one indented line below the keyword |
 
-Every typed section has a ~directives~ list for keywords without a typed
-field.
+Every typed section has a ~directives~ list for keywords without a typed field.
 
 * ~CPMDCpmdSection~, the fields a force call uses
 
@@ -75,8 +74,8 @@ field.
 | ~restartWavefunction~ | off | ~RESTART WAVEFUNCTION~; read on a cold evaluation only |
 | ~isolatedMolecule~ | off | ~ISOLATED MOLECULE~ |
 
-The OpenCPMD path ignores restarted coordinates, velocities, and geometry:
-the host owns them.
+The OpenCPMD path ignores restarted coordinates, velocities, and geometry: the
+host owns them.
 
 * ~CPMDSystemSection~, the fields that set the cell
 
@@ -115,12 +114,12 @@ the host owns them.
 The ~atoms~ section also carries ~constraints~, ~isotopes~, ~velocities~,
 ~dummyAtoms~, ~changeBonds~, ~generate~, and ~directives~.
 Coordinates never go here.
-On the OpenCPMD path, the ~&ATOMS~ block CPMD reads is rebuilt from each
-step's geometry.
+On the OpenCPMD path, the ~&ATOMS~ block CPMD reads is rebuilt from each step's
+geometry.
 Entries in ~pseudopotentials~ supply the file, ~LMAX~, ~LOC~, and
 ~KLEINMAN-BYLANDER~ for the elements they name.
-Elements left out of that list use a built-in table for H, C, N, O, Si, and
-Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
+Elements left out of that list use a built-in table for H, C, N, O, Si, and Ge;
+see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~ForceInput~
 
@@ -136,52 +135,50 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
 ~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, the overlay alone,
 or both together.
-When both are set, a value the arm sets beats the overlay, and the overlay
-fills only what the arm leaves at the schema defaults and beats a schema
-default.
+When both are set, a value the arm sets beats the overlay, and the overlay fills
+only what the arm leaves at the schema defaults and beats a schema default.
 The overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
 ~spinMultiplicity~, Fermi ~smearing~ (when ~&CPMD~ sets none), and
 ~vanDerWaalsS6~ (into a ~vdwParams~ section with ~s6~ unset).
 An arm field sets a value when it differs from the schema default (functional
-~BLYP~, cutoff 70 Ry, charge 0 with ~hasCharge~ ~false~, multiplicity 1), and
-a typed ~dft~ or ~system~ section beats the top-level field.
-A method field in a typed section that is omitted or holds its schema default
-is unset and does not replace the top-level arm or overlay value; a typed
-~system~ charge of 0 with ~hasCharge~ ~false~ is unset, and a non-zero charge
-or zero ~system.charge~ with ~system.hasCharge~ ~true~ is explicit.
+~BLYP~, cutoff 70 Ry, charge 0 with ~hasCharge~ ~false~, multiplicity 1), and a
+typed ~dft~ or ~system~ section beats the top-level field.
+A method field in a typed section that is omitted or holds its schema default is
+unset and does not replace the top-level arm or overlay value; a typed ~system~
+charge of 0 with ~hasCharge~ ~false~ is unset, and a non-zero charge or zero
+~system.charge~ with ~system.hasCharge~ ~true~ is explicit.
 ~planewaveCutoffEv~ is in eV and is converted to the Ry the deck carries.
-~spinMultiplicity~ 0 is unset, so an explicit singlet of 1 is merged and
-checked like the other overlay scalars.
-The functional, cutoff, charge, and multiplicity lines the deck renderers
-write and the recorded settings follow this precedence.
-An unmapped ~xcFunctionals~ token is rejected for every arm functional,
-before that precedence.
+~spinMultiplicity~ 0 is unset, so an explicit singlet of 1 is merged and checked
+like the other overlay scalars.
+The functional, cutoff, charge, and multiplicity lines the deck renderers write
+and the recorded settings follow this precedence.
+An unmapped ~xcFunctionals~ token is rejected for every arm functional, before
+that precedence.
 Opaque carriers are rendered as given and are not folded into the recorded
-settings, so the carrier check runs for every set overlay field, whether or
-not a typed field also sets it, including zero ~charge~ with ~hasCharge~
-~true~ and an explicit singlet ~spinMultiplicity~ of 1.
+settings, so the carrier check runs for every set overlay field, whether or not
+a typed field also sets it, including zero ~charge~ with ~hasCharge~ ~true~ and
+an explicit singlet ~spinMultiplicity~ of 1.
 The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
 section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~ (cutoff, charge,
-multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
-~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the
-~directives~ list of the typed ~dft~ section holds ~FUNCTIONAL~ or that of
-the typed ~system~ section holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
+multiplicity), when a set directive names ~DFT.FUNCTIONAL~, ~SYSTEM.CUTOFF~,
+~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the ~directives~ list of the
+typed ~dft~ section holds ~FUNCTIONAL~ or that of the typed ~system~ section
+holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
 Without an overlay, the deck render rejects a ~CUTOFF~, ~CHARGE~, or
-~MULTIPLICITY~ directive in the typed ~system~ section, and a
-~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~ set directive.
+~MULTIPLICITY~ directive in the typed ~system~ section, and a ~SYSTEM.CUTOFF~,
+~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~ set directive.
 ~CUTOFF~ is written on every deck, including the default 70 Ry.
 ~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
-greater than 1; an omitted line is the schema default the recorded
-configuration carries.
-Those directives are rejected for a default value and for any other value
-alike.
+greater than 1; an omitted line is the schema default the recorded configuration
+carries.
+Those directives are rejected for a default value and for any other value alike.
 A default leaves the directive as a value the recorded configuration does not
 carry, and any other value leaves two lines.
 The render does not keep one and drop the other.
-Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments
-in ~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
-The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects
-negative or non-finite scalars and conflicting or unmergeable fields
-(~kMesh~, SCF controls, ~vanDerWaalsMethod~, ~relativityMethod~, already-set
-smearing or ~s6~, or ~vanDerWaalsS6~ without ~vdwParams~); see the
-[[file:c-abi.org][C ABI reference]] for the lowering rules.
+Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments in
+~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
+The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects negative
+or non-finite scalars and conflicting or unmergeable fields (~kMesh~, SCF
+controls, ~vanDerWaalsMethod~, ~relativityMethod~, already-set smearing or ~s6~,
+or ~vanDerWaalsS6~ without ~vdwParams~); see the [[file:c-abi.org][C ABI reference]]
+for the lowering rules.

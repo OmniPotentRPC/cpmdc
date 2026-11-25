@@ -22,9 +22,9 @@ Each session keeps a counter of its own successful calls.
 
 A cell counts as unchanged when every component of ~ForceInput.box~ matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
-all (a step without a cell matches only when the latched state also has no
-cell; ~CPMDC_CELL_IN_PLACE~ does not apply there because
-~embed_cell_moves_in_place~ returns false when ~has_cell~ is 0).
+all (a step without a cell matches only when the latched state also has no cell;
+~CPMDC_CELL_IN_PLACE~ does not apply there because ~embed_cell_moves_in_place~ returns false when ~has_cell~
+is 0).
 A new session has no cell of its own yet, so that comparison uses the cell
 stored with the orbitals.
 The cutoff matches within 1e-8 Rydberg.
@@ -98,29 +98,28 @@ A key named and then replaced before an evaluation parks nothing.
 ~opencpmd_embed_rwfopt.patch~ keeps a table of stored ~c0~ copies, one per key,
 beside the store ~rwfopt~ restores from.
 Selecting another key parks the ~c0~ of the key being left, including a stale
-copy from an unconverged pass, and moves the copy parked under the new key
-into the store.
+copy from an unconverged pass, and moves the copy parked under the new key into
+the store.
 A partial copy from an unconverged pass is not parked.
-~cpmdc_session_copy_orbitals()~ duplicates one key's converged orbitals, and
-the geometry they converged at, into another key, replacing that key's
-previous copy.
+~cpmdc_session_copy_orbitals()~ duplicates one key's converged orbitals, and the
+geometry they converged at, into another key, replacing that key's previous
+copy.
 The selected key stays selected.
 When the destination is the selected key, its live store is replaced
 immediately.
 A key with no converged orbitals is refused.
-A donor whose last pass did not converge is refused as well, whether that
-copy is the live store or a parked slot, and a copy onto the same key is
-refused too.
-Selecting that key again, or a warm start that adopts the parked slot, keeps
-the refusal.
+A donor whose last pass did not converge is refused as well, whether that copy
+is the live store or a parked slot, and a copy onto the same key is refused too.
+Selecting that key again, or a warm start that adopts the parked slot, keeps the
+refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
 ~CPMDC_ORBITAL_SLOT_LIMIT~, a positive integer, is the most of those parked
 copies.
-A park that would pass it fails the evaluation or the copy, the result names
-the variable through ~cpmdc_last_error()~, and the copies already stored stay
-in the table.
+A park that would pass it fails the evaluation or the copy, the result names the
+variable through ~cpmdc_last_error()~, and the copies already stored stay in the
+table.
 Lowering the limit does not drop a copy that is already parked.
 Unset, the table is unbounded.
 A value that is not a positive integer fails the call.
@@ -192,8 +191,12 @@ Along a trajectory with equal time steps, a combination of the orbitals of the
 earlier steps predicts the next ones better.
 Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer
 molecular dynamics (BO-MD) with ~EXTRAPOLATE WFN~, and the always stable
-predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004),
-doi:10.1002/jcc.10385) is one of its coefficient sets. CP2K extrapolates by default, with ASPC of order 3 (~FORCE_EVAL/DFT/QS EXTRAPOLATION~), and Quantum ESPRESSO offers first- and second-order extrapolation of the wavefunctions after Arias, Payne, and Joannopoulos (Phys. Rev. B 45, 1538 (1992), doi:10.1103/PhysRevB.45.1538).
+predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004), [[https://doi.org/10.1002/jcc.10385][doi:10.1002/jcc.10385]])
+is one of its coefficient sets.
+CP2K extrapolates by default, with ASPC of order 3
+(~FORCE_EVAL/DFT/QS EXTRAPOLATION~), and Quantum ESPRESSO offers first- and
+second-order extrapolation of the wavefunctions after Arias, Payne, and
+Joannopoulos (Phys. Rev. B 45, 1538 (1992), [[https://doi.org/10.1103/PhysRevB.45.1538][doi:10.1103/PhysRevB.45.1538]]).
 
 OpenCPMD turns the keyword off in a wavefunction optimisation, which is the job
 a host-driven call runs.
@@ -244,18 +247,18 @@ tenth decimal on.
 A plane wave is a reciprocal lattice vector G(m) = 2 pi m H^-1 for integer m and
 lattice rows H, so the set of m inside the cutoff sphere, and with it the layout
 of ~c0~, belongs to the cell of the setup.
-The penalty of ~CONSTANT CUTOFF~ leaves the components above E0 + 2 sigma
-empty in any cell.
-While the setup's set of m holds every m whose G in the new cell lies below
-E0 + 2 sigma, the setup's plane waves span every occupied component of the new
-cell, and the stored orbitals still fit.
+The penalty of ~CONSTANT CUTOFF~ leaves the components above E0 + 2 sigma empty
+in any cell.
+While the setup's set of m holds every m whose G in the new cell lies below E0 +
+2 sigma, the setup's plane waves span every occupied component of the new cell,
+and the stored orbitals still fit.
 With T = H_setup^-1 H_new, the squared length of G(m) in the setup cell is at
 most the largest eigenvalue of T T^T times its length in the new cell, so
 ~cpmdc~ asks that this eigenvalue times E0 + 2 sigma stay within the
 wavefunction cutoff, and four times as much within the density cutoff.
 
-~CPMDC_CELL_IN_PLACE~ turns the move on and bounds the principal strain from
-the setup cell, the largest stretch or shrink of a length.
+~CPMDC_CELL_IN_PLACE~ turns the move on and bounds the principal strain from the
+setup cell, the largest stretch or shrink of a length.
 A cell within it goes into ~metr_com%ht~, and OpenCPMD's ~newcell~ rescales the
 G vectors, the structure factors, and the pseudopotential tables, as OpenCPMD's
 own variable-cell dynamics does each step.
@@ -267,14 +270,14 @@ A cell past the limit, or one that fails a condition, sets CPMD up again, and
 the strain is measured from that new setup cell.
 
 The plane waves between E0 + 2 sigma and the cutoff are then those of the setup
-cell rather than of the new one, which moves the energy and the stress away
-from those of a new setup in proportion to the strain.
+cell rather than of the new one, which moves the energy and the stress away from
+those of a new setup in proportion to the strain.
 On 32 waters at a 100 Ry cutoff with E0 = 85 Ry and sigma = 4.25 Ry, a 1%
 stretch in place differs from a new setup by 3.3 meV in the energy, 0.08
 meV/Angstrom in the forces, and 32 bar in the pressure.
-The tail of erf reaches further below E0 at a wider sigma: the one-water deck
-at 40 Ry with E0 = 30 Ry and the default sigma of 3 Ry differs by about 3 meV,
-1.5 meV/Angstrom, and 3e-6 eV/Angstrom^3 for the same stretch.
+The tail of erf reaches further below E0 at a wider sigma: the one-water deck at
+40 Ry with E0 = 30 Ry and the default sigma of 3 Ry differs by about 3 meV, 1.5
+meV/Angstrom, and 3e-6 eV/Angstrom^3 for the same stretch.
 Within one setup, the energies of the moved cells lie on one smooth surface
 whose derivative is the stress, which the ~python-pytest~ case
 ~test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy~ checks.
@@ -324,48 +327,51 @@ positions of a ~RESTART.1~ with ~cpmdc-restart patch-positions~.
 It rewrites only the coordinate records and copies the wavefunction records
 unchanged; the deck then needs ~RESTART WAVEFUNCTION~.
 
-~cpmdc-restart~ and ~cpmdc_restart_write_path()~ replace a ~RESTART~ file in
-one step, so a ~cpmd.x~ or a library call that opens it at the same time reads
-the previous file or the finished one, never part of the new one.
+~cpmdc-restart~ and ~cpmdc_restart_write_path()~ replace a ~RESTART~ file in one
+step, so a ~cpmd.x~ or a library call that opens it at the same time reads the
+previous file or the finished one, never part of the new one.
 The image goes to a short-named temporary file next to the effective
-destination. A new destination is opened with mode 0666 under the umask as a
-plain ~fopen~ would; replacement keeps the destination's existing mode.
-On POSIX, when ~RESTART~ is a symbolic link, as in CPMD's
-~RESTART -> RESTART.1~ convention, the target is replaced and the link
-survives. A dangling link, whose target is not there yet, is resolved hop
-by hop to the end of the chain, even past the first missing name, and the
-real end is created there: a relative target at each hop is taken from the
-directory that holds that hop's link, and the new file takes mode 0666
-under the umask, as ~fopen~ did. While it walks, the writer holds an
-~O_DIRECTORY~ descriptor for the parent of the destination and one for the
-directory that contained each symlink it followed, and it records that
-symlink's device, inode, and target text. Immediately before ~renameat~ it
-reads those descriptors again with ~fstatat~ and ~AT_SYMLINK_NOFOLLOW~. If
-any followed symlink is no longer that same link, or the final component
-is no longer the absent name or the same file that was resolved, the write
-fails, the temporary file is removed, and nothing is renamed. A loop, or a
-link that cannot be read, is left in place and the write fails.
-
-That check and the rename are not one operation. POSIX has no call that
-renames a file only when a whole symlink chain is unchanged, so a full
-guarantee is not available. The ~renameat~ uses the directory descriptor
-taken during resolution, which pins that directory inode: replacing an
-earlier path component afterwards does not redirect the write onto the
-replacement. On Linux, when the headers and kernel provide ~renameat2~ with
-~RENAME_NOREPLACE~, an absent final name that appears in the gap is left
-alone and the write fails. If that operation is unavailable or rejected,
-the writer falls back to plain ~renameat~; a name that appears in the gap
-can then be overwritten. When the resolved destination is an existing
-file, the last check and the ~renameat~ are also two calls, and a
-substitution of that directory entry in the gap can be overwritten.
-Windows resolves none of this: the destination is written as given, with
-no symlink handling at all.
-The writer flushes that file and syncs it with ~fsync~, renames it over the
-destination, and syncs the directory with ~fsync~, so the new name also
-survives a crash.
-On Windows, ~_commit~ flushes the file and ~MoveFileEx~ with
-~MOVEFILE_REPLACE_EXISTING~ and ~MOVEFILE_WRITE_THROUGH~ replaces the
 destination.
+A new destination is opened with mode 0666 under the umask as a plain ~fopen~
+would; replacement keeps the destination's existing mode.
+On POSIX, when ~RESTART~ is a symbolic link, as in CPMD's ~RESTART -> RESTART.1~
+convention, the target is replaced and the link survives.
+A dangling link, whose target is not there yet, is resolved hop by hop to the
+end of the chain, even past the first missing name, and the real end is created
+there: a relative target at each hop is taken from the directory that holds that
+hop's link, and the new file takes mode 0666 under the umask, as ~fopen~ did.
+While it walks, the writer holds an ~O_DIRECTORY~ descriptor for the parent of
+the destination and one for the directory that contained each symlink it
+followed, and it records that symlink's device, inode, and target text.
+Immediately before ~renameat~ it reads those descriptors again with ~fstatat~
+and ~AT_SYMLINK_NOFOLLOW~.
+If any followed symlink is no longer that same link, or the final component is
+no longer the absent name or the same file that was resolved, the write fails,
+the temporary file is removed, and nothing is renamed.
+A loop, or a link that cannot be read, is left in place and the write fails.
+
+That check and the rename are not one operation.
+POSIX has no call that renames a file only when a whole symlink chain is
+unchanged, so a full guarantee is not available.
+The ~renameat~ uses the directory descriptor taken during resolution, which pins
+that directory inode: replacing an earlier path component afterwards does not
+redirect the write onto the replacement.
+On Linux, when the headers and kernel provide ~renameat2~ with
+~RENAME_NOREPLACE~, an absent final name that appears in the gap is left alone
+and the write fails.
+If that operation is unavailable or rejected, the writer falls back to plain
+~renameat~; a name that appears in the gap can then be overwritten.
+When the resolved destination is an existing file, the last check and the
+~renameat~ are also two calls, and a substitution of that directory entry in the
+gap can be overwritten.
+Windows resolves none of this: the destination is written as given, with no
+symlink handling at all.
+The writer flushes that file and syncs it with ~fsync~, renames it over the
+destination, and syncs the directory with ~fsync~, so the new name also survives
+a crash.
+On Windows,
+~_commit~ flushes the file and ~MoveFileEx~ with ~MOVEFILE_REPLACE_EXISTING~ and ~MOVEFILE_WRITE_THROUGH~
+replaces the destination.
 A failure before the rename removes the temporary file and leaves the old
 ~RESTART~ in place.
 A directory that cannot be synced is reported as a failure even though the new

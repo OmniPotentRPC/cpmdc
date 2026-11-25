@@ -26,6 +26,25 @@ DEFAULT_DIFF_HEAD_LINES = 20
 TOCTREE_CAPTION = re.compile(r":caption:\s*(.+)")
 TOCTREE_ENTRY = re.compile(r"^\s+(\S+)\s*$")
 TITLE_LINE = re.compile(r"^#\+TITLE:\s*(.+)", re.I)
+HEADING_LINE = re.compile(r"^(\*+)\s+(.*\S.*)?$")
+WRAPPED_ORG_LINK = re.compile(
+    r"(?<!\[)\[\[([^\[\]\n]+)\]\[((?:(?!\n[ \t]*\n)[^\[\]])+)\]\](?!\])"
+)
+
+
+def normalize_wrapped_org_links(text: str) -> str:
+    """Join well-formed ``[[target][text]]`` links that wrap across lines.
+
+    Only the description may wrap, and never across a blank line.
+    Anything opening with ``[[[`` or closing with ``]]]``, such as the Cog
+    markers ``[[[cog``, ``]]]`` and ``[[[end]]]``, is left as written.
+    """
+
+    def join(match: re.Match[str]) -> str:
+        description = re.sub(r"\s*\n\s*", " ", match.group(2))
+        return f"[[{match.group(1)}][{description}]]"
+
+    return WRAPPED_ORG_LINK.sub(join, text)
 
 
 def repo_rel_doc_url(org_path: Path, org_root: Path = ORG_ROOT) -> str:
@@ -43,6 +62,7 @@ def page_title(org_path: Path) -> str:
 
 def org_plaintext(text: str) -> str:
     """Rough Org to plain text for llms-full.txt (not a full exporter)."""
+    text = normalize_wrapped_org_links(text)
     lines: list[str] = []
     in_export = False
     for raw in text.splitlines():
@@ -58,15 +78,16 @@ def org_plaintext(text: str) -> str:
             continue
         if line.startswith("#+"):
             continue
-        if line.startswith("*"):
-            level = len(line) - len(line.lstrip("*"))
-            heading = line.lstrip("*").strip()
+        heading_match = HEADING_LINE.match(line)
+        if heading_match:
+            level = len(heading_match.group(1))
+            heading = (heading_match.group(2) or "").strip()
             lines.append("#" * min(level, 6) + " " + heading)
             continue
         line = re.sub(r"~\([^)]+\)~", "", line)
         line = re.sub(r"~([^~]+)~", r"`\1`", line)
-        line = re.sub(r"\[\[([^]]+)\]\[([^]]*)\]\]", r"\2 (\1)", line)
-        line = re.sub(r"\[\[([^]]+)\]\]", r"\1", line)
+        line = re.sub(r"(?<!\[)\[\[([^][]+)\]\[([^]]*)\]\](?!\])", r"\2 (\1)", line)
+        line = re.sub(r"(?<!\[)\[\[([^][]+)\]\](?!\])", r"\1", line)
         lines.append(line)
     return "\n".join(lines).strip() + "\n"
 

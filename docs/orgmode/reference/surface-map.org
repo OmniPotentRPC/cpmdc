@@ -8,15 +8,17 @@ page records where each one lives.
 The ~cpmd-public-abi-inventory~, ~stub-abi-symbol-coverage~,
 ~shared-dlopen-symbol-coverage~, and ~c-abi-inventory~ tests keep it true.
 
-Protocol adapters are deliberately outside this surface.  Direct callers use
-=cpmdc_session_calculate_au()= or the Cap'n Proto result calls; remote callers
-normally use rgpot's Cap'n Proto RPC.  An optional i-PI adapter belongs to
-rgpot as a frontend over every potential.  In an rgpot build with the RPC
-stack, =rgpot-ipi-driver= selects =CPMDPot= for =--pot "CPMD params FILE"=
-and for ~-m CPMD -o params=FILE~.  Pass =--preserve-open-cell= for CPMD so
-a singular cell is passed through instead of padded.  The
-[[file:../howto/socket-drivers.org][i-PI migration status]] records that
-route.  =cpmdc-ipi= and =cpmdc-ipi-c= remain compatibility fallbacks.
+Protocol adapters are deliberately outside this surface.
+Direct callers use =cpmdc_session_calculate_au()= or the Cap'n Proto result
+calls; remote callers normally use rgpot's Cap'n Proto RPC.
+An optional i-PI adapter belongs to rgpot as a frontend over every potential.
+In an rgpot build with the RPC stack, =rgpot-ipi-driver= selects =CPMDPot= for
+=--pot "CPMD params FILE"= and for ~-m CPMD -o params=FILE~.
+Pass =--preserve-open-cell= for CPMD so a singular cell is passed through
+instead of padded.
+The [[file:../howto/socket-drivers.org][i-PI migration status]] records that
+route.
+=cpmdc-ipi= and =cpmdc-ipi-c= remain compatibility fallbacks.
 
 * Sources checked
 

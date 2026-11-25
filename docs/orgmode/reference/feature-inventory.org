@@ -13,10 +13,10 @@ drift apart.
 * Feature IDs
 
 The inventory describes the cpmdc engine boundary, not transport protocols.
-i-PI is an optional rgpot frontend over =CPMDPot= and other potentials;
-protocol frontends are not =cpmdc_feature_*= rows.  The audited rgpot
-develop snapshot provides the audited generic
-[[file:../howto/socket-drivers.org][i-PI route]] through =CPMDPot=.
+i-PI is an optional rgpot frontend over =CPMDPot= and other potentials; protocol
+frontends are not =cpmdc_feature_*= rows.
+The audited rgpot develop snapshot provides the audited generic [[file:../howto/socket-drivers.org][i-PI route]]
+through =CPMDPot=.
 The cpmdc-specific i-PI drivers remain compatibility fallbacks, not engine
 capabilities.
 
@@ -112,6 +112,5 @@ Without ~CPMD_ROOT~ the test prints a warning and skips that part.
 
 * Add a row
 Adding a typed keyword touches the schema, the renderer, the C table, the
-inventory file, and the option docs in one change; the
-[[file:../contributing/index.org][contributing guide]] lists the files and the
-focused test command.
+inventory file, and the option docs in one change; the [[file:../contributing/index.org][contributing guide]]
+lists the files and the focused test command.

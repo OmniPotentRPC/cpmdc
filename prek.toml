@@ -48,4 +48,14 @@ hooks = [
       "--",
     ],
   },
+  {
+    id = "snapper-check",
+    name = "Snapper semantic line breaks (80 columns)",
+    entry = "bash",
+    language = "system",
+    files = "\\.(org|md)$",
+    exclude = "^(LAND|CHANGELOG)\\.md$",
+    pass_filenames = true,
+    args = ["tools/check_snapper.sh", "--check"],
+  },
 ]

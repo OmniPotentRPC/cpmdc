@@ -2,8 +2,7 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 Each entry names the symptom, the cause in the code, and the fix.
-Set ~CPMDC_DECK_OUT~ first when the symptom involves energies (see
-[[file:debug-deck.org][debugging a deck]]).
+Set ~CPMDC_DECK_OUT~ first when the symptom involves energies (see [[file:debug-deck.org][debugging a deck]]).
 The last section says how to report a problem that no entry covers.
 
 * Energies
@@ -46,8 +45,7 @@ from ~sum x (x) f~ shifts by the position times that force.
 *Fix:* leave ~CPMDC_RECENTER~ unset (~mass~), or set it to ~geometry~, which
 moves the atoms to the middle of the cell on each call.
 Set ~CPMDC_RECENTER_MARGIN~ to the clearance the density needs, for example 3
-Angstrom, to make a cell that is too small for the region fail instead (see
-[[file:../reference/environment.org][environment variables]]).
+Angstrom, to make a cell that is too small for the region fail instead (see [[file:../reference/environment.org][environment variables]]).
 
 ** The energy changes when only the cell changes
 *Cause:* a cell that differs from the previous call's cell makes the next call
@@ -77,10 +75,9 @@ The same message has one other cause visible before the SCF starts:
 |-------+-------|
 | an element absent from ~atoms.pseudopotentials~ and outside H, C, N, O, Si, and Ge | the message and the built-in table have no pseudopotential, so no deck is composed; the error names the atomic number |
 
-*Fix:* raise ~maxIter~, or switch the optimiser (see
-[[file:wavefunction-optimiser.org][choosing the optimiser]]); otherwise put that
-element's pseudopotential in the message, or use an element the built-in table
-knows.
+*Fix:* raise ~maxIter~, or switch the optimiser (see [[file:wavefunction-optimiser.org][choosing the optimiser]]);
+otherwise put that element's pseudopotential in the message, or use an element
+the built-in table knows.
 
 A missing pseudopotential directory is a different message.
 When neither ~CPMDC_PSEUDO_DIR~ nor
@@ -134,9 +131,8 @@ A different elemental composition runs setup.
 string ~cpmdc~ knows.
 The call fails before it evaluates.
 
-*Fix:* use one of the unit strings of the
-[[file:../reference/c-abi.org][C ABI reference]], such as ~angstrom~, ~bohr~,
-~eV~, or ~hartree~; case does not matter.
+*Fix:* use one of the unit strings of the [[file:../reference/c-abi.org][C ABI reference]],
+such as ~angstrom~, ~bohr~, ~eV~, or ~hartree~; case does not matter.
 
 ** ~CPMD embed not available~
 *Cause:* the library was finalized with ~cpmdc_finalize()~, or the session could
@@ -157,8 +153,7 @@ parentheses, and linking ~libcpmdc~ instead fixes it.
 *Cause:* the OpenCPMD archive lacks ~opencpmd_embed_rwfopt.patch~, so ~fion~ is
 deallocated before ~cpmdc~ reads it.
 
-*Fix:* apply the patches in ~tools/~ and rebuild the archive (see
-[[file:opencpmd-archive.org][building the archive]]).
+*Fix:* apply the patches in ~tools/~ and rebuild the archive (see [[file:opencpmd-archive.org][building the archive]]).
 A symmetric cluster at a stationary geometry also gives zero forces; displace an
 atom to tell the two apart.
 
@@ -173,14 +168,12 @@ forces, which have no nonlocal part, were unchanged.
 
 *Fix:* build the host against the BLAS ~libcpmdc~ links.
 ~libcpmdc_gromacs~ stops ~mdrun~ with ~dgemm_ resolves to .../libgromacs...~ when OpenCPMD is linked, and ~scripts/ci/build_gromacs_cpmdc.sh~
-builds GROMACS against the BLAS of ~libcpmdc~ (see
-[[file:gromacs.org][GROMACS]]).
+builds GROMACS against the BLAS of ~libcpmdc~ (see [[file:gromacs.org][GROMACS]]).
 
 ** Ranks disagree about forces under mpirun
 *Cause:* only CPMD's parent rank holds the calculator's forces.
 
-*Fix:* broadcast the parent rank's result (see
-[[file:mpi.org][running under mpirun]]).
+*Fix:* broadcast the parent rank's result (see [[file:mpi.org][running under mpirun]]).
 
 ** mpirun reports an abnormal termination at exit
 *Cause:* CPMD initialised MPI and nothing finalized it; Open MPI 5 kills the
@@ -246,9 +239,8 @@ error and does not write a shortened deck.
 ~CPMDC_DECK_OUT~.
 
 * Report a new problem
-Open an issue on the
-[[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]] when no
-entry above matches.
+Open an issue on the [[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]]
+when no entry above matches.
 Questions go there too.
 
 Print the version and the build options that choose the code path.
@@ -278,8 +270,7 @@ with_readcon = False
 Put these items in the report:
 
 1. the output of that command;
-2. the deck that ~CPMDC_DECK_OUT~ wrote for the failing call (see
-   [[file:debug-deck.org][debugging a deck]]);
+2. the deck that ~CPMDC_DECK_OUT~ wrote for the failing call (see [[file:debug-deck.org][debugging a deck]]);
 3. ~CPMDCResult.message~ or ~cpmdc_last_error()~ for a failed call, or the
    ~--print-errorlogs~ output for a failed test;
 4. the ~LocalError-*.log~ file, when the call stopped with

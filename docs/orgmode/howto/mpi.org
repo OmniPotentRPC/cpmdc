@@ -84,8 +84,8 @@ Group ~g~ holds world ranks ~g * ranks_per_calc~ to
 groups.
 With 16 ranks and ~ranks_per_calc~ 4, group 0 is ranks 0 to 3, group 1 is ranks
 4 to 7, and so on.
-A rank's group index is ~world_rank / ranks_per_calc~, with integer division,
-and its rank inside the group is ~world_rank % ranks_per_calc~.
+A rank's group index is
+~world_rank / ranks_per_calc~, with integer division, and its rank inside the group is ~world_rank % ranks_per_calc~.
 The group's first rank, world rank ~group * ranks_per_calc~, is its parent rank.
 
 | Argument or result | Meaning |
@@ -105,16 +105,16 @@ A later call does not split again, also when the communicator in use came from
 ~cpmdc_adopt_calculator_comm~ instead of an earlier bind.
 It still checks its own ~ranks_per_calc~ as above, and it returns
 ~world_rank / ranks_per_calc~ for that value.
-That is the index of the group in use only when the value is the same as the
-one that made the split.
-A value that does not divide the world size, or is above it, returns -1 on
-every rank, as it does on the first call, and the split already in use stays as
-it was.
+That is the index of the group in use only when the value is the same as the one
+that made the split.
+A value that does not divide the world size, or is above it, returns -1 on every
+rank, as it does on the first call, and the split already in use stays as it
+was.
 
 ** MPI start
-On an OpenCPMD build, ~cpmdc_bind_calculator~ calls ~MPI_Init~ when MPI is not
-running, before it looks at ~ranks_per_calc~, so the call starts MPI even when
-it then refuses the value.
+On an OpenCPMD build, ~cpmdc_bind_calculator~ calls
+~MPI_Init~ when MPI is not running, before it looks at ~ranks_per_calc~, so the
+call starts MPI even when it then refuses the value.
 ~cpmdc~ starts MPI only in OpenCPMD builds.
 The default build, which runs the reference evaluator, and the link stub never
 call ~MPI_Init~.
@@ -130,10 +130,8 @@ communicator by the time setup reaches ~mp_start~.
 A host that has already split its ranks passes that communicator to
 ~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~.
 [[https://rgpot.rgoswami.me][rgpot]] does this when it binds calculator groups.
-Its MPI contract is the
-[[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]], and the
-messages those hosts share are the ones in the
-[[file:../index.org][cpmdc overview]].
+Its MPI contract is the [[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]],
+and the messages those hosts share are the ones in the [[file:../index.org][cpmdc overview]].
 ~nbytes~ is ~sizeof(MPI_Comm)~.
 The call is collective on ~comm~.
 It reads rank and size from ~comm~.

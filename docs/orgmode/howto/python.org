@@ -10,8 +10,7 @@ Hartree per Bohr for forces.
 ~evaluate~ and ~caps~ without importing cpmdc's ASE module.
 ~CPMDCCalculator~ in ~cpmdc.ase~ is an ASE calculator over the same session.
 ~Session.calculate_au~ takes Bohr and returns the virial as well, and
-~cpmdc.lammps~ drives LAMMPS with it (see
-[[file:lammps.org][Run LAMMPS on cpmdc forces]]).
+~cpmdc.lammps~ drives LAMMPS with it (see [[file:lammps.org][Run LAMMPS on cpmdc forces]]).
 
 * Load the library
 ~pip install "cpmdc[ase]"~ installs the package with its own ~libcpmdc~ and
@@ -73,21 +72,18 @@ sources.
 ~forces_to_ev_per_angstrom~, ~stress_to_ev_per_angstrom3~, and
 ~dipole_to_e_angstrom~ apply them.
 ~Evaluation~ is the native result:
-~energy_h~, ~forces_h_bohr~, optional ~stress_h_bohr3~, and optional
-~dipole_e_bohr~.
+~energy_h~, ~forces_h_bohr~, optional ~stress_h_bohr3~, and optional ~dipole_e_bohr~.
 A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The ~schema~ argument of ~Session~, ~Potential~, and ~CPMDCCalculator~ is
 deprecated and ignored, and passing it warns with ~DeprecationWarning~.
 
 A C-contiguous ~float64~ array of shape ~(N, 3)~, and lists or tuples of plain
-~float~ and ~int~ rows, are packed without a Python loop over the
-coordinates.
-Another container, or a coordinate that is a ~bool~, a string, or a NumPy
-scalar inside a list, is still accepted where it was and takes the checked
-loop.
-For ~calculate_au~, a C-contiguous ~float64~ or ~int32~ buffer is the only
-form that is not copied.
+~float~ and ~int~ rows, are packed without a Python loop over the coordinates.
+Another container, or a coordinate that is a ~bool~, a string, or a NumPy scalar
+inside a list, is still accepted where it was and takes the checked loop.
+For ~calculate_au~, a C-contiguous ~float64~ or ~int32~ buffer is the only form
+that is not copied.
 
 * Use it as an rgpot provider
 ~Potential.evaluate(positions, numbers, box)~ returns ~energy~ in eV, ~forces~
@@ -97,9 +93,10 @@ It returns ~dipole~ as three e*Angstrom components only when OpenCPMD recomputed
 the molecular moment for that step.
 ~Potential.caps~ returns ~stress=True~ and ~energies=False~.
 It returns ~dipole=True~ only when the evaluator can produce a dipole: never for
-the reference evaluator, never for a library without ~cpmdc_session_last_dipole~,
-and for OpenCPMD until an evaluation comes back without one, because a deck
-without ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~ produces none.
+the reference evaluator, never for a library without
+~cpmdc_session_last_dipole~, and for OpenCPMD until an evaluation comes back
+without one, because a deck without ~DIPOLE DYNAMICS~ or
+~PROP / DIPOLE MOMENT BERRY~ produces none.
 The call reads the session, so the dict is not a constant.
 The Berry-phase dipole exists only for a neutral periodic cell and only modulo
 the lattice quantum, so it can jump by a lattice vector between geometries.
@@ -147,8 +144,8 @@ python3 bench/client_overhead.py --profile "Session.energy_forces (periodic, num
 
 One run is a batch of calls of about 50 ms and the figure is the mean time per
 call.
-A ring of four geometries is cycled, so the session never answers from its
-last geometry.
+A ring of four geometries is cycled, so the session never answers from its last
+geometry.
 The tables give the median over the runs, the quartiles, and the extremes.
-~bench/results/client_overhead.org~ holds the base and tip tables of the
-change that packs inputs with ~array~ and ~memoryview~.
+~bench/results/client_overhead.org~ holds the base and tip tables of the change
+that packs inputs with ~array~ and ~memoryview~.

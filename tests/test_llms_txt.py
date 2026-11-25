@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +36,17 @@ def _run_generator(tree: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
+
+
+def _load_generator_module(tree: Path):
+    spec = importlib.util.spec_from_file_location(
+        "generate_llms_txt", tree / "scripts" / "generate_llms_txt.py"
+    )
+    if spec is None or spec.loader is None:
+        raise AssertionError("could not import generator script")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_deterministic_generation(root: Path = ROOT) -> None:
@@ -146,6 +158,99 @@ def test_stale_failure_is_actionable(root: Path = ROOT) -> None:
                 )
 
 
+def test_org_plaintext_wrapped_links_and_fix_labels(root: Path = ROOT) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = (
+            "* Heading\n"
+            "*Fix:* keep this as prose.\n"
+            "See [[file:../reference/pwscale.org][Plane-wave\n"
+            "scaffold reference]] today.\n"
+        )
+        rendered = generator.org_plaintext(sample)
+        if "# Fix:* keep this as prose." in rendered:
+            raise AssertionError(f"*Fix:* was misparsed as heading:\n{rendered}")
+        if "[[" in rendered:
+            raise AssertionError(f"wrapped link was not rewritten:\n{rendered}")
+        if "Plane-wave scaffold reference (file:../reference/pwscale.org)" not in rendered:
+            raise AssertionError(f"wrapped link text lost after rewrite:\n{rendered}")
+
+
+def test_org_plaintext_keeps_cog_blocks(root: Path = ROOT) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        cog_open = (
+            "# [[[cog\n"
+            "# import re\n"
+            '# cog.out(re.sub(r"^v\\S+", "v1", cog.previous))\n'
+            "# ]]]\n"
+        )
+        sample = (
+            cog_open
+            + "#+begin_src text\n"
+            "v0 ok\n"
+            "#+end_src\n"
+            "# [[[end]]]\n"
+            "See [[file:a.org][wrapped\n"
+            "link]] after the block.\n"
+        )
+        normalized = generator.normalize_wrapped_org_links(sample)
+        if not normalized.startswith(cog_open):
+            raise AssertionError(f"Cog opening block was rewritten:\n{normalized}")
+        if "# [[[end]]]\n" not in normalized:
+            raise AssertionError(f"Cog end marker was rewritten:\n{normalized}")
+        rendered = generator.org_plaintext(sample)
+        for marker in ("# [[[cog", "# import re", "# ]]]", "# [[[end]]]"):
+            if f"\n{marker}\n" not in f"\n{rendered}\n":
+                raise AssertionError(f"Cog line {marker!r} lost:\n{rendered}")
+        if "wrapped link (file:a.org)" not in rendered:
+            raise AssertionError(f"link after Cog block not rewritten:\n{rendered}")
+
+
+def test_normalize_joins_only_well_formed_links(root: Path = ROOT) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        cases = {
+            "[[file:a.org][two\n  lines]]": "[[file:a.org][two lines]]",
+            "[[file:a.org][across\n\nparagraphs]]": None,
+            "[[file:a.org\n]]": None,
+            "# [[[cog\n# x = 1\n# ]]]\n": None,
+            "x [[[a][b\nc]]] y": None,
+        }
+        for sample, want in cases.items():
+            got = generator.normalize_wrapped_org_links(sample)
+            if got != (sample if want is None else want):
+                raise AssertionError(f"normalize changed {sample!r} to {got!r}")
+
+
+TESTS = (
+    test_deterministic_generation,
+    test_stale_failure_is_actionable,
+    test_org_plaintext_wrapped_links_and_fix_labels,
+    test_org_plaintext_keeps_cog_blocks,
+    test_normalize_joins_only_well_formed_links,
+)
+
+
+def check_all_tests_listed() -> None:
+    defined = {
+        name
+        for name, value in globals().items()
+        if name.startswith("test_") and callable(value)
+    }
+    listed = {test.__name__ for test in TESTS}
+    if defined != listed:
+        raise AssertionError(
+            f"test functions missing from TESTS: {sorted(defined - listed)}"
+        )
+
+
 def check_repo_outputs(root: Path) -> int:
     result = _run_generator(root, "--check")
     if result.returncode != 0:
@@ -162,8 +267,9 @@ def main() -> int:
         print("usage: test_llms_txt.py SOURCE_ROOT", file=sys.stderr)
         return 2
     root = Path(sys.argv[1]).resolve()
-    test_deterministic_generation(root)
-    test_stale_failure_is_actionable(root)
+    check_all_tests_listed()
+    for test in TESTS:
+        test(root)
     return check_repo_outputs(root)
 
 

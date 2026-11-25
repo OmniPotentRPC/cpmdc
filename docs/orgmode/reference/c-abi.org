@@ -4,7 +4,8 @@
 The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~, with the export mark in ~include/cpmdc_export.h~.
 ~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see [[*RESTART file library][RESTART file library]]).
-~include/cpmdc_pwscale.h~ declares the opt-in plane-wave scaffold, which is not part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold reference]].
+~include/cpmdc_pwscale.h~ declares the opt-in plane-wave scaffold, which is not
+part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold reference]].
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
@@ -18,7 +19,9 @@ carries its own ~@since~ generation.
 The header comments, which the documentation site renders as the generated API
 pages, carry the declarations; this page adds the units, the return conventions,
 and the behaviour that the implementation in ~src/cpmdc.c~ gives each call.
-The [[file:contracts.org][API contracts]] page lists every function, type, and constant with its units, layout, ownership, thread and MPI behaviour, errors, and defaults; the ~reference-audit~ test keeps it in step with the headers.
+The [[file:contracts.org][API contracts]] page lists every function, type, and
+constant with its units, layout, ownership, thread and MPI behaviour, errors,
+and defaults; the ~reference-audit~ test keeps it in step with the headers.
 
 * Exported symbols
 Every function of ~cpmdc.h~ and ~cpmdc_features.h~ is declared with ~CPMDC_API~
@@ -55,14 +58,14 @@ An ELF version script and an ld64 export list do not treat a missing literal
 name the same way.
 A ~global:~ pattern exports a symbol when the link defines it, and does not
 require the symbol to exist.
-~-exported_symbols_list~ requires every literal name to be defined, reporting
-an absent literal as an undefined symbol, while a wildcard entry matches only
+~-exported_symbols_list~ requires every literal name to be defined, reporting an
+absent literal as an undefined symbol, while a wildcard entry matches only
 symbols the link defines.
 Every MPI Fortran sentinel is therefore written as a wildcard pattern so neither
 Open MPI nor MPICH leaves required undefined names for the other implementation.
 The version script always names them; the macOS list adds them when OpenCPMD is
-linked, and the serial macOS library lists the literal public ~cpmdc_~
-functions alone.
+linked, and the serial macOS library lists the literal public ~cpmdc_~ functions
+alone.
 
 Releases up to and including 0.4.0 also export 56 internal functions with the
 ~cpmdc_~ prefix: the glue between ~src/cpmdc.c~, the parameter renderer, and the
@@ -92,8 +95,8 @@ sources directly; the Python package loads only public functions.
 | Ownership | the caller owns every buffer it passes; the library copies what it keeps |
 | Threads | one process-wide CPMD state; serialize calls into one library instance |
 
-The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other
-Cap'n Proto binding that writes the standard flat stream format.
+The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other Cap'n
+Proto binding that writes the standard flat stream format.
 ~ForceInput~ unit strings are matched without regard to case.
 Length: ~angstrom~, ~angstroms~, ~a~, ~aa~, ~bohr~, ~au~, ~a.u.~, ~atomic~,
 ~nm~, ~nanometer~.
@@ -109,19 +112,18 @@ A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
 box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with off-diagonal
 components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD refuses beside it.
 An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and takes
-only an orthorhombic box with positive diagonal entries; a box with
-off-diagonal entries fails with
-~an isolated deck (SYMMETRY 0) needs an orthorhombic box~,
+only an orthorhombic box with positive diagonal entries; a box with off-diagonal
+entries fails with ~an isolated deck (SYMMETRY 0) needs an orthorhombic box~,
 and one with a non-positive diagonal fails with
 ~the ForceInput box has a non-positive diagonal~.
-Before fixing the session topology, a non-zero box converted to Angstrom
-is checked by one-sided Jacobi singular values and scaled LU with partial
-pivoting on a power-of-two scaled copy: a non-finite component fails with
-~cell contains a non-finite component~, a cell whose singular values do not
-all exceed the largest singular value times 3 times ~DBL_EPSILON~ (or whose
-scaled LU determinant is zero) fails with
-~cell does not have three independent vectors~, and a full-rank cell
-whose Angstrom volume falls below the normal binary64 range fails with
+Before fixing the session topology, a non-zero box converted to Angstrom is
+checked by one-sided Jacobi singular values and scaled LU with partial pivoting
+on a power-of-two scaled copy: a non-finite component fails with
+~cell contains a non-finite component~, a cell whose singular values do not all
+exceed the largest singular value times 3 times ~DBL_EPSILON~ (or whose scaled
+LU determinant is zero) fails with
+~cell does not have three independent vectors~, and a full-rank cell whose
+Angstrom volume falls below the normal binary64 range fails with
 ~cell volume is too small for binary64~.
 Deck rendering also rejects a non-zero cell without a representable rank-3
 volume (~the periodic cell does not have a representable rank-3 volume~ or
@@ -154,8 +156,8 @@ A session holds a copy of the ~CPMDParams~ bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
 ~session_accept_topology~ fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 
 ** Result snapshots
 Each snapshot struct starts with ~int valid~, set by a successful evaluation.
@@ -188,13 +190,15 @@ optimisation.
 ~CPMDCPropertySnapshot.hessian~ and ~hessian_count~ are deprecated because the
 values are the nuclear gradient, not a Hessian.
 Use ~cpmdc_last_gradient()~ or ~cpmdc_session_last_gradient()~.
-The legacy array fixes the current maximum at 4096 gradient components, or
-1365 atoms. An evaluation with more atoms fails before it runs, with
+The legacy array fixes the current maximum at 4096 gradient components, or 1365
+atoms.
+An evaluation with more atoms fails before it runs, with
 ~property gradient snapshot supports at most 1365 atoms~; it is not truncated.
 On a session the check is part of the evaluation preflight, after the topology
-check and before the topology is fixed. A first call that is too large leaves
-the session without a topology. A session that already holds another system
-reports ~topology change requires a new session~ instead of the atom limit.
+check and before the topology is fixed.
+A first call that is too large leaves the session without a topology.
+A session that already holds another system reports
+~topology change requires a new session~ instead of the atom limit.
 
 Fields of ~CPMDCEnergyComponents~; ~valid~ is an ~int~, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -229,8 +233,8 @@ snapshot was written by a successful evaluation, and every other field is a
 | ~eefield~ | ~double~ | the ~eefield~ term of ~ener_com~, Hartree |
 
 Fields of the other snapshot structs; each also starts with ~int valid~.
-Arrays have the fixed capacity shown, and a ~size_t~ count says how many
-entries a call filled.
+Arrays have the fixed capacity shown, and a ~size_t~ count says how many entries
+a call filled.
 
 | Field | Struct | Meaning |
 |-------+--------+---------|
@@ -285,10 +289,8 @@ entries a call filled.
 ~cpmdc_configure()~, ~cpmdc_bind_calculator()~, ~cpmdc_adopt_calculator_comm()~,
 ~cpmdc_session_create()~,
 ~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
-~cpmdc_session_copy_orbitals()~,
-~cpmdc_session_create_from_config()~, ~cpmdc_session_configure()~,
-~cpmdc_potential_result_size_for_force_input()~, and every evaluation entry
-point, ~cpmdc_session_calculate_au()~ among them.
+~cpmdc_session_copy_orbitals()~, ~cpmdc_session_create_from_config()~, ~cpmdc_session_configure()~, ~cpmdc_potential_result_size_for_force_input()~, and every evaluation entry point, ~cpmdc_session_calculate_au()~
+among them.
 ~cpmdc_session_set_constant_cutoff()~ writes it too.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
 missing pseudopotential directory.
@@ -306,7 +308,8 @@ A capabilities return of -1 is the size query.
 | ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; the handle is borrowed, so the caller keeps ownership and does not free the communicator until the last session is destroyed or a later adopt replaces it; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no live ~CPMDCSession~ has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
 | ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies the stored calculator communicator into ~out~ (on an OpenCPMD build, ~mp_comm_world~); returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
 
-~cpmdc_bind_calculator()~ splits at most once per process, so call it before the first evaluation.
+~cpmdc_bind_calculator()~ splits at most once per process, so call it before the
+first evaluation.
 A later call does not split again.
 ~cpmdc_adopt_calculator_comm()~ may run again after every session has been
 destroyed.
@@ -342,42 +345,40 @@ A typed ~dft~ or ~system~ section beats the top-level field of the same name.
 A field that is omitted or holds its schema default (functional ~BLYP~, cutoff
 70 Ry, charge 0 with ~hasCharge~ ~false~, multiplicity 1) is unset and does not
 replace the top-level arm or overlay value.
-So ~xcFunctionals~ fills a ~BLYP~ functional, ~planewaveCutoffEv~ fills a
-70 Ry cutoff, ~charge~ fills a charge of 0 with ~hasCharge~ ~false~, and
+So ~xcFunctionals~ fills a ~BLYP~ functional, ~planewaveCutoffEv~ fills a 70 Ry
+cutoff, ~charge~ fills a charge of 0 with ~hasCharge~ ~false~, and
 ~spinMultiplicity~ fills a multiplicity of 1.
 A typed ~system~ charge of 0 with ~hasCharge~ ~false~ is unset; a non-zero
 system charge, and zero ~system.charge~ with ~system.hasCharge~ ~true~, is
 explicit.
-~planewaveCutoffEv~ is in eV and the deck cutoff is in Ry, so the merge
-divides by the Rydberg energy in eV (13.605693 eV).
+~planewaveCutoffEv~ is in eV and the deck cutoff is in Ry, so the merge divides
+by the Rydberg energy in eV (13.605693 eV).
 ~spinMultiplicity~ 0 is unset, and any other value, an explicit singlet
 included, is merged and checked like the other overlay scalars.
-An ~xcFunctionals~ list is mapped before that precedence, and an unmapped
-token is rejected for every arm functional.
-An opaque carrier is rendered as given and is not read back into the
-recorded functional, cutoff, charge, or multiplicity.
-So the carrier check runs for every set overlay field, whether or not a
-typed field also sets it, including zero ~charge~ with ~hasCharge~ ~true~ and
-an explicit singlet ~spinMultiplicity~ of 1.
+An ~xcFunctionals~ list is mapped before that precedence, and an unmapped token
+is rejected for every arm functional.
+An opaque carrier is rendered as given and is not read back into the recorded
+functional, cutoff, charge, or multiplicity.
+So the carrier check runs for every set overlay field, whether or not a typed
+field also sets it, including zero ~charge~ with ~hasCharge~ ~true~ and an
+explicit singlet ~spinMultiplicity~ of 1.
 The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
-section opens the owning section (~&DFT~ for ~xcFunctionals~, ~&SYSTEM~ for
-the cutoff, charge, and multiplicity), when a set directive names
-~DFT.FUNCTIONAL~, ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
-~SYSTEM.MULTIPLICITY~, or when the ~directives~ list of the typed ~dft~
-section holds ~FUNCTIONAL~ or that of the typed ~system~ section holds
-~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
+section opens the owning section (~&DFT~ for ~xcFunctionals~, ~&SYSTEM~ for the
+cutoff, charge, and multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the
+~directives~ list of the typed ~dft~ section holds ~FUNCTIONAL~ or that of the
+typed ~system~ section holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
 Without an overlay, a ~FUNCTIONAL~ directive in the typed ~dft~ section or a
 ~DFT.FUNCTIONAL~ set directive is rejected when the deck is rendered, because
 the rendered ~&DFT~ section already carries the functional.
-The same render rejects a ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~ directive in
-the typed ~system~ section, and a ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
+The same render rejects a ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~ directive in the
+typed ~system~ section, and a ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
 ~SYSTEM.MULTIPLICITY~ set directive.
 ~CUTOFF~ is written on every deck, including the default 70 Ry.
 ~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
-greater than 1; an omitted line is the schema default the recorded
-configuration carries.
-Those directives are rejected for a default value and for any other value
-alike.
+greater than 1; an omitted line is the schema default the recorded configuration
+carries.
+Those directives are rejected for a default value and for any other value alike.
 A default leaves the directive as a value the recorded configuration does not
 carry, and any other value leaves two lines.
 The render does not keep one and drop the other.
@@ -407,11 +408,10 @@ Each call applies the message it is given like ~cpmdc_set_params()~ and then
 evaluates.
 ~cpmdc_set_params()~ detaches the process image without clearing the stored
 orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom
-count, and elemental composition match the latched basis, and whose step
-without a cell matches a latched state that also has no cell
-(~CPMDC_CELL_IN_PLACE~ does not apply without a cell, because
-~embed_cell_moves_in_place~ returns false when ~has_cell~ is 0), skips full
-CPMD setup.
+count, and elemental composition match the latched basis, and whose step without
+a cell matches a latched state that also has no cell
+(~CPMDC_CELL_IN_PLACE~ does not apply without a cell, because ~embed_cell_moves_in_place~ returns false when ~has_cell~
+is 0), skips full CPMD setup.
 It starts the SCF from the stored orbitals when the geometry is within
 ~CPMDC_WARM_RMSD~ (default 0.15 Angstrom) of a stored geometry, and from the
 deck's guess without full setup beyond that limit.
@@ -452,8 +452,8 @@ It survives a later ~cpmdc_session_set_params()~.
 The link stub returns -1.
 
 ~session_accept_topology~ fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 ~topology change requires a new session~ before CPMD runs.
 A reordering of the same elements stays on the session.
@@ -486,14 +486,14 @@ the deck has none.
 | ~CPMDCResult cpmdc_session_calculate_result(CPMDCSession *s, const void *force_input, size_t size, void *out, size_t capacity, size_t *out_size)~ | a serialized ~PotentialResult~ in ~out~, its byte count in ~*out_size~ |
 
 ~cpmdc_session_calculate_forces()~ and ~cpmdc_session_calculate_result()~
-enforce the ~ForceInput.box~ rules above before fixing the session topology:
-a ~box~ length other than 0 or 9 fails with ~invalid ForceInput geometry~,
-and a non-zero box fails with ~cell contains a non-finite component~,
+enforce the ~ForceInput.box~ rules above before fixing the session topology: a
+~box~ length other than 0 or 9 fails with ~invalid ForceInput geometry~, and a
+non-zero box fails with ~cell contains a non-finite component~,
 ~cell does not have three independent vectors~, or
-~cell volume is too small for binary64~ on the Angstrom cell, or fails
-in the reference evaluator when a non-zero periodic cell cannot represent
-a finite positive stress volume (~cell volume is too large for binary64~
-or ~cell volume is not representable for stress~).
+~cell volume is too small for binary64~ on the Angstrom cell, or fails in the
+reference evaluator when a non-zero periodic cell cannot represent a finite
+positive stress volume (~cell volume is too large for binary64~ or
+~cell volume is not representable for stress~).
 ~cpmdc_session_calculate_result()~ writes the required byte count to ~*out_size~
 before it checks ~capacity~.
 When ~capacity~ is too small, or ~out~ is ~NULL~, it returns ~ok == 0~ with
@@ -501,8 +501,8 @@ When ~capacity~ is too small, or ~out~ is ~NULL~, it returns ~ok == 0~ with
 of the session result call of the NWChem library ~nwchemc~ as well.
 ~out_size~ is required: a ~NULL~ there fails with ~ok == 0~, and it is set to 0
 when the ~ForceInput~ does not parse or its geometry is invalid.
-A ~forces_len~ below ~3 * n_atoms~ fails ~cpmdc_session_calculate_forces()~
-with ~ok == 0~.
+A ~forces_len~ below ~3 * n_atoms~ fails ~cpmdc_session_calculate_forces()~ with
+~ok == 0~.
 The written ~PotentialResult~ carries ~energy~ and ~forces~ in the requested
 units, ~stress~, ~gradient~, ~dipole~, ~polarizability~, and the ~cpmdc~
 extension fields ~energyComponents~, ~chargeIntegrals~, ~multiStateEnergies~,
@@ -555,14 +555,12 @@ The topology and repeat-step rules of the session apply.
 It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session
 (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a ~NULL~ required
 pointer (~invalid arguments~), a topology change, and a failed evaluation.
-For a non-zero ~cell_bohr~, it fails before fixing the session topology with
-~cell contains a non-finite component~,
-~cell does not have three independent vectors~, or
-~cell volume is too small for binary64~ judged on the converted
-Angstrom cell; when ~virial_h~ is not ~NULL~ and ~cell_bohr~ is finite, a
-Bohr volume above ~DBL_MAX~ fails before evaluation with
-~cell volume is too large for binary64~, and any non-finite component of
-~volume * stress~ after evaluation fails with ~virial is not finite~.
+For a non-zero
+~cell_bohr~, it fails before fixing the session topology with ~cell contains a non-finite component~, ~cell does not have three independent vectors~, or ~cell volume is too small for binary64~ judged on the converted Angstrom cell; when ~virial_h~
+is not ~NULL~ and ~cell_bohr~ is finite, a Bohr volume above ~DBL_MAX~ fails
+before evaluation with ~cell volume is too large for binary64~, and any
+non-finite component of ~volume * stress~ after evaluation fails with
+~virial is not finite~.
 When ~virial_h~ is ~NULL~, the reference evaluator still fails a non-zero
 periodic cell whose Bohr volume cannot be represented for stress
 (~cell volume is too large for binary64~ or
@@ -629,12 +627,12 @@ An isolated deck, a k-point calculation, the reference evaluator, and a deck
 without either request leave the dipole invalid.
 A deck that sets ~DIPOLE DYNAMICS~ in ~&CPMD~ and ~KPOINTS~ in ~&SYSTEM~ is
 rejected before any evaluation, by ~cpmdc_session_create()~,
-~cpmdc_session_set_params()~, and the calls that take parameters, because
-OpenCPMD stops in ~localize2~ on it; ~cpmdc_last_error()~ names both keywords.
+~cpmdc_session_set_params()~, and the calls that take parameters, because OpenCPMD stops in ~localize2~ on it; ~cpmdc_last_error()~
+names both keywords.
 OpenCPMD's ~ddip%pdipole~ is not this molecular dipole: ~ddipo~ adds the ionic
-term to make ~pdipolt~, then multiplies by the cell volume to set
-~moment%dmom~. Reading ~pdipole~ after ~wfopts~ without calling ~ddipo~ would
-return stale module state.
+term to make ~pdipolt~, then multiplies by the cell volume to set ~moment%dmom~.
+Reading ~pdipole~ after ~wfopts~ without calling ~ddipo~ would return stale
+module state.
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and

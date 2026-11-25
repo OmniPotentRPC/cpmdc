@@ -3,10 +3,9 @@
 
 Bug reports, fixes, tests, documentation, and new typed keywords for the input
 deck are welcome.
-Report a problem or propose a change on the
-[[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
-Send the change itself as a pull request to the
-[[https://github.com/OmniPotentRPC/cpmdc][cpmdc repository]] on GitHub.
+Report a problem or propose a change on the [[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
+Send the change itself as a pull request to the [[https://github.com/OmniPotentRPC/cpmdc][cpmdc repository]]
+on GitHub.
 The sections below list the checks to run first and the files that each kind of
 change touches.
 
@@ -45,6 +44,8 @@ public change:
 | README and build-and-test navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
 | LLM index files match Org sources | ~python3 scripts/generate_llms_txt.py --check~ or ~meson test -C build llms-txt --print-errorlogs~ |
+| Snapper prose wrapping stays canonical | ~pixi run snapper-check~ |
+| Snapper ~--write~ refuses symlinks and paths outside the repository | ~meson test -C build check-snapper --print-errorlogs~ |
 | Public inventory JSON coverage report | ~python3 scripts/docs_coverage_inventory.py~ or ~meson test -C build docs-coverage-inventory --print-errorlogs~ |
 | Every README and Org code block runs, compiles, or names why not | ~meson test -C build docs-examples --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
@@ -63,14 +64,38 @@ parser section probe.
 ~cpmd-base-keyword-inventory~ requires every base ~&CPMD~ keyword in
 ~schema/inventory/cpmd_cp_keywords.txt~ to resolve to a ~catalog.cpmd.*~ row.
 ~cpmd-params-field-inventory~ requires every top-level ~CPMDParams~ schema field
-to resolve to a
-~params.*~ feature row and rejects duplicate inventory IDs/lists and C feature table duplicates before set comparisons can hide them. ~cpmd-public-abi-inventory~ requires every public ~cpmdc_*~
-header function to resolve through
-~abi_symbols~ and the feature table, then verifies the native ~src/cpmdc.c~, stub ~src/cpmdc_stub.c~,
-or shared
-~src/cpmdc_features.c~ implementation that exports it. ~stub-abi-symbol-coverage~ requires the standalone stub test to assert every ~abi_symbols~ feature row is present and stub-applicable. ~shared-dlopen-symbol-coverage~ requires the shared-library ~dlopen~ test to load every ~abi_symbols~ entry from ~libcpmdc.so~. ~cpmd-schema-render-coverage~ and ~cpmd-option-token-coverage~ keep typed ~CPMDCpmdSection~ fields and fixture inline tokens tied to render coverage. ~cpmd-typed-render-field-coverage~ requires typed ~cpmd~, ~system~, ~dft~, and ~atoms~ fields to appear in render fixtures or render assertions. ~cpmd-long-tail-section-coverage~ requires every ~CPMDDirectiveSection~ union arm to appear in the long-tail fixture, render assertions, and option reference. ~cpmd-escape-hatch-coverage~ requires ~inputBlocks~, ~generic~, ~set~, and ~raw~ carriers to stay covered by schema, fixtures, render tests, and option docs. ~cpmd-embedding-docs-coverage~ requires the embedding how-to to name the public ABI feature IDs plus the typed, long-tail, and escape-hatch ~CPMDParams~ carrier IDs used by host authors. ~cpmd-public-header-docs-coverage~ requires the public header and generated C API docs to describe the serialized ~CPMDParams~ input surface. ~examples-documented~ requires public docs to point at the runnable ~examples/host_step.c~ host program. ~readme-navigation~ keeps the README and build-and-test how-to focused on entry paths, work-loop labels, and current wording. ~reference-contract~ requires every function, type, enum constant, and macro of ~cpmdc.h~, ~cpmdc_features.h~,
-and
-~cpmdc_restart.h~ in the [[file:../reference/c-abi.org][C ABI reference]], each function with its parameter list in a table row, an ~__all__~ in every ~python/cpmdc~ module that lists its public functions and classes, each of those names and each public member of an exported class in the [[file:../reference/python.org][Python reference]], and no ~cpmdc_~
+to resolve to a ~params.*~ feature row and rejects duplicate inventory IDs or
+lists and C feature table duplicates before set comparisons can hide them.
+~cpmd-public-abi-inventory~ requires every public
+~cpmdc_*~ header function to resolve through ~abi_symbols~ and the feature
+table, then verifies the native
+~src/cpmdc.c~, stub ~src/cpmdc_stub.c~, or shared ~src/cpmdc_features.c~
+implementation that exports it.
+~stub-abi-symbol-coverage~ requires the standalone stub test to assert every
+~abi_symbols~ feature row is present and stub-applicable.
+~shared-dlopen-symbol-coverage~ requires the shared-library ~dlopen~ test to
+load every ~abi_symbols~ entry from ~libcpmdc.so~.
+~cpmd-schema-render-coverage~ and ~cpmd-option-token-coverage~ keep typed
+~CPMDCpmdSection~ fields and fixture inline tokens tied to render coverage.
+~cpmd-typed-render-field-coverage~ requires typed ~cpmd~, ~system~, ~dft~, and
+~atoms~ fields to appear in render fixtures or render assertions.
+~cpmd-long-tail-section-coverage~ requires every ~CPMDDirectiveSection~ union
+arm to appear in the long-tail fixture, render assertions, and option reference.
+~cpmd-escape-hatch-coverage~ requires ~inputBlocks~, ~generic~, ~set~, and ~raw~
+carriers to stay covered by schema, fixtures, render tests, and option docs.
+~cpmd-embedding-docs-coverage~ requires the embedding how-to to name the public
+ABI feature IDs plus the typed, long-tail, and escape-hatch ~CPMDParams~ carrier
+IDs used by host authors.
+~cpmd-public-header-docs-coverage~ requires the public header and generated C
+API docs to describe the serialized ~CPMDParams~ input surface.
+~examples-documented~ requires public docs to point at the runnable
+~examples/host_step.c~ host program.
+~readme-navigation~ keeps the README and build-and-test how-to focused on entry
+paths, work-loop labels, and current wording.
+~reference-contract~ requires every function, type, enum constant, and macro of
+~cpmdc.h~, ~cpmdc_features.h~, and ~cpmdc_restart.h~ in the [[file:../reference/c-abi.org][C ABI reference]],
+each function with its parameter list in a table row, an
+~__all__~ in every ~python/cpmdc~ module that lists its public functions and classes, each of those names and each public member of an exported class in the [[file:../reference/python.org][Python reference]], and no ~cpmdc_~
 name in the README or the Org pages that no public header declares.
 ~docs-examples~ classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
@@ -85,15 +110,16 @@ A new block fails the test until it is classified.
 ~tests/python/conftest.py~ multiplies small matrices with ~@~ and with a loop
 before collecting any test (~tests/python/blas_probe.py~), and stops the session
 with exit status 3 when they differ by more than 1e-12 of the scale of the
-product. The references of the GROMACS and ASE tests use ~@~, which NumPy gives
-to OpenBLAS, and OpenBLAS chooses its kernel from the CPU it detects. Under
-~qemu-user~ 8.2 with ~-cpu max~ on aarch64 the detected core is ~armv9sme~,
-and 195 of 385 product shapes then come out wrong, with one OpenBLAS thread, by
-the size of the result,
-so a NumPy reference sums nothing and every comparison with the library fails
-far from the cause; whether the emulation of SME or the kernel is at fault was
-not settled. On such a machine set ~OPENBLAS_CORETYPE~ to an older core,
-~ARMV8~ on aarch64, or run the emulator with ~QEMU_CPU=max,sme=off~.
+product.
+The references of the GROMACS and ASE tests use ~@~, which NumPy gives to
+OpenBLAS, and OpenBLAS chooses its kernel from the CPU it detects.
+Under ~qemu-user~ 8.2 with ~-cpu max~ on aarch64 the detected core is
+~armv9sme~, and 195 of 385 product shapes then come out wrong, with one OpenBLAS
+thread, by the size of the result, so a NumPy reference sums nothing and every
+comparison with the library fails far from the cause; whether the emulation of
+SME or the kernel is at fault was not settled.
+On such a machine set
+~OPENBLAS_CORETYPE~ to an older core, ~ARMV8~ on aarch64, or run the emulator with ~QEMU_CPU=max,sme=off~.
 
 * GROMACS tests
 ~tests/python/test_gromacs.py~ runs under Meson's ~python-pytest~.
@@ -105,13 +131,12 @@ Without GROMACS it still checks the library through ~ctypes~:
 - unwrapping across the boundary, and the whole QM region with ~CELL NONE~;
 - the mechanical embedding against an independent NumPy Ewald sum in a cubic and
   a triclinic box, its convergence with the precision, a finite difference of
-  its forces, and the direct sum without a box;
-  both sides sum the same terms, so the energy agrees to ~1e-12~ Ha and a force
-  element to ~1e-12~ Ha plus ~1e-10~ relative, against a rounding bound of
-  6e-16 Ha and measured differences of at most 4e-17 Ha on x86-64 and aarch64;
-  the splitting parameters ~rcut~ and ~alpha~ that the shim logs agree to
-  ~1e-14~ relative, against the 1.5e-15 that the two determinants of the box
-  leave;
+  its forces, and the direct sum without a box; both sides sum the same terms,
+  so the energy agrees to ~1e-12~ Ha and a force element to ~1e-12~ Ha plus
+  ~1e-10~ relative, against a rounding bound of 6e-16 Ha and measured
+  differences of at most 4e-17 Ha on x86-64 and aarch64; the splitting
+  parameters ~rcut~ and ~alpha~ that the shim logs agree to ~1e-14~ relative,
+  against the 1.5e-15 that the two determinants of the box leave;
 - the stress of ~cp2k_get_stress_tensor()~, as ASE's stress: with
   ~CELL PERIODIC~ against ~CPMDCCalculator~ to 1e-13 and ASE's central
   difference under a 1e-6 strain of the cell to 1e-8 of its largest element;
@@ -155,7 +180,11 @@ With ~gmx_mpi_d~ from ~CPMDC_GMX_MPI~, a double-precision GROMACS built with
   pairs;
 - ~-npme 1~ stops ~mdrun~ with GROMACS' refusal of separate PME ranks.
 
-~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~. After the prefix is moved it rejects an installed shared library or executable whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree. ~cpmdc-ipi-c~ is run the same way, without the prefix on ~LD_LIBRARY_PATH~.
+~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~.
+After the prefix is moved it rejects an installed shared library or executable
+whose run path points at the build tree or the original prefix, then runs the
+pkg-config, libcp2k, and CMake consumers from that tree.
+~cpmdc-ipi-c~ is run the same way, without the prefix on ~LD_LIBRARY_PATH~.
 
 The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:

@@ -1,8 +1,8 @@
 # OpenCPMD patches required for live `libcpmdc` embed
 
 Build OpenCPMD’s `libcpmd.a` as usual, then apply these patches to the same
-source tree before recompiling the affected objects into `libcpmd.a` and
-linking `libcpmdc`.
+source tree before recompiling the affected objects into `libcpmd.a` and linking
+`libcpmdc`.
 
 | Patch | Purpose |
 | --- | --- |
@@ -22,14 +22,17 @@ linking `libcpmdc`.
 | `opencpmd_atomwf_kpts_ortho.patch` | Fix k-point atomic wavefunction initialization (`atomwf` and `gs_ortho_c`) when `nstate > atwp%nattot`. `gs_ortho_c` passed `2*np*n0` to `mp_sum` on a `COMPLEX(real_8)` array (`MPI_DOUBLE_COMPLEX`), reading and overwriting twice the overlap matrix size. `atomwf` also passed `zmatat(atwp%nattot, atwp%nattot)` instead of sizing the scratch array to `(nleft, MAX(atwp%nattot, nleft))` and passed a rank-1 slice `c0(:, atwp%nattot+1, ikind)` in the `tlsd2` spin-up call |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
-When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` passes them to `extrapwf`.
+When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt`
+passes them to `extrapwf`.
 `extrapwf` adds them to a ring of the orbitals earlier calls converged.
-From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC) or polynomial prediction.
+From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC)
+or polynomial prediction.
 `embed_extrapolation_used` returns how many sets that prediction combined.
-A call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties the ring.
+A call that does not converge, another orbital key, a store beyond the distance
+limit, or a reset empties the ring.
 An unconverged pass does so even when a converged copy is already stored.
-The rwfopt patch marks that donor stale, and the extrapolate patch breaks
-the ring on that branch.
+The rwfopt patch marks that donor stale, and the extrapolate patch breaks the
+ring on that branch.
 `cpmd.x` never sets `embed_warm_orbitals`, so it never takes this path.
 Apply `opencpmd_embed_extrapolate.patch` after the teardown patch.
 
@@ -65,39 +68,44 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_atomwf_kpts_ortho.patch
 `rebuild_opencpmd_constant_cutoff.sh` replace `rggen_utils.mod.o`,
 `pcgrad_driver.mod.o`, and `hesele_utils.mod.o`.
 
-The OpenMP report regression compiles the actual patched reporting routine
-with MPI interfaces that represent unequal node populations. Run it inside
-an allocation with at least three MPI ranks:
+The OpenMP report regression compiles the actual patched reporting routine with
+MPI interfaces that represent unequal node populations.
+Run it inside an allocation with at least three MPI ranks:
 
 ```bash
 /path/to/cpmdc/tools/check_opencpmd_omp_info.sh /path/to/OpenCPMD /path/to/build/omp-info
 ```
 
-It exits zero for consistent collective sizes. The unpatched routine exits
-nonzero and reports `inconsistent native report counts`. This checks reporting
-collectives; native energy and force calculations still require their own tests.
+It exits zero for consistent collective sizes.
+The unpatched routine exits nonzero and reports
+`inconsistent native report counts`.
+This checks reporting collectives; native energy and force calculations still
+require their own tests.
 
-`header` calls `timetag`. OpenCPMD compiles `src/timetag.F90` to
-`obj/timetag.o` outside `libcpmd.a`, and the embed link needs that object:
+`header` calls `timetag`.
+OpenCPMD compiles `src/timetag.F90` to `obj/timetag.o` outside `libcpmd.a`, and
+the embed link needs that object:
 
 ```bash
 make -C /path/to/cpmd-root/obj -f /path/to/cpmd-root/Makefile timetag.o
 ```
 
-The helper rebuilds the module objects with one Make job, then replaces
-those members with `ar r`. OpenCPMD build trees contain a directory named
-`lib`, and the generated Makefile may set `AR` to the archiver with no
-operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
-`FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
-shared library, and a non-PIC member fails the link with `R_X86_64_PC32`
-on x86_64.
-`tools/LINUX-X86_64-GFORTRAN-MPI-PIC` and
-`tools/LINUX-AARCH64-GFORTRAN-MPI-PIC` are the configurations the
-archive how-to copies into `configure/` before `configure.sh`.
+The helper rebuilds the module objects with one Make job, then replaces those
+members with `ar r`.
+OpenCPMD build trees contain a directory named `lib`, and the generated Makefile
+may set `AR` to the archiver with no operation letter, so `make lib` does not
+refresh `lib/libcpmd.a`.
+`FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a shared
+library, and a non-PIC member fails the link with `R_X86_64_PC32` on x86_64.
+`tools/LINUX-X86_64-GFORTRAN-MPI-PIC` and `tools/LINUX-AARCH64-GFORTRAN-MPI-PIC`
+are the configurations the archive how-to copies into `configure/` before
+`configure.sh`.
 Each adds `-fPIC` and `-ffp-contract=off`, links `-lopenblas`, and adds
 `-fallow-argument-mismatch` when `mpif90` accepts that flag.
-`LINUX-X86_64-GFORTRAN-MPI-PIC` passes `-march=x86-64` on debug and release `FFLAGS` and `CFLAGS`.
-GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to x86-64-v3 with AVX2 and FMA.
+`LINUX-X86_64-GFORTRAN-MPI-PIC` passes `-march=x86-64` on debug and release
+`FFLAGS` and `CFLAGS`.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to
+x86-64-v3 with AVX2 and FMA.
 `LINUX-AARCH64-GFORTRAN-MPI-PIC` passes `-march=armv8-a` on those same flags.
 `-ffp-contract=off` keeps results equal across those build targets.
 
@@ -109,12 +117,13 @@ export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials   # relative *PP basenames
 export CPMD_PP_LIBRARY_PATH=$CPMDC_PSEUDO_DIR/
 ```
 
-`libcpmdc` cold start calls `cpmdc_prepare_pp_cwd` (chdir into the library)
-before OpenCPMD `ratom`/`recpnew`, then `cpmdc_restore_host_cwd` after the first
-force. That is required when the host process has `argc>1` (Catch2 filters, eOn
-CLI args): stock OpenCPMD `get_pplib` then treats `argv[2]` as the PP library
-path and ignores `CPMD_PP_LIBRARY_PATH`, so relative `*PP` basenames only resolve
-via the CWD fallback after the chdir.
+`libcpmdc` cold start calls
+`cpmdc_prepare_pp_cwd` (chdir into the library) before OpenCPMD `ratom`/`recpnew`, then `cpmdc_restore_host_cwd`
+after the first force.
+That is required when the host process has `argc>1` (Catch2 filters, eOn CLI
+args): stock OpenCPMD
+`get_pplib` then treats `argv[2]` as the PP library path and ignores `CPMD_PP_LIBRARY_PATH`,
+so relative `*PP` basenames only resolve via the CWD fallback after the chdir.
 
 Without the patches, multi-force may still return energies but nuclear force
 buffers can be all zeros, warm re-entry can lose its orbitals, and the saved

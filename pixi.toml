@@ -9,8 +9,11 @@ version = "0.7.0"
 # [[[end]]]
 
 [environments]
+default = ["prose"]
 docs = { features = ["docs"] }
 lammps = ["lammps"]
+# Only Python and snapper-fmt, for the prose gate in CI.
+prose = { features = ["prose"], no-default-feature = true }
 
 [dependencies]
 ase = ">=3.23,<4"
@@ -40,6 +43,15 @@ rust = ">=1.70,<2"
 # PKG_CONFIG_PATH stays untouched.
 [activation.env]
 PKG_CONFIG = "$CONDA_PREFIX/bin/pkgconf"
+
+[feature.prose.dependencies]
+python = ">=3.10,<4"
+
+[feature.prose.pypi-dependencies]
+snapper-fmt = "==0.11.10"
+
+[feature.prose.tasks]
+snapper-check = { cmd = "bash tools/check_snapper.sh --check", description = "Check semantic line breaks in tracked Org and Markdown files" }
 
 [feature.docs]
 platforms = ["linux-64"]
