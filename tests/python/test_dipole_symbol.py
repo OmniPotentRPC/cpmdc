@@ -17,7 +17,14 @@ import pytest
 from ase import Atoms
 from ase.calculators.calculator import PropertyNotImplementedError
 
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Potential, Session
+from cpmdc import (
+    BOHR_TO_ANGSTROM,
+    HARTREE_TO_EV,
+    CPMDCError,
+    Potential,
+    Session,
+    params_method,
+)
 from cpmdc.ase import CPMDCCalculator
 
 PARAMS = b"shim-params"
@@ -183,6 +190,17 @@ def test_an_older_library_loads_and_refuses_a_requested_dipole(tmp_path: Path) -
         assert atoms.get_potential_energy() == pytest.approx(1.25 * HARTREE_TO_EV)
         with pytest.raises(PropertyNotImplementedError, match="cpmdc_session_last_dipole"):
             atoms.get_dipole_moment()
+
+
+def test_an_older_library_reports_unavailable_method_introspection(
+    tmp_path: Path,
+) -> None:
+    library = _library(tmp_path, dipole=False)
+    with pytest.raises(
+        CPMDCError,
+        match=r"has no cpmdc_params_method; use a library built from cpmdc",
+    ):
+        params_method(PARAMS, library=library)
 
 
 def test_a_library_with_the_dipole_symbol_returns_it(tmp_path: Path) -> None:
