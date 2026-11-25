@@ -134,24 +134,37 @@ static void test_minimal_deck_uses_cluster_for_a_skewed_box(void **state) {
   lines_within_80(deck);
 }
 
+static void assert_minimal_deck_rejects(const double cell[9],
+                                        const char *message) {
+  char deck[8192];
+  int len = -1;
+  assert_int_equal(cpmdc_embed_compose_cold_deck(2, kPos, kZ, cell, 1, deck,
+                                                 (int)sizeof(deck), &len),
+                   0);
+  assert_int_equal(len, 0);
+  assert_string_equal(cpmdc_last_error(), message);
+}
+
 static void test_minimal_deck_rejects_invalid_skewed_boxes(void **state) {
   (void)state;
   const double singular[9] = {10.0, 1.0, 0.0, 20.0, 2.0, 0.0,
                               0.0,  0.0, 12.0};
   const double nonfinite[9] = {10.0, NAN, 0.0, 0.0, 11.0, 0.0,
                                0.0,  0.0, 12.0};
-  char deck[8192];
-  int len = -1;
+  assert_minimal_deck_rejects(singular,
+                              "cell does not have three independent vectors");
+  assert_minimal_deck_rejects(nonfinite, "cell contains a non-finite component");
+}
 
-  assert_int_equal(cpmdc_embed_compose_cold_deck(
-                       2, kPos, kZ, singular, 1, deck, (int)sizeof(deck), &len),
-                   0);
-  assert_int_equal(len, 0);
-  len = -1;
-  assert_int_equal(cpmdc_embed_compose_cold_deck(
-                       2, kPos, kZ, nonfinite, 1, deck, (int)sizeof(deck), &len),
-                   0);
-  assert_int_equal(len, 0);
+/* Positive diagonals pass the diagonal check, so the rank-3 state decides. */
+static void test_minimal_deck_rejects_invalid_diagonal_boxes(void **state) {
+  (void)state;
+  const double underflow[9] = {1.0e-110, 0.0, 0.0, 0.0, 1.0e-110, 0.0,
+                               0.0,      0.0, 1.0e-110};
+  const double flat[9] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0e-20};
+  assert_minimal_deck_rejects(underflow, "cell volume is too small for binary64");
+  assert_minimal_deck_rejects(flat,
+                              "cell does not have three independent vectors");
 }
 
 static void test_box_replaces_the_deck_cell(void **state) {
@@ -271,6 +284,7 @@ int main(void) {
       cmocka_unit_test(test_minimal_deck_orthorhombic_box),
       cmocka_unit_test(test_minimal_deck_uses_cluster_for_a_skewed_box),
       cmocka_unit_test(test_minimal_deck_rejects_invalid_skewed_boxes),
+      cmocka_unit_test(test_minimal_deck_rejects_invalid_diagonal_boxes),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
       cmocka_unit_test(test_small_triclinic_components_are_preserved),
       cmocka_unit_test(test_triclinic_tilt_deck_rejects_transpose),
