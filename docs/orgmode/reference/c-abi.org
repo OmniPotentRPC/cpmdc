@@ -111,10 +111,12 @@ A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
 ~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another orthorhombic
 box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with off-diagonal
 components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD refuses beside it.
-An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and takes
-only an orthorhombic box with positive diagonal entries; a box with off-diagonal
-entries fails with ~an isolated deck (SYMMETRY 0) needs an orthorhombic box~,
-and one with a non-positive diagonal fails with
+An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ for an
+orthorhombic box with positive diagonal entries.
+For a box with off-diagonal entries it replaces ~SYMMETRY 0~ with ~CLUSTER~ and
+writes ~CELL VECTORS~; CPMD documents ~CLUSTER~ as the isolated-system form that
+permits a non-orthorhombic cell.
+A diagonal box with a non-positive entry fails with
 ~the ForceInput box has a non-positive diagonal~.
 Before fixing the session topology, a non-zero box converted to Angstrom is
 checked by one-sided Jacobi singular values and scaled LU with partial pivoting

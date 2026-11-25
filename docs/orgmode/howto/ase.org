@@ -136,6 +136,8 @@ The ~pbc~ flags choose the boundaries:
 
 A periodic cell with an isolated deck, such as ~water.params.bin~, gives the
 energy and the forces.
+For a tilted cell the composed CPMD deck replaces ~SYMMETRY 0~ with ~CLUSTER~
+and writes ~CELL VECTORS~, retaining the isolated Poisson solver.
 Asking that step for stress raises ~PropertyNotImplementedError~ with the
 reason, and the calculator does not evaluate the step again to find it out.
 

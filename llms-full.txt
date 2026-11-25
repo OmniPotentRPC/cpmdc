@@ -2332,6 +2332,8 @@ The `pbc` flags choose the boundaries:
 
 A periodic cell with an isolated deck, such as `water.params.bin`, gives the
 energy and the forces.
+For a tilted cell the composed CPMD deck replaces `SYMMETRY 0` with `CLUSTER`
+and writes `CELL VECTORS`, retaining the isolated Poisson solver.
 Asking that step for stress raises `PropertyNotImplementedError` with the
 reason, and the calculator does not evaluate the step again to find it out.
 
@@ -5806,8 +5808,10 @@ A non-zero `ForceInput.box` replaces every `CELL` line of `&SYSTEM` and its
 `SYMMETRY`: a cubic deck and a cubic box keep `SYMMETRY 1`, another orthorhombic
 box gets `SYMMETRY 8` and `CELL a b/a c/a`, and a box with off-diagonal
 components gets `CELL VECTORS` without `SYMMETRY`, which CPMD refuses beside it.
-An isolated deck (`SYMMETRY 0`, the default deck) keeps `SYMMETRY 0` and takes
-only an orthorhombic box; another box fails the call.
+An isolated deck (`SYMMETRY 0`, the default deck) keeps `SYMMETRY 0` for an
+orthorhombic box.
+For another box it uses `CLUSTER` and `CELL VECTORS`, the CPMD form for an
+isolated non-orthorhombic cell.
 Without `ANGSTROM` the box goes in as Bohr.
 An all-zero box is a system without a cell: the deck's `CELL` stays, or a 12
 Angstrom cube when the deck has none.
@@ -6368,10 +6372,12 @@ A non-zero `ForceInput.box` replaces every `CELL` line of `&SYSTEM` and its
 `SYMMETRY`: a cubic deck and a cubic box keep `SYMMETRY 1`, another orthorhombic
 box gets `SYMMETRY 8` and `CELL a b/a c/a`, and a box with off-diagonal
 components gets `CELL VECTORS` without `SYMMETRY`, which CPMD refuses beside it.
-An isolated deck (`SYMMETRY 0`, the default deck) keeps `SYMMETRY 0` and takes
-only an orthorhombic box with positive diagonal entries; a box with off-diagonal
-entries fails with `an isolated deck (SYMMETRY 0) needs an orthorhombic box`,
-and one with a non-positive diagonal fails with
+An isolated deck (`SYMMETRY 0`, the default deck) keeps `SYMMETRY 0` for an
+orthorhombic box with positive diagonal entries.
+For a box with off-diagonal entries it replaces `SYMMETRY 0` with `CLUSTER` and
+writes `CELL VECTORS`; CPMD documents `CLUSTER` as the isolated-system form that
+permits a non-orthorhombic cell.
+A diagonal box with a non-positive entry fails with
 `the ForceInput box has a non-positive diagonal`.
 Before fixing the session topology, a non-zero box converted to Angstrom is
 checked by one-sided Jacobi singular values and scaled LU with partial pivoting
@@ -7384,7 +7390,7 @@ of the atom limit.
 | Layout | `force_input_capnp` is `force_input_capnp_size_bytes` bytes of one unpacked flat `ForceInput`; `forces_h_bohr` holds `forces_len` doubles, and `forces_len` must be at least `3 * n_atoms`, atom-major, C order. |
 | Ownership | `session` stays owned by the caller; the caller owns `force_input_capnp` and the output array `forces_h_bohr`. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls `MPI_Allreduce` from `rank_consensus_all` on the session cache path when `CPMDC_RANK_CONSENSUS` is `1` and MPI is initialized. |
-| Returns and errors | `ok` is 0, `energy_h` is 0 and `message` names the reason; the same text is `cpmdc_last_error()` and the output array is unspecified. `ok` is non-zero on success and `cpmdc_last_error()` is empty. An atomic number outside 1..118 fails with `atomic numbers must be in 1..118`, and a `box` whose length is neither 0 nor 9 fails with `invalid ForceInput geometry`. A non-zero `box` in Angstrom fails before a session fixes its topology for a non-finite component (`cell contains a non-finite component`), rank below 3 under the `numpy.linalg.matrix_rank` cutoff (`sigma_max * 3 * DBL_EPSILON`) or a zero scaled LU determinant (`cell does not have three independent vectors`), or a normal-range Angstrom volume underflow (`cell volume is too small for binary64`); an isolated deck also refuses an off-diagonal or non-positive-diagonal box, and the reference evaluator fails a non-zero periodic cell whose Bohr stress volume overflows or is not positive (`cell volume is too large for binary64` or `cell volume is not representable for stress`). |
+| Returns and errors | `ok` is 0, `energy_h` is 0 and `message` names the reason; the same text is `cpmdc_last_error()` and the output array is unspecified. `ok` is non-zero on success and `cpmdc_last_error()` is empty. An atomic number outside 1..118 fails with `atomic numbers must be in 1..118`, and a `box` whose length is neither 0 nor 9 fails with `invalid ForceInput geometry`. A non-zero `box` in Angstrom fails before a session fixes its topology for a non-finite component (`cell contains a non-finite component`), rank below 3 under the `numpy.linalg.matrix_rank` cutoff (`sigma_max * 3 * DBL_EPSILON`) or a zero scaled LU determinant (`cell does not have three independent vectors`), or a normal-range Angstrom volume underflow (`cell volume is too small for binary64`); an isolated deck accepts an off-diagonal box as `CLUSTER` with `CELL VECTORS` but refuses a diagonal box with a non-positive entry, and the reference evaluator fails a non-zero periodic cell whose Bohr stress volume overflows or is not positive (`cell volume is too large for binary64` or `cell volume is not representable for stress`). |
 | Python | `cpmdc.Session.energy_forces` with a cell encodes a `ForceInput` in process and raises `cpmdc.CPMDCError`. |
 | Defaults | `ForceInput` unit strings left empty read as `angstrom` and `hartree` |
 
@@ -7396,7 +7402,7 @@ of the atom limit.
 | Layout | `force_input_capnp` is `force_input_capnp_size_bytes` bytes; `potential_result_capnp` has room for `potential_result_capnp_capacity_bytes` bytes and receives one unpacked flat `PotentialResult`; `potential_result_capnp_size_bytes` is one `size_t` that receives the byte count. |
 | Ownership | `session` stays owned by the caller; the caller owns `force_input_capnp`, `potential_result_capnp` and `potential_result_capnp_size_bytes`; the written message does not alias the session. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls `MPI_Allreduce` from `rank_consensus_all` on the session cache path when `CPMDC_RANK_CONSENSUS` is `1` and MPI is initialized. |
-| Returns and errors | `ok` is 0 with `message` and `cpmdc_last_error()` naming the reason for a NULL session or buffer, an invalid message (including a `box` length other than 0 or 9 with `invalid ForceInput geometry`), an atomic number outside 1..118, a non-zero `box` failing finiteness (`cell contains a non-finite component`), rank 3 under `sigma_max * 3 * DBL_EPSILON` (`cell does not have three independent vectors`), or Angstrom volume underflow (`cell volume is too small for binary64`) before topology is fixed, an isolated deck given an off-diagonal or non-positive-diagonal box, a topology change, or a failed evaluation (including `cell volume is too large for binary64` or `cell volume is not representable for stress` in the reference evaluator). `*potential_result_capnp_size_bytes` is written before the capacity is checked: a capacity that is too small gives `ok` 0 with `PotentialResult buffer too small` and no evaluation. |
+| Returns and errors | `ok` is 0 with `message` and `cpmdc_last_error()` naming the reason for a NULL session or buffer, an invalid message (including a `box` length other than 0 or 9 with `invalid ForceInput geometry`), an atomic number outside 1..118, a non-zero `box` failing finiteness (`cell contains a non-finite component`), rank 3 under `sigma_max * 3 * DBL_EPSILON` (`cell does not have three independent vectors`), or Angstrom volume underflow (`cell volume is too small for binary64`) before topology is fixed, an isolated deck given a diagonal box with a non-positive entry, a topology change, or a failed evaluation (including `cell volume is too large for binary64` or `cell volume is not representable for stress` in the reference evaluator). An isolated deck accepts an off-diagonal box as `CLUSTER` with `CELL VECTORS`. `*potential_result_capnp_size_bytes` is written before the capacity is checked: a capacity that is too small gives `ok` 0 with `PotentialResult buffer too small` and no evaluation. |
 | Python | not wrapped. |
 | Defaults | none |
 
