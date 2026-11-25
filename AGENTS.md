@@ -66,6 +66,8 @@ It fails on files that would reformat and on fused lines, and reports the `long`
 and `wrap` diagnostics; `SNAPPER_FAIL_ON=long,wrap` enforces those too.
 Rewrap with `bash tools/check_snapper.sh --write`, which refuses symlinks and
 paths outside the repository.
+Meson build file check: `pixi run fmt-meson-check`; `pixi run fmt-meson` formats
+in place with `meson.format`.
 
 Documentation and API coverage checks include `reference-contract`,
 `public-api-docs`, `cpmd-embedding-docs-coverage`, `llms-txt`, and
