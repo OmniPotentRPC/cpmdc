@@ -3,10 +3,11 @@
   "projectTitle": "cpmdc",
   "description": "C ABI layer for embedding OpenCPMD in OmniPotentRPC tools.",
   "folders": [
-    "docs/orgmode",
+    "docs",
     "examples",
     "include",
-    "python"
+    "python",
+    "tools"
   ],
   "excludeFolders": [
     "docs/source",
