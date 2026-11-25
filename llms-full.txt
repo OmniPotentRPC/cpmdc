@@ -19,8 +19,10 @@ Meson reads it with `files()`, and `docs/source/conf.py` reads it for the Sphinx
 `version` and `release`.
 `pixi run version-sync` regenerates the cog copies in `pixi.toml`,
 `CITATION.cff`, `README.md`, `include/cpmdc.h`, the Doxygen configuration, and
-the first-energy tutorial, and the version fields in `codemeta.json` and
-`.zenodo.json`.
+the first-energy tutorial, and the version fields in `codemeta.json`.
+`.zenodo.json` carries no version, because the Zenodo legacy deposit schema
+rejects that field.
+The version lives in `CITATION.cff` and `codemeta.json`.
 `pixi run release-assert` fails when one of them differs from `version.txt`.
 The first cocogitto pre-bump hook writes the new version to `version.txt` and
 then regenerates the copies.
@@ -6106,7 +6108,10 @@ The Citation File Format record lists the Zenodo concept DOI for all versions.
 This release has no version DOI.
 `codemeta.json` is the CodeMeta 2.0 record, and `.zenodo.json` is the Zenodo
 deposit metadata.
-`version-sync` writes the version in each file from `version.txt`.
+`version-sync` writes the version in `CITATION.cff` and `codemeta.json` from
+`version.txt`.
+`.zenodo.json` has no version field, because the Zenodo legacy deposit schema
+rejects it.
 The Citation File Format record references CPMD.
 Its reference uses the citation in the CPMD manual and the version, license, and
 repository of CPMD-code/CPMD (https://github.com/CPMD-code/CPMD).

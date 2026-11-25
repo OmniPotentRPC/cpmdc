@@ -4,7 +4,6 @@
   "upload_type": "software",
   "license": "MIT",
   "publication_date": "2026-11-24",
-  "version": "0.7.0",
   "keywords": ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"],
   "creators": [
     {

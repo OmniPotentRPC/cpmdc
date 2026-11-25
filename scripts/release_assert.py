@@ -22,7 +22,6 @@ COG_FILES = [
 # fails when they differ from version.txt.
 JSON_VERSION_FILES = {
     "codemeta.json": ("version", "softwareVersion"),
-    ".zenodo.json": ("version",),
 }
 
 
