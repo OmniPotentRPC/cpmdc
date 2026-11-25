@@ -69,6 +69,35 @@ units; a compressed cell has a positive diagonal of ~W~ and a positive pressure.
 ~compute pressure NULL virial~ reports the virial part alone, ~W / V~ in
 pressure units.
 
+* The Python session adapter
+~cpmdc.lammps.FixExternal~ hands ~rgpot.lammps.FixExternal~ a small potential
+that wraps one ~cpmdc.Session~.
+rgpot passes Angstrom and eV, so the adapter turns them into the atomic units
+~Session.calculate_au~ takes, and back, with factors it derives once when the
+driver is built, from the unit factors of rgpot and of this page:
+
+- Positions and the cell are divided by one factor, the LAMMPS length per Bohr
+  over the length per Angstrom of rgpot. Dividing, as the route before the
+  delegation did, keeps the energy and the forces of ~metal~ units
+  bit-identical to that route; multiplying by the reciprocal would not.
+- The energy and the forces are multiplied by the energy per Hartree over the
+  energy per eV of rgpot, and the forces by that factor over the length factor.
+- Forces and virial are views of one buffer, so one finiteness test covers
+  both and the energy. Only after that test fails does the adapter test each
+  array to name the one that holds the non-finite value; the message is
+  ~the library returned a non-finite energy~, ~forces~, or ~virial~.
+- The composition guard compares the sorted atomic numbers as plain integers.
+  A changed composition closes the session and opens a new one, as above.
+- The stress rgpot expects is ~-W / V~ in the energy factor. ~V~ is the
+  absolute determinant of the 3 by 3 cell, written out as its six products,
+  not a linear algebra call. In ~metal~ units the virial agrees with the
+  earlier route to round-off, not bit for bit, because rgpot multiplies the
+  stress by its own determinant of the cell.
+
+rgpot may do per-step work of its own on its side of this protocol. The
+adapter does not depend on it, and any ~rgpot.lammps~ that provides
+~unit_factors~, ~length_per_angstrom~ and ~energy_per_ev~ works.
+
 * Per-atom quantities
 Forces are per atom, and both routes return them for every atom.
 The energy and the virial are totals of the whole system, and ~pair_style cpmdc~
