@@ -26,6 +26,7 @@ from ase import Atoms, units
 from ase.calculators.calculator import (
     CalculationFailed,
     CalculatorError,
+    CalculatorSetupError,
     get_calculator_class,
     PropertyNotImplementedError,
     ReadError,
@@ -1323,3 +1324,52 @@ def test_a_database_row_names_a_calculator_class_ase_can_load(periodic_calc, tmp
     row = ase.db.connect(tmp_path / "rows.json").get(id=1)
     assert row.calculator == "cpmdc"
     assert get_calculator_class(row.calculator) is CPMDCCalculator
+
+
+# --- a structure the calculator cannot take ------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("make", "match"),
+    [
+        (lambda: water(cell=CUBE, pbc=[True, True, False]), "non-periodic axes: z"),
+        (lambda: water(cell=CUBE, pbc=[True, False, True]), "non-periodic axes: y"),
+        (lambda: water(cell=np.zeros((3, 3)), pbc=True), "three independent vectors"),
+        (lambda: water(cell=[CUBE[0], CUBE[0], CUBE[2]], pbc=True), "three independent vectors"),
+    ],
+    ids=["slab", "wire", "zero-cell", "dependent-cell"],
+)
+def test_an_unsupported_structure_is_a_calculator_setup_error(calc, make, match):
+    atoms = make()
+    atoms.calc = calc
+    with pytest.raises(CalculatorSetupError, match=match) as raised:
+        atoms.get_potential_energy()
+    assert isinstance(raised.value, CalculatorError)
+
+
+def test_the_unsupported_structure_error_is_exported(calc):
+    atoms = water(cell=CUBE, pbc=[True, True, False])
+    atoms.calc = calc
+    with pytest.raises(cpmdc.ase.UnsupportedAtoms):
+        atoms.get_potential_energy()
+    assert issubclass(cpmdc.ase.UnsupportedAtoms, CalculatorSetupError)
+    assert issubclass(cpmdc.ase.UnsupportedAtoms, ValueError)
+    assert "UnsupportedAtoms" in cpmdc.ase.__all__
+
+
+def test_an_unsupported_structure_is_still_a_value_error(calc):
+    atoms = water(cell=CUBE, pbc=[True, True, False])
+    atoms.calc = calc
+    with pytest.raises(ValueError, match="non-periodic axes"):
+        atoms.get_forces()
+
+
+def test_an_unsupported_structure_leaves_the_calculator_usable(calc, steps):
+    atoms = water(cell=CUBE, pbc=[True, True, False])
+    atoms.calc = calc
+    with pytest.raises(CalculatorSetupError):
+        atoms.get_potential_energy()
+    assert steps == []
+    atoms.set_pbc(False)
+    assert np.isfinite(atoms.get_potential_energy())
+    assert len(steps) == 1

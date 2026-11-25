@@ -1,0 +1,6 @@
+`CPMDCCalculator` raises `cpmdc.ase.UnsupportedAtoms` for an `Atoms` object with
+mixed `pbc` flags or a periodic cell of rank below 3.
+The class is ASE's `CalculatorSetupError`, the error ASE names for an
+unsupported `Atoms` object, so `except CalculatorError` catches it, and it is
+still a `ValueError`, so existing handlers keep working.
+The check runs before the library is called.

@@ -131,8 +131,8 @@ The ~pbc~ flags choose the boundaries:
 |------------------------------+------+--------|
 | all false | no cell is sent: the deck sets the box and the Poisson solver, and ~atoms.cell~ is ignored | raises ~PropertyNotImplementedError~ |
 | all true, three independent cell vectors | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
-| all true, fewer than three independent cell vectors | raises ~ValueError~ | |
-| a mix of true and false | raises ~ValueError~ that names the open axes | |
+| all true, fewer than three independent cell vectors | raises ~UnsupportedAtoms~ | |
+| a mix of true and false | raises ~UnsupportedAtoms~ that names the open axes | |
 
 A periodic cell with an isolated deck, such as ~water.params.bin~, gives the
 energy and the forces.
@@ -428,7 +428,8 @@ says.
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
 | a keyword other than ~params~, ~library~, ~constant_cutoff~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
-| mixed ~pbc~ flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | ~ValueError~ |
+| mixed ~pbc~ flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | ~cpmdc.ase.UnsupportedAtoms~ |
+| a cell volume below the normal float64 range | ~ValueError~ |
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |
 
@@ -437,6 +438,13 @@ code that catches either one for another calculator catches it unchanged.
 Its message names the working directory of the step and gives the library's
 reason.
 The calculator stays usable, and the next call evaluates the step again.
+
+~UnsupportedAtoms~ is ASE's ~CalculatorSetupError~, the class that ASE names for
+an ~Atoms~ object a calculator does not support, and a ~ValueError~, which the
+calculator raised for these structures before.
+~except CalculatorError~ and ~except ValueError~ both catch it.
+It is raised before the library is called, so no step is evaluated and the
+calculator stays usable.
 
 * Sessions and copies
 ~session_accept_topology~ fixes the topology only after an evaluation call

@@ -1824,6 +1824,17 @@ Importing it imports ASE.
 | Raises | none: this is the exception. It subclasses both ~cpmdc.CPMDCError~ and ASE's ~CalculationFailed~, so either ~except~ clause catches it. |
 | Defaults | none |
 
+*** ~cpmdc.ase.UnsupportedAtoms~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~UnsupportedAtoms(ase.calculators.calculator.CalculatorSetupError, ValueError)~ |
+| Units | none |
+| Shape and dtype | An exception with a message that names the open axes or the cell that cpmdc rejects. |
+| Ownership and threads | Stateless: raised and caught on the calling thread, before the library is called. |
+| Raises | none: this is the exception. It subclasses both ASE's ~CalculatorSetupError~, which is a ~CalculatorError~, and ~ValueError~, so either ~except~ clause catches it. |
+| Defaults | none |
+
 *** ~cpmdc.ase.CPMDCCalculator~
 
 | Item | Description |
@@ -1843,7 +1854,7 @@ Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | ~atoms~ an ~ase.Atoms~; fills ~results~ with ~energy~ and ~free_energy~ floats, ~forces~ an N by 3 ~float64~ array, and ~stress~ a six-component ~float64~ array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; ~atoms~ is copied by ASE. Not thread-safe. The step runs with ~directory~ as the working directory, which is a process-wide change. |
-| Raises | ~ValueError~ for no atoms, an ~initial_charges~ or ~initial_magmoms~ total that is not an integer (it must lie within ~n * eps * sum(abs(x))~ of one, the float64 rounding bound of ~n~ terms, ~eps~ the float64 unit roundoff), non-collinear ~initial_magmoms~, a nonzero total charge or total moment that differs from the charge or multiplicity ~params~ sets, where charge 0 is set when ~hasCharge~ is true and unset when ~hasCharge~ is false (the message names both values and both sources, and the set charge is kept) or that a typed section of ~params~ fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~CPMDCError~ when an ~Atoms~ total needs ~cpmdc_params_method()~ and the library has none or refuses the message as ambiguous. |
+| Raises | ~cpmdc.ase.UnsupportedAtoms~ for a partly periodic cell or a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff); ~ValueError~ for no atoms, an ~initial_charges~ or ~initial_magmoms~ total that is not an integer (it must lie within ~n * eps * sum(abs(x))~ of one, the float64 rounding bound of ~n~ terms, ~eps~ the float64 unit roundoff), non-collinear ~initial_magmoms~, a nonzero total charge or total moment that differs from the charge or multiplicity ~params~ sets, where charge 0 is set when ~hasCharge~ is true and unset when ~hasCharge~ is false (the message names both values and both sources, and the set charge is kept) or that a typed section of ~params~ fixes, a cell volume below the normal float64 range, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~CPMDCError~ when an ~Atoms~ total needs ~cpmdc_params_method()~ and the library has none or refuses the message as ambiguous. |
 | Defaults | ~atoms~ is ~None~: the atoms already attached; ~properties~ is ~None~: ~['energy']~, but all four properties are always filled; ~system_changes~ is ASE's ~all_changes~. |
 
 *** ~cpmdc.ase.CPMDCCalculator.close~
@@ -2337,7 +2348,7 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 
 | Property | Units | Shape and dtype | Sign and convention | Raises |
 |--------+--------+--------+--------+--------|
-| energy | eV | scalar ~float~ | The potential energy of the step; the library separates no electronic entropy. | ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~ValueError~ for invalid atoms. |
+| energy | eV | scalar ~float~ | The potential energy of the step; the library separates no electronic entropy. | ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~UnsupportedAtoms~ for mixed ~pbc~ flags or a cell of rank below 3; ~ValueError~ for other invalid atoms. |
 | free_energy | eV | scalar ~float~ | Equal to ~energy~. | As for ~energy~. |
 | forces | eV/Angstrom | (N, 3) ~float64~ array | The negative nuclear gradient ~-dE/dR~. | As for ~energy~. |
 | stress | eV/Angstrom^3 | (6,) ~float64~ array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, ~(1/V) dE/d(strain)~, the opposite of the OpenCPMD sign; shear parts are averaged. | ~PropertyNotImplementedError~ for a cluster (every ~pbc~ flag false) or for a step the library gave no stress for; ~ValueError~ for a partly periodic cell. |

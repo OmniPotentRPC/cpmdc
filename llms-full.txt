@@ -2327,8 +2327,8 @@ The `pbc` flags choose the boundaries:
 |------------------------------+------+--------|
 | all false | no cell is sent: the deck sets the box and the Poisson solver, and `atoms.cell` is ignored | raises `PropertyNotImplementedError` |
 | all true, three independent cell vectors | `atoms.cell` is sent as the periodic cell | computed when the deck is periodic |
-| all true, fewer than three independent cell vectors | raises `ValueError` | |
-| a mix of true and false | raises `ValueError` that names the open axes | |
+| all true, fewer than three independent cell vectors | raises `UnsupportedAtoms` | |
+| a mix of true and false | raises `UnsupportedAtoms` that names the open axes | |
 
 A periodic cell with an isolated deck, such as `water.params.bin`, gives the
 energy and the forces.
@@ -2612,7 +2612,8 @@ says.
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | `cpmdc.ase.CalculationFailed` |
 | a keyword other than `params`, `library`, `constant_cutoff`, and ASE's own; no `params` | `TypeError` |
 | stress or dipole where the step has none; `energies`, `magmoms`, or `charges` | `ase.calculators.calculator.PropertyNotImplementedError` |
-| mixed `pbc` flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | `ValueError` |
+| mixed `pbc` flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | `cpmdc.ase.UnsupportedAtoms` |
+| a cell volume below the normal float64 range | `ValueError` |
 | a step on a calculator without atoms | `ValueError` |
 | a `params` file that does not exist | `FileNotFoundError` |
 
@@ -2621,6 +2622,13 @@ code that catches either one for another calculator catches it unchanged.
 Its message names the working directory of the step and gives the library's
 reason.
 The calculator stays usable, and the next call evaluates the step again.
+
+`UnsupportedAtoms` is ASE's `CalculatorSetupError`, the class that ASE names for
+an `Atoms` object a calculator does not support, and a `ValueError`, which the
+calculator raised for these structures before.
+`except CalculatorError` and `except ValueError` both catch it.
+It is raised before the library is called, so no step is evaluated and the
+calculator stays usable.
 
 # Sessions and copies
 `session_accept_topology` fixes the topology only after an evaluation call
@@ -8794,6 +8802,17 @@ Importing it imports ASE.
 | Raises | none: this is the exception. It subclasses both `cpmdc.CPMDCError` and ASE's `CalculationFailed`, so either `except` clause catches it. |
 | Defaults | none |
 
+### ~cpmdc.ase.UnsupportedAtoms~
+
+| Item | Description |
+|--------+--------|
+| Signature | `UnsupportedAtoms(ase.calculators.calculator.CalculatorSetupError, ValueError)` |
+| Units | none |
+| Shape and dtype | An exception with a message that names the open axes or the cell that cpmdc rejects. |
+| Ownership and threads | Stateless: raised and caught on the calling thread, before the library is called. |
+| Raises | none: this is the exception. It subclasses both ASE's `CalculatorSetupError`, which is a `CalculatorError`, and `ValueError`, so either `except` clause catches it. |
+| Defaults | none |
+
 ### ~cpmdc.ase.CPMDCCalculator~
 
 | Item | Description |
@@ -8813,7 +8832,7 @@ Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | `atoms` an `ase.Atoms`; fills `results` with `energy` and `free_energy` floats, `forces` an N by 3 `float64` array, and `stress` a six-component `float64` array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; `atoms` is copied by ASE. Not thread-safe. The step runs with `directory` as the working directory, which is a process-wide change. |
-| Raises | `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets, where charge 0 is set when `hasCharge` is true and unset when `hasCharge` is false (the message names both values and both sources, and the set charge is kept) or that a typed section of `params` fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
+| Raises | `cpmdc.ase.UnsupportedAtoms` for a partly periodic cell or a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff); `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets, where charge 0 is set when `hasCharge` is true and unset when `hasCharge` is false (the message names both values and both sources, and the set charge is kept) or that a typed section of `params` fixes, a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
 | Defaults | `atoms` is `None`: the atoms already attached; `properties` is `None`: `['energy']`, but all four properties are always filled; `system_changes` is ASE's `all_changes`. |
 
 ### ~cpmdc.ase.CPMDCCalculator.close~
@@ -9307,7 +9326,7 @@ The properties `CPMDCCalculator` implements, in ASE units.
 
 | Property | Units | Shape and dtype | Sign and convention | Raises |
 |--------+--------+--------+--------+--------|
-| energy | eV | scalar `float` | The potential energy of the step; the library separates no electronic entropy. | `CalculationFailed` when the library rejects the step or returns a non-finite value; `ValueError` for invalid atoms. |
+| energy | eV | scalar `float` | The potential energy of the step; the library separates no electronic entropy. | `CalculationFailed` when the library rejects the step or returns a non-finite value; `UnsupportedAtoms` for mixed `pbc` flags or a cell of rank below 3; `ValueError` for other invalid atoms. |
 | free_energy | eV | scalar `float` | Equal to `energy`. | As for `energy`. |
 | forces | eV/Angstrom | (N, 3) `float64` array | The negative nuclear gradient `-dE/dR`. | As for `energy`. |
 | stress | eV/Angstrom^3 | (6,) `float64` array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, `(1/V) dE/d(strain)`, the opposite of the OpenCPMD sign; shear parts are averaged. | `PropertyNotImplementedError` for a cluster (every `pbc` flag false) or for a step the library gave no stress for; `ValueError` for a partly periodic cell. |
@@ -12058,6 +12077,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
+| `cpmdc.ase.UnsupportedAtoms` | a structure the calculator cannot take: mixed `pbc` flags or a periodic cell of rank below 3; both ASE's `CalculatorSetupError` and a `ValueError` |
 | `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
 | `cpmdc.ipi.Driver` | `Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)`: answer i-PI protocol requests from one `Session` |
 | `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree |
@@ -12104,7 +12124,8 @@ covers `cpmdc.lammps`.
 | empty or non-3D positions, mismatched `atomic_numbers` or `numbers` length, a cell or box that is not 3x3 or 9 numbers, a `stress_h_bohr3` without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite `ConstantCutoff` field, a whole-number argument that is a fraction such as `14.9`, an orbital key outside the signed 64-bit range | `ValueError` |
 | an atomic number, orbital key, `ConstantCutoff` field, or `charge` that is a string, `None`, or `bool`; a coordinate or cell value that is not a real number | `TypeError` |
 | `CPMDCCalculator.read` with any label | `ase.calculators.calculator.ReadError`, an ASE `CalculatorError` |
-| `atoms.pbc` mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff or has a volume below the normal float64 range | `ValueError` |
+| `atoms.pbc` mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff | `cpmdc.ase.UnsupportedAtoms`, which is ASE's `CalculatorSetupError` and a `ValueError` |
+| `atoms.pbc` is periodic and the cell has a volume below the normal float64 range | `ValueError` |
 | a `CPMDCCalculator` step without atoms | `ValueError` |
 | stress on free boundaries or an isolated deck; a property outside `implemented_properties` | `ase.calculators.calculator.PropertyNotImplementedError` |
 | a keyword to `CPMDCCalculator` or `CPMDCCalculator.set` other than `params`, `library`, `constant_cutoff`, and ASE's own, such as `charge` or `multiplicity`; no `params`, or `params=None` | `TypeError` |
