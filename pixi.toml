@@ -42,6 +42,8 @@ rust = ">=1.70,<2"
 # pkgconf searches the environment prefix by default, and a caller's own
 # PKG_CONFIG_PATH stays untouched.
 [activation.env]
+# tools/bin/meson supplies meson.format when "meson format -r ." omits -c.
+PATH = "$PIXI_PROJECT_ROOT/tools/bin:$PATH"
 PKG_CONFIG = "$CONDA_PREFIX/bin/pkgconf"
 
 [feature.prose.dependencies]
