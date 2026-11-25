@@ -1,0 +1,17 @@
+# snapper project configuration for cpmdc
+max_width = 80
+ignore = [
+  "CHANGELOG.md",
+  "LAND.md",
+  "llms.txt",
+  "llms-full.txt",
+  "bench/results/constant_cutoff_npt.org",
+  "bench/results/constant_cutoff_pressure.org",
+  "bench/results/gromacs_npt_crescale_64w.org",
+  "meson_options.txt",
+  "version.txt",
+  "schema/inventory/*.txt",
+  "scripts/abi_baseline.txt",
+  "tests/*.txt",
+  "tests/**/*.txt",
+]

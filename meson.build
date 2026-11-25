@@ -2038,6 +2038,15 @@ test(
     suite: ['docs'],
   )
   test(
+    'check-snapper',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_check_snapper.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'overlay-merge-docs',
     python,
     args: [

@@ -60,6 +60,11 @@ meson test -C build --print-errorlogs
 ```
 
 Focused suites: `--suite docs`, `--suite inventory`, `--suite e2e`, `--suite cmocka`.
+Prose wrapping check: `pixi run snapper-check`.
+It fails on files that would reformat and on fused lines, and reports the `long`
+and `wrap` diagnostics; `SNAPPER_FAIL_ON=long,wrap` enforces those too.
+Rewrap with `bash tools/check_snapper.sh --write`, which refuses symlinks and
+paths outside the repository.
 
 Documentation and API coverage checks include `reference-contract`, `public-api-docs`,
 `cpmd-embedding-docs-coverage`, `llms-txt`, and `docs-coverage-inventory`.
