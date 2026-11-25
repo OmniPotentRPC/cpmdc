@@ -155,6 +155,8 @@ which GROMACS reads for the QM charge) must equal the charge and multiplicity
 of the ~CPMDParams~ message: pass ~charge=~ and ~multiplicity=~ to
 ~write_qmi()~ for a deck that is not neutral and singlet, and ~mdrun~ stops
 with both values when they differ.
+A ~CHARGE~ line added above ~&DFT~, even inside ~&CPMDC~, is the
+one GROMACS and the library read.
 The file of ~-qmi~ holds a ~&CPMDC~ section inside
 ~&FORCE_EVAL~: ~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the cell and the QM-MM Coulomb term, ~QM_CHARGES~
 gives the QM atoms' classical charges, ~EPSILON_R~ scales the mechanical-embedding

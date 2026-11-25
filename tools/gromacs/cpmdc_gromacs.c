@@ -13,7 +13,10 @@
  * The input is either the file of grompp -qmi with
  * qmmm-cp2k-qmmethod = INPUT, or GROMACS' generated PBE/BLYP input with the
  * CPMDParams message named by CPMDC_GROMACS_PARAMS. The generated
- * functional, charge, and multiplicity must match that message. GROMACS
+ * functional, charge, and multiplicity must match that message. On either
+ * path the charge and multiplicity compared are the first CHARGE and
+ * MULTIPLICITY lines of the file in any section, &CPMDC included, because
+ * those are the values GROMACS reads. GROMACS
  * writes the input at mdrun with the name of the PDB file it generates.
  * That PDB gives every atom's element, whether it is QM or MM, and the
  * classical charge of each MM atom (QM atoms carry 0: grompp removes their
@@ -442,9 +445,11 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       push_section(env, sections, &depth, w[0]);
       continue;
     }
+    /* Not scoped to a section, &CPMDC included: GROMACS keeps the first line
+     * that starts with CHARGE or MULTIPLICITY wherever it sits. */
     if (strcasecmp(w[0], "CHARGE") == 0) {
       if (n != 2)
-        die(env, "CHARGE in &DFT takes one value");
+        die(env, "CHARGE takes one value");
       if (!saw_charge) {
         copy_token_checked(env, input_charge_text, sizeof(input_charge_text),
                            w[1], "CHARGE");
@@ -455,7 +460,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
     }
     if (strcasecmp(w[0], "MULTIPLICITY") == 0) {
       if (n != 2)
-        die(env, "MULTIPLICITY in &DFT takes one value");
+        die(env, "MULTIPLICITY takes one value");
       if (!saw_multiplicity) {
         copy_token_checked(env, input_multiplicity_text,
                            sizeof(input_multiplicity_text), w[1],

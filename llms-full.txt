@@ -3442,6 +3442,8 @@ which GROMACS reads for the QM charge) must equal the charge and multiplicity
 of the `CPMDParams` message: pass `charge=` and `multiplicity=` to
 `write_qmi()` for a deck that is not neutral and singlet, and `mdrun` stops
 with both values when they differ.
+A `CHARGE` line added above `&DFT`, even inside `&CPMDC`, is the
+one GROMACS and the library read.
 The file of `-qmi` holds a `&CPMDC` section inside
 `&FORCE_EVAL`: `PARAMS` names the `CPMDParams` message, `CELL` and `EMBEDDING` choose the cell and the QM-MM Coulomb term, `QM_CHARGES`
 gives the QM atoms' classical charges, `EPSILON_R` scales the mechanical-embedding
@@ -10959,8 +10961,14 @@ does not share would run another system than the one GROMACS set up.
 Later `CHARGE` or `MULTIPLICITY` lines do not override the first occurrence,
 whether inside or outside `&DFT`, though every `CHARGE` or `MULTIPLICITY` line
 must carry a single value and a non-integer first value is refused.
+That includes a `CHARGE` or `MULTIPLICITY` line inside `&CPMDC`: it is not a
+`&CPMDC` key, but GROMACS reads it, and `qmi_input()` writes `&CPMDC` before
+`&DFT`, so such a line comes first and is the value compared.
 A disagreement names both values, for example
 `&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0`.
+The disagreement message says `&DFT` whichever section the line sat in; a
+non-integer value outside `&DFT` is reported as `input CHARGE` or
+`input MULTIPLICITY`.
 The `&XC_FUNCTIONAL` of the file is not compared, because CP2K writes a
 functional as nested sections as well as a name; the deck holds the functional.
 A link hydrogen is not part of that comparison. The values are the effective
