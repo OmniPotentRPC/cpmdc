@@ -10,6 +10,9 @@
  * start from the prediction over min(k - 1, 4) earlier orbitals, and the
  * SCF iterations must come within 10 percent of cpmd.x with ASPC and
  * below cpmd.x without it.
+ *
+ * tests/golden/water_aspc_two_key.txt holds one line per keyed call of
+ * the first KEYED_TEST_STEPS steps, two interleaved keys per step.
  */
 #define _POSIX_C_SOURCE 200809L
 
@@ -41,6 +44,51 @@ typedef struct {
   int ok;
   char message[256];
 } LimitedOutput;
+
+/* Counts the calls in captured stderr and records, per call, the
+ * extrapolation each reported and, when steps is not NULL, its SCF
+ * iterations. */
+static int read_capture(FILE *cap, int max_calls, int *used, int *steps) {
+  char line[1024];
+  int call = -1, v;
+  rewind(cap);
+  while (fgets(line, sizeof line, cap)) {
+    if (strncmp(line, "cpmdc_warm_start ", 17) == 0 && call + 1 < max_calls)
+      call++;
+    else if (call >= 0 && sscanf(line, "cpmdc_wfn_extrapolated %d", &v) == 1)
+      used[call] = v;
+    else if (call >= 0 && steps &&
+             sscanf(line, "cpmdc_scf_steps %d", &v) == 1)
+      steps[call] += v;
+  }
+  return call + 1;
+}
+
+static int capture_stderr(FILE **cap, int *saved) {
+  fflush(stderr);
+  *cap = tmpfile();
+  if (!*cap)
+    return -1;
+  *saved = dup(2);
+  if (*saved < 0 || dup2(fileno(*cap), 2) < 0) {
+    if (*saved >= 0)
+      close(*saved);
+    *saved = -1;
+    fclose(*cap);
+    *cap = NULL;
+    return -1;
+  }
+  return 0;
+}
+
+static void restore_stderr(int *saved) {
+  fflush(stderr);
+  if (*saved < 0)
+    return;
+  dup2(*saved, 2);
+  close(*saved);
+  *saved = -1;
+}
 
 static void limited_session_child(void *opaque, void *result) {
   const LimitedContext *ctx = opaque;
@@ -99,8 +147,13 @@ int main(int argc, char **argv) {
   }
   FILE *g = fopen(argv[2], "r");
   FILE *pf = fopen(argv[1], "rb");
-  if (!g || !pf)
+  if (!g || !pf) {
+    if (g)
+      fclose(g);
+    if (pf)
+      fclose(pf);
     return 2;
+  }
   static unsigned char params[1 << 16];
   size_t ps = fread(params, 1, sizeof params, pf);
   fclose(pf);
@@ -121,6 +174,26 @@ int main(int argc, char **argv) {
   fclose(g);
   if (nf < 6 || scf_aspc <= 0 || scf_none <= 0)
     return 2;
+
+  int keyed_nf = nf < KEYED_TEST_STEPS ? nf : KEYED_TEST_STEPS;
+  int keyed_want[2 * MAXF], keyed_want_n = 0;
+  FILE *kg = fopen(argv[3], "r");
+  if (!kg)
+    return 2;
+  while (fgets(line, sizeof line, kg)) {
+    if (keyed_want_n == 2 * MAXF ||
+        sscanf(line, "extrapolated %d", &keyed_want[keyed_want_n]) != 1) {
+      keyed_want_n = -1;
+      break;
+    }
+    keyed_want_n++;
+  }
+  fclose(kg);
+  if (keyed_want_n != 2 * keyed_nf) {
+    fprintf(stderr, "%s: %d lines, expected one per keyed call, %d\n",
+            argv[3], keyed_want_n, 2 * keyed_nf);
+    return 2;
+  }
 
   setenv("CPMDC_SCF_STEPS", "1", 1);
   LimitedContext limited_ctx = {.params = params, .params_size = ps};
@@ -143,15 +216,20 @@ int main(int argc, char **argv) {
   }
   printf("limited_session isolated=%d\n", ok);
 
-  CPMDCSession *s = cpmdc_session_create(params, ps);
-  if (!s)
-    return 1;
-  fflush(stderr);
-  int saved = dup(2);
-  FILE *cap = tmpfile();
-  dup2(fileno(cap), 2);
   const int z[NAT] = {8, 1, 1};
-  double e[MAXF], f[3 * NAT];
+  double e[MAXF], f[3 * NAT], keyed_e[2 * MAXF];
+  int used[MAXF] = {0}, steps[MAXF] = {0}, calls;
+  int keyed_used[2 * MAXF] = {0}, keyed_steps[2 * MAXF] = {0};
+  int saved = -1, rc = 1;
+  FILE *cap = NULL;
+  CPMDCSession *s = NULL;
+  LimitedOutput after_full = {0};
+
+  s = cpmdc_session_create(params, ps);
+  if (!s)
+    goto out;
+  if (capture_stderr(&cap, &saved) != 0)
+    goto out;
   for (int k = 0; k < nf && ok; k++) {
     double ang[3 * NAT];
     for (int i = 0; i < 3 * NAT; i++)
@@ -160,29 +238,19 @@ int main(int argc, char **argv) {
     ok = r.ok;
     e[k] = r.energy_h;
   }
-  fflush(stderr);
-  dup2(saved, 2);
-  close(saved);
+  restore_stderr(&saved);
   cpmdc_session_destroy(s);
+  s = NULL;
   if (!ok) {
     fprintf(stderr, "evaluation failed: %s\n", cpmdc_last_error());
-    return 1;
+    goto out;
   }
-
-  int call = -1, used[MAXF] = {0}, steps[MAXF] = {0}, v;
-  rewind(cap);
-  while (fgets(line, sizeof line, cap)) {
-    if (strncmp(line, "cpmdc_warm_start ", 17) == 0 && call + 1 < MAXF)
-      call++;
-    else if (call >= 0 && sscanf(line, "cpmdc_wfn_extrapolated %d", &v) == 1)
-      used[call] = v;
-    else if (call >= 0 && sscanf(line, "cpmdc_scf_steps %d", &v) == 1)
-      steps[call] += v;
-  }
+  calls = read_capture(cap, MAXF, used, steps);
   fclose(cap);
-  if (call != nf - 1) {
-    fprintf(stderr, "%d calls reported, expected %d\n", call + 1, nf);
-    return 1;
+  cap = NULL;
+  if (calls != nf) {
+    fprintf(stderr, "%d calls reported, expected %d\n", calls, nf);
+    goto out;
   }
 
   int total = 0;
@@ -203,25 +271,11 @@ int main(int argc, char **argv) {
   ok = ok && worst < 1e-8 && abs(total - scf_aspc) <= 0.1 * scf_aspc &&
        total < scf_none;
 
-  FILE *kg = fopen(argv[3], "r");
-  if (!kg)
-    return 2;
-  int keyed_want[2 * MAXF], keyed_want_n = 0;
-  while (keyed_want_n < 2 * MAXF &&
-         fscanf(kg, " extrapolated %d", &keyed_want[keyed_want_n]) == 1)
-    keyed_want_n++;
-  fclose(kg);
-  int keyed_nf = nf < KEYED_TEST_STEPS ? nf : KEYED_TEST_STEPS;
-  if (keyed_want_n < 2 * keyed_nf)
-    return 2;
-
   s = cpmdc_session_create(params, ps);
   if (!s)
-    return 1;
-  saved = dup(2);
-  cap = tmpfile();
-  dup2(fileno(cap), 2);
-  double keyed_e[2 * MAXF];
+    goto out;
+  if (capture_stderr(&cap, &saved) != 0)
+    goto out;
   for (int k = 0; k < keyed_nf && ok; k++) {
     double ang[3 * NAT];
     for (int i = 0; i < 3 * NAT; i++)
@@ -240,33 +294,18 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  fflush(stderr);
-  dup2(saved, 2);
-  close(saved);
+  restore_stderr(&saved);
   if (!ok) {
     fprintf(stderr, "keyed evaluation failed: %s\n", cpmdc_last_error());
-    cpmdc_session_destroy(s);
-    return 1;
+    goto out;
   }
-
-  int keyed_call = -1, keyed_used[2 * MAXF] = {0};
-  int keyed_steps[2 * MAXF] = {0};
-  rewind(cap);
-  while (fgets(line, sizeof line, cap)) {
-    if (strncmp(line, "cpmdc_warm_start ", 17) == 0 &&
-        keyed_call + 1 < 2 * MAXF)
-      keyed_call++;
-    else if (keyed_call >= 0 &&
-             sscanf(line, "cpmdc_wfn_extrapolated %d", &v) == 1)
-      keyed_used[keyed_call] = v;
-    else if (keyed_call >= 0 && sscanf(line, "cpmdc_scf_steps %d", &v) == 1)
-      keyed_steps[keyed_call] += v;
-  }
+  calls = read_capture(cap, 2 * MAXF, keyed_used, keyed_steps);
   fclose(cap);
-  if (keyed_call != 2 * keyed_nf - 1) {
-    fprintf(stderr, "%d keyed calls reported, expected %d\n", keyed_call + 1,
+  cap = NULL;
+  if (calls != 2 * keyed_nf) {
+    fprintf(stderr, "%d keyed calls reported, expected %d\n", calls,
             2 * keyed_nf);
-    return 1;
+    goto out;
   }
   for (int k = 0; k < keyed_nf; k++) {
     for (int bead = 0; bead < 2; bead++) {
@@ -294,8 +333,8 @@ int main(int argc, char **argv) {
   unsetenv("CPMDC_ORBITAL_SLOT_LIMIT");
   printf("history_limit required=10 reject=9 accept=10 ok=%d\n", ok);
   cpmdc_session_destroy(s);
+  s = NULL;
 
-  LimitedOutput after_full = {0};
   limited_session_child(&limited_ctx, &after_full);
   if (!after_full.ok) {
     fprintf(stderr, "full-run limited_session failed: %s\n",
@@ -303,6 +342,13 @@ int main(int argc, char **argv) {
     ok = 0;
   }
   printf("limited_session full_run=%d\n", after_full.ok);
-  printf("PASS=%d\n", ok);
-  return ok ? 0 : 1;
+  rc = ok ? 0 : 1;
+
+out:
+  restore_stderr(&saved);
+  if (cap)
+    fclose(cap);
+  cpmdc_session_destroy(s);
+  printf("PASS=%d\n", rc == 0);
+  return rc;
 }
