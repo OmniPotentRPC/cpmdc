@@ -35,8 +35,7 @@ references:
   - type: software
     title: CPMD
     authors:
-      - name: "IBM Corp"
-      - name: "MPI für Festkörperforschung Stuttgart"
+      - name: "The CPMD consortium"
     abstract: >-
       The CPMD code is a parallelized plane wave / pseudopotential
       implementation of Density Functional Theory, particularly designed
