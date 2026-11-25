@@ -23,8 +23,9 @@ below 3: a singular value counts only when it is strictly greater than
 ``sigma_max * 3 * eps``, with ``eps`` the float64 unit roundoff, the
 cutoff ``numpy.linalg.matrix_rank`` uses for a 3 by 3 matrix. The
 singular values come from the one-sided Jacobi iteration that the C
-library also runs, so both make the same decision for the same cell. A mixed periodic flag raises ``ValueError`` and names
-the non-periodic axes.
+library also runs, so both make the same decision for the same cell. A
+mixed periodic flag raises ``UnsupportedAtoms`` and names the
+non-periodic axes.
 
 The CPMDParams message holds the method, including the charge and the
 multiplicity, and ``initial_charges`` and ``initial_magmoms`` of the
