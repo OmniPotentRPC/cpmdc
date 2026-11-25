@@ -85,8 +85,9 @@ jobs:
           pixi-version: latest
           cache: true
       # FixExternal's evaluation step lives in rgpot.lammps. The skip check
-      # below fails the job when the LAMMPS module is missing; this step
-      # keeps the fix route from skipping for lack of the frontend.
+      # below fails the job on any skip in the LAMMPS test files, so this step
+      # keeps the fix route and adapter tests from skipping for lack of the
+      # frontend.
       - name: rgpot.lammps
         run: pixi run -e lammps bash scripts/ci/install_rgpot_lammps.sh
       - name: Build the LAMMPS test fixtures
@@ -99,8 +100,8 @@ jobs:
           export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-lammps/water_blyp_periodic_params.bin"
           pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py tests/python/test_lammps_rgpot_adapter.py -k 'not plugin' | tee lammps-pytest.log
           grep -E '[1-9][0-9]* passed' lammps-pytest.log
-          if grep -E 'SKIPPED.*lammps Python module' lammps-pytest.log; then
-            echo "LAMMPS route tests skipped"
+          if grep -E '^SKIPPED' lammps-pytest.log; then
+            echo "LAMMPS tests skipped"
             exit 1
           fi
 
