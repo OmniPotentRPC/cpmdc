@@ -566,6 +566,9 @@ class CPMDCCalculator(Calculator):
             self._release()
         try:
             potential = self.potential
+            # C latches topology_fixed before evaluating forces, so record the
+            # composition before evaluate() can raise CPMDCError.
+            self._composition = composition
             with _working_directory(self.directory):
                 evaluated = potential.evaluate(
                     self.atoms.get_positions(),
@@ -576,7 +579,6 @@ class CPMDCCalculator(Calculator):
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
             raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
-        self._composition = composition
         energy = float(checked["energy"])
         self.results["energy"] = energy
         self.results["free_energy"] = energy
