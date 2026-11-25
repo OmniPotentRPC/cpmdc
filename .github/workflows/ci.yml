@@ -55,6 +55,8 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      - name: Meson build files match meson format
+        run: pixi run fmt-meson-check
       - name: Full meson suite (stub + embed E2E)
         run: pixi run test-stub
       - name: C ABI inventory matches libcpmdc and the headers
