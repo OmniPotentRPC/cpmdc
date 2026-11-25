@@ -2,17 +2,10 @@
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "cpmdc",
   "description": "C ABI layer for embedding OpenCPMD in OmniPotentRPC tools.",
-  "folders": [
-    "docs",
-    "examples",
-    "include",
-    "python",
-    "tools"
-  ],
   "excludeFolders": [
     "docs/source",
     "docs/newsfragments",
-    "bench",
+    "schema/inventory",
     "subprojects",
     "tests",
     "scripts",
@@ -21,8 +14,14 @@
   ],
   "excludeFiles": [
     "CHANGELOG.md",
-    "CODE_OF_CONDUCT.md",
-    "LICENSE"
+    "LICENSE",
+    "llms.txt",
+    "llms-full.txt",
+    "meson_options.txt",
+    "version.txt",
+    "constant_cutoff_npt.org",
+    "constant_cutoff_pressure.org",
+    "gromacs_npt_crescale_64w.org"
   ],
   "rules": [
     "Inputs are Cap'n Proto CPMDParams from potentials-schema."
