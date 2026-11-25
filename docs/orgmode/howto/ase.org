@@ -9,6 +9,9 @@ Importing ~cpmdc.ase~ registers ~CPMDCCalculator~ under ~"cpmdc"~ with
 ~ase.calculators.calculator.register_calculator_class~, so
 ~get_calculator_class("cpmdc")~ returns it, and an installed package also
 exposes ~cpmdc.ase~ in the ~ase.plugins~ entry-point group.
+The calculator's ~name~ is ~"cpmdc"~, the registered name, so the name that a
+trajectory or an ASE database row records is one that ~get_calculator_class~
+loads.
 ASE releases that ship
 ~ase._4.plugins~ (3.29 and later) list the calculator in ~ase._4.plugins.plugins.calculators~
 whichever of ~cpmdc.ase~ and ~ase._4.plugins~ is imported first; earlier

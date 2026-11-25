@@ -905,7 +905,7 @@ def test_bfgs_writes_a_trajectory(calc, params, tmp_path):
     np.testing.assert_allclose(frames[-1].positions, atoms.positions)
     with Trajectory(path) as traj:
         first = traj[0]
-    assert first.calc.name == "cpmdccalculator"
+    assert first.calc.name == "cpmdc"
     assert first.calc.parameters["params"] == str(params)
 
 
