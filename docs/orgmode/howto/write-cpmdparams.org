@@ -97,8 +97,9 @@ A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
 ~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another orthorhombic
 box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with off-diagonal
 components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD refuses beside it.
-An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ for an
-orthorhombic box.
+An isolated deck (~SYMMETRY 0~, the default deck, or a ~&SYSTEM~ that names
+~CLUSTER~, ~POISSON SOLVER~, ~ISOLATED MOLECULE~, or ~MOLECULE ISOLATED~) gets
+~SYMMETRY 0~ for an orthorhombic box.
 For another box it uses ~CLUSTER~ and ~CELL VECTORS~, the CPMD form for an
 isolated non-orthorhombic cell.
 Without ~ANGSTROM~ the box goes in as Bohr.

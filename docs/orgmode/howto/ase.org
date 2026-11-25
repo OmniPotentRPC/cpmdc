@@ -130,8 +130,8 @@ The ~pbc~ flags choose the boundaries:
 | ~atoms.pbc~ and ~atoms.cell~ | Step | Stress |
 |------------------------------+------+--------|
 | all false | no cell is sent: the deck sets the box and the Poisson solver, and ~atoms.cell~ is ignored | raises ~PropertyNotImplementedError~ |
-| all true, three independent cell vectors | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
-| all true, fewer than three independent cell vectors | raises ~UnsupportedAtoms~ | |
+| all true, three independent cell vectors, a volume in the normal float64 range | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
+| all true, fewer than three independent cell vectors or a volume below the normal float64 range | raises ~UnsupportedAtoms~ | |
 | a mix of true and false | raises ~UnsupportedAtoms~ that names the open axes | |
 
 A periodic cell with an isolated deck, such as ~water.params.bin~, gives the
@@ -435,7 +435,7 @@ says.
 | a keyword other than ~params~, ~library~, ~constant_cutoff~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | ~cpmdc.ase.UnsupportedAtoms~ |
-| a cell volume below the normal float64 range | ~ValueError~ |
+| a cell volume below the normal float64 range | ~cpmdc.ase.UnsupportedAtoms~ |
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |
 

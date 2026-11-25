@@ -4,13 +4,16 @@
  * SYMMETRY 1 for a cubic deck and a cubic box, SYMMETRY 8 for another
  * orthorhombic box, CELL VECTORS without SYMMETRY for a box with
  * off-diagonal components, Bohr when the deck has no ANGSTROM. An isolated
- * deck (SYMMETRY 0, the built-in minimal deck) uses CLUSTER with CELL
- * VECTORS for a non-orthorhombic box. An all-zero box is no cell, and the
- * deck's CELL stays.
+ * deck (SYMMETRY 0, the built-in minimal deck, or CLUSTER, POISSON SOLVER,
+ * ISOLATED MOLECULE, or MOLECULE ISOLATED in &SYSTEM) uses CLUSTER with
+ * CELL VECTORS for a non-orthorhombic box. A box that is not rank 3, has a
+ * non-finite component, or has a volume below binary64 is rejected. An
+ * all-zero box is no cell, and the deck's CELL stays.
  */
 #include "cpmdc.h"
 #include "cpmdc_embed_image.h"
 
+#include <math.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -133,6 +136,88 @@ static void test_minimal_deck_uses_cluster_for_a_skewed_box(void **state) {
   lines_within_80(deck);
 }
 
+static void assert_minimal_deck_rejects(const double cell[9],
+                                        const char *message) {
+  char deck[8192];
+  int len = -1;
+  assert_int_equal(cpmdc_embed_compose_cold_deck(2, kPos, kZ, cell, 1, deck,
+                                                 (int)sizeof(deck), &len),
+                   0);
+  assert_int_equal(len, 0);
+  assert_string_equal(cpmdc_last_error(), message);
+}
+
+static void test_minimal_deck_rejects_invalid_skewed_boxes(void **state) {
+  (void)state;
+  const double singular[9] = {10.0, 1.0, 0.0, 20.0, 2.0, 0.0,
+                              0.0,  0.0, 12.0};
+  const double nonfinite[9] = {10.0, NAN, 0.0, 0.0, 11.0, 0.0,
+                               0.0,  0.0, 12.0};
+  assert_minimal_deck_rejects(singular,
+                              "cell does not have three independent vectors");
+  assert_minimal_deck_rejects(nonfinite, "cell contains a non-finite component");
+}
+
+/* Positive diagonals pass the diagonal check, so the rank-3 state decides. */
+static void test_minimal_deck_rejects_invalid_diagonal_boxes(void **state) {
+  (void)state;
+  const double underflow[9] = {1.0e-110, 0.0, 0.0, 0.0, 1.0e-110, 0.0,
+                               0.0,      0.0, 1.0e-110};
+  const double flat[9] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0e-20};
+  const double nan_only[9] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+  const double nan_diagonal[9] = {NAN, 0.0, 0.0, 0.0, 11.0, 0.0,
+                                  0.0, 0.0, 12.0};
+  assert_minimal_deck_rejects(underflow, "cell volume is too small for binary64");
+  assert_minimal_deck_rejects(nan_diagonal,
+                              "cell contains a non-finite component");
+  assert_minimal_deck_rejects(flat,
+                              "cell does not have three independent vectors");
+  assert_minimal_deck_rejects(nan_only, "cell contains a non-finite component");
+}
+
+/* A deck without SYMMETRY 0 is isolated when &SYSTEM names CLUSTER, a
+ * Poisson solver, or an isolated molecule, as the periodicity injection
+ * and the reference evaluator read it. */
+static void test_isolated_keyword_decks_stay_isolated(void **state) {
+  (void)state;
+  static const char *const keywords[] = {
+      " CLUSTER\n", " POISSON SOLVER TUCKERMAN\n", " ISOLATED MOLECULE\n",
+      " MOLECULE ISOLATED\n"};
+  const double ortho[9] = {14.5, 0.0, 0.0, 0.0, 15.0, 0.0, 0.0, 0.0, 16.0};
+  const double skew[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
+                          0.0,  0.0, 12.0};
+  const double singular[9] = {10.0, 1.0, 0.0, 20.0, 2.0, 0.0,
+                              0.0,  0.0, 12.0};
+  const char *sym = strstr(kPeriodicDeck, " SYMMETRY\n  1\n");
+  size_t head = (size_t)(sym - kPeriodicDeck);
+  const char *tail = sym + strlen(" SYMMETRY\n  1\n");
+  for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i) {
+    char deck_in[sizeof(kPeriodicDeck) + 64];
+    char deck[8192];
+    memcpy(deck_in, kPeriodicDeck, head);
+    snprintf(deck_in + head, sizeof(deck_in) - head, "%s%s", keywords[i],
+             tail);
+
+    assert_int_equal(compose_with_deck(deck_in, ortho, deck, (int)sizeof(deck)),
+                     1);
+    assert_non_null(strstr(deck, " SYMMETRY\n  0\n CELL\n"));
+    assert_non_null(strstr(deck, keywords[i]));
+
+    assert_int_equal(compose_with_deck(deck_in, skew, deck, (int)sizeof(deck)),
+                     1);
+    const char *cluster = strstr(deck, " CLUSTER\n");
+    assert_non_null(cluster);
+    assert_null(strstr(cluster + 1, " CLUSTER\n"));
+    assert_non_null(strstr(deck, " CELL VECTORS\n"));
+    assert_cell_vectors_equal(deck, skew);
+    assert_null(strstr(deck, " SYMMETRY\n"));
+    lines_within_80(deck);
+
+    assert_int_equal(
+        compose_with_deck(deck_in, singular, deck, (int)sizeof(deck)), 0);
+  }
+}
+
 static void test_box_replaces_the_deck_cell(void **state) {
   (void)state;
   char deck[8192];
@@ -249,6 +334,9 @@ int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_minimal_deck_orthorhombic_box),
       cmocka_unit_test(test_minimal_deck_uses_cluster_for_a_skewed_box),
+      cmocka_unit_test(test_minimal_deck_rejects_invalid_skewed_boxes),
+      cmocka_unit_test(test_minimal_deck_rejects_invalid_diagonal_boxes),
+      cmocka_unit_test(test_isolated_keyword_decks_stay_isolated),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
       cmocka_unit_test(test_small_triclinic_components_are_preserved),
       cmocka_unit_test(test_triclinic_tilt_deck_rejects_transpose),

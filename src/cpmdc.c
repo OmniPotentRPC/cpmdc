@@ -260,15 +260,6 @@ int cpmdc_embed_get_config(char *functional, int functional_len, double *cutoff_
   return 0;
 }
 
-int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
-                                  const int *atomic_numbers,
-                                  const double *cell_ang, int has_cell,
-                                  char *deck_out, int deck_cap, int *deck_len) {
-  return cpmdc_embed_compose_cold_deck_image(
-      n_atoms, positions_ang, atomic_numbers, cell_ang, has_cell, deck_out,
-      deck_cap, deck_len, active_image());
-}
-
 static int ensure_embed_init(void) {
   static int attempted = 0;
   static int ok = 0;
@@ -522,6 +513,20 @@ void cpmdc_note_scf_unconverged(int minimizer, int iterations, int maxiter,
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
+
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len) {
+  g_embed_detail[0] = '\0';
+  int ok = cpmdc_embed_compose_cold_deck_image(
+      n_atoms, positions_ang, atomic_numbers, cell_ang, has_cell, deck_out,
+      deck_cap, deck_len, active_image());
+  if (!ok)
+    cpmdc_store_error(g_embed_detail[0] ? g_embed_detail
+                                        : "cold deck composition failed");
+  return ok;
+}
 
 /* Map CommonMethodSpec.xcFunctionals to a CPMD functional token. Matched on
  * the sorted '+'-joined uppercase list. */

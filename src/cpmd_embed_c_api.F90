@@ -1921,9 +1921,10 @@ CONTAINS
     IF (ierr == 0 .AND. nlen > 0) THEN
       ! The caller's box is the cell. A deck CELL is replaced by it. An
       ! all-zero box is a system without a cell (eOn's non-periodic
-      ! convention), so the deck's CELL, or the default, stays.
+      ! convention), so the deck's CELL, or the default, stays. A NaN
+      ! component compares unequal to zero, so impose_box_cell rejects it.
       use_box = .FALSE.
-      IF (has_cell /= 0) use_box = ANY(ABS(cell(1:9)) > 0.0_c_double)
+      IF (has_cell /= 0) use_box = ANY(cell(1:9) /= 0.0_c_double)
       IF (use_box) THEN
         CALL impose_box_cell(deck, nlen, cell, ierr)
       ELSE
@@ -1939,9 +1940,11 @@ CONTAINS
   ! CPMD uses, whatever CELL the deck states. Every CELL line of &SYSTEM
   ! and its data lines go, and so does SYMMETRY with its value line; then
   ! the box goes back in before the &END of &SYSTEM:
-  !   isolated deck (SYMMETRY 0 or ISOLATED): SYMMETRY 0 and CELL, for a
-  !     diagonal box; CLUSTER and CELL VECTORS for another box, because
-  !     CPMD permits a non-orthorhombic isolated cell only with CLUSTER.
+  !   isolated deck (SYMMETRY 0 or ISOLATED, CLUSTER, POISSON SOLVER,
+  !     ISOLATED MOLECULE, or MOLECULE ISOLATED in &SYSTEM): SYMMETRY 0 and
+  !     CELL, for a diagonal box; CLUSTER and CELL VECTORS for another box,
+  !     because CPMD permits a non-orthorhombic isolated cell only with
+  !     CLUSTER. A deck that already has CLUSTER keeps its one line.
   !   diagonal box: SYMMETRY 1 when the deck said cubic and a = b = c,
   !     otherwise SYMMETRY 8, with CELL a b/a c/a.
   !   other box: CELL VECTORS and no SYMMETRY, which CPMD refuses beside it.
@@ -1960,6 +1963,7 @@ CONTAINS
     REAL(real64) :: c(9), scale
     INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k, cell_state
     LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, diagonal, done
+    LOGICAL :: has_cluster, isolated_keyword
     ierr = 0
     IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
     ! First pass: units and the deck's symmetry, inside &SYSTEM only.
@@ -1967,6 +1971,8 @@ CONTAINS
     angstrom = .FALSE.
     cubic_deck = .FALSE.
     isolated_deck = .FALSE.
+    has_cluster = .FALSE.
+    isolated_keyword = .FALSE.
     skip = 0
     osym = 0
     ls = 1
@@ -1995,16 +2001,32 @@ CONTAINS
         angstrom = .TRUE.
       ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY' .AND. osym == 0) THEN
         osym = 1
+      ELSE IF (in_sys .AND. TRIM(tok) == 'CLUSTER') THEN
+        has_cluster = .TRUE.
+      ELSE IF (in_sys .AND. (INDEX(head, 'POISSON SOLVER') > 0 .OR. &
+               INDEX(head, 'ISOLATED MOLECULE') > 0 .OR. &
+               INDEX(head, 'MOLECULE ISOLATED') > 0)) THEN
+        isolated_keyword = .TRUE.
       END IF
       ls = le + 1
     END DO
+    IF (has_cluster .OR. isolated_keyword) isolated_deck = .TRUE.
     DO k = 1, 9
       c(k) = REAL(cell(k), KIND=real64)
     END DO
     cell_state = cpmdc_cell_rank3_state(cell(1:9))
-    IF (.NOT. isolated_deck .AND. cell_state /= 1_c_int) THEN
-      CALL cpmdc_note_embed_failure('the periodic cell does not have a ' // &
-           'representable rank-3 volume' // c_null_char)
+    IF (cell_state /= 1_c_int) THEN
+      SELECT CASE (cell_state)
+      CASE (-3_c_int)
+        CALL cpmdc_note_embed_failure( &
+             'cell volume is too small for binary64' // c_null_char)
+      CASE (-2_c_int)
+        CALL cpmdc_note_embed_failure( &
+             'cell contains a non-finite component' // c_null_char)
+      CASE DEFAULT
+        CALL cpmdc_note_embed_failure( &
+             'cell does not have three independent vectors' // c_null_char)
+      END SELECT
       ierr = 3
       RETURN
     END IF
@@ -2036,7 +2058,7 @@ CONTAINS
            c(1), c(5) / c(1), &
            c(9) / c(1), ' 0 0 0', NEW_LINE('A')
     ELSE
-      IF (isolated_deck) THEN
+      IF (isolated_deck .AND. .NOT. has_cluster) THEN
         text = ' CLUSTER' // NEW_LINE('A')
       ELSE
         text = ''

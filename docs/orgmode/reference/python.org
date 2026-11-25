@@ -80,7 +80,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~CPMDCCalculator.read~ | ~read(label)~: always raises ~ase.calculators.calculator.ReadError~, because a step stores no file that holds results; ~parameters~ reads a file written by ~Parameters.write~ |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | ~close()~: close that potential; the next step opens a new one |
-| ~cpmdc.ase.UnsupportedAtoms~ | a structure the calculator cannot take: mixed ~pbc~ flags or a periodic cell of rank below 3; both ASE's ~CalculatorSetupError~ and a ~ValueError~ |
+| ~cpmdc.ase.UnsupportedAtoms~ | a structure the calculator cannot take: mixed ~pbc~ flags, a periodic cell of rank below 3, or a periodic cell with a volume below the normal float64 range; both ASE's ~CalculatorSetupError~ and a ~ValueError~ |
 | ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message |
 | ~cpmdc.ipi.Driver~ | ~Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)~: answer i-PI protocol requests from one ~Session~ |
 | ~Driver.compute~ | ~compute(positions, cell)~: one step from ~3N~ Bohr ~positions~ and the wire's ~cell~ ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
@@ -127,8 +127,7 @@ covers ~cpmdc.lammps~.
 | empty or non-3D positions, mismatched ~atomic_numbers~ or ~numbers~ length, a cell or box that is not 3x3 or 9 numbers, a ~stress_h_bohr3~ without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite ~ConstantCutoff~ field, a whole-number argument that is a fraction such as ~14.9~, an orbital key outside the signed 64-bit range | ~ValueError~ |
 | an atomic number, orbital key, ~ConstantCutoff~ field, or ~charge~ that is a string, ~None~, or ~bool~; a coordinate or cell value that is not a real number | ~TypeError~ |
 | ~CPMDCCalculator.read~ with any label | ~ase.calculators.calculator.ReadError~, an ASE ~CalculatorError~ |
-| ~atoms.pbc~ mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff | ~cpmdc.ase.UnsupportedAtoms~, which is ASE's ~CalculatorSetupError~ and a ~ValueError~ |
-| ~atoms.pbc~ is periodic and the cell has a volume below the normal float64 range | ~ValueError~ |
+| ~atoms.pbc~ mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff or a volume below the normal float64 range | ~cpmdc.ase.UnsupportedAtoms~, which is ASE's ~CalculatorSetupError~ and a ~ValueError~ |
 | a ~CPMDCCalculator~ step without atoms | ~ValueError~ |
 | stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | a keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~ other than ~params~, ~library~, ~constant_cutoff~, and ASE's own, such as ~charge~ or ~multiplicity~; no ~params~, or ~params=None~ | ~TypeError~ |
