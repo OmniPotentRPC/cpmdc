@@ -57,6 +57,9 @@ def test_force_input_matches_capnp_encode(atoms, cell):
 
 
 def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
+    # Open MPI's singleton startup otherwise looks up "ssh" on PATH before
+    # entering the library, which would defeat this no-executables check.
+    monkeypatch.setenv("OMPI_MCA_plm", "isolated")
     monkeypatch.setenv("PATH", "")
     with Potential(periodic_params) as pot:
         done = pot.evaluate(WATER, [8, 1, 1], [[10.0, 0, 0], [0, 10.0, 0], [0, 0, 10.0]])
@@ -573,8 +576,9 @@ def _encode_params_text(tmp_path, text):
 )
 def test_params_method_rejects_opaque_scalar_sections(tmp_path, text, message):
     params = _encode_params_text(tmp_path, text)
-    with pytest.raises(CPMDCError, match=message):
+    with pytest.raises(CPMDCError, match=message) as caught:
         cpmdc.params_method(params)
+    assert caught.value.code == cpmdc.CPMDCInvalidArgument.code
 
 
 def test_repeated_geometry_is_deterministic(params):

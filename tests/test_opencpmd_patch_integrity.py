@@ -75,6 +75,10 @@ PATCHES = {
         "src/atomwf_utils.mod.F90",
         "src/gsortho_utils.mod.F90",
     ),
+    "opencpmd_external_charges.patch": (
+        "src/efld.mod.F90",
+        "src/eextern_utils.mod.F90",
+    ),
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.

@@ -957,6 +957,24 @@ if get_option('with_tests')
     output: 'water_blyp_params.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  water_embedding_params_bin = custom_target(
+    'water_embedding_params_bin',
+    input: 'tests/water_blyp_embedding_params.capnp.txt',
+    output: 'water_blyp_embedding_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_external_potential_bin = custom_target(
+    'water_external_potential_bin',
+    input: 'tests/water_blyp_external_potential.capnp.txt',
+    output: 'water_blyp_external_potential.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_external_potential_add_bin = custom_target(
+    'water_external_potential_add_bin',
+    input: 'tests/water_blyp_external_potential_add.capnp.txt',
+    output: 'water_blyp_external_potential_add.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   water_blyp_aspc_params_bin = custom_target(
     'water_blyp_aspc_params_bin',
     input: 'tests/water_blyp_aspc_params.capnp.txt',
@@ -1584,9 +1602,36 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
-    args: [cpmd_parser_params_bin.full_path()],
-    depends: [cpmd_parser_params_bin],
+    args: [
+      cpmd_parser_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
     suite: ['e2e', 'cmocka'],
+  )
+  test(
+    'external-charge-errors',
+    executable(
+      'test_external_charge_errors',
+      'tests/test_external_charge_errors.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [
+      water_embedding_params_bin.full_path(),
+      water_external_potential_bin.full_path(),
+      water_external_potential_add_bin.full_path(),
+      water_periodic_params_bin.full_path(),
+    ],
+    depends: [
+      water_embedding_params_bin,
+      water_external_potential_bin,
+      water_external_potential_add_bin,
+      water_periodic_params_bin,
+    ],
+    suite: ['e2e', 'cmocka'],
+    timeout: 600,
   )
   test(
     'atomic-number-range',
@@ -1733,6 +1778,15 @@ if get_option('with_tests')
     python,
     args: [
       meson.current_source_dir() / 'tests/test_embed_warm_no_nomore_clamp.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
+  test(
+    'embed-energy-guard',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_energy_guard.py',
+      meson.current_source_dir(),
     ],
     suite: ['embed', 'inventory'],
   )

@@ -47,6 +47,21 @@ typedef struct CPMDCResult {
 } CPMDCResult;
 
 /**
+ * @brief Machine-readable reason for the most recent failing public call.
+ *
+ * The text from `cpmdc_last_error()` remains the detailed diagnostic.
+ */
+typedef enum CPMDCErrorCode {
+  CPMDC_ERROR_NONE = 0,
+  CPMDC_ERROR_INVALID_ARGUMENT = 1,
+  CPMDC_ERROR_UNAVAILABLE = 2,
+  CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING = 3,
+  CPMDC_ERROR_EVALUATION_FAILED = 4,
+  /** Session charges and a deck `EXTERNAL POTENTIAL` were both requested. */
+  CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL = 5
+} CPMDCErrorCode;
+
+/**
  * @brief In-process snapshot of OpenCPMD `ener_com` scalars (Hartree a.u.).
  *
  * Filled after a successful embed SCF (`wfopts`) or reference PEF evaluation.
@@ -552,6 +567,46 @@ CPMDC_API int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cu
                                                 double height_ry, double width_ry);
 
 /**
+ * @brief Set Gaussian-smeared MM point charges for the next session step.
+ *
+ * Positions and Gaussian standard deviations are Angstrom; charges are in
+ * units of the elementary charge. `widths_ang` may be NULL, selecting
+ * `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG` (default 0.30 Angstrom) for every charge.
+ * A count of zero clears the embedding. Repeating this call replaces the
+ * previous charge set and invalidates the geometry-result cache.
+ *
+ * Every charge and position must be finite, and every width must be finite
+ * and at least 1e-12 Angstrom. A narrower width is refused with
+ * `CPMDC_ERROR_INVALID_ARGUMENT` and leaves the previous charge set in
+ * place, because the force terms scale as `1 / sigma^4` and overflow to NaN
+ * for much narrower Gaussians. The same lower bound applies to
+ * `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG`.
+ *
+ * The interaction kernel is `erf(r / (sqrt(2) sigma)) / r`, evaluated from
+ * its closed form for `r / sigma` above 1/8 and from a Taylor series in
+ * `(r / sigma)^2` through `(r / sigma)^14` below it, so a charge at an ion
+ * position gives a finite energy and force. Only isolated systems are supported. A periodic
+ * cell, or a deck that is not an isolated system, fails with
+ * `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` on every evaluation path.
+ */
+CPMDC_API int cpmdc_session_set_external_charges(
+    CPMDCSession *session, size_t n_charges, const double *positions_ang,
+    const double *charges_e, const double *widths_ang);
+
+/**
+ * @brief Copy forces on the external charges from the last successful step.
+ *
+ * `forces_h_bohr` has `3 * n_charges` doubles in the order installed by
+ * `cpmdc_session_set_external_charges()`. Returns 0 after the copy and
+ * clears `cpmdc_last_error()`. Returns -1, with `CPMDC_ERROR_INVALID_ARGUMENT`
+ * and a message, when `session` is NULL, when no successful evaluation has
+ * stored forces for the current charge set, when `forces_len` is not
+ * `3 * n_charges`, or when the buffer is NULL and `forces_len` is positive.
+ */
+CPMDC_API int cpmdc_session_last_external_charge_forces(
+    const CPMDCSession *session, double *forces_h_bohr, size_t forces_len);
+
+/**
  * @brief Create a persistent session from a `PotentialConfig` message.
  *
  * Resolves the config exactly like `cpmdc_configure()` and installs the
@@ -876,12 +931,17 @@ CPMDC_API const char *cpmdc_version(void);
  * Empty after a successful call.
  *
  * Snapshot readers (`cpmdc_last_stress()` and the other `cpmdc_last_*` /
- * `cpmdc_session_last_*` getters) do not write it: -1 means the snapshot is
- * absent or the output pointer is null. `cpmdc_adopted_comm()` and
- * `cpmdc_capabilities_result()` do not write it either. A capabilities
- * return of -1 is the size query.
+ * `cpmdc_session_last_*` getters) do not write it, except
+ * `cpmdc_session_last_external_charge_forces()`, which writes this string
+ * and `cpmdc_last_error_code()` on every failure and clears both on success.
+ * For the other readers, -1 means the snapshot is absent or the output
+ * pointer is null. `cpmdc_adopted_comm()` and `cpmdc_capabilities_result()`
+ * do not write it either. A capabilities return of -1 is the size query.
  */
 CPMDC_API const char *cpmdc_last_error(void);
+
+/** @brief Typed reason corresponding to `cpmdc_last_error()`. */
+CPMDC_API CPMDCErrorCode cpmdc_last_error_code(void);
 
 /**
  * @brief Numeric ABI generation of the compiled library.
