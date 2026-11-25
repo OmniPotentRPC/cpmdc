@@ -1800,12 +1800,39 @@ CONTAINS
     END DO
   END FUNCTION
 
+  ! True when a line of &SYSTEM has CLUSTER, in any case, as its first
+  ! token. CHECK CLUSTER is not CLUSTER, as CHECK SYMMETRY is not SYMMETRY,
+  ! and the comment text around the sections and other sections do not
+  ! count.
   LOGICAL FUNCTION deck_names_cluster(deck, nlen)
     CHARACTER(LEN=*), INTENT(IN) :: deck
     INTEGER, INTENT(IN) :: nlen
+    CHARACTER(LEN=80) :: head, tok
+    INTEGER :: n, ls, le, pos
+    LOGICAL :: in_sys
     deck_names_cluster = .FALSE.
-    IF (nlen < 8) RETURN
-    deck_names_cluster = INDEX(deck(1:nlen), ' CLUSTER') > 0
+    n = MIN(nlen, LEN(deck))
+    in_sys = .FALSE.
+    ls = 1
+    DO WHILE (ls <= n)
+      le = ls
+      DO WHILE (le <= n)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      CALL embed_upper_copy(deck(ls:le - 1), head)
+      pos = 1
+      CALL embed_next_tok(head, pos, tok)
+      IF (tok(1:7) == '&SYSTEM') THEN
+        in_sys = .TRUE.
+      ELSE IF (in_sys .AND. tok(1:4) == '&END') THEN
+        in_sys = .FALSE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'CLUSTER') THEN
+        deck_names_cluster = .TRUE.
+        RETURN
+      END IF
+      ls = le + 1
+    END DO
   END FUNCTION
 
   ! A deck with no symmetry line takes cubic, orthorhombic, or isolated
@@ -2249,8 +2276,9 @@ CONTAINS
     IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
   END FUNCTION
 
-  ! Symmetry 0, a Poisson solver, CLUSTER, or an isolated-molecule keyword
-  ! is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
+  ! Symmetry 0, a Poisson solver, CLUSTER in &SYSTEM, or an
+  ! isolated-molecule keyword is a cluster. CHECK SYMMETRY is not the
+  ! symmetry code. A positive
   ! symmetry code is periodic. With no symmetry line, a positive-volume
   ! cell is periodic and a zero box stays a cluster.
   LOGICAL FUNCTION reference_deck_isolated(deck, cell, has_cell)
@@ -2263,7 +2291,7 @@ CONTAINS
     IF (INDEX(deck, 'POISSON SOLVER') > 0) RETURN
     IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
     IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
-    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
+    IF (deck_names_cluster(deck, n)) RETURN
     p = 1
     DO WHILE (p <= n - 7)
       IF (deck(p:p+7) == 'SYMMETRY') THEN
