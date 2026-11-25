@@ -820,6 +820,62 @@ def test_a_refused_step_records_its_composition(calc, opencpmd, monkeypatch, nam
     assert atoms.get_potential_energy() == pytest.approx(first, rel=0, abs=1e-5 if opencpmd else 0)
 
 
+def test_a_failed_step_after_latching_records_its_composition(params, opencpmd, monkeypatch):
+    """A CPMDCError after C latches topology_fixed still records the session's composition."""
+    real_energy_forces = Session.energy_forces
+    fail_on_two = [True]
+
+    def fail_after_latch(self, positions, numbers, cell=None):
+        result = real_energy_forces(self, positions, numbers, cell)
+        if fail_on_two[0] and len(numbers) == 2:
+            raise CPMDCError("SCF did not converge")
+        return result
+
+    monkeypatch.setattr(Session, "energy_forces", fail_after_latch)
+    atoms = water()
+    smaller = Atoms("OH", positions=WATER[:2])
+    reordered = Atoms("HO", positions=[WATER[1], WATER[0]])
+
+    # First step fails after latching: the next composition must open a new session.
+    with CPMDCCalculator(params) as fresh:
+        smaller_fresh = smaller.copy()
+        smaller_fresh.calc = fresh
+        with pytest.raises(CalculationFailed, match="SCF did not converge"):
+            smaller_fresh.get_potential_energy()
+        latched = fresh.potential
+        assert fresh._composition == np.sort(smaller.numbers).tobytes()
+        atoms_fresh = atoms.copy()
+        atoms_fresh.calc = fresh
+        first = atoms_fresh.get_potential_energy()
+        assert fresh.potential is not latched
+        assert fresh._composition == np.sort(atoms.numbers).tobytes()
+
+        # Failure after a composition change leaves the new composition recorded.
+        with pytest.raises(CalculationFailed, match="SCF did not converge"):
+            smaller_fresh.get_potential_energy()
+        latched_two = fresh.potential
+        assert latched_two is not latched
+        assert fresh._composition == np.sort(smaller.numbers).tobytes()
+        atoms_fresh.positions[0, 0] += 0.01
+        atoms_fresh.get_potential_energy()
+        atoms_fresh.positions[0, 0] -= 0.01
+        assert fresh.potential is not latched_two
+        assert fresh._composition == np.sort(atoms.numbers).tobytes()
+        assert atoms_fresh.get_potential_energy() == pytest.approx(
+            first, rel=0, abs=1e-5 if opencpmd else 0
+        )
+
+        # Same composition after recovery reuses the latched session.
+        with pytest.raises(CalculationFailed, match="SCF did not converge"):
+            smaller_fresh.get_potential_energy()
+        reusable = fresh.potential
+        fail_on_two[0] = False
+        reordered.calc = fresh
+        assert np.isfinite(reordered.get_potential_energy())
+        assert fresh.potential is reusable
+        assert fresh._composition == np.sort(reordered.numbers).tobytes()
+
+
 def test_deprecated_arguments_warn(params):
     with pytest.warns(DeprecationWarning, match="schema"):
         Session(params, schema="Potentials.capnp").close()

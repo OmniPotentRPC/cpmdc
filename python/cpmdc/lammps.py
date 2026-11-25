@@ -254,6 +254,10 @@ class _SessionPotential:
             self._forces = self._buffer[:size]
             self._virial = self._buffer[size:]
         scale = self._angstrom_per_bohr
+        # Record before calculate_au because C latches topology_fixed before
+        # evaluating, so a CPMDCError after latching still binds this session
+        # to this composition.
+        self.composition = composition
         energy, _, _ = session.calculate_au(
             positions / scale,
             numbers,
@@ -261,9 +265,6 @@ class _SessionPotential:
             forces=self._forces,
             virial=self._virial,
         )
-        # The session now holds this composition even when the result is
-        # refused, so the next step must compare against it.
-        self.composition = composition
         if not (math.isfinite(energy) and np.isfinite(self._buffer).all()):
             self._require_finite(energy)
         stress = None
@@ -279,6 +280,7 @@ class _SessionPotential:
         if self.session is not None:
             self.session.close()
             self.session = None
+        self.composition = None
 
 
 class FixExternal(_RgpotFixExternal):

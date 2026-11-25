@@ -268,6 +268,77 @@ def test_session_adapter_records_the_composition_of_a_refused_step(monkeypatch, 
     assert len(made) == 4
 
 
+def test_session_adapter_records_composition_when_calculate_au_fails_after_latching(
+    monkeypatch,
+):
+    """A CPMDCError after C latches topology_fixed still binds the session's composition."""
+    made = []
+    fail_on_hydrogen = [True]
+
+    class Session(_FillSession):
+        def __init__(self, blob, *, library=None):
+            del blob, library
+            super().__init__()
+            self.closed = False
+            self.latched = None
+            made.append(self)
+
+        def calculate_au(self, positions, numbers, cell, *, forces, virial):
+            comp = tuple(sorted(int(n) for n in numbers))
+            if self.latched is None:
+                self.latched = comp
+            elif comp != self.latched:
+                raise cpmdc.CPMDCError("topology change requires a new session")
+            if fail_on_hydrogen[0] and 1 in comp:
+                raise cpmdc.CPMDCError("SCF did not converge")
+            return super().calculate_au(
+                positions, numbers, cell, forces=forces, virial=virial
+            )
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(cpmdc.lammps, "Session", Session)
+    positions = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    water = np.array([8, 1], dtype=np.int32)
+    oxygen = np.array([8, 8], dtype=np.int32)
+    cell = np.eye(3) * 9.0
+
+    # First step fails after latching: the next composition must open a new session.
+    first = cpmdc.lammps._SessionPotential(b"params", None, True)
+    with pytest.raises(cpmdc.CPMDCError, match="SCF did not converge"):
+        first.evaluate(positions, water, cell)
+    assert first.composition == (1, 8)
+    assert len(made) == 1 and not made[0].closed
+    result = first.evaluate(positions, oxygen, cell)
+    assert len(made) == 2 and made[0].closed
+    assert first.composition == (8, 8)
+    assert result["energy"] == 3.0 * HARTREE_TO_EV
+
+    # Failure after a composition switch must not keep the previous composition.
+    with pytest.raises(cpmdc.CPMDCError, match="SCF did not converge"):
+        first.evaluate(positions, water, cell)
+    assert first.composition == (1, 8)
+    assert len(made) == 3 and made[1].closed and not made[2].closed
+
+    # Returning to the earlier composition opens a fresh session instead of hitting
+    # the latched session's topology guard.
+    result = first.evaluate(positions, oxygen, cell)
+    assert len(made) == 4 and made[2].closed
+    assert first.composition == (8, 8)
+    assert result["energy"] == 3.0 * HARTREE_TO_EV
+
+    # Retrying the same composition after recovery reuses the latched session.
+    with pytest.raises(cpmdc.CPMDCError, match="SCF did not converge"):
+        first.evaluate(positions, water, cell)
+    assert len(made) == 5 and made[3].closed
+    fail_on_hydrogen[0] = False
+    result = first.evaluate(positions, water[::-1], cell)
+    assert len(made) == 5 and not made[4].closed
+    assert first.composition == (1, 8)
+    assert result["energy"] == 3.0 * HARTREE_TO_EV
+
+
 @pytest.mark.parametrize("style", ["metal", "real", "electron"])
 def test_session_adapter_units_follow_the_lammps_style(style):
     from rgpot.lammps import unit_factors as rgpot_unit_factors

@@ -566,15 +566,15 @@ class CPMDCCalculator(Calculator):
             self._release()
         try:
             potential = self.potential
+            # C latches topology_fixed before evaluating forces, so record the
+            # composition before evaluate() can raise CPMDCError.
+            self._composition = composition
             with _working_directory(self.directory):
                 evaluated = potential.evaluate(
                     self.atoms.get_positions(),
                     numbers,
                     None if cell is None else cell.tolist(),
                 )
-            # The session now holds this composition even when the result
-            # is refused, so the next step must compare against it.
-            self._composition = composition
             checked = _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
