@@ -39,7 +39,7 @@ enum {
 static const char k_orbital_limit_invalid[] =
     "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer";
 static const char k_orbital_limit_exceeded[] =
-    "CPMDC_ORBITAL_SLOT_LIMIT exceeded; parked orbital storage was left unchanged";
+    "CPMDC_ORBITAL_SLOT_LIMIT exceeded; parked orbital and extrapolation-history storage was left unchanged";
 static const char k_orbital_limit_differs[] =
     "CPMDC_ORBITAL_SLOT_LIMIT differs across calculator ranks";
 static const char k_orbital_limit_mpi[] =
