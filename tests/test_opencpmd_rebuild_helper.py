@@ -43,6 +43,7 @@ def main() -> int:
             "initrun_driver.mod.o",
             "rwfopt_utils.mod.o",
             "ddipo_utils.mod.o",
+            "atomc_utils.mod.o",
             "wfopts_utils.mod.o",
             "updwf_utils.mod.o",
             "rkpnt_utils.mod.o",

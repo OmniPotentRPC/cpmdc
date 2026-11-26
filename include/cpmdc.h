@@ -1068,6 +1068,30 @@ CPMDC_API int cpmdc_session_last_dipole(const CPMDCSession *session,
                                         CPMDCDipole *out);
 
 /**
+ * @brief Copy the Hirshfeld charges of the last evaluation.
+ *
+ * Charges are not fields of `CPMDCPropertySnapshot`. `length` is the
+ * number of doubles available in `charges`. On success the call writes
+ * one value per atom, in the caller's atom order, in units of e.
+ * Returns 0 only when that evaluation stored charges and `length` is at
+ * least the atom count. Returns -1 otherwise, and does not write
+ * `charges` or `cpmdc_last_error()`. A failed evaluation invalidates
+ * stored charges, so the next read has the same not-available status as
+ * before any evaluation.
+ */
+CPMDC_API int cpmdc_last_charges(double *charges, size_t length);
+
+/**
+ * @brief Copy the Hirshfeld charges stored on @p session.
+ *
+ * The buffer rules match `cpmdc_last_charges()`. A failed evaluation
+ * invalidates the charges stored on @p session, so this call then
+ * returns the not-available status it uses before any evaluation.
+ */
+CPMDC_API int cpmdc_session_last_charges(const CPMDCSession *session,
+                                         double *charges, size_t length);
+
+/**
  * @brief Copy the last stress tensor.
  *
  * Returns 0 when `out->valid` is set, which is only after stress was computed

@@ -15,7 +15,7 @@ identifiers:
     value: "10.5281/zenodo.23652379"
     description: "Concept DOI for all versions."
 # [[[cog cog.outl(f'version: "{open("version.txt").read().strip()}"') ]]]
-version: "0.7.0"
+version: "0.8.0"
 # [[[end]]]
 date-released: 2026-11-24
 license: MIT

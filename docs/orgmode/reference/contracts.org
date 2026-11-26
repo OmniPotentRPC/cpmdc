@@ -730,6 +730,30 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | ~cpmdc.Session.energy_forces~ reads this value; -1 gives ~Evaluation.dipole_e_bohr~ of ~None~. |
 | Defaults | none |
 
+*** ~cpmdc_last_charges~
+
+| Item | Description |
+|--------+--------|
+| Units | ~charges~ receives Hirshfeld charges in electrons; ~length~ counts doubles. |
+| Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are the caller's atoms, in that order. The values are not fields of ~CPMDCPropertySnapshot~. |
+| Ownership | The caller owns ~charges~. The copy does not alias library memory. A failing call does not write ~charges~. |
+| Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when this evaluation stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL ~charges~, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. A failed evaluation invalidates stored charges, which then read as no stored charges. |
+| Python | not wrapped directly; ~cpmdc.Session.charges~ uses the session form. |
+| Defaults | none |
+
+*** ~cpmdc_session_last_charges~
+
+| Item | Description |
+|--------+--------|
+| Units | ~charges~ receives Hirshfeld charges in electrons; ~length~ counts doubles. |
+| Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are that session's atoms, in the caller's order. The values are not fields of ~CPMDCPropertySnapshot~. |
+| Ownership | ~session~ is borrowed and stays owned by the caller. The caller owns ~charges~, and the copy does not alias library memory. A failing call does not write ~charges~. |
+| Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when that session stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL argument, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. A failed evaluation invalidates stored charges, which then read as no stored charges. |
+| Python | ~cpmdc.Session.charges~ reads this value; -1 gives ~None~. |
+| Defaults | none |
+
 *** ~cpmdc_last_stress~
 
 | Item | Description |
@@ -1665,12 +1689,12 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 
 | Item | Description |
 |--------+--------|
-| Signature | ~Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None)~ |
-| Units | Hartree, Hartree/Bohr, Hartree/Bohr^3 and electron Bohr (atomic units, not eV). |
-| Shape and dtype | A dataclass of four fields, compared and hashed by identity: ~energy_h~ a ~float~, ~forces_h_bohr~ an N by 3 ~list[list[float]]~, ~stress_h_bohr3~ nine floats or ~None~, and ~dipole_e_bohr~ three floats or ~None~. |
+| Signature | ~Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None, charges_e=None)~ |
+| Units | Hartree, Hartree/Bohr, Hartree/Bohr^3, electron Bohr, and electrons (atomic units, not eV). |
+| Shape and dtype | A dataclass of five fields, compared and hashed by identity: ~energy_h~ a ~float~, ~forces_h_bohr~ an N by 3 ~list[list[float]]~, ~stress_h_bohr3~ nine floats or ~None~, ~dipole_e_bohr~ three floats or ~None~, and ~charges_e~ N floats or ~None~. |
 | Ownership and threads | Plain data the caller owns; it holds no handle. Not thread-safe to mutate; reading it from several threads is safe. |
 | Raises | none |
-| Defaults | ~dipole_e_bohr=None~; the first three fields are required, in this order or by keyword. |
+| Defaults | ~dipole_e_bohr=None~ and ~charges_e=None~; the first three fields are required, in this order or by keyword. |
 
 *** ~cpmdc.Evaluation.energy_h~
 
@@ -1712,6 +1736,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Signature | ~dipole_e_bohr (attribute)~ |
 | Units | Electron Bohr. |
 | Shape and dtype | Three ~float~ values in Cartesian x, y, z order, or ~None~ unless OpenCPMD recomputed the dipole for the current geometry. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | ~None~. |
+
+*** ~cpmdc.Evaluation.charges_e~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~charges_e (attribute)~ |
+| Units | electrons. Hirshfeld charges, ~q = Z_v - n~. |
+| Shape and dtype | One ~float~ per atom, in the caller's atom order, or ~None~ unless OpenCPMD stored charges for the current geometry. |
 | Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
 | Raises | none |
 | Defaults | ~None~. |
@@ -1777,10 +1812,10 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 |--------+--------|
 | Signature | ~caps()~ |
 | Units | none |
-| Shape and dtype | Returns a new ~dict[str, bool]~ with the keys ~stress~, ~dipole~, and ~energies~. |
-| Ownership and threads | Returns a new dict. Reads the owned session, including whether its library exports ~cpmdc_session_last_dipole~ and whether the last evaluation produced a dipole, so it is not thread-safe against evaluation or close on that session. MPI: local. |
+| Shape and dtype | Returns a new ~dict[str, bool]~ with the keys ~stress~, ~dipole~, ~charges~, and ~energies~. |
+| Ownership and threads | Returns a new dict. Reads the owned session, including whether its library exports the dipole and charge readers and whether the last evaluation produced them, so it is not thread-safe against evaluation or close on that session. MPI: local. |
 | Raises | none |
-| Defaults | ~stress~ is true and ~energies~ is false. ~dipole~ is ~Session.dipole_possible()~. A dipole result on ~Potential.evaluate~ is three e*Angstrom components, present only when that evaluation recomputed one. |
+| Defaults | ~stress~ is true and ~energies~ is false. ~dipole~ is ~Session.dipole_possible()~. ~charges~ is ~Session.charges_possible()~. A dipole result on ~Potential.evaluate~ is three e*Angstrom components, present only when that evaluation recomputed one. A charges result is one value per atom in electrons, present only when that evaluation stored Hirshfeld charges. |
 
 *** ~cpmdc.Potential.close~
 
@@ -1798,8 +1833,8 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Item | Description |
 |--------+--------|
 | Signature | ~evaluate(positions, numbers, box=None)~ |
-| Units | ~positions~ and ~box~ in Angstrom; the result has ~energy~ in eV, ~forces~ in eV/Angstrom and ~stress~ in eV/Angstrom^3 with the ASE sign ~(1/V) dE/d(strain)~. |
-| Shape and dtype | ~positions~ N by 3 floats; ~numbers~ N integers in 1..118; ~box~ a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new ~dict~: ~energy~ a float, ~forces~ an N by 3 list, ~stress~ nine floats only when the library computed one, and ~dipole~ three e*Angstrom components only when the evaluation recomputed one. |
+| Units | ~positions~ and ~box~ in Angstrom; the result has ~energy~ in eV, ~forces~ in eV/Angstrom, ~stress~ in eV/Angstrom^3 with the ASE sign ~(1/V) dE/d(strain)~, and ~charges~ in electrons. |
+| Shape and dtype | ~positions~ N by 3 floats; ~numbers~ N integers in 1..118; ~box~ a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new ~dict~: ~energy~ a float, ~forces~ an N by 3 list, ~stress~ nine floats only when the library computed one, ~dipole~ three e*Angstrom components only when the evaluation recomputed one, and ~charges~ N floats only when the evaluation stored Hirshfeld charges. |
 | Ownership and threads | The caller keeps every argument; nothing is retained. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | ~ValueError~ for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, a malformed box, and ~TypeError~ for a non-integer atomic number; ~CPMDCError~ for a closed session, a change of composition, a non-zero box rejected by the C ABI (rank below 3, volume underflow, volume overflow, or isolated-deck mismatch), or a failed step. |
 | Defaults | ~box~ is ~None~: an isolated system, which the deck's boundary conditions then define. |
@@ -1846,6 +1881,28 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Shape and dtype | Returns a ~bool~. False when the library has no ~cpmdc_session_last_dipole~, when the session is closed, or for the reference evaluator. Before the first step a linked library that has the symbol answers true. After a step the answer is whether that step produced a dipole. |
 | Ownership and threads | Reads the session handle and its last dipole state. Not thread-safe against evaluation or close on the same session. MPI: local. |
 | Raises | none: a closed session, the reference evaluator, and a library without ~cpmdc_session_last_dipole~ return ~False~. |
+| Defaults | none |
+
+*** ~cpmdc.Session.charges~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~charges()~ |
+| Units | electrons. Hirshfeld charges, ~q = Z_v - n~. |
+| Shape and dtype | A new ~list[float]~ of one value per atom, in the caller's atom order, or ~None~ when the session is closed, before the first evaluation, or when that evaluation stored no charges. |
+| Ownership and threads | Returns a new list. Reads the session handle and the charges of its last evaluation. Not thread-safe against evaluation or close on the same session. MPI: local. |
+| Raises | none: a closed session and a step without charges return ~None~. |
+| Defaults | none |
+
+*** ~cpmdc.Session.charges_possible~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~charges_possible()~ |
+| Units | none |
+| Shape and dtype | Returns a ~bool~. False when the library has no ~cpmdc_session_last_charges~, when the session is closed, or for the reference evaluator. Before the first step a linked library that has the symbol answers true. After a step the answer is whether that step stored charges. |
+| Ownership and threads | Reads the session handle and its last charge state. Not thread-safe against evaluation or close on the same session. MPI: local. |
+| Raises | none: a closed session, the reference evaluator, and a library without ~cpmdc_session_last_charges~ return ~False~. |
 | Defaults | none |
 
 *** ~cpmdc.Session.calculate_au~
@@ -2045,11 +2102,11 @@ Importing it imports ASE.
 | Item | Description |
 |--------+--------|
 | Signature | ~calculate(atoms=None, properties=None, system_changes=['positions', 'numbers', 'cell', 'pbc', 'initial_charges', 'initial_magmoms'])~ |
-| Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
-| Shape and dtype | ~atoms~ an ~ase.Atoms~; fills ~results~ with ~energy~ and ~free_energy~ floats, ~forces~ an N by 3 ~float64~ array, and ~stress~ a six-component ~float64~ array when the cell is fully periodic. |
+| Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order, dipole in e*Angstrom, charges in electrons. |
+| Shape and dtype | ~atoms~ an ~ase.Atoms~; fills ~results~ with ~energy~ and ~free_energy~ floats, ~forces~ an N by 3 ~float64~ array, ~stress~ a six-component ~float64~ array when the cell is fully periodic, ~dipole~ a length-3 ~float64~ array when the step recomputed one, and ~charges~ a length-N ~float64~ array when the step stored Hirshfeld charges. |
 | Ownership and threads | The calculator keeps the results; ~atoms~ is copied by ASE. Not thread-safe. The step runs with ~directory~ as the working directory, which is a process-wide change. |
-| Raises | ~cpmdc.ase.UnsupportedAtoms~ for a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range; ~ValueError~ for no atoms, an ~initial_charges~ or ~initial_magmoms~ total that is not an integer (it must lie within ~n * eps * sum(abs(x))~ of one, the float64 rounding bound of ~n~ terms, ~eps~ the float64 unit roundoff), non-collinear ~initial_magmoms~, a nonzero total charge or total moment that differs from the charge or multiplicity ~params~ sets, where charge 0 is set when ~hasCharge~ is true and unset when ~hasCharge~ is false (the message names both values and both sources, and the set charge is kept) or that a typed section of ~params~ fixes, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~CPMDCError~ when an ~Atoms~ total needs ~cpmdc_params_method()~ and the library has none or refuses the message as ambiguous. |
-| Defaults | ~atoms~ is ~None~: the atoms already attached; ~properties~ is ~None~: ~['energy']~, but all four properties are always filled; ~system_changes~ is ASE's ~all_changes~. |
+| Raises | ~cpmdc.ase.UnsupportedAtoms~ for a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range; ~ValueError~ for no atoms, an ~initial_charges~ or ~initial_magmoms~ total that is not an integer (it must lie within ~n * eps * sum(abs(x))~ of one, the float64 rounding bound of ~n~ terms, ~eps~ the float64 unit roundoff), non-collinear ~initial_magmoms~, a nonzero total charge or total moment that differs from the charge or multiplicity ~params~ sets, where charge 0 is set when ~hasCharge~ is true and unset when ~hasCharge~ is false (the message names both values and both sources, and the set charge is kept) or that a typed section of ~params~ fixes, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for, and when dipole or charges are asked for a step that stored none; ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~CPMDCError~ when an ~Atoms~ total needs ~cpmdc_params_method()~ and the library has none or refuses the message as ambiguous. |
+| Defaults | ~atoms~ is ~None~: the atoms already attached; ~properties~ is ~None~: ~['energy']~, but every property the step can provide is filled; ~system_changes~ is ASE's ~all_changes~. |
 
 *** ~cpmdc.ase.CPMDCCalculator.close~
 
@@ -2100,11 +2157,11 @@ Importing it imports ASE.
 | Item | Description |
 |--------+--------|
 | Signature | ~implemented_properties (attribute)~ |
-| Units | eV, eV/Angstrom and eV/Angstrom^3 (ASE units); see the ASE properties table. |
-| Shape and dtype | A ~list~ of ~energy~, ~free_energy~, ~forces~ and ~stress~. |
+| Units | eV, eV/Angstrom, eV/Angstrom^3, e*Angstrom and electrons (ASE units); see the ASE properties table. |
+| Shape and dtype | A ~list~ of ~energy~, ~free_energy~, ~forces~, ~stress~, ~dipole~ and ~charges~. |
 | Ownership and threads | Class attribute read by ASE; do not mutate it. |
 | Raises | none |
-| Defaults | none: the four names are fixed. |
+| Defaults | none: the six names are fixed. |
 
 *** ~cpmdc.ase.CPMDCCalculator.potential~
 
@@ -2580,6 +2637,7 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 | forces | eV/Angstrom | (N, 3) ~float64~ array | The negative nuclear gradient ~-dE/dR~. | As for ~energy~. |
 | stress | eV/Angstrom^3 | (6,) ~float64~ array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, ~(1/V) dE/d(strain)~, the opposite of the OpenCPMD sign; shear parts are averaged. | ~PropertyNotImplementedError~ for a cluster (every ~pbc~ flag false) or for a step the library gave no stress for; ~UnsupportedAtoms~ for a partly periodic cell. |
 | dipole | e*Angstrom | (3,) ~float64~ Cartesian array | Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum. | ~PropertyNotImplementedError~ when the library has no ~cpmdc_session_last_dipole~, or when the reference, isolated, k-point or unrequested evaluation produced no dipole. ~CalculationFailed~ when the dipole is not finite. |
+| charges | electrons | (N,) ~float64~ array | Hirshfeld charges ~q = Z_v - n~ in the caller's atom order, from a converged Gamma-point OpenCPMD step that is not broken symmetry and whose species have weight functions. A neutral molecule sums to the total charge up to the real-space partition residual. | ~PropertyNotImplementedError~ when the library has no ~cpmdc_session_last_charges~, or when the reference evaluator, an unconverged SCF, k points, broken symmetry, a missing weight function, or ~CPMDC_CHARGE_SNAPSHOT=0~ produced no charges. A later request for the same atoms does not evaluate again. ~CalculationFailed~ when a charge is not finite or the array length is not the atom count. |
 
 * ASE parameters
 

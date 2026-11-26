@@ -29,7 +29,11 @@ fi
 #                          ddipo keeps its argument list, so proppt_utils,
 #                          prcpmd_utils, mm_mdshop_cp_utils and the other
 #                          callers keep their objects)
-#   wfopts_utils.mod.o     opencpmd_embed_dipole.patch; reads ddipo_utils
+#   atomc_utils.mod.o      opencpmd_embed_charges.patch (resets the first-call
+#                          spline tables when the embed teardown counter moves)
+#   wfopts_utils.mod.o     opencpmd_embed_dipole.patch and
+#                          opencpmd_embed_charges.patch; reads ddipo_utils
+#                          and atomc_utils, so both objects come first
 #   updwf_utils.mod.o      opencpmd_converged_state.patch
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
@@ -59,6 +63,7 @@ objects=(
   initrun_driver.mod.o
   rwfopt_utils.mod.o
   ddipo_utils.mod.o
+  atomc_utils.mod.o
   wfopts_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o

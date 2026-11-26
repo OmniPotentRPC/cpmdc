@@ -403,14 +403,23 @@ def test_virial_that_overflows_is_refused(periodic_params, opencpmd):
             )
 
 
-def test_reference_step_has_no_fabricated_dipole(params):
+def test_reference_step_has_no_fabricated_dipole(params, opencpmd):
     with Session(params) as session:
         done = session.energy_forces(WATER, [8, 1, 1])
+        if not opencpmd:
+            assert done.charges_e is None
+            assert session.charges() is None
+            assert session.charges_possible() is False
     assert done.dipole_e_bohr is None
     with Potential(params) as pot:
         result = pot.evaluate(WATER, [8, 1, 1])
-    assert "dipole" not in result
-    assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+        assert "dipole" not in result
+        assert pot.caps()["dipole"] is False
+        assert pot.caps()["stress"] is True
+        assert pot.caps()["energies"] is False
+        if not opencpmd:
+            assert "charges" not in result
+            assert pot.caps()["charges"] is False
 
 
 def test_dipole_unit_conversion():
@@ -607,7 +616,7 @@ def test_evaluation_has_a_readable_repr_and_keeps_identity_semantics():
     second = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
     assert repr(first) == (
         "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], "
-        "stress_h_bohr3=None, dipole_e_bohr=None)"
+            "stress_h_bohr3=None, dipole_e_bohr=None, charges_e=None)"
     )
     assert first != second
     assert len({first, second}) == 2
@@ -705,6 +714,7 @@ def test_available_matches_the_build(params):
         assert pot.caps() == {
             "stress": True,
             "dipole": bool(library.cpmdc_available()),
+            "charges": bool(library.cpmdc_available()),
             "energies": False,
         }
 

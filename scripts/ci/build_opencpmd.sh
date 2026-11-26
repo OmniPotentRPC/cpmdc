@@ -27,7 +27,7 @@ fi
 git -C "$src" checkout -q "$commit"
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown embed_extrapolate embed_dipole omp_info pcg_step \
+         embed_teardown embed_extrapolate embed_dipole embed_charges omp_info pcg_step \
          constant_cutoff_precon atomwf_kpts_ortho external_charges; do
   patch -p1 -s -N -d "$src" < "$tools/opencpmd_$p.patch"
 done

@@ -168,6 +168,17 @@ static void test_all_results_through_c_and_wire(void **state) {
   assert_int_equal(cpmdc_last_dipole(&dipole), -1);
   assert_int_equal(dipole.valid, 0);
   assert_true(dipole.values[0] == 0.0);
+  {
+    double held[4];
+    memset(held, 0x5a, sizeof(held));
+    assert_int_equal(cpmdc_last_charges(NULL, 4), -1);
+    assert_int_equal(cpmdc_session_last_charges(NULL, held, 4), -1);
+    if (cpmdc_last_charges(held, 4) != 0) {
+      assert_int_equal(cpmdc_session_last_charges(session, held, 4), -1);
+      for (int i = 0; i < 4; ++i)
+        assert_true(((unsigned char *)&held[i])[0] == 0x5a);
+    }
+  }
 
   struct capn arena;
   assert_int_equal(capn_init_mem(&arena, out, (int)wrote, 0), 0);

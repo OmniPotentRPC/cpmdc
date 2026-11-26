@@ -205,12 +205,16 @@ class Evaluation:
     has the OpenCPMD sign, ``-(1/V) dE/d(strain)``, the opposite of ASE's.
     ``dipole_e_bohr`` is the molecular dipole in electron Bohr when OpenCPMD
     recomputed it for this geometry, and ``None`` otherwise.
+    ``charges_e`` is the per-atom Hirshfeld charge in units of e, in the
+    caller's atom order, when OpenCPMD stored one for this geometry, and
+    ``None`` otherwise.
     """
 
     energy_h: float
     forces_h_bohr: list[list[float]]
     stress_h_bohr3: list[float] | None
     dipole_e_bohr: list[float] | None = None
+    charges_e: list[float] | None = None
 
 
 @dataclass(frozen=True)
@@ -749,6 +753,14 @@ def _load(path: Path) -> ctypes.CDLL:
             ctypes.POINTER(_CDipole),
         ]
         lib.cpmdc_session_last_dipole.restype = ctypes.c_int
+    # Additive at ABI 0, same as the dipole reader.
+    if hasattr(lib, "cpmdc_session_last_charges"):
+        lib.cpmdc_session_last_charges.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+        ]
+        lib.cpmdc_session_last_charges.restype = ctypes.c_int
     lib.cpmdc_last_error.argtypes = []
     lib.cpmdc_last_error.restype = ctypes.c_char_p
     if hasattr(lib, "cpmdc_last_error_code"):
@@ -843,6 +855,9 @@ class Session:
             raise CPMDCError("CPMDParams buffer is empty")
         self._lib = _load(find_library(library))
         self._dipole_seen: bool | None = None
+        self._charges_seen: bool | None = None
+        self._charges_e: list[float] | None = None
+        self._n_atoms = 0
         if cutoff is not None and not hasattr(self._lib, "cpmdc_session_set_constant_cutoff"):
             raise CPMDCError(
                 "this libcpmdc has no cpmdc_session_set_constant_cutoff; "
@@ -911,6 +926,7 @@ class Session:
         num_buf = (ctypes.c_int * n_atoms).from_buffer(numbers)
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
+        self._clear_cached_charges()
         if box is None:
             result = self._lib.cpmdc_session_energy_forces(
                 self._handle, n_atoms, pos_buf, num_buf, force_buf
@@ -929,8 +945,14 @@ class Session:
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
         dipole_value = self._last_dipole()
+        self._n_atoms = n_atoms
+        charges_value = self._last_charges()
         return Evaluation(
-            float(result.energy_h), _rows(forces, n_atoms), tensor, dipole_value
+            float(result.energy_h),
+            _rows(forces, n_atoms),
+            tensor,
+            dipole_value,
+            charges_value,
         )
 
     def _dipole_reader(self) -> Any:
@@ -988,6 +1010,88 @@ class Session:
             return False
         return self._dipole_seen is not False
 
+    def _charges_reader(self) -> Any:
+        return getattr(self._lib, "cpmdc_session_last_charges", None)
+
+    def _missing_charges_symbol(self) -> str | None:
+        """Error text when this library cannot return charges, else ``None``."""
+        if self._charges_reader() is None:
+            return (
+                "this libcpmdc has no cpmdc_session_last_charges; "
+                "use a library built from cpmdc with Hirshfeld charge support"
+            )
+        return None
+
+    def _clear_cached_charges(self) -> None:
+        """Drop Hirshfeld charges cached from an earlier successful step.
+
+        The library clears its charge snapshot for the step it is about
+        to run. A failed step must not leave the previous values visible.
+        """
+        self._charges_e = None
+        self._charges_seen = False
+
+    def _last_charges(self) -> list[float] | None:
+        """Hirshfeld charges of the last evaluation, in e, or ``None``.
+
+        A 0 return writes one value per atom. The library stores one
+        charge per atom of that evaluation, outside
+        ``CPMDCPropertySnapshot``, so a buffer one shorter than the atom
+        count must fail and the full buffer must succeed.
+        """
+        reader = self._charges_reader()
+        n = self._n_atoms
+        if reader is None or not getattr(self, "_handle", None) or n < 1:
+            self._charges_seen = False
+            self._charges_e = None
+            return None
+        buf = (ctypes.c_double * n)()
+        if n > 1 and int(reader(self._handle, buf, n - 1)) == 0:
+            self._charges_seen = False
+            self._charges_e = None
+            return None
+        if int(reader(self._handle, buf, n)) != 0:
+            self._charges_seen = False
+            self._charges_e = None
+            return None
+        self._charges_seen = True
+        self._charges_e = [float(buf[i]) for i in range(n)]
+        return list(self._charges_e)
+
+    def charges(self) -> list[float] | None:
+        """Per-atom Hirshfeld charges of the last evaluation, in e.
+
+        ``None`` when the session is closed, before the first evaluation,
+        when that evaluation stored no charges, and after an evaluation
+        that failed. The reference evaluator and a library without
+        ``cpmdc_session_last_charges`` store none.
+        """
+        if not getattr(self, "_handle", None):
+            return None
+        stored = self._charges_e
+        return None if stored is None else list(stored)
+
+    def charges_possible(self) -> bool:
+        """Whether this session can produce per-atom Hirshfeld charges.
+
+        Only a library that exports ``cpmdc_session_last_charges`` and is
+        linked to OpenCPMD can. The reference evaluator never can, and
+        neither can a library built before that symbol existed. Before the
+        first evaluation the deck is not known, so a linked library that
+        has the symbol answers ``True``. After an evaluation the answer is
+        whether that evaluation stored charges. K points, broken symmetry,
+        a species without a weight function, an unconverged SCF, and
+        ``CPMDC_CHARGE_SNAPSHOT=0`` store none. A closed session answers
+        ``False``.
+        """
+        if not getattr(self, "_handle", None):
+            return False
+        if self._charges_reader() is None:
+            return False
+        if not self.available():
+            return False
+        return self._charges_seen is not False
+
     def calculate_au(
         self,
         positions_bohr: Any,
@@ -1024,13 +1128,16 @@ class Session:
         energy = ctypes.c_double()
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
+        self._clear_cached_charges()
         status = self._lib.cpmdc_session_calculate_au(
             self._handle, n_atoms, positions, numbers, cell, ctypes.byref(energy),
             force_buf, virial_buf,
         )
         if status != 0:
             raise self._fail("evaluation failed")
+        self._n_atoms = n_atoms
         self._last_dipole()
+        self._last_charges()
         return float(energy.value), forces, virial
 
     def set_external_charges(
@@ -1151,8 +1258,11 @@ class Potential:
     library computed a tensor. The stress sign is ASE's,
     ``(1/V) dE/d(strain)``. It includes ``dipole`` in e*Angstrom only when
     OpenCPMD recomputed one for the current geometry.
+    It includes ``charges`` in units of e, one per atom in the caller's
+    order, only when OpenCPMD stored Hirshfeld charges for that step.
     :meth:`caps` reports that stress may be present, that a dipole may be
-    present only when the evaluator can produce one, and that per-atom
+    present only when the evaluator can produce one, that charges may be
+    present only when the evaluator can produce them, and that per-atom
     energies are not.
     """
 
@@ -1173,10 +1283,16 @@ class Potential:
 
         ``dipole`` is :meth:`Session.dipole_possible`: false for the reference
         evaluator, for a library without ``cpmdc_session_last_dipole``, and
-        for a deck whose last evaluation produced no dipole. The dict is not
-        a constant: it follows that session.
+        for a deck whose last evaluation produced no dipole. ``charges`` is
+        :meth:`Session.charges_possible`. The dict is not a constant: it
+        follows that session.
         """
-        return {"stress": True, "dipole": self._session.dipole_possible(), "energies": False}
+        return {
+            "stress": True,
+            "dipole": self._session.dipole_possible(),
+            "charges": self._session.charges_possible(),
+            "energies": False,
+        }
 
     def evaluate(
         self,
@@ -1199,6 +1315,8 @@ class Potential:
             ]
         if done.dipole_e_bohr is not None:
             out["dipole"] = dipole_to_e_angstrom(done.dipole_e_bohr)
+        if done.charges_e is not None:
+            out["charges"] = [float(value) for value in done.charges_e]
         return out
 
     def close(self) -> None:

@@ -16,6 +16,7 @@ cpmdc_feature_find
 cpmdc_feature_table
 cpmdc_finalize
 cpmdc_last_charge_integrals
+cpmdc_last_charges
 cpmdc_last_dipole
 cpmdc_last_energy_components
 cpmdc_last_error
@@ -40,6 +41,7 @@ cpmdc_session_energy
 cpmdc_session_energy_forces
 cpmdc_session_energy_gradient
 cpmdc_session_last_charge_integrals
+cpmdc_session_last_charges
 cpmdc_session_last_dipole
 cpmdc_session_last_energy_components
 cpmdc_session_last_external_charge_forces

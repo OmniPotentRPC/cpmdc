@@ -470,6 +470,170 @@ static void test_stored_orbitals_follow_the_cell_kind(void **state) {
   expect_warm_source(REPEAT_ZERO, REPEAT_NULL, -2);
 }
 
+/* One evaluation, then the same geometry forced to fail, then that
+ * geometry again. The failed call clears the image. The repeat has to
+ * evaluate, not answer from the stored step. That answer restores only
+ * the charges, so the other getters stay unread and the virial is zero.
+ * The reference evaluator stores no dipole or Hirshfeld charges.
+ * CPMDC_TEST_FAULT=charge-snapshot records both. */
+struct snapshot_probe {
+  int rc;
+  int energy_rc;
+  int energy_valid;
+  double etot;
+  int gradient_rc;
+  size_t gradient_count;
+  double gradient[3 * N_ATOMS];
+  int dipole_rc;
+  int dipole_valid;
+  double dipole[3];
+  int stress_rc;
+  int stress_valid;
+  double stress[9];
+  int charges_rc;
+  double charges[N_ATOMS];
+  int integrals_rc;
+  int md_rc;
+  double virial[9];
+};
+
+struct cache_repair_out {
+  int reference;
+  struct snapshot_probe step[3];
+};
+
+static void read_snapshots(CPMDCSession *session, struct snapshot_probe *p) {
+  CPMDCEnergyComponents energy;
+  CPMDCDipole dipole;
+  CPMDCStressTensor stress;
+  CPMDCChargeIntegrals integrals;
+  CPMDCMDTrajectoryRow row;
+  memset(&energy, 0, sizeof(energy));
+  memset(&dipole, 0, sizeof(dipole));
+  memset(&stress, 0, sizeof(stress));
+  p->energy_rc = cpmdc_session_last_energy_components(session, &energy);
+  p->energy_valid = energy.valid;
+  p->etot = energy.etot;
+  p->gradient_count = 0;
+  p->gradient_rc = cpmdc_session_last_gradient(
+      session, p->gradient, sizeof(p->gradient) / sizeof(p->gradient[0]),
+      &p->gradient_count);
+  p->dipole_rc = cpmdc_session_last_dipole(session, &dipole);
+  p->dipole_valid = dipole.valid;
+  memcpy(p->dipole, dipole.values, sizeof(p->dipole));
+  p->stress_rc = cpmdc_session_last_stress(session, &stress);
+  p->stress_valid = stress.valid;
+  memcpy(p->stress, stress.values, sizeof(p->stress));
+  p->charges_rc = cpmdc_session_last_charges(session, p->charges, N_ATOMS);
+  p->integrals_rc = cpmdc_session_last_charge_integrals(session, &integrals);
+  p->md_rc = cpmdc_session_last_md_trajectory_row(session, &row);
+}
+
+static void call_au(CPMDCSession *session, struct snapshot_probe *p) {
+  double energy = 0.0;
+  double forces[3 * N_ATOMS];
+  double virial[9];
+  memset(virial, 0, sizeof(virial));
+  p->rc = cpmdc_session_calculate_au(session, N_ATOMS, k_steps[0], k_numbers,
+                                    k_cells[0], &energy, forces, virial);
+  memcpy(p->virial, virial, sizeof(p->virial));
+  read_snapshots(session, p);
+}
+
+static void cache_repair_child(void *vctx, void *vout) {
+  const char *path = (const char *)vctx;
+  struct cache_repair_out *o = (struct cache_repair_out *)vout;
+  CPMDCSession *session = open_session(path);
+  o->reference = !cpmdc_available();
+  if (!session) {
+    o->step[0].rc = -1;
+    return;
+  }
+  setenv("CPMDC_STRESS", "1", 1);
+  if (o->reference)
+    setenv("CPMDC_TEST_FAULT", "charge-snapshot", 1);
+  call_au(session, &o->step[0]);
+  setenv("CPMDC_TEST_FAULT", "embed-energy-gradient", 1);
+  call_au(session, &o->step[1]);
+  unsetenv("CPMDC_TEST_FAULT");
+  if (o->reference)
+    setenv("CPMDC_TEST_FAULT", "charge-snapshot", 1);
+  call_au(session, &o->step[2]);
+  unsetenv("CPMDC_TEST_FAULT");
+  cpmdc_session_destroy(session);
+}
+
+static int any_nonzero(const double *v, int n) {
+  int i;
+  for (i = 0; i < n; ++i) {
+    if (v[i] != 0.0)
+      return 1;
+  }
+  return 0;
+}
+
+static void test_failed_step_recomputes_the_cached_result(void **state) {
+  static struct cache_repair_out o;
+  const struct snapshot_probe *first;
+  const struct snapshot_probe *failed;
+  const struct snapshot_probe *again;
+  (void)state;
+  RUN_SETUP_CHILD(cache_repair_child, (void *)g_periodic, &o);
+  first = &o.step[0];
+  failed = &o.step[1];
+  again = &o.step[2];
+
+  assert_int_equal(first->rc, 0);
+  assert_int_equal(first->energy_rc, 0);
+  assert_int_equal(first->energy_valid, 1);
+  assert_int_equal(first->gradient_rc, 0);
+  assert_int_equal(first->gradient_count, (size_t)(3 * N_ATOMS));
+  assert_int_equal(first->stress_rc, 0);
+  assert_int_equal(first->stress_valid, 1);
+  assert_int_equal(first->integrals_rc, 0);
+  assert_int_equal(first->md_rc, 0);
+  assert_true(any_nonzero(first->virial, 9));
+  if (o.reference) {
+    assert_int_equal(first->dipole_rc, 0);
+    assert_int_equal(first->dipole_valid, 1);
+    assert_true(any_nonzero(first->dipole, 3));
+    assert_int_equal(first->charges_rc, 0);
+    assert_true(any_nonzero(first->charges, N_ATOMS));
+  }
+
+  assert_int_equal(failed->rc, -1);
+  assert_int_equal(failed->energy_rc, -1);
+  assert_int_equal(failed->gradient_rc, -1);
+  assert_int_equal(failed->dipole_rc, -1);
+  assert_int_equal(failed->stress_rc, -1);
+  assert_int_equal(failed->charges_rc, -1);
+  assert_int_equal(failed->integrals_rc, -1);
+  assert_int_equal(failed->md_rc, -1);
+
+  assert_int_equal(again->rc, 0);
+  assert_int_equal(again->energy_rc, 0);
+  assert_int_equal(again->energy_valid, 1);
+  assert_memory_equal(&again->etot, &first->etot, sizeof(first->etot));
+  assert_int_equal(again->gradient_rc, 0);
+  assert_int_equal(again->gradient_count, first->gradient_count);
+  assert_memory_equal(again->gradient, first->gradient, sizeof(first->gradient));
+  assert_int_equal(again->dipole_rc, first->dipole_rc);
+  if (first->dipole_rc == 0) {
+    assert_int_equal(again->dipole_valid, 1);
+    assert_memory_equal(again->dipole, first->dipole, sizeof(first->dipole));
+  }
+  assert_int_equal(again->stress_rc, 0);
+  assert_int_equal(again->stress_valid, 1);
+  assert_memory_equal(again->stress, first->stress, sizeof(first->stress));
+  assert_int_equal(again->charges_rc, first->charges_rc);
+  if (first->charges_rc == 0)
+    assert_memory_equal(again->charges, first->charges, sizeof(first->charges));
+  assert_int_equal(again->integrals_rc, 0);
+  assert_int_equal(again->md_rc, 0);
+  assert_true(any_nonzero(again->virial, 9));
+  assert_memory_equal(again->virial, first->virial, sizeof(first->virial));
+}
+
 int main(int argc, char **argv) {
   if (argc != 3) {
     fprintf(stderr, "usage: %s CLUSTER_PARAMS PERIODIC_PARAMS\n", argv[0]);
@@ -485,6 +649,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_repeat_matches_the_same_kind_of_cell),
       cmocka_unit_test(test_null_and_zero_cells_are_different_steps),
       cmocka_unit_test(test_stored_orbitals_follow_the_cell_kind),
+      cmocka_unit_test(test_failed_step_recomputes_the_cached_result),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -1674,6 +1674,33 @@ if get_option('with_tests')
     suite: ['cmocka'],
   )
   test(
+    'snapshot-layout',
+    executable(
+      'test_snapshot_layout',
+      'tests/test_snapshot_layout.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['abi', 'cmocka'],
+  )
+  test(
+    'charges',
+    executable(
+      'test_charges',
+      'tests/test_charges.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'] + (has_cpmd ? ['opencpmd'] : []),
+    timeout: 300,
+  )
+  test(
     'session-lifecycle',
     executable(
       'test_session_lifecycle',

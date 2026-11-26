@@ -439,6 +439,18 @@ int cpmdc_session_last_dipole(const CPMDCSession *session, CPMDCDipole *out) {
   return cpmdc_last_dipole(out);
 }
 
+int cpmdc_last_charges(double *charges, size_t length) {
+  (void)charges;
+  (void)length;
+  return -1;
+}
+
+int cpmdc_session_last_charges(const CPMDCSession *session, double *charges,
+                               size_t length) {
+  (void)session;
+  return cpmdc_last_charges(charges, length);
+}
+
 int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *out) {
   (void)session;
   if (out)

@@ -165,6 +165,34 @@ quantum: moving one electron through a lattice vector changes it by that vector.
 The patch publishes what ~ddipo~ computes and does not unwrap that jump or check
 the net charge.
 
+* Hirshfeld charges from a second density build
+OpenCPMD computes per-atom Hirshfeld charges in ~atomc~: each charge is the
+valence charge minus the density integrated with that atom's weight function.
+~atomc~ sums the result onto every rank.
+The property driver calls ~atomc~ for ~INTERFACE HIRSHFELD~.
+On a k-point calculation ~proppt~ stops with k points not implemented before
+that call, so the embed does not treat the k-point path as working.
+Mulliken populations are filled only on the parent rank and then rescaled, and
+the electrostatic-potential fit rejects a bulk cell, so neither is used.
+
+The charge patch adds an embed-only request to ~wfopts_utils~.
+After a converged Gamma-point evaluation that is not broken symmetry, and only
+when every species has a weight function (~nshell~ in 1 through 20), ~wfopts~
+builds the density and calls ~atomc~ while ~c0~ is still allocated.
+The density build rewrites the charge integrals and the kinetic energy.
+The embed saves both and restores them, so the reported energy stays the SCF
+result.
+An allocation failure leaves the charges invalid and does not stop the
+evaluation.
+~CPMDC_CHARGE_SNAPSHOT=0~ skips the snapshot.
+~cpmd.x~ never sets the request, so its behaviour is unchanged.
+A species without a weight function, broken symmetry, an unconverged SCF, and k
+points leave the snapshot invalid and do not call ~atomc~.
+~atomc~ keeps its first-call spline tables behind a ~SAVE~ flag.
+When the embed teardown counter moves, those tables are freed and the next call
+builds them again.
+~cpmd.x~ leaves the counter at zero, so that reset does not run.
+
 The k-point orthogonalization patch fixes two heap buffer overflows when
 ~atomwf~ initializes a k-point calculation with more electronic states than
 atomic orbitals (~nstate > atwp%nattot~, or ~nsup > atwp%nattot~ or

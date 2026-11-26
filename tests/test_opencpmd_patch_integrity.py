@@ -70,6 +70,10 @@ PATCHES = {
         "src/ddipo_utils.mod.F90",
         "src/wfopts_utils.mod.F90",
     ),
+    "opencpmd_embed_charges.patch": (
+        "src/atomc_utils.mod.F90",
+        "src/wfopts_utils.mod.F90",
+    ),
     "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
     "opencpmd_atomwf_kpts_ortho.patch": (
         "src/atomwf_utils.mod.F90",
@@ -364,6 +368,28 @@ def assert_embed_dipole(patch: Path) -> None:
             raise AssertionError(f"{patch.name}: ddipo must not gain an argument ({needle})")
 
 
+def assert_embed_charges(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "PUBLIC :: embed_get_charges",
+        "SUBROUTINE embed_get_charges(charges, n, valid, capacity)",
+        "IF (capacity.LT.n) THEN",
+        "PUBLIC :: embed_set_charges_snapshot",
+        "embed_charges_valid = .FALSE.",
+        "CALL atomc(rhoe(:,1), rbuff, tau0, achrg)",
+        "chrg = saved_chrg",
+        "ener_com%ekin = saved_ekin",
+        "IF (tkpts%tkpnt) RETURN",
+        "IF (cntl%bsymm) RETURN",
+        "atwf_mod%nshell",
+        "ONLY: embed_teardowns",
+        "embed_seen=embed_teardowns",
+        "CALL embed_collect_charges(c0)",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+
+
 def assert_constant_cutoff_precon(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     for needle in (
@@ -458,6 +484,8 @@ def main() -> int:
             assert_embed_extrapolate(patch)
         elif name == "opencpmd_embed_dipole.patch":
             assert_embed_dipole(patch)
+        elif name == "opencpmd_embed_charges.patch":
+            assert_embed_charges(patch)
         elif name == "opencpmd_constant_cutoff_precon.patch":
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")

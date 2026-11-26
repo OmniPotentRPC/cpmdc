@@ -141,6 +141,12 @@ _NO_DIPOLE = (
     "has no electronic dipole, and OpenCPMD recomputes one only for a periodic "
     "Gamma-point deck with DIPOLE DYNAMICS or PROP DIPOLE MOMENT BERRY"
 )
+_NO_CHARGES = (
+    "the library computed no per-atom charges for this geometry: the reference "
+    "evaluator has none, and OpenCPMD stores Hirshfeld charges only for a "
+    "converged Gamma-point calculation that is not broken symmetry and whose "
+    "species have weight functions"
+)
 _NO_OVERRIDE: tuple[int | None, int | None] = (None, None)
 _FLOAT64_EPS = float(np.finfo(np.float64).eps)
 # CPMDParams in schema/Potentials.capnp: ``charge`` and ``multiplicity`` are
@@ -248,7 +254,7 @@ def _require_finite(evaluated: Any) -> dict[str, np.ndarray]:
     checked.
     """
     arrays: dict[str, np.ndarray] = {}
-    for name in ("energy", "forces", "stress", "dipole"):
+    for name in ("energy", "forces", "stress", "dipole", "charges"):
         if name in evaluated:
             arrays[name] = np.asarray(evaluated[name], dtype=float)
             if not np.all(np.isfinite(arrays[name])):
@@ -411,7 +417,14 @@ class CPMDCCalculator(Calculator):
     own session on its first step.
     """
 
-    implemented_properties = ["energy", "free_energy", "forces", "stress", "dipole"]
+    implemented_properties = [
+        "energy",
+        "free_energy",
+        "forces",
+        "stress",
+        "dipole",
+        "charges",
+    ]
     default_parameters: dict[str, Any] = {
         "params": None,
         "library": None,
@@ -443,6 +456,7 @@ class CPMDCCalculator(Calculator):
         self._method = None
         self._no_stress = ""
         self._no_dipole = ""
+        self._no_charges = ""
         # A value left as None would override a parameters= file.
         if params is not None:
             kwargs["params"] = params
@@ -558,6 +572,7 @@ class CPMDCCalculator(Calculator):
         Calculator.reset(self)
         self._no_stress = ""
         self._no_dipole = ""
+        self._no_charges = ""
 
     def read(self, label: str) -> None:
         """Refuse to read ``label``: the calculator stores no results in files.
@@ -577,11 +592,13 @@ class CPMDCCalculator(Calculator):
         """Fill ``self.results`` with every property of one step.
 
         Energy, free energy, and forces are always computed; stress is
-        computed for a fully periodic cell. The step runs with
-        ``directory`` as the working directory. Asking for stress that the
-        step cannot give raises ``PropertyNotImplementedError`` with the
-        reason, without computing the step again. A step that the library
-        rejects raises :class:`CalculationFailed`.
+        computed for a fully periodic cell. Dipole and per-atom Hirshfeld
+        charges are stored when the library returned them. The step runs
+        with ``directory`` as the working directory. Asking again for
+        stress, a dipole, or charges that the step cannot give raises
+        ``PropertyNotImplementedError`` with the reason, without computing
+        the step again. A step that the library rejects raises
+        :class:`CalculationFailed`.
         """
         if not properties:
             properties = ["energy"]
@@ -589,12 +606,15 @@ class CPMDCCalculator(Calculator):
             raise PropertyNotImplementedError(self._no_stress)
         if "dipole" in properties and not system_changes and self._no_dipole:
             raise PropertyNotImplementedError(self._no_dipole)
+        if "charges" in properties and not system_changes and self._no_charges:
+            raise PropertyNotImplementedError(self._no_charges)
         Calculator.calculate(self, atoms, properties, system_changes)
         self.results = {}
         if self.atoms is None:
             raise ValueError(_NO_ATOMS)
         self._no_stress = ""
         self._no_dipole = ""
+        self._no_charges = ""
         override = self._method_override(self.atoms)
         if override != self._override:
             self._method_blob(override)
@@ -643,6 +663,19 @@ class CPMDCCalculator(Calculator):
             self._no_dipole = missing if missing is not None else _NO_DIPOLE
             if "dipole" in properties:
                 raise PropertyNotImplementedError(self._no_dipole)
+        if "charges" in checked:
+            charges = checked["charges"]
+            if charges.shape != (len(self.atoms),):
+                raise CalculationFailed(
+                    f"cpmdc returned charges of shape {charges.shape}, "
+                    f"expected ({len(self.atoms)},)"
+                )
+            self.results["charges"] = charges
+        else:
+            missing = potential._session._missing_charges_symbol()
+            self._no_charges = missing if missing is not None else _NO_CHARGES
+            if "charges" in properties:
+                raise PropertyNotImplementedError(self._no_charges)
 
     def _params_method(self) -> MethodInfo:
         """The effective method of ``params``, read once per message."""

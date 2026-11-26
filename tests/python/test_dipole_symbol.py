@@ -174,6 +174,9 @@ def test_an_older_library_loads_and_refuses_a_requested_dipole(tmp_path: Path) -
         done = session.energy_forces(POSITION, [1])
         assert done.energy_h == 1.25
         assert done.dipole_e_bohr is None
+        assert done.charges_e is None
+        assert session.charges() is None
+        assert session.charges_possible() is False
         assert session.dipole_possible() is False
         energy, forces, virial = session.calculate_au([0.0, 0.0, 0.0], [1])
         assert energy == 1.25
@@ -183,13 +186,21 @@ def test_an_older_library_loads_and_refuses_a_requested_dipole(tmp_path: Path) -
     with Potential(PARAMS, library=library) as pot:
         result = pot.evaluate(POSITION, [1])
         assert "dipole" not in result
-        assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+        assert "charges" not in result
+        assert pot.caps() == {
+            "stress": True,
+            "dipole": False,
+            "charges": False,
+            "energies": False,
+        }
     atoms = Atoms("H", positions=POSITION)
     with CPMDCCalculator(PARAMS, library=library) as calc:
         atoms.calc = calc
         assert atoms.get_potential_energy() == pytest.approx(1.25 * HARTREE_TO_EV)
         with pytest.raises(PropertyNotImplementedError, match="cpmdc_session_last_dipole"):
             atoms.get_dipole_moment()
+        with pytest.raises(PropertyNotImplementedError, match="cpmdc_session_last_charges"):
+            atoms.get_charges()
 
 
 def test_an_older_library_reports_unavailable_method_introspection(
@@ -215,7 +226,12 @@ def test_a_library_with_the_dipole_symbol_returns_it(tmp_path: Path) -> None:
         assert pot.caps()["dipole"] is True
         result = pot.evaluate(POSITION, [1])
         assert result["dipole"] == pytest.approx([value * BOHR_TO_ANGSTROM for value in DIPOLE])
-        assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
+        assert pot.caps() == {
+            "stress": True,
+            "dipole": True,
+            "charges": False,
+            "energies": False,
+        }
     atoms = Atoms("H", positions=POSITION)
     with CPMDCCalculator(PARAMS, library=library) as calc:
         atoms.calc = calc

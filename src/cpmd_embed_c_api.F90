@@ -147,6 +147,12 @@ MODULE cpmd_embed_c_api
     INTEGER(c_size_t) :: polarizability_count
     REAL(c_double) :: polarizability(9)
   END TYPE
+  ! Beside the public snapshot, same layout as CPMDCEmbedCharges.
+  TYPE, BIND(C) :: cpmdc_embed_charges
+    INTEGER(c_int) :: valid
+    INTEGER(c_size_t) :: count
+    REAL(c_double) :: values(1365)
+  END TYPE
   TYPE, BIND(C) :: cpmdc_stress_tensor
     INTEGER(c_int) :: valid
     REAL(c_double) :: values(9)
@@ -157,6 +163,7 @@ MODULE cpmd_embed_c_api
     TYPE(cpmdc_multi_state) :: multi
     TYPE(cpmdc_md_row) :: md
     TYPE(cpmdc_property_snapshot) :: prop
+    TYPE(cpmdc_embed_charges) :: charges
     TYPE(cpmdc_stress_tensor) :: stress
     REAL(c_double) :: warm_cell(9)
     INTEGER(c_int) :: warm_cell_set
@@ -464,6 +471,9 @@ CONTAINS
     image%prop%dipole = 0.0_c_double
     image%prop%polarizability_count = 0_c_size_t
     image%prop%polarizability = 0.0_c_double
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
+    image%charges%values = 0.0_c_double
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
   END SUBROUTINE
@@ -502,6 +512,8 @@ CONTAINS
     image%prop%valid = 1_c_int
     image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
     image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
@@ -2698,14 +2710,17 @@ CONTAINS
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
-    USE wfopts_utils, ONLY: embed_get_dipole
+  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad, origin)
+    USE wfopts_utils, ONLY: embed_get_dipole, embed_get_charges
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i
-    LOGICAL :: dipole_valid
+    INTEGER(c_int), INTENT(IN) :: origin(*)
+    INTEGER :: i, n, slot, j, astat
+    LOGICAL :: dipole_valid, charges_valid
+    LOGICAL, ALLOCATABLE :: seen(:)
     REAL(real64) :: dipole(3)
+    REAL(real64), ALLOCATABLE :: species_q(:)
     image%prop%valid = 1_c_int
     image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
@@ -2724,6 +2739,31 @@ CONTAINS
       image%prop%hessian(i) = grad(i)
     END DO
     image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
+    image%charges%values = 0.0_c_double
+    IF (n_atoms < 1 .OR. n_atoms > 1365) RETURN
+    ALLOCATE(species_q(n_atoms), seen(n_atoms), STAT=astat)
+    IF (astat /= 0) RETURN
+    seen = .FALSE.
+    CALL embed_get_charges(species_q, n, charges_valid, n_atoms)
+    IF (.NOT. charges_valid .OR. n /= n_atoms) THEN
+      DEALLOCATE(species_q, seen)
+      RETURN
+    END IF
+    DO slot = 1, n_atoms
+      j = INT(origin(slot)) + 1
+      IF (j < 1 .OR. j > n_atoms .OR. seen(j)) THEN
+        image%charges%values = 0.0_c_double
+        DEALLOCATE(species_q, seen)
+        RETURN
+      END IF
+      seen(j) = .TRUE.
+      image%charges%values(j) = REAL(species_q(slot), KIND=c_double)
+    END DO
+    image%charges%valid = 1_c_int
+    image%charges%count = INT(n_atoms, KIND=c_size_t)
+    DEALLOCATE(species_q, seen)
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
@@ -2971,7 +3011,8 @@ CONTAINS
         cpmdc_note_deck_external_potential, &
         cpmdc_note_periodic_embedding
     USE norm, ONLY: scf_gemax => gemax
-    USE wfopts_utils, ONLY: wfopts, embed_set_dipole_snapshot
+    USE wfopts_utils, ONLY: wfopts, embed_set_dipole_snapshot, &
+        embed_set_charges_snapshot
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start_metric_v2
     USE phfac_utils, ONLY: phfac
@@ -3114,6 +3155,7 @@ CONTAINS
       IF (warm_source /= -1) cnti%inwfun = 3
       ibench(1) = 1
     END IF
+    CALL embed_set_charges_snapshot(embed_charges_wanted())
     CALL embed_set_dipole_snapshot(.TRUE.)
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
@@ -3237,7 +3279,7 @@ CONTAINS
       END DO
       image%stress%valid = 1_c_int
     END IF
-    CALL snapshot_prop_from_modules(image, n_atoms, grad)
+    CALL snapshot_prop_from_modules(image, n_atoms, grad, origin)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
     ! a stationary point. Report it as a failure instead, with the last
@@ -3353,6 +3395,16 @@ CONTAINS
     END IF
     FLUSH(error_unit)
   END SUBROUTINE
+
+  ! CPMDC_CHARGE_SNAPSHOT=0 skips the Hirshfeld snapshot. Any other
+  ! value, or an unset variable, requests it. cpmd.x never calls the setter.
+  LOGICAL FUNCTION embed_charges_wanted()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st
+    embed_charges_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_CHARGE_SNAPSHOT', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') embed_charges_wanted = .FALSE.
+  END FUNCTION
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
   ! takes only energy and forces does not need totstr.
