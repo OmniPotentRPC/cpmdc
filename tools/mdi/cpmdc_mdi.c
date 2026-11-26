@@ -218,16 +218,20 @@ static int invert3(double m[3][3], double inv[3][3]) {
   return 0;
 }
 
-/* Shift x by the lattice vector that brings it nearest to ref.
- * nearbyint rounds each fractional coordinate on its own. That step
- * assumes a restricted (lower-triangular) triclinic cell, one lattice
- * vector per row. */
+/* d is x minus ref. Each s[a] is nearbyint of d[0] * inv[0][a] +
+ * d[1] * inv[1][a] + d[2] * inv[2][a]. Subtract s[0] * rows[0] +
+ * s[1] * rows[1] + s[2] * rows[2] from x. nearbyint on each fractional
+ * coordinate is the parallelepiped (cell-wrapped) minimum image, not
+ * the Voronoi (true nearest-image) one. It is exact when each
+ * single-step |delta*inv| < 0.5. */
 static void nearest_image(double rows[3][3], double inv[3][3],
                           const double *ref, double *x) {
   double d[3], s[3];
   for (int k = 0; k < 3; k++)
     d[k] = x[k] - ref[k];
-  /* Minimum image for a restricted (lower-triangular) triclinic cell. */
+  /* nearbyint on each fractional coordinate is the parallelepiped
+   * (cell-wrapped) minimum image, not the Voronoi (true nearest-image)
+   * one. It is exact when each single-step |delta*inv| < 0.5. */
   for (int a = 0; a < 3; a++)
     s[a] = nearbyint(d[0] * inv[0][a] + d[1] * inv[1][a] + d[2] * inv[2][a]);
   for (int k = 0; k < 3; k++)

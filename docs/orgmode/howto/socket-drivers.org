@@ -12,7 +12,7 @@ The audit covered the rgpot develop branch as of this change.
 In that snapshot,
 =engines/pot_spec.cpp:182-218= reads a flat serialized =CPMDParams= file and constructs =CPMDPot=; =engines/pot_spec.cpp:223-225= selects it and =engines/pot_spec.cpp:325-328=
 lists it.
-Both =--pot "CPMD params FILE"= and =-m CPMD -o params=FILE= completed a
+Both =--pot "CPMD params FILE"= and ~-m CPMD -o params=FILE~ completed a
 stub-backed CPMD force request in the audit.
 
 The three protocol and cell differences from the earlier audit are closed:
@@ -36,11 +36,11 @@ The three protocol and cell differences from the earlier audit are closed:
 
 | Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
 |------------+--------------+----------------------------------|
-| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
+| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined ~POSDATA~ / ~GETFORCE~; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
 | Cell | transpose i-PI columns to CPMD rows; zero cell preserves the deck cell; nonzero singular cell is rejected; inverse is read and ignored | transpose to rgpot rows; inverse ignored; =--preserve-open-cell= gives the same zero and singular behavior; without it rgpot pads either zero-volume case |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
-| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= takes =--pot "CPMD params FILE"= or =-m CPMD -o params=FILE= |
+| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= takes =--pot "CPMD params FILE"= or ~-m CPMD -o params=FILE~ |
 | ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=; the audit drove =CPMDPot= through the same wire protocol |
 | LAMMPS =fix ipi= | both are clients and meet through an i-PI server | the same topology |
 
