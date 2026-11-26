@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -335,9 +338,10 @@ No OpenCPMD checkout is needed.</p>
 <p>The default build compiles the parser, the generated Cap’n Proto readers, the
 shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>, the feature table, the session runtime, and the deterministic
 reference evaluator.</p>
-<p>Install Meson, Ninja, Cap’n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:</p>
+<p>Install Meson, Ninja, CMake, pkg-config, Cap’n Proto, cmocka, C, C++, and
+Fortran compilers, Rust (<code class="docutils literal notranslate"><span class="pre">cargo</span></code>), and Python 3 with ASE, <code class="docutils literal notranslate"><span class="pre">pytest</span></code>, and <code class="docutils literal notranslate"><span class="pre">i-PI</span></code>
+(see <a class="reference internal" href="install.html"><span class="doc">Install and build</span></a> for version floors and offline
+subprojects), or use the checked-in Pixi environment:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>test-stub
 </span></pre></div>
 </div>
@@ -350,7 +354,11 @@ environment:</p>
 <p>The run passes when every configured test passes: parser, ABI, feature
 inventory, session lifecycle, result sizing, unit conversion, and the
 reference-evaluator E2E tests.
-The tests that need OpenCPMD report <code class="docutils literal notranslate"><span class="pre">SKIP</span></code>.</p>
+OpenCPMD-only Meson tests (<code class="docutils literal notranslate"><span class="pre">water-capnp-cli-parity</span></code>, <code class="docutils literal notranslate"><span class="pre">box-cell-energy</span></code>,
+<code class="docutils literal notranslate"><span class="pre">embed-teardown</span></code>, and <code class="docutils literal notranslate"><span class="pre">scf-unconverged</span></code>) are registered only when OpenCPMD is
+linked; in the default build <code class="docutils literal notranslate"><span class="pre">extrapolate-wfn</span></code> reports <code class="docutils literal notranslate"><span class="pre">SKIP</span></code>
+(<code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>), OpenCPMD sub-cases inside the cmocka executables
+skip internally, and <code class="docutils literal notranslate"><span class="pre">python-mypy-strict</span></code> reports <code class="docutils literal notranslate"><span class="pre">SKIP</span></code> when <code class="docutils literal notranslate"><span class="pre">mypy</span></code> is absent.</p>
 </section>
 <section id="work-loop">
 <h2>Work Loop<a class="headerlink" href="#work-loop" title="Link to this heading">¶</a></h2>
@@ -372,13 +380,13 @@ default suite when the focused command passes.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">&lt;test-name&gt;</span> <span class="pre">--print-errorlogs</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Deck rendering or Cap’n Proto fixtures</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">cmocka</span> <span class="pre">--print-errorlogs</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">cmocka</span> <span class="pre">--print-errorlogs</span></code> or <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-cmocka</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Session lifecycle, topology, or units</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">e2e</span> <span class="pre">--print-errorlogs</span></code> or <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-e2e</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Public prose, Org sources, or API headers</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">sphinxbld</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">scripts/generate_llms_txt.py</span></code>, <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">--suite</span> <span class="pre">docs</span> <span class="pre">--print-errorlogs</span></code>, <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">docbld</span></code>, and <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">lychee</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>The link to an OpenCPMD archive</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY</span> <span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build-cpmd</span> <span class="pre">--print-errorlogs</span></code></p></td>
@@ -408,7 +416,7 @@ run on four ranks when MPI is found.</p>
 <p><code class="docutils literal notranslate"><span class="pre">examples/host_step.c</span></code> is a minimal C host for the public ABI.
 It reads one serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and one serialized <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> file,
 creates a <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, sizes the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> output, evaluates one
-step, and prints the result summary.</p>
+step, reads <code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components()</span></code>, and prints the result summary.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>example-host-step<span class="w"> </span>--print-errorlogs
 </span></pre></div>
 </div>
@@ -416,6 +424,10 @@ step, and prints the result summary.</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">energy_h=...
 </span><span data-line="2">potential_result_size_bytes=...
 </span><span data-line="3">message=...
+</span><span data-line="4">ener_com_etot=...
+</span><span data-line="5">ener_com_ekin=...
+</span><span data-line="6">ener_com_exc=...
+</span><span data-line="7">ener_com_eht=...
 </span></pre></div>
 </div>
 <p>The Meson test feeds the example from the fixture binaries of the E2E suites,
@@ -444,9 +456,11 @@ itself; see <a class="reference internal" href="python.html"><span class="doc">C
 evaluator.
 Build the archive as the <a class="reference internal" href="opencpmd-archive.html"><span class="doc">archive how-to</span></a>
 describes, then follow <a class="reference internal" href="install.html"><span class="doc">the install how-to</span></a> to
-configure <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code> with <code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code>.
-With <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> the water Cap’n Proto parity tests are added and the long
-E2E tests run the linked archive.
+configure <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code> with <code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span> <span class="pre">-Dcpmd_root=/path/to/opencpmd-build</span></code>.
+Both options are required before <code class="docutils literal notranslate"><span class="pre">meson.build</span></code> links the archive: that build
+adds <code class="docutils literal notranslate"><span class="pre">water-capnp-cli-parity</span></code>, <code class="docutils literal notranslate"><span class="pre">box-cell-energy</span></code>, <code class="docutils literal notranslate"><span class="pre">embed-teardown</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">scf-unconverged</span></code>, and runs <code class="docutils literal notranslate"><span class="pre">extrapolate-wfn</span></code> plus the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> and <code class="docutils literal notranslate"><span class="pre">mpi</span></code> suites
+against the linked archive.
 When a build or a call fails, see
 <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>.</p>
 </section>

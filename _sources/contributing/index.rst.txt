@@ -111,6 +111,22 @@ Every shell block, run or not, must name meson options, pixi tasks, meson tests
 and suites, repository paths, and build outputs that exist.
 A new block fails the test until it is classified.
 
+NumPy preflight
+---------------
+
+``tests/python/conftest.py`` multiplies small matrices with ``@`` and with a loop
+before collecting any test (``tests/python/blas_probe.py``), and stops the session
+with exit status 3 when they differ by more than 1e-12 of the scale of the
+product. The references of the GROMACS and ASE tests use ``@``, which NumPy gives
+to OpenBLAS, and OpenBLAS chooses its kernel from the CPU it detects. Under
+``qemu-user`` 8.2 with ``-cpu max`` on aarch64 the detected core is ``armv9sme``,
+and 195 of 385 product shapes then come out wrong, with one OpenBLAS thread, by
+the size of the result,
+so a NumPy reference sums nothing and every comparison with the library fails
+far from the cause; whether the emulation of SME or the kernel is at fault was
+not settled. On such a machine set ``OPENBLAS_CORETYPE`` to an older core,
+``ARMV8`` on aarch64, or run the emulator with ``QEMU_CPU=max,sme=off``.
+
 GROMACS tests
 -------------
 
@@ -127,6 +143,12 @@ Without GROMACS it still checks the library through ``ctypes``:
 - the mechanical embedding against an independent NumPy Ewald sum in a cubic and
   a triclinic box, its convergence with the precision, a finite difference of
   its forces, and the direct sum without a box;
+  both sides sum the same terms, so the energy agrees to ``1e-12`` Ha and a force
+  element to ``1e-12`` Ha plus ``1e-10`` relative, against a rounding bound of
+  6e-16 Ha and measured differences of at most 4e-17 Ha on x86-64 and aarch64;
+  the splitting parameters ``rcut`` and ``alpha`` that the shim logs agree to
+  ``1e-14`` relative, against the 1.5e-15 that the two determinants of the box
+  leave;
 
 - the stress of ``cp2k_get_stress_tensor()``, as ASE's stress: with
   ``CELL PERIODIC`` against ``CPMDCCalculator`` to 1e-13 and ASE's central
@@ -179,7 +201,7 @@ With ``gmx_mpi_d`` from ``CPMDC_GMX_MPI``, a double-precision GROMACS built with
 
 - ``-npme 1`` stops ``mdrun`` with GROMACS' refusal of separate PME ranks.
 
-``tests/test_installed_pkgconfig_consumer.py`` builds a libcp2k client from an installed ``libcp2k.pc`` alone and runs it without ``LD_LIBRARY_PATH``. After the prefix is moved it rejects an installed ``.so`` or ``.dylib`` whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.
+``tests/test_installed_pkgconfig_consumer.py`` builds a libcp2k client from an installed ``libcp2k.pc`` alone and runs it without ``LD_LIBRARY_PATH``. After the prefix is moved it rejects an installed shared library or executable whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree. ``cpmdc-ipi-c`` is run the same way, without the prefix on ``LD_LIBRARY_PATH``.
 
 The CI job ``gromacs-qmmm`` builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:

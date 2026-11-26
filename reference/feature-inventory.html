@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -337,10 +340,11 @@ drift apart.</p>
 <h2>Feature IDs<a class="headerlink" href="#feature-ids" title="Link to this heading">¶</a></h2>
 <p>The inventory describes the cpmdc engine boundary, not transport protocols.
 i-PI is an optional rgpot frontend over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> and other potentials;
-protocol frontends are not <code class="docutils literal notranslate"><span class="pre">cpmdc_feature_*</span></code> rows.  Until the
-<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">rgpot i-PI command gaps</span></a> are closed, the
-cpmdc-specific i-PI driver remains a transitional tool rather than an engine
-capability.</p>
+protocol frontends are not <code class="docutils literal notranslate"><span class="pre">cpmdc_feature_*</span></code> rows.  The audited rgpot
+develop snapshot provides the audited generic
+<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI route</span></a> through <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>.
+The cpmdc-specific i-PI drivers remain compatibility fallbacks, not engine
+capabilities.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>

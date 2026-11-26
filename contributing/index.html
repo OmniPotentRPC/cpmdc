@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -228,6 +231,7 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#development-checks">Development Checks</a></li>
+<li><a class="reference internal" href="#numpy-preflight">NumPy preflight</a></li>
 <li><a class="reference internal" href="#gromacs-tests">GROMACS tests</a></li>
 <li><a class="reference internal" href="#lammps-tests">LAMMPS tests</a></li>
 <li><a class="reference internal" href="#add-a-typed-cpmd-keyword">Add a typed CPMD keyword</a></li>
@@ -454,6 +458,21 @@ Every shell block, run or not, must name meson options, pixi tasks, meson tests
 and suites, repository paths, and build outputs that exist.
 A new block fails the test until it is classified.</p>
 </section>
+<section id="numpy-preflight">
+<h2>NumPy preflight<a class="headerlink" href="#numpy-preflight" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tests/python/conftest.py</span></code> multiplies small matrices with <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> and with a loop
+before collecting any test (<code class="docutils literal notranslate"><span class="pre">tests/python/blas_probe.py</span></code>), and stops the session
+with exit status 3 when they differ by more than 1e-12 of the scale of the
+product. The references of the GROMACS and ASE tests use <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, which NumPy gives
+to OpenBLAS, and OpenBLAS chooses its kernel from the CPU it detects. Under
+<code class="docutils literal notranslate"><span class="pre">qemu-user</span></code> 8.2 with <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">max</span></code> on aarch64 the detected core is <code class="docutils literal notranslate"><span class="pre">armv9sme</span></code>,
+and 195 of 385 product shapes then come out wrong, with one OpenBLAS thread, by
+the size of the result,
+so a NumPy reference sums nothing and every comparison with the library fails
+far from the cause; whether the emulation of SME or the kernel is at fault was
+not settled. On such a machine set <code class="docutils literal notranslate"><span class="pre">OPENBLAS_CORETYPE</span></code> to an older core,
+<code class="docutils literal notranslate"><span class="pre">ARMV8</span></code> on aarch64, or run the emulator with <code class="docutils literal notranslate"><span class="pre">QEMU_CPU=max,sme=off</span></code>.</p>
+</section>
 <section id="gromacs-tests">
 <h2>GROMACS tests<a class="headerlink" href="#gromacs-tests" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">tests/python/test_gromacs.py</span></code> runs under Meson’s <code class="docutils literal notranslate"><span class="pre">python-pytest</span></code>.
@@ -465,7 +484,13 @@ in a cubic and a triclinic box;</p></li>
 <li><p>unwrapping across the boundary, and the whole QM region with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">NONE</span></code>;</p></li>
 <li><p>the mechanical embedding against an independent NumPy Ewald sum in a cubic and
 a triclinic box, its convergence with the precision, a finite difference of
-its forces, and the direct sum without a box;</p></li>
+its forces, and the direct sum without a box;
+both sides sum the same terms, so the energy agrees to <code class="docutils literal notranslate"><span class="pre">1e-12</span></code> Ha and a force
+element to <code class="docutils literal notranslate"><span class="pre">1e-12</span></code> Ha plus <code class="docutils literal notranslate"><span class="pre">1e-10</span></code> relative, against a rounding bound of
+6e-16 Ha and measured differences of at most 4e-17 Ha on x86-64 and aarch64;
+the splitting parameters <code class="docutils literal notranslate"><span class="pre">rcut</span></code> and <code class="docutils literal notranslate"><span class="pre">alpha</span></code> that the shim logs agree to
+<code class="docutils literal notranslate"><span class="pre">1e-14</span></code> relative, against the 1.5e-15 that the two determinants of the box
+leave;</p></li>
 <li><p>the stress of <code class="docutils literal notranslate"><span class="pre">cp2k_get_stress_tensor()</span></code>, as ASE’s stress: with
 <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code> against <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> to 1e-13 and ASE’s central
 difference under a 1e-6 strain of the cell to 1e-8 of its largest element;
@@ -509,7 +534,7 @@ The pair list is rebuilt every step without a buffer (<code class="docutils lite
 pairs;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-npme</span> <span class="pre">1</span></code> stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> with GROMACS’ refusal of separate PME ranks.</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">tests/test_installed_pkgconfig_consumer.py</span></code> builds a libcp2k client from an installed <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> alone and runs it without <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>. After the prefix is moved it rejects an installed <code class="docutils literal notranslate"><span class="pre">.so</span></code> or <code class="docutils literal notranslate"><span class="pre">.dylib</span></code> whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tests/test_installed_pkgconfig_consumer.py</span></code> builds a libcp2k client from an installed <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> alone and runs it without <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>. After the prefix is moved it rejects an installed shared library or executable whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree. <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> is run the same way, without the prefix on <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>.</p>
 <p>The CI job <code class="docutils literal notranslate"><span class="pre">gromacs-qmmm</span></code> builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:</p>
 <div class="table-wrapper docutils container">

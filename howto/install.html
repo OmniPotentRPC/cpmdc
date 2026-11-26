@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -431,23 +434,27 @@ Without Pixi, install the same set from your package manager:</p>
 <td><p>2.5.1 or newer, below 3</p></td>
 <td><p>dependency lookup</p></td>
 </tr>
-<tr class="row-odd"><td><p>Python 3</p></td>
+<tr class="row-odd"><td><p>CMake</p></td>
+<td><p>3.24 or newer</p></td>
+<td><p>writing <code class="docutils literal notranslate"><span class="pre">cpmdcConfig.cmake</span></code> and the <code class="docutils literal notranslate"><span class="pre">packaging</span></code> consumer build</p></td>
+</tr>
+<tr class="row-even"><td><p>Python 3</p></td>
 <td><p>3.10 or newer, below 4</p></td>
 <td><p>build helpers and tests</p></td>
 </tr>
-<tr class="row-even"><td><p>ASE, pytest, i-PI</p></td>
+<tr class="row-odd"><td><p>ASE, pytest, i-PI</p></td>
 <td><p>ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4</p></td>
 <td><p>the <code class="docutils literal notranslate"><span class="pre">python-api</span></code> and <code class="docutils literal notranslate"><span class="pre">python-pytest</span></code> tests</p></td>
 </tr>
-<tr class="row-odd"><td><p>cmocka</p></td>
+<tr class="row-even"><td><p>cmocka</p></td>
 <td><p>1.1.7 or newer, below 3</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">-Dwith_tests=true</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>MPI with Fortran bindings, BLAS and LAPACK</p></td>
+<tr class="row-odd"><td><p>MPI with Fortran bindings, BLAS and LAPACK</p></td>
 <td><p>OpenMPI 4.1 or newer, below 6; OpenBLAS 0.3.34 or newer, below 0.4</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>FFTW3</p></td>
+<tr class="row-even"><td><p>FFTW3</p></td>
 <td><p>3.3.11 or newer, below 4; optional</p></td>
 <td><p>linked when OpenCPMD was configured with FFTW3</p></td>
 </tr>
@@ -545,6 +552,12 @@ Meson keeps a build-tree run path only on uninstalled binaries. After
 <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">install</span></code>, an installed <code class="docutils literal notranslate"><span class="pre">.so</span></code> or <code class="docutils literal notranslate"><span class="pre">.dylib</span></code> does not point at the build
 tree or at the prefix path used for that install, so the tree can be moved
 and <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> still opens <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.</p>
+<p>The installed <code class="docutils literal notranslate"><span class="pre">cpmdc.pc</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc-restart.pc</span></code>, and <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> files derive
+<code class="docutils literal notranslate"><span class="pre">prefix</span></code> and <code class="docutils literal notranslate"><span class="pre">includedir</span></code> from <code class="docutils literal notranslate"><span class="pre">${pcfiledir}</span></code>, using the relative path from
+the pkg-config directory to those locations. <code class="docutils literal notranslate"><span class="pre">-Dlibdir=.</span></code>, a nested
+<code class="docutils literal notranslate"><span class="pre">libdir</span></code>, a <code class="docutils literal notranslate"><span class="pre">libdir</span></code> that contains <code class="docutils literal notranslate"><span class="pre">..</span></code>, and an absolute <code class="docutils literal notranslate"><span class="pre">includedir</span></code> under
+the prefix stay inside the prefix. A directory that cannot be expressed as
+one relative path fails at configure time.</p>
 </section>
 <section id="install-the-python-package">
 <h2>Install the Python package<a class="headerlink" href="#install-the-python-package" title="Link to this heading">¶</a></h2>

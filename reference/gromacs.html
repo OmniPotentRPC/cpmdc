@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -335,8 +338,24 @@ against it and sets up a run.</p>
 GROMACS stores it in the <code class="docutils literal notranslate"><span class="pre">.tpr</span></code>, writes it out at <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> as <code class="docutils literal notranslate"><span class="pre">md_cp2k.inp</span></code> with
 the name of the PDB file it generates, and passes both to the library.
 The PDB file gives each atom’s element, whether it is QM or MM, and each MM
-atom’s charge.
-The cpmdc settings are a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside <code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code>:</p>
+atom’s charge.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmmethod</span> <span class="pre">=</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>, GROMACS 2024.6, 2025.5,
+and 2026.4 generate this structure:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> contains <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">&amp;XC_FUNCTIONAL</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&amp;QMMM</span></code> contains a periodic QM cell, QM atom indices, <code class="docutils literal notranslate"><span class="pre">ECOUPL</span> <span class="pre">GAUSS</span></code>,
+and any <code class="docutils literal notranslate"><span class="pre">&amp;LINK</span></code> sections;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&amp;SUBSYS</span> <span class="pre">&amp;CELL</span></code> contains the full GROMACS box;</p></li>
+<li><p>the generated PDB contains every atom, each MM topology charge, and zero
+instead of every QM topology charge.</p></li>
+</ul>
+<p>When the input has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section,
+<code class="docutils literal notranslate"><span class="pre">CPMDC_GROMACS_PARAMS</span></code> names the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.
+The library compares its effective functional, charge, and multiplicity with
+the generated values and refuses any disagreement.
+The cell and embedding defaults are the same as below.</p>
+<p>An explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside <code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code> takes precedence:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -369,22 +388,25 @@ The cpmdc settings are a <code class="docutils literal notranslate"><span class=
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EWALD_PRECISION</span> <span class="pre">p</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">erfc(alpha</span> <span class="pre">rcut)</span> <span class="pre">=</span> <span class="pre">p</span></code>, and the reciprocal cutoff <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">alpha</span> <span class="pre">sqrt(-ln</span> <span class="pre">p)</span></code>; default 10<sup>-8</sup>  as assigned in <code class="docutils literal notranslate"><span class="pre">tools/gromacs/cpmdc_gromacs.c</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EPSILON_R</span> <span class="pre">r</span></code></p></td>
+<td><p>relative dielectric constant dividing the mechanical-embedding QM-MM Coulomb energy, forces, and virial (positive, finite); default 1; requires <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code></p></td>
 <td><p>under an MPI GROMACS, every rank of <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> takes part in one cpmdc calculator; the default</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">1</span></code></p></td>
 <td><p>rank 0 alone runs the QM calculation, the other ranks wait for its result</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Everything outside <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> is checked and otherwise ignored: the method is the
-<code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck, not CP2K’s <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>.
-GROMACS’ generated input (<code class="docutils literal notranslate"><span class="pre">qmmethod</span> <span class="pre">=</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>) has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section
-and is refused.</p>
+<p>On the explicit path, everything outside <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> is checked and otherwise
+ignored: the method is the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck, not CP2K’s <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>.
+With neither <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> nor <code class="docutils literal notranslate"><span class="pre">CPMDC_GROMACS_PARAMS</span></code>, the input is refused.</p>
 <p>The library writes one log, the CP2K output file GROMACS names (<code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code>):
-the cpmdc version, the atom counts, the cell and embedding modes, the number of
-ranks and of QM ranks, the Ewald parameters in Bohr, and, for the first step,
+the cpmdc version, the atom counts, the cell and embedding modes, the Ewald
+precision, <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code>, the number of ranks and of QM ranks, the Ewald
+parameters in Bohr, and, for the first step,
 the backend (<code class="docutils literal notranslate"><span class="pre">opencpmd</span></code>, or <code class="docutils literal notranslate"><span class="pre">reference</span></code> for the evaluator of a build without
 OpenCPMD) and the QM and QM-MM energies.
 A refused input or a failed step prints <code class="docutils literal notranslate"><span class="pre">cpmdc-gromacs:</span></code> and the reason to
@@ -484,14 +506,54 @@ and the QM charges are zero in GROMACS;</p></li>
 <p>The returned energy is the QM energy plus that Coulomb energy; both appear in
 <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">En.</span></code>.
 An MD step adds <code class="docutils literal notranslate"><span class="pre">O(N_k</span> <span class="pre">(N_QM</span> <span class="pre">+</span> <span class="pre">N_MM))</span></code> work for the reciprocal sum.</p>
+<p>GROMACS saves each QM charge as zero before it writes the generated PDB.
+No general rule can recover the original QM topology charges from
+<code class="docutils literal notranslate"><span class="pre">md_cp2k.inp</span></code> or <code class="docutils literal notranslate"><span class="pre">md_cp2k.pdb</span></code>.
+A generated input with charged MM atoms is therefore refused with a message
+naming the missing <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code> key.
+Use an explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section to select <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code> and provide
+<code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>, or explicitly select <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">NONE</span></code> after deciding that
+omitting the QM-MM Coulomb interaction is appropriate.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> (default 1), the mechanical-embedding QM-MM Coulomb energy,
+forces, and Ewald virial are divided by <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> while the QM energy, QM
+forces, and QM virial stay unscaled, because <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>
+takes no dielectric constant.
+GROMACS’ CP2K QM/MM module (<code class="docutils literal notranslate"><span class="pre">src/gromacs/applied_forces/qmmm/</span></code> in 2024.6,
+2025.5, and 2026.4) never reads <code class="docutils literal notranslate"><span class="pre">t_inputrec</span></code> or <code class="docutils literal notranslate"><span class="pre">t_interaction_const</span></code> and passes
+neither the <code class="docutils literal notranslate"><span class="pre">.mdp</span></code> <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> option (<code class="docutils literal notranslate"><span class="pre">readir.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">interaction_const.cpp</span></code>) nor
+<code class="docutils literal notranslate"><span class="pre">epsfac</span></code> into <code class="docutils literal notranslate"><span class="pre">md_cp2k.inp</span></code>, <code class="docutils literal notranslate"><span class="pre">md_cp2k.pdb</span></code>, or <code class="docutils literal notranslate"><span class="pre">libcp2k</span></code> (<code class="docutils literal notranslate"><span class="pre">ForceProviderInput</span></code>
+carries only coordinates, atom count, charges, masses, time, step, box, and the
+communication record).
+On the explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> route, set <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> to match <code class="docutils literal notranslate"><span class="pre">.mdp</span></code>’s <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code>
+whenever <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> differs from 1; <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> is refused unless positive,
+finite, and paired with <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code>.
+On the generated-input route (<code class="docutils literal notranslate"><span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>), any run with charged MM atoms
+is already refused for lacking <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>, so GROMACS’ unforwarded
+<code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> cannot enter a mechanical-embedding sum there.</p>
+<p>Charge precision across the interface:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> parses both <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code> and the MM charges in the PDB
+file with <code class="docutils literal notranslate"><span class="pre">strtod</span></code> into <code class="docutils literal notranslate"><span class="pre">double</span></code> (refusing non-finite charges), and
+<code class="docutils literal notranslate"><span class="pre">cpmdc.gromacs.qmi_input</span></code> serializes <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> with <code class="docutils literal notranslate"><span class="pre">repr(float)</span></code> at full
+IEEE-754 <code class="docutils literal notranslate"><span class="pre">float64</span></code> precision;</p></li>
+<li><p>upstream GROMACS (<code class="docutils literal notranslate"><span class="pre">QMMMInputGenerator::generateCP2KPdb()</span></code> in
+<code class="docutils literal notranslate"><span class="pre">src/gromacs/applied_forces/qmmm/qmmminputgenerator.cpp</span></code>) formats every
+charge written to <code class="docutils literal notranslate"><span class="pre">md_cp2k.pdb</span></code> with <code class="docutils literal notranslate"><span class="pre">%lf</span></code> (6 decimal places, rounding MM
+charges to 10<sup>-6</sup>  e and writing zero for magnitudes below 5e-7 e) even in a
+double-precision build (<code class="docutils literal notranslate"><span class="pre">-DGMX_DOUBLE=ON</span></code>, where <code class="docutils literal notranslate"><span class="pre">t_atom::q</span></code> is <code class="docutils literal notranslate"><span class="pre">double</span></code>), and
+<code class="docutils literal notranslate"><span class="pre">QMMMForceProvider::calculateForces()</span></code> never forwards <code class="docutils literal notranslate"><span class="pre">fInput.chargeA_</span></code>
+through <code class="docutils literal notranslate"><span class="pre">libcp2k</span></code>;</p></li>
+<li><p>the total QM charge (<code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmcharge</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo.charge</span></code>) is an integer (<code class="docutils literal notranslate"><span class="pre">int</span></code>); <code class="docutils literal notranslate"><span class="pre">grompp</span></code> checks the removed
+classical charge of the QM atoms against it and warns if they differ by more
+than 10<sup>-5</sup>  e (<code class="docutils literal notranslate"><span class="pre">qmmmoptions.cpp</span></code>).</p></li>
+</ul>
 <p>Not implemented:</p>
 <ul class="simple">
 <li><p>electrostatic embedding: the MM charges do not polarize the QM density.
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> takes no external potential, so
 <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">ELECTROSTATIC</span></code> is refused;</p></li>
-<li><p>link atoms across a QM-MM covalent bond; <code class="docutils literal notranslate"><span class="pre">&amp;LINK</span></code> sections are refused;</p></li>
-<li><p>a relative dielectric constant other than 1 in the QM-MM sum;</p></li>
-<li><p>PDB charges have six decimals, the precision of GROMACS’ file.</p></li>
+<li><p>link atoms across a QM-MM covalent bond; <code class="docutils literal notranslate"><span class="pre">&amp;LINK</span></code> sections are refused.</p></li>
 </ul>
 </section>
 <section id="qm-virial">
@@ -527,7 +589,8 @@ from the origin.
 The grid still leaves a small torque, and a symmetric strain does not see the
 antisymmetric part;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code> with a box: plus the strain derivative of the QM-MM
-Ewald sum, its real-space, reciprocal, and background terms.</p></li>
+Ewald sum (its real-space, reciprocal, and background terms), divided by
+<code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code>.</p></li>
 </ul>
 <p>It reports the stress as unavailable with no box (<code class="docutils literal notranslate"><span class="pre">pbc</span> <span class="pre">=</span> <span class="pre">no</span></code>), and with
 <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">PERIODIC</span></code> when cpmdc computes no stress: an isolated deck, or

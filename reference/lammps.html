@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -420,7 +423,9 @@ A box with some axes periodic and others not is refused; <code class="docutils l
 ID. IDs must be positive and unique, but need not be the consecutive integers
 1 through N: deleting atoms without compression leaves holes that are
 preserved while each force is returned to its original atom.</p>
-<p>Changing the atoms’ elemental composition, including by <code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> or <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code>, closes the current cpmdc session before the next
+<p>Changing the atoms’ elemental composition, including by
+<code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> or <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code>, closes the current
+cpmdc session before the next
 evaluation and opens a new session for the changed topology. An unchanged
 composition continues on the existing session.</p>
 </section>

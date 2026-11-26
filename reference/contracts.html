@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -244,6 +247,7 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li><a class="reference internal" href="#configuration-and-one-shot-arrays-without-a-session">Configuration and one-shot arrays without a session</a><ul>
+<li><a class="reference internal" href="#cpmdc-params-method"><code class="docutils literal notranslate"><span class="pre">cpmdc_params_method</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-set-params"><code class="docutils literal notranslate"><span class="pre">cpmdc_set_params</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-configure"><code class="docutils literal notranslate"><span class="pre">cpmdc_configure</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-energy-gradient"><code class="docutils literal notranslate"><span class="pre">cpmdc_energy_gradient</span></code></a></li>
@@ -359,6 +363,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#cpmdcdipole"><code class="docutils literal notranslate"><span class="pre">CPMDCDipole</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcstresstensor"><code class="docutils literal notranslate"><span class="pre">CPMDCStressTensor</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcrankspread"><code class="docutils literal notranslate"><span class="pre">CPMDCRankSpread</span></code></a></li>
+<li><a class="reference internal" href="#cpmdcmethodinfo"><code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcsession"><code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcfeatureentry"><code class="docutils literal notranslate"><span class="pre">CPMDCFeatureEntry</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcfeaturekind"><code class="docutils literal notranslate"><span class="pre">CPMDCFeatureKind</span></code></a></li>
@@ -387,6 +392,10 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#cpmdc-evaluation-forces-h-bohr"><code class="docutils literal notranslate">Evaluation.forces_h_bohr</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-evaluation-stress-h-bohr3"><code class="docutils literal notranslate">Evaluation.stress_h_bohr3</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-evaluation-dipole-e-bohr"><code class="docutils literal notranslate">Evaluation.dipole_e_bohr</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-methodinfo"><code class="docutils literal notranslate">MethodInfo</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-methodinfo-functional"><code class="docutils literal notranslate">MethodInfo.functional</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-methodinfo-charge"><code class="docutils literal notranslate">MethodInfo.charge</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-methodinfo-multiplicity"><code class="docutils literal notranslate">MethodInfo.multiplicity</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-potential"><code class="docutils literal notranslate">Potential</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-potential-caps"><code class="docutils literal notranslate">Potential.caps</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-potential-close"><code class="docutils literal notranslate">Potential.close</span></code></a></li>
@@ -403,6 +412,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#cpmdc-session-version"><code class="docutils literal notranslate">Session.version</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-find-library"><code class="docutils literal notranslate">find_library</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-find-schema"><code class="docutils literal notranslate">find_schema</span></code></a></li>
+<li><a class="reference internal" href="#id5"><code class="docutils literal notranslate">params_method</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-forces-to-ev-per-angstrom"><code class="docutils literal notranslate">forces_to_ev_per_angstrom</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-dipole-to-e-angstrom"><code class="docutils literal notranslate">dipole_to_e_angstrom</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-stress-to-ev-per-angstrom3"><code class="docutils literal notranslate">stress_to_ev_per_angstrom3</span></code></a></li>
@@ -874,6 +884,41 @@ never calls MPI itself; <code class="docutils literal notranslate"><span class="
 <p>These calls use the process-wide state.
 An evaluation is cold when the process has no stored basis or the basis
 differs, and warm when the basis matches.</p>
+<section id="cpmdc-params-method">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc_params_method</span></code><a class="headerlink" href="#cpmdc-params-method" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Units</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">functional</span></code> is a method token, <code class="docutils literal notranslate"><span class="pre">charge</span></code> is an integer elementary-charge count, and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> is dimensionless.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Layout</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">params_capnp</span></code> points at <code class="docutils literal notranslate"><span class="pre">params_capnp_size_bytes</span></code> bytes of one unpacked flat <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message; <code class="docutils literal notranslate"><span class="pre">out</span></code> points at one <code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Ownership</p></td>
+<td><p>The caller owns <code class="docutils literal notranslate"><span class="pre">params_capnp</span></code> and <code class="docutils literal notranslate"><span class="pre">out</span></code> and may free them on return; the library keeps nothing.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Threads and MPI</p></td>
+<td><p>Thread-safe except for the thread-local error text. MPI: local, no communication and no OpenCPMD initialization.</p></td>
+</tr>
+<tr class="row-even"><td><p>Returns and errors</p></td>
+<td><p>Returns 0 after filling <code class="docutils literal notranslate"><span class="pre">out</span></code>; -1 for a NULL output, a NULL or empty message, a parse failure, or unreadable effective settings. Failure text is <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc.params_method</span></code> returns the corresponding frozen <code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Defaults</p></td>
+<td><p>Top-level functional <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>, charge 0 and multiplicity 1; a structured DFT or SYSTEM typed field takes precedence when it is explicit, and a typed SYSTEM charge of 0 is explicit only with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="cpmdc-set-params">
 <h4><code class="docutils literal notranslate"><span class="pre">cpmdc_set_params</span></code><a class="headerlink" href="#cpmdc-set-params" title="Link to this heading">¶</a></h4>
 <div class="table-wrapper docutils container">
@@ -3947,6 +3992,32 @@ change instead of the atom limit.</p>
 </table>
 </div>
 </section>
+<section id="cpmdcmethodinfo">
+<h3><code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo</span></code><a class="headerlink" href="#cpmdcmethodinfo" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Layout</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">char</span> <span class="pre">functional[64]</span></code>, then <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">charge</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">multiplicity</span></code>. The functional is NUL-terminated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none: one method token and two integer quantum numbers.</p></td>
+</tr>
+<tr class="row-even"><td><p>Ownership</p></td>
+<td><p>Filled by <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method()</span></code> into a caller-owned struct; no pointers.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python</p></td>
+<td><p>Wrapped as the frozen <code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo</span></code> dataclass.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="cpmdcsession">
 <h3><code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code><a class="headerlink" href="#cpmdcsession" title="Link to this heading">¶</a></h3>
 <div class="table-wrapper docutils container">
@@ -4706,6 +4777,134 @@ change instead of the atom limit.</p>
 </table>
 </div>
 </section>
+<section id="cpmdc-methodinfo">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo</span></code><a class="headerlink" href="#cpmdc-methodinfo" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MethodInfo(functional,</span> <span class="pre">charge,</span> <span class="pre">multiplicity)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p>A frozen dataclass with one <code class="docutils literal notranslate"><span class="pre">str</span></code> and two <code class="docutils literal notranslate"><span class="pre">int</span></code> fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Immutable value owned by the caller; thread-safe.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>none: all three fields are required.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-methodinfo-functional">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo.functional</span></code><a class="headerlink" href="#cpmdc-methodinfo-functional" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">functional</span> <span class="pre">(attribute)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str</span></code>, the effective DFT functional token.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Immutable attribute of <code class="docutils literal notranslate"><span class="pre">MethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>No default.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-methodinfo-charge">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo.charge</span></code><a class="headerlink" href="#cpmdc-methodinfo-charge" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">charge</span> <span class="pre">(attribute)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none: an integer elementary-charge count.</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p>scalar <code class="docutils literal notranslate"><span class="pre">int</span></code>, the effective total system charge.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Immutable attribute of <code class="docutils literal notranslate"><span class="pre">MethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>No default.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-methodinfo-multiplicity">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.MethodInfo.multiplicity</span></code><a class="headerlink" href="#cpmdc-methodinfo-multiplicity" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">multiplicity</span> <span class="pre">(attribute)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p>scalar <code class="docutils literal notranslate"><span class="pre">int</span></code>, the effective spin multiplicity <code class="docutils literal notranslate"><span class="pre">2S</span> <span class="pre">+</span> <span class="pre">1</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Immutable attribute of <code class="docutils literal notranslate"><span class="pre">MethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>No default.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="cpmdc-potential">
 <h4><code class="docutils literal notranslate"><span class="pre">cpmdc.Potential</span></code><a class="headerlink" href="#cpmdc-potential" title="Link to this heading">¶</a></h4>
 <div class="table-wrapper docutils container">
@@ -4755,16 +4954,16 @@ change instead of the atom limit.</p>
 <td><p>none</p></td>
 </tr>
 <tr class="row-even"><td><p>Shape and dtype</p></td>
-<td><p>Returns a new <code class="docutils literal notranslate"><span class="pre">dict[str,</span> <span class="pre">bool]</span></code> with the keys <code class="docutils literal notranslate"><span class="pre">stress</span></code> and <code class="docutils literal notranslate"><span class="pre">energies</span></code>.</p></td>
+<td><p>Returns a new <code class="docutils literal notranslate"><span class="pre">dict[str,</span> <span class="pre">bool]</span></code> with the keys <code class="docutils literal notranslate"><span class="pre">stress</span></code>, <code class="docutils literal notranslate"><span class="pre">dipole</span></code>, and <code class="docutils literal notranslate"><span class="pre">energies</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Ownership and threads</p></td>
-<td><p>Returns a new dict; thread-safe because it reads no state.</p></td>
+<td><p>Returns a new dict. Reads the owned session, including whether its library exports <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code> and whether the last evaluation produced a dipole, so it is not thread-safe against evaluation or close on that session. MPI: local.</p></td>
 </tr>
 <tr class="row-even"><td><p>Raises</p></td>
 <td><p>none</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
-<td><p>Always <code class="docutils literal notranslate"><span class="pre">{'stress':</span> <span class="pre">True,</span> <span class="pre">'energies':</span> <span class="pre">False}</span></code>: stress may be present, per-atom energies never are.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">stress</span></code> is true and <code class="docutils literal notranslate"><span class="pre">energies</span></code> is false. <code class="docutils literal notranslate"><span class="pre">dipole</span></code> is <code class="docutils literal notranslate"><span class="pre">Session.dipole_possible()</span></code>. A dipole result on <code class="docutils literal notranslate"><span class="pre">Potential.evaluate</span></code> is three e*Angstrom components, present only when that evaluation recomputed one.</p></td>
 </tr>
 </tbody>
 </table>
@@ -4819,7 +5018,7 @@ change instead of the atom limit.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">positions</span></code> and <code class="docutils literal notranslate"><span class="pre">box</span></code> in Angstrom; the result has <code class="docutils literal notranslate"><span class="pre">energy</span></code> in eV, <code class="docutils literal notranslate"><span class="pre">forces</span></code> in eV/Angstrom and <code class="docutils literal notranslate"><span class="pre">stress</span></code> in eV/Angstrom<sup>3</sup>  with the ASE sign <code class="docutils literal notranslate"><span class="pre">(1/V)</span> <span class="pre">dE/d(strain)</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p>Shape and dtype</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">positions</span></code> N by 3 floats; <code class="docutils literal notranslate"><span class="pre">numbers</span></code> N integers in 1..118; <code class="docutils literal notranslate"><span class="pre">box</span></code> a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new <code class="docutils literal notranslate"><span class="pre">dict</span></code>: <code class="docutils literal notranslate"><span class="pre">energy</span></code> a float, <code class="docutils literal notranslate"><span class="pre">forces</span></code> an N by 3 list, and <code class="docutils literal notranslate"><span class="pre">stress</span></code> nine floats only when the library computed one.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">positions</span></code> N by 3 floats; <code class="docutils literal notranslate"><span class="pre">numbers</span></code> N integers in 1..118; <code class="docutils literal notranslate"><span class="pre">box</span></code> a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new <code class="docutils literal notranslate"><span class="pre">dict</span></code>: <code class="docutils literal notranslate"><span class="pre">energy</span></code> a float, <code class="docutils literal notranslate"><span class="pre">forces</span></code> an N by 3 list, <code class="docutils literal notranslate"><span class="pre">stress</span></code> nine floats only when the library computed one, and <code class="docutils literal notranslate"><span class="pre">dipole</span></code> three e*Angstrom components only when the evaluation recomputed one.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Ownership and threads</p></td>
 <td><p>The caller keeps every argument; nothing is retained. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call.</p></td>
@@ -4947,13 +5146,13 @@ change instead of the atom limit.</p>
 <td><p>none</p></td>
 </tr>
 <tr class="row-even"><td><p>Shape and dtype</p></td>
-<td><p>Returns a <code class="docutils literal notranslate"><span class="pre">bool</span></code>: before the first step it reports whether OpenCPMD is linked; afterward it reports whether the last evaluation produced a dipole.</p></td>
+<td><p>Returns a <code class="docutils literal notranslate"><span class="pre">bool</span></code>. False when the library has no <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code>, when the session is closed, or for the reference evaluator. Before the first step a linked library that has the symbol answers true. After a step the answer is whether that step produced a dipole.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Ownership and threads</p></td>
 <td><p>Reads the session handle and its last dipole state. Not thread-safe against evaluation or close on the same session. MPI: local.</p></td>
 </tr>
 <tr class="row-even"><td><p>Raises</p></td>
-<td><p>none: a closed session and the reference evaluator return <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></td>
+<td><p>none: a closed session, the reference evaluator, and a library without <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code> return <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
 <td><p>none</p></td>
@@ -5218,6 +5417,38 @@ change instead of the atom limit.</p>
 </table>
 </div>
 </section>
+<section id="id5">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.params_method</span></code><a class="headerlink" href="#id5" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">params_method(params,</span> <span class="pre">*,</span> <span class="pre">library=None)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">params</span></code> is serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> bytes or a path; returns a frozen <code class="docutils literal notranslate"><span class="pre">MethodInfo</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code> for an unreadable path; <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> for an empty or invalid message, a missing library, a library without <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method</span></code>, or a library failure.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">library</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>, using <code class="docutils literal notranslate"><span class="pre">find_library</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="cpmdc-forces-to-ev-per-angstrom">
 <h4><code class="docutils literal notranslate"><span class="pre">cpmdc.forces_to_ev_per_angstrom</span></code><a class="headerlink" href="#cpmdc-forces-to-ev-per-angstrom" title="Link to this heading">¶</a></h4>
 <div class="table-wrapper docutils container">
@@ -5405,7 +5636,7 @@ change instead of the atom limit.</p>
 <td><p>The calculator keeps the results; <code class="docutils literal notranslate"><span class="pre">atoms</span></code> is copied by ASE. Not thread-safe. The step runs with <code class="docutils literal notranslate"><span class="pre">directory</span></code> as the working directory, which is a process-wide change.</p></td>
 </tr>
 <tr class="row-even"><td><p>Raises</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for no atoms, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma<sub>max</sub>  times 3 times the float64 unit roundoff, the numpy.linalg.matrix<sub>rank</sub>  cutoff), a cell volume below the normal float64 range, <code class="docutils literal notranslate"><span class="pre">pbc</span></code> of the wrong length, and invalid coordinates or atomic numbers; <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when stress is asked for a cluster or for a step the library gave no stress for; <code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code> when the library rejects the step or returns a non-finite value.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for no atoms, an <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> total that is not an integer (it must lie within <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">*</span> <span class="pre">eps</span> <span class="pre">*</span> <span class="pre">sum(abs(x))</span></code> of one, the float64 rounding bound of <code class="docutils literal notranslate"><span class="pre">n</span></code> terms, <code class="docutils literal notranslate"><span class="pre">eps</span></code> the float64 unit roundoff), non-collinear <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code>, a nonzero total charge or total moment that differs from the charge or multiplicity <code class="docutils literal notranslate"><span class="pre">params</span></code> sets (the message names both values and both sources) or that a typed section of <code class="docutils literal notranslate"><span class="pre">params</span></code> fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma<sub>max</sub>  times 3 times the float64 unit roundoff, the numpy.linalg.matrix<sub>rank</sub>  cutoff), a cell volume below the normal float64 range, <code class="docutils literal notranslate"><span class="pre">pbc</span></code> of the wrong length, and invalid coordinates or atomic numbers; <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when stress is asked for a cluster or for a step the library gave no stress for; <code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code> when the library rejects the step or returns a non-finite value; <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> when an <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> total needs <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method()</span></code> and the library has none or refuses the message as ambiguous.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>: the atoms already attached; <code class="docutils literal notranslate"><span class="pre">properties</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>: <code class="docutils literal notranslate"><span class="pre">['energy']</span></code>, but all four properties are always filled; <code class="docutils literal notranslate"><span class="pre">system_changes</span></code> is ASE’s <code class="docutils literal notranslate"><span class="pre">all_changes</span></code>.</p></td>
@@ -5536,7 +5767,7 @@ change instead of the atom limit.</p>
 <td><p>none</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> and <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code>: the charge and the multiplicity come from the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.</p></td>
+<td><p>The empty set: <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> and <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> are system changes, because the calculator reads them as the total charge and the multiplicity.</p></td>
 </tr>
 </tbody>
 </table>
@@ -5845,10 +6076,10 @@ change instead of the atom limit.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Signature</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">qmi_input(params,</span> <span class="pre">*,</span> <span class="pre">cell=None,</span> <span class="pre">embedding=None,</span> <span class="pre">qm_charges=None,</span> <span class="pre">ewald_rcut=None,</span> <span class="pre">ewald_precision=None,</span> <span class="pre">qm_ranks=None,</span> <span class="pre">charge=0,</span> <span class="pre">multiplicity=1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qmi_input(params,</span> <span class="pre">*,</span> <span class="pre">cell=None,</span> <span class="pre">embedding=None,</span> <span class="pre">qm_charges=None,</span> <span class="pre">ewald_rcut=None,</span> <span class="pre">ewald_precision=None,</span> <span class="pre">epsilon_r=None,</span> <span class="pre">qm_ranks=None,</span> <span class="pre">charge=0,</span> <span class="pre">multiplicity=1)</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Units</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code> in nm; <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code> and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> are dimensionless; <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> in units of the elementary charge; <code class="docutils literal notranslate"><span class="pre">charge</span></code> in elementary charges.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code> in nm; <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code>, <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code>, and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> are dimensionless; <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> in units of the elementary charge; <code class="docutils literal notranslate"><span class="pre">charge</span></code> in elementary charges.</p></td>
 </tr>
 <tr class="row-even"><td><p>Shape and dtype</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">params</span></code> a path; <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> a sequence of floats, one per QM atom; the others are scalars or strings. Returns the <code class="docutils literal notranslate"><span class="pre">qmi</span></code> file as one <code class="docutils literal notranslate"><span class="pre">str</span></code> that ends in a newline.</p></td>
@@ -5857,10 +6088,10 @@ change instead of the atom limit.</p>
 <td><p>Builds a new string and touches no file; stateless, so thread-safe.</p></td>
 </tr>
 <tr class="row-even"><td><p>Raises</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for an unknown <code class="docutils literal notranslate"><span class="pre">cell</span></code> or <code class="docutils literal notranslate"><span class="pre">embedding</span></code> keyword, <code class="docutils literal notranslate"><span class="pre">qm_ranks</span></code> other than <code class="docutils literal notranslate"><span class="pre">ALL</span></code> or <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> without <code class="docutils literal notranslate"><span class="pre">MECHANICAL</span></code> embedding or <code class="docutils literal notranslate"><span class="pre">MECHANICAL</span></code> embedding without <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code>, a non-finite value, a non-positive <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code> or <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code>, a <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> below 1, or a <code class="docutils literal notranslate"><span class="pre">charge</span></code> or <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> that is not a whole number; <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> for a value that is not a real number or not an integer.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for an unknown <code class="docutils literal notranslate"><span class="pre">cell</span></code> or <code class="docutils literal notranslate"><span class="pre">embedding</span></code> keyword, <code class="docutils literal notranslate"><span class="pre">qm_ranks</span></code> other than <code class="docutils literal notranslate"><span class="pre">ALL</span></code> or <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code> without <code class="docutils literal notranslate"><span class="pre">MECHANICAL</span></code> embedding or <code class="docutils literal notranslate"><span class="pre">MECHANICAL</span></code> embedding without <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code>, a non-finite value, a non-positive <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code>, <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code>, or <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code>, a <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> below 1, or a <code class="docutils literal notranslate"><span class="pre">charge</span></code> or <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> that is not a whole number; <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> for a value that is not a real number or not an integer.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">cell</span></code>, <code class="docutils literal notranslate"><span class="pre">embedding</span></code>, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code>, <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code>, <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code> and <code class="docutils literal notranslate"><span class="pre">qm_ranks</span></code> are <code class="docutils literal notranslate"><span class="pre">None</span></code> and not written, so the library defaults apply (<code class="docutils literal notranslate"><span class="pre">PERIODIC</span></code> when every atom is QM and <code class="docutils literal notranslate"><span class="pre">NONE</span></code> otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10<sup>-8</sup>  as assigned in tools/gromacs/cpmdc<sub>gromacs.c</sub>; <code class="docutils literal notranslate"><span class="pre">ALL</span></code>); <code class="docutils literal notranslate"><span class="pre">charge</span></code> is 0 and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> is 1.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cell</span></code>, <code class="docutils literal notranslate"><span class="pre">embedding</span></code>, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code>, <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code>, <code class="docutils literal notranslate"><span class="pre">ewald_precision</span></code>, <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code> and <code class="docutils literal notranslate"><span class="pre">qm_ranks</span></code> are <code class="docutils literal notranslate"><span class="pre">None</span></code> and not written, so the library defaults apply (<code class="docutils literal notranslate"><span class="pre">PERIODIC</span></code> when every atom is QM and <code class="docutils literal notranslate"><span class="pre">NONE</span></code> otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10<sup>-8</sup>  as assigned in tools/gromacs/cpmdc<sub>gromacs.c</sub>; <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> 1; <code class="docutils literal notranslate"><span class="pre">ALL</span></code>); <code class="docutils literal notranslate"><span class="pre">charge</span></code> is 0 and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> is 1.</p></td>
 </tr>
 </tbody>
 </table>
@@ -5877,10 +6108,10 @@ change instead of the atom limit.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Signature</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">write_qmi(path,</span> <span class="pre">params,</span> <span class="pre">*,</span> <span class="pre">cell=None,</span> <span class="pre">embedding=None,</span> <span class="pre">qm_charges=None,</span> <span class="pre">ewald_rcut=None,</span> <span class="pre">ewald_precision=None,</span> <span class="pre">qm_ranks=None,</span> <span class="pre">charge=0,</span> <span class="pre">multiplicity=1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">write_qmi(path,</span> <span class="pre">params,</span> <span class="pre">*,</span> <span class="pre">cell=None,</span> <span class="pre">embedding=None,</span> <span class="pre">qm_charges=None,</span> <span class="pre">ewald_rcut=None,</span> <span class="pre">ewald_precision=None,</span> <span class="pre">epsilon_r=None,</span> <span class="pre">qm_ranks=None,</span> <span class="pre">charge=0,</span> <span class="pre">multiplicity=1)</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Units</p></td>
-<td><p>As for <code class="docutils literal notranslate"><span class="pre">qmi_input</span></code>: <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code> in nm, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> and <code class="docutils literal notranslate"><span class="pre">charge</span></code> in elementary charges.</p></td>
+<td><p>As for <code class="docutils literal notranslate"><span class="pre">qmi_input</span></code>: <code class="docutils literal notranslate"><span class="pre">ewald_rcut</span></code> in nm, <code class="docutils literal notranslate"><span class="pre">qm_charges</span></code> and <code class="docutils literal notranslate"><span class="pre">charge</span></code> in elementary charges, <code class="docutils literal notranslate"><span class="pre">epsilon_r</span></code> dimensionless.</p></td>
 </tr>
 <tr class="row-even"><td><p>Shape and dtype</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">path</span></code> is the file to write, <code class="docutils literal notranslate"><span class="pre">params</span></code> a path; the options are those of <code class="docutils literal notranslate"><span class="pre">qmi_input</span></code>. Returns the <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code> written.</p></td>
@@ -6846,7 +7077,7 @@ change instead of the atom limit.</p>
 <td><p>e*Angstrom</p></td>
 <td><p>(3,) <code class="docutils literal notranslate"><span class="pre">float64</span></code> Cartesian array</p></td>
 <td><p>Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum.</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when the reference, isolated, k-point or unrequested evaluation produced no dipole.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when the library has no <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code>, or when the reference, isolated, k-point or unrequested evaluation produced no dipole. <code class="docutils literal notranslate"><span class="pre">CalculationFailed</span></code> when the dipole is not finite.</p></td>
 </tr>
 </tbody>
 </table>

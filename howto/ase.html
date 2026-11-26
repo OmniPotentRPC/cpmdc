@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -628,8 +631,8 @@ A call on an unchanged structure returns the stored step.
 A change of <code class="docutils literal notranslate"><span class="pre">positions</span></code>, <code class="docutils literal notranslate"><span class="pre">numbers</span></code>, <code class="docutils literal notranslate"><span class="pre">cell</span></code>, or <code class="docutils literal notranslate"><span class="pre">pbc</span></code> evaluates the structure
 again, and <code class="docutils literal notranslate"><span class="pre">calc.calculation_required(atoms,</span> <span class="pre">properties)</span></code> returns true for such
 a structure until it is evaluated.
-A change of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> reuses the step, because the
-calculator does not read them.
+A change of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> evaluates the structure
+again, because the calculator reads both; the next section says how.
 A change of <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">momenta</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, or a constraint reuses the step as well,
 because none of them is a system change: ASE applies a constraint to the forces
 after the calculator returns them.
@@ -651,13 +654,93 @@ value, or <code class="docutils literal notranslate"><span class="pre">None</spa
 <p>The <code class="docutils literal notranslate"><span class="pre">charge</span></code> and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> fields of the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message set the
 charge and the spin, beside the functional, the cutoff, and the
 pseudopotentials.
-The calculator has no keyword for any of them, and it does not read
-<code class="docutils literal notranslate"><span class="pre">atoms.get_initial_charges()</span></code> or <code class="docutils literal notranslate"><span class="pre">atoms.get_initial_magnetic_moments()</span></code>.
-A keyword such as <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>, or <code class="docutils literal notranslate"><span class="pre">xc</span></code> raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> in the
+The calculator has no keyword for any of them.
+It reads <code class="docutils literal notranslate"><span class="pre">atoms.initial_charges</span></code> and <code class="docutils literal notranslate"><span class="pre">atoms.initial_magmoms</span></code> as the ASE
+calculators for GPAW, ORCA, NWChem, and Psi4 do, so a charged or spin-polarised
+<code class="docutils literal notranslate"><span class="pre">Atoms</span></code> needs no second source of truth.</p>
+<p>The total charge is <code class="docutils literal notranslate"><span class="pre">Q</span> <span class="pre">=</span> <span class="pre">sum(atoms.get_initial_charges())</span></code> and the total moment
+is <code class="docutils literal notranslate"><span class="pre">M</span> <span class="pre">=</span> <span class="pre">sum(atoms.get_initial_magnetic_moments())</span></code>.
+The moments are collinear, one per atom: an array of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code> with a
+nonzero entry raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
+<code class="docutils literal notranslate"><span class="pre">Q</span></code> and <code class="docutils literal notranslate"><span class="pre">M</span></code> must be integers.
+A sum counts as an integer when it lies within <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">*</span> <span class="pre">eps</span> <span class="pre">*</span> <span class="pre">sum(|x|)</span></code> of one, the
+bound on the rounding error of adding <code class="docutils literal notranslate"><span class="pre">n</span></code> float64 terms <code class="docutils literal notranslate"><span class="pre">x</span></code>, where <code class="docutils literal notranslate"><span class="pre">eps</span></code> is the
+float64 unit roundoff; any other sum raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names the sum.
+The multiplicity is <code class="docutils literal notranslate"><span class="pre">|M|</span> <span class="pre">+</span> <span class="pre">1</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.params_method</span></code> reports the effective charge and multiplicity of the
+message, and a charge of 0 or a multiplicity of 1 is the schema default, so the
+calculator takes it as unset whether the message left the field out or wrote the
+default.
+Each of the two settings follows the same rules:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value</p></th>
+<th class="head"><p>message value</p></th>
+<th class="head"><p>result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>zero</p></td>
+<td><p>any</p></td>
+<td><p>the message value; nothing changes for an existing script</p></td>
+</tr>
+<tr class="row-odd"><td><p>nonzero</p></td>
+<td><p>unset</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value, written into the top-level <code class="docutils literal notranslate"><span class="pre">charge</span></code> or <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> field of the message the session opens with</p></td>
+</tr>
+<tr class="row-even"><td><p>nonzero</p></td>
+<td><p>equal</p></td>
+<td><p>the shared value, silently</p></td>
+</tr>
+<tr class="row-odd"><td><p>nonzero</p></td>
+<td><p>set and different</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names both values and both sources, <code class="docutils literal notranslate"><span class="pre">Atoms.initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">Atoms.initial_magmoms</span></code> and the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message in <code class="docutils literal notranslate"><span class="pre">params</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>An explicit charge of 0 or multiplicity of 1 in the message cannot be told from
+the default, so a nonzero <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value replaces it.
+A message whose typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section fixes the charge, such as one with
+<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>, keeps that value after the edit, and the calculator
+raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> instead of evaluating the wrong method.
+A message that <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method()</span></code> refuses as ambiguous, because a raw
+<code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> block or a <code class="docutils literal notranslate"><span class="pre">SYSTEM.</span></code> set directive holds the scalar, raises
+<code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> the first time an <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value needs it.</p>
+<p>A change of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> discards the stored results,
+and the next call evaluates the structure again.
+The calculator opens a new session only when the effective charge or
+multiplicity changes; moving the charge from one atom to another keeps the
+session.
+<code class="docutils literal notranslate"><span class="pre">todict()</span></code> and <code class="docutils literal notranslate"><span class="pre">Parameters.write</span></code> hold only <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, because the charge and the spin travel with the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code>.</p>
+<p>This example evaluates a water cation with a doublet spin, and shows the error
+for partial charges, which are not a total charge:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="n">water</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1173</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.7572</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4692</span><span class="p">]]</span>
+</span><span data-line="5"><span class="n">cation</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">)</span>
+</span><span data-line="6"><span class="n">cation</span><span class="o">.</span><span class="n">set_initial_charges</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+</span><span data-line="7"><span class="n">cation</span><span class="o">.</span><span class="n">set_initial_magnetic_moments</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+</span><span data-line="8"><span class="n">partial</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="s2">&quot;OHH&quot;</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">water</span><span class="p">)</span>
+</span><span data-line="9"><span class="n">partial</span><span class="o">.</span><span class="n">set_initial_charges</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+</span><span data-line="10"><span class="k">with</span> <span class="n">CPMDCCalculator</span><span class="p">(</span><span class="s2">&quot;water.params.bin&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">calc</span><span class="p">:</span>
+</span><span data-line="11">    <span class="n">cation</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="12">    <span class="nb">print</span><span class="p">(</span><span class="n">cation</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">())</span>
+</span><span data-line="13">    <span class="n">partial</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span>
+</span><span data-line="14">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="15">        <span class="n">partial</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">()</span>
+</span><span data-line="16">    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="17">        <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>A keyword such as <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>, or <code class="docutils literal notranslate"><span class="pre">xc</span></code> raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> in the
 constructor and in <code class="docutils literal notranslate"><span class="pre">set()</span></code>, and the message names the key and points at
-<code class="docutils literal notranslate"><span class="pre">params</span></code>.
-To change the method, encode another message and pass it to <code class="docutils literal notranslate"><span class="pre">set()</span></code>; this
-example switches to the periodic message:</p>
+<code class="docutils literal notranslate"><span class="pre">params</span></code> and at the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> arrays.
+To change the rest of the method, encode another message and pass it to
+<code class="docutils literal notranslate"><span class="pre">set()</span></code>; this example switches to the periodic message:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="k">try</span><span class="p">:</span>
@@ -755,13 +838,13 @@ After a successful step, a structure with another composition closes the
 session and opens a new one from the same <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> holds <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, and <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, with
 absolute paths.
-<code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> returns them for a trajectory or a database row, and leaves out
-a <code class="docutils literal notranslate"><span class="pre">params</span></code> buffer given as bytes, because bytes are not JSON data.
+<code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> returns them for a trajectory or a database row.
+A <code class="docutils literal notranslate"><span class="pre">params</span></code> buffer given as bytes is encoded as standard Base64 under
+<code class="docutils literal notranslate"><span class="pre">{&quot;cpmdparams_base64&quot;:</span> <span class="pre">...}</span></code>, so the dictionary stays JSON data and still
+rebuilds the same calculator.
 <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator(**calc.todict())</span></code> builds an equal calculator in any working
 directory, and <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator(parameters=&quot;calc.ase&quot;)</span></code> reads a file written by
-<code class="docutils literal notranslate"><span class="pre">calc.parameters.write(&quot;calc.ase&quot;)</span></code>.
-A calculator built from bytes has no <code class="docutils literal notranslate"><span class="pre">params</span></code> in <code class="docutils literal notranslate"><span class="pre">todict()</span></code>, so rebuilding it
-from that dictionary raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> that asks for <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">calc.parameters.write(&quot;calc.ase&quot;)</span></code>.</p>
 <p>ASE rebuilds a calculator from <code class="docutils literal notranslate"><span class="pre">calc.name</span></code> and <code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code>, in a trajectory,
 an <code class="docutils literal notranslate"><span class="pre">ase.db</span></code> row, and <code class="docutils literal notranslate"><span class="pre">PythonSubProcessCalculator</span></code>, and asks no pickling of a
 calculator.
@@ -785,7 +868,9 @@ calculator’s own does.</p>
 <h2>Check the calculator with ASE<a class="headerlink" href="#check-the-calculator-with-ase" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_conformance.py</span></code> asks of <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> what any ASE
 user asks of a calculator, and answers with ASE’s own tools.
-It runs on the default build, which needs no OpenCPMD archive: <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-stub</span></code> builds it, and <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/python/test_ase_conformance.py</span></code>
+It runs on the default build, which needs no OpenCPMD archive.
+<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-stub</span></code> builds it, and
+<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/python/test_ase_conformance.py</span></code>
 runs the file.
 The file checks these points:</p>
 <div class="table-wrapper docutils container">

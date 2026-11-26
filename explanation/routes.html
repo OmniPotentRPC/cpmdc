@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -327,10 +330,13 @@ The default local interface is the in-process session API:
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> for Cap’n Proto messages.
 The default remote interface is rgpot’s Cap’n Proto RPC over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>.
 i-PI is an optional rgpot protocol frontend over potentials; protocol
-frontends do not belong inside an engine library.  The cpmdc-specific i-PI
-frontend is transitional because the
-<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">rgpot migration gaps</span></a> still prevent
-<code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> from selecting <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>.</p>
+frontends do not belong inside an engine library.  In an rgpot build with
+the RPC stack, <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> selects <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> for
+<code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> and for <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code>.
+Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD so a singular cell is passed through
+instead of padded.  The
+<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI migration status</span></a> records that
+route.  <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks.</p>
 <p>The measurements below compare the two original execution routes.
 The file route writes a deck, starts <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> for each force call, and reads
 the energy and forces back from CPMD’s output files.

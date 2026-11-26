@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -348,7 +351,7 @@ data-aria-dark="Switch to auto color mode">
 Installed headers live under <code class="docutils literal notranslate"><span class="pre">include/cpmdc/</span></code>; include them as
 <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;cpmdc.h&gt;</span></code> with the flags of <code class="docutils literal notranslate"><span class="pre">pkg-config</span> <span class="pre">--cflags</span> <span class="pre">cpmdc</span></code>.
 Every function has C linkage, and the header compiles as C and as C++.
-<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports those 51 functions and no other symbol; the exported symbols
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports those 52 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 <code class="docutils literal notranslate"><span class="pre">schema/inventory/surface_map_abi.txt</span></code> records them; it is generated from the
 built library, and the <code class="docutils literal notranslate"><span class="pre">c-abi-inventory</span></code> test fails when the headers, the
@@ -435,7 +438,7 @@ sources directly; the Python package loads only public functions.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Parameter buffers</p></td>
-<td><p>unpacked flat Cap’n Proto messages: <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code>, or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> from <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code></p></td>
+<td><p>unpacked flat Cap’n Proto messages: <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code>, or <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> from <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>; the header does not redefine their fields as a C struct</p></td>
 </tr>
 <tr class="row-odd"><td><p>Positions in array calls</p></td>
 <td><p>Angstrom, <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">n_atoms</span></code> doubles, atom-major (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">y0</span> <span class="pre">z0</span> <span class="pre">x1</span> <span class="pre">...</span></code>)</p></td>
@@ -482,7 +485,9 @@ sources directly; the Python package loads only public functions.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> unit strings are matched without regard to case.
+<p>The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other
+Cap’n Proto binding that writes the standard flat stream format.
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> unit strings are matched without regard to case.
 Length: <code class="docutils literal notranslate"><span class="pre">angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">angstroms</span></code>, <code class="docutils literal notranslate"><span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">aa</span></code>, <code class="docutils literal notranslate"><span class="pre">bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">au</span></code>, <code class="docutils literal notranslate"><span class="pre">a.u.</span></code>, <code class="docutils literal notranslate"><span class="pre">atomic</span></code>,
 <code class="docutils literal notranslate"><span class="pre">nm</span></code>, <code class="docutils literal notranslate"><span class="pre">nanometer</span></code>.
 Energy: <code class="docutils literal notranslate"><span class="pre">hartree</span></code>, <code class="docutils literal notranslate"><span class="pre">ha</span></code>, <code class="docutils literal notranslate"><span class="pre">au</span></code>, <code class="docutils literal notranslate"><span class="pre">a.u.</span></code>, <code class="docutils literal notranslate"><span class="pre">ev</span></code>, <code class="docutils literal notranslate"><span class="pre">electronvolt</span></code>, <code class="docutils literal notranslate"><span class="pre">ry</span></code>, <code class="docutils literal notranslate"><span class="pre">rydberg</span></code>,
@@ -498,15 +503,19 @@ box gets <code class="docutils literal notranslate"><span class="pre">SYMMETRY</
 components gets <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>, which CPMD refuses beside it.
 An isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, the default deck) keeps <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and takes
 only an orthorhombic box with positive diagonal entries; a box with
-off-diagonal entries fails with <code class="docutils literal notranslate"><span class="pre">an</span> <span class="pre">isolated</span> <span class="pre">deck</span> <span class="pre">(SYMMETRY</span> <span class="pre">0)</span> <span class="pre">needs</span> <span class="pre">an</span> <span class="pre">orthorhombic</span> <span class="pre">box</span></code>, and one with a non-positive diagonal fails with
+off-diagonal entries fails with
+<code class="docutils literal notranslate"><span class="pre">an</span> <span class="pre">isolated</span> <span class="pre">deck</span> <span class="pre">(SYMMETRY</span> <span class="pre">0)</span> <span class="pre">needs</span> <span class="pre">an</span> <span class="pre">orthorhombic</span> <span class="pre">box</span></code>,
+and one with a non-positive diagonal fails with
 <code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">ForceInput</span> <span class="pre">box</span> <span class="pre">has</span> <span class="pre">a</span> <span class="pre">non-positive</span> <span class="pre">diagonal</span></code>.
 Before fixing the session topology, a non-zero box converted to Angstrom
 is checked by one-sided Jacobi singular values and scaled LU with partial
 pivoting on a power-of-two scaled copy: a non-finite component fails with
 <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>, a cell whose singular values do not
 all exceed the largest singular value times 3 times <code class="docutils literal notranslate"><span class="pre">DBL_EPSILON</span></code> (or whose
-scaled LU determinant is zero) fails with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, and a full-rank cell whose Angstrom volume falls
-below the normal binary64 range fails with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code>.
+scaled LU determinant is zero) fails with
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, and a full-rank cell
+whose Angstrom volume falls below the normal binary64 range fails with
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code>.
 Deck rendering also rejects a non-zero cell without a representable rank-3
 volume (<code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">periodic</span> <span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">a</span> <span class="pre">representable</span> <span class="pre">rank-3</span> <span class="pre">volume</span></code> or
 <code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">a</span> <span class="pre">representable</span> <span class="pre">rank-3</span> <span class="pre">volume</span></code>).
@@ -621,6 +630,35 @@ preflight leaves the topology configurable.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDCRankSpread</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ranks</span></code>, <code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, <code class="docutils literal notranslate"><span class="pre">gradient_h_bohr</span></code> (see <a class="reference internal" href="#results-of-the-last-evaluation">Results of the last evaluation</a>)</p></td>
 <td><p>Hartree, Hartree/Bohr</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo</span></code></p></td>
+<td><p>effective <code class="docutils literal notranslate"><span class="pre">functional[64]</span></code>, <code class="docutils literal notranslate"><span class="pre">charge</span></code>, and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code> decoded from <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></p></td>
+<td><p>text and integers</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Fields of <code class="docutils literal notranslate"><span class="pre">CPMDCMethodInfo</span></code>:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">functional[64]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">char</span></code></p></td>
+<td><p>null-terminated effective DFT functional</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">charge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>effective total system charge</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">multiplicity</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>effective spin multiplicity, <code class="docutils literal notranslate"><span class="pre">2S</span> <span class="pre">+</span> <span class="pre">1</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -930,7 +968,8 @@ entries a call filled.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> is written by <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> is written by <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_configure()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code>,
@@ -961,7 +1000,7 @@ A capabilities return of -1 is the size query.</p>
 <td><p>collective on <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code>; splits the world into calculators of <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> consecutive ranks, group <code class="docutils literal notranslate"><span class="pre">g</span></code> holding world ranks <code class="docutils literal notranslate"><span class="pre">g</span> <span class="pre">*</span> <span class="pre">ranks_per_calc</span></code> to <code class="docutils literal notranslate"><span class="pre">(g</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">ranks_per_calc</span> <span class="pre">-</span> <span class="pre">1</span></code>; the world size must be a multiple of <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code>, with no remainder group, and any other world size or a value above it returns -1 on every rank and splits nothing; <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&lt;=</span> <span class="pre">0</span></code> means the world size, one calculator; returns this rank’s calculator index <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code>, or -1 when the world size is not a multiple, <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code> returns an error, or the library has no CPMD backend; on an OpenCPMD build it calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> when MPI is not running, and the reference build and the link stub return -1 without calling MPI; a later call does not split again and returns the index its own <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> gives, or -1 on every rank when that value does not divide the world size or is above it, and the existing split stays</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_adopt_calculator_comm(const</span> <span class="pre">void</span> <span class="pre">*comm,</span> <span class="pre">size_t</span> <span class="pre">nbytes,</span> <span class="pre">int</span> <span class="pre">ranks_per_calc)</span></code></p></td>
-<td><p>collective on the caller’s communicator; reads rank and size from that communicator; does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>; when <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> the adopted size must equal it, and a mismatch returns -1 with both numbers in <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> on every rank enforces; an OpenCPMD build stores the communicator as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>; a later call replaces it when no live <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI</p></td>
+<td><p>collective on the caller’s communicator; reads rank and size from that communicator; does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>; when <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> the adopted size must equal it, and a mismatch returns -1 with both numbers in <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> on every rank enforces; the handle is borrowed, so the caller keeps ownership and does not free the communicator until the last session is destroyed or a later adopt replaces it; an OpenCPMD build stores the communicator as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>; a later call replaces it when no live <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_adopted_comm(void</span> <span class="pre">*out,</span> <span class="pre">size_t</span> <span class="pre">nbytes)</span></code></p></td>
 <td><p>copies the stored calculator communicator into <code class="docutils literal notranslate"><span class="pre">out</span></code> (on an OpenCPMD build, <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>); returns 0, or -1 when no communicator is stored; does not write <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code></p></td>
@@ -986,10 +1025,13 @@ See <a class="reference internal" href="../howto/mpi.html"><span class="doc">run
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_set_params(const</span> <span class="pre">void</span> <span class="pre">*params,</span> <span class="pre">size_t</span> <span class="pre">size)</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_params_method(const</span> <span class="pre">void</span> <span class="pre">*params,</span> <span class="pre">size_t</span> <span class="pre">size,</span> <span class="pre">CPMDCMethodInfo</span> <span class="pre">*out)</span></code></p></td>
+<td><p>decode the effective functional, charge, and multiplicity without applying the deck; 0 or -1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_set_params(const</span> <span class="pre">void</span> <span class="pre">*params,</span> <span class="pre">size_t</span> <span class="pre">size)</span></code></p></td>
 <td><p>decode <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, render the deck, apply it; 0 or -1</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_configure(const</span> <span class="pre">void</span> <span class="pre">*config,</span> <span class="pre">size_t</span> <span class="pre">size)</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_configure(const</span> <span class="pre">void</span> <span class="pre">*config,</span> <span class="pre">size_t</span> <span class="pre">size)</span></code></p></td>
 <td><p>resolve a <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> and apply the result like <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>; 0 or -1</p></td>
 </tr>
 </tbody>
@@ -1225,13 +1267,20 @@ the deck has none.</p>
 enforce the <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> rules above before fixing the session topology:
 a <code class="docutils literal notranslate"><span class="pre">box</span></code> length other than 0 or 9 fails with <code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">ForceInput</span> <span class="pre">geometry</span></code>,
 and a non-zero box fails with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code> on the Angstrom cell, or fails in the reference evaluator
-when a non-zero periodic cell cannot represent a finite positive stress
-volume (<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code> or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">representable</span> <span class="pre">for</span> <span class="pre">stress</span></code>).
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code> on the Angstrom cell, or fails
+in the reference evaluator when a non-zero periodic cell cannot represent
+a finite positive stress volume (<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code>
+or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">representable</span> <span class="pre">for</span> <span class="pre">stress</span></code>).
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> writes the required byte count to <code class="docutils literal notranslate"><span class="pre">\*out_size</span></code>
 before it checks <code class="docutils literal notranslate"><span class="pre">capacity</span></code>.
-When <code class="docutils literal notranslate"><span class="pre">capacity</span></code> is too small it returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> with
-<code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code> and does not evaluate.
+When <code class="docutils literal notranslate"><span class="pre">capacity</span></code> is too small, or <code class="docutils literal notranslate"><span class="pre">out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, it returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> with
+<code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code> and does not evaluate; this is the contract
+of the session result call of the NWChem library <code class="docutils literal notranslate"><span class="pre">nwchemc</span></code> as well.
+<code class="docutils literal notranslate"><span class="pre">out_size</span></code> is required: a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> there fails with <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>, and it is set to 0
+when the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> does not parse or its geometry is invalid.
+A <code class="docutils literal notranslate"><span class="pre">forces_len</span></code> below <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">n_atoms</span></code> fails <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code>
+with <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>.
 The written <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> carries <code class="docutils literal notranslate"><span class="pre">energy</span></code> and <code class="docutils literal notranslate"><span class="pre">forces</span></code> in the requested
 units, <code class="docutils literal notranslate"><span class="pre">stress</span></code>, <code class="docutils literal notranslate"><span class="pre">gradient</span></code>, <code class="docutils literal notranslate"><span class="pre">dipole</span></code>, <code class="docutils literal notranslate"><span class="pre">polarizability</span></code>, and the <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
 extension fields <code class="docutils literal notranslate"><span class="pre">energyComponents</span></code>, <code class="docutils literal notranslate"><span class="pre">chargeIntegrals</span></code>, <code class="docutils literal notranslate"><span class="pre">multiStateEnergies</span></code>,
@@ -1312,12 +1361,17 @@ The topology and repeat-step rules of the session apply.</p>
 (<code class="docutils literal notranslate"><span class="pre">null</span> <span class="pre">session</span></code>), <code class="docutils literal notranslate"><span class="pre">n_atoms</span></code> outside 1 to <code class="docutils literal notranslate"><span class="pre">INT_MAX</span> <span class="pre">/</span> <span class="pre">3</span></code> or a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> required
 pointer (<code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">arguments</span></code>), a topology change, and a failed evaluation.
 For a non-zero <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>, it fails before fixing the session topology with
-<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>, <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code> judged on the converted
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code> judged on the converted
 Angstrom cell; when <code class="docutils literal notranslate"><span class="pre">virial_h</span></code> is not <code class="docutils literal notranslate"><span class="pre">NULL</span></code> and <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> is finite, a
-Bohr volume above <code class="docutils literal notranslate"><span class="pre">DBL_MAX</span></code> fails before evaluation with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code>, and any non-finite component of <code class="docutils literal notranslate"><span class="pre">volume</span> <span class="pre">*</span> <span class="pre">stress</span></code> after
-evaluation fails with <code class="docutils literal notranslate"><span class="pre">virial</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">finite</span></code>.
+Bohr volume above <code class="docutils literal notranslate"><span class="pre">DBL_MAX</span></code> fails before evaluation with
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code>, and any non-finite component of
+<code class="docutils literal notranslate"><span class="pre">volume</span> <span class="pre">*</span> <span class="pre">stress</span></code> after evaluation fails with <code class="docutils literal notranslate"><span class="pre">virial</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">finite</span></code>.
 When <code class="docutils literal notranslate"><span class="pre">virial_h</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, the reference evaluator still fails a non-zero
-periodic cell whose Bohr volume cannot be represented for stress (<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code> or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">representable</span> <span class="pre">for</span> <span class="pre">stress</span></code>).
+periodic cell whose Bohr volume cannot be represented for stress
+(<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code> or
+<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">representable</span> <span class="pre">for</span> <span class="pre">stress</span></code>).
 On failure the output arrays are left unspecified.
 The stub archive <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> returns -1 with the stub message.
 <code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> is an i-PI client on this call (see <a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">the
@@ -1360,6 +1414,9 @@ Use a session for more than one step.</p>
 <h2>Results of the last evaluation<a class="headerlink" href="#results-of-the-last-evaluation" title="Link to this heading">¶</a></h2>
 <p>Each getter copies a snapshot into <code class="docutils literal notranslate"><span class="pre">\*out</span></code> and returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is
 set, -1 otherwise.
+A host reads the energy terms in Hartree through
+<code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components()</span></code> without parsing CLI <code class="docutils literal notranslate"><span class="pre">ENERGY</span></code> files or opening a
+network socket.
 The plain form reads the calculator that ran last: the active session, or the
 global state after a global call.
 The <code class="docutils literal notranslate"><span class="pre">session</span></code> form reads that session’s own last result, also after another

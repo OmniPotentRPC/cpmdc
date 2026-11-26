@@ -103,7 +103,38 @@ mixed-precision build, and the 1e-10 agreement below holds only for ``gmx_d``.
 Set up a run
 ------------
 
-The QM group is an index group; ``qmmm-cp2k-qmmethod = INPUT`` makes grompp take
+The QM group is an index group.
+For GROMACS to generate its normal CP2K input, select the same functional,
+charge, and multiplicity as the ``CPMDParams`` message:
+
+.. code:: text
+
+    qmmm-cp2k-active      = true
+    qmmm-cp2k-qmgroup     = QM
+    qmmm-cp2k-qmmethod    = BLYP
+    qmmm-cp2k-qmcharge    = 0
+    qmmm-cp2k-qmmultiplicity = 1
+
+Build the ``.tpr`` from the ``.mdp``, then name the message when running it:
+
+.. code:: bash
+
+    gmx_d grompp -f md.mdp -c conf.gro -p topol.top -n index.ndx -o md.tpr
+    CPMDC_GROMACS_PARAMS=water.params.bin \
+      gmx_d mdrun -deffnm md -ntmpi 1
+
+``PBE`` works in place of ``BLYP`` when the deck's effective functional is
+``PBE``.
+The library refuses a disagreement in the functional, charge, or
+multiplicity instead of replacing the deck value.
+
+GROMACS writes zero, not the original topology charge, for every QM atom in
+its generated PDB.
+A generated run with charged MM atoms therefore cannot obtain the
+``QM_CHARGES`` needed for mechanical embedding and is refused.
+Use the explicit route below for that case.
+
+The explicit route sets ``qmmm-cp2k-qmmethod = INPUT`` and makes grompp take
 the cpmdc settings from the file of ``-qmi``:
 
 .. code:: text
@@ -130,12 +161,14 @@ the cpmdc settings from the file of ``-qmi``:
 
 The file of ``-qmi`` holds a ``&CPMDC`` section inside
 ``&FORCE_EVAL``: ``PARAMS`` names the ``CPMDParams`` message, ``CELL`` and ``EMBEDDING`` choose the cell and the QM-MM Coulomb term, ``QM_CHARGES``
-gives the QM atoms' classical charges, and ``QM_RANKS`` the ranks of an MPI
-GROMACS.
+gives the QM atoms' classical charges, ``EPSILON_R`` scales the mechanical-embedding
+QM-MM Coulomb term when ``.mdp`` sets ``epsilon-r`` other than 1 (because GROMACS'
+CP2K module does not forward ``epsilon-r`` to ``libcp2k``), and ``QM_RANKS`` sets the
+ranks of an MPI GROMACS.
 The :doc:`reference <../reference/gromacs>` lists every key and what the
 library writes to ``md_cp2k.out``.
-GROMACS' own generated input (``qmmethod = PBE`` or ``BLYP``) has no ``&CPMDC``
-section and is refused.
+An explicit ``&CPMDC`` section takes precedence over
+``CPMDC_GROMACS_PARAMS``.
 
 Pressure and NPT
 ----------------

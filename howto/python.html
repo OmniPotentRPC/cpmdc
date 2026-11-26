@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -409,8 +412,10 @@ It returns <code class="docutils literal notranslate"><span class="pre">dipole</
 the molecular moment for that step.
 <code class="docutils literal notranslate"><span class="pre">Potential.caps</span></code> returns <code class="docutils literal notranslate"><span class="pre">stress=True</span></code> and <code class="docutils literal notranslate"><span class="pre">energies=False</span></code>.
 It returns <code class="docutils literal notranslate"><span class="pre">dipole=True</span></code> only when the evaluator can produce a dipole: never for
-the reference evaluator, and for OpenCPMD until an evaluation comes back
-without one, because a deck without <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> produces none.
+the reference evaluator, never for a library without <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code>,
+and for OpenCPMD until an evaluation comes back without one, because a deck
+without <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> produces none.
+The call reads the session, so the dict is not a constant.
 The Berry-phase dipole exists only for a neutral periodic cell and only modulo
 the lattice quantum, so it can jump by a lattice vector between geometries.
 An rgpot <code class="docutils literal notranslate"><span class="pre">RgpotCalculator</span></code> accepts any object with those two methods, so this

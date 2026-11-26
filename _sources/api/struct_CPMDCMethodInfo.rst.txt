@@ -1,0 +1,69 @@
+.. index:: pair: struct; CPMDCMethodInfo
+.. _doxid-struct_c_p_m_d_c_method_info:
+
+struct CPMDCMethodInfo
+======================
+
+.. toctree::
+	:hidden:
+
+Overview
+~~~~~~~~
+
+Effective scalar method settings decoded from ``CPMDParams``. :ref:`More...<details-struct_c_p_m_d_c_method_info>`
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	#include <cpmdc.h>
+	
+	struct CPMDCMethodInfo {
+		// fields
+	
+		char :ref:`functional<doxid-struct_c_p_m_d_c_method_info_1a1e3a204d122e353efad33c87a3357c69>`[64];
+		int :ref:`charge<doxid-struct_c_p_m_d_c_method_info_1a3418c832caac302ddc2d19a678b32fc2>`;
+		int :ref:`multiplicity<doxid-struct_c_p_m_d_c_method_info_1a4d2a3418d2dcdb2f64f882e89717d489>`;
+	};
+.. _details-struct_c_p_m_d_c_method_info:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Effective scalar method settings decoded from ``CPMDParams``.
+
+Structured section values take precedence over top-level values, as they do when rendering the CPMD input deck.
+
+Fields
+------
+
+.. index:: pair: variable; functional
+.. _doxid-struct_c_p_m_d_c_method_info_1a1e3a204d122e353efad33c87a3357c69:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	char functional[64]
+
+Effective DFT functional, null-terminated.
+
+.. index:: pair: variable; charge
+.. _doxid-struct_c_p_m_d_c_method_info_1a3418c832caac302ddc2d19a678b32fc2:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int charge
+
+Effective total system charge.
+
+.. index:: pair: variable; multiplicity
+.. _doxid-struct_c_p_m_d_c_method_info_1a4d2a3418d2dcdb2f64f882e89717d489:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int multiplicity
+
+Effective spin multiplicity, ``2S + 1``.
+

@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -416,7 +419,32 @@ mixed-precision build, and the 1e-10 agreement below holds only for <code class=
 </section>
 <section id="set-up-a-run">
 <h2>Set up a run<a class="headerlink" href="#set-up-a-run" title="Link to this heading">¶</a></h2>
-<p>The QM group is an index group; <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmmethod</span> <span class="pre">=</span> <span class="pre">INPUT</span></code> makes grompp take
+<p>The QM group is an index group.
+For GROMACS to generate its normal CP2K input, select the same functional,
+charge, and multiplicity as the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">qmmm-cp2k-active      = true
+</span><span data-line="2">qmmm-cp2k-qmgroup     = QM
+</span><span data-line="3">qmmm-cp2k-qmmethod    = BLYP
+</span><span data-line="4">qmmm-cp2k-qmcharge    = 0
+</span><span data-line="5">qmmm-cp2k-qmmultiplicity = 1
+</span></pre></div>
+</div>
+<p>Build the <code class="docutils literal notranslate"><span class="pre">.tpr</span></code> from the <code class="docutils literal notranslate"><span class="pre">.mdp</span></code>, then name the message when running it:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">gmx_d<span class="w"> </span>grompp<span class="w"> </span>-f<span class="w"> </span>md.mdp<span class="w"> </span>-c<span class="w"> </span>conf.gro<span class="w"> </span>-p<span class="w"> </span>topol.top<span class="w"> </span>-n<span class="w"> </span>index.ndx<span class="w"> </span>-o<span class="w"> </span>md.tpr
+</span><span data-line="2"><span class="nv">CPMDC_GROMACS_PARAMS</span><span class="o">=</span>water.params.bin<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>gmx_d<span class="w"> </span>mdrun<span class="w"> </span>-deffnm<span class="w"> </span>md<span class="w"> </span>-ntmpi<span class="w"> </span><span class="m">1</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PBE</span></code> works in place of <code class="docutils literal notranslate"><span class="pre">BLYP</span></code> when the deck’s effective functional is
+<code class="docutils literal notranslate"><span class="pre">PBE</span></code>.
+The library refuses a disagreement in the functional, charge, or
+multiplicity instead of replacing the deck value.</p>
+<p>GROMACS writes zero, not the original topology charge, for every QM atom in
+its generated PDB.
+A generated run with charged MM atoms therefore cannot obtain the
+<code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code> needed for mechanical embedding and is refused.
+Use the explicit route below for that case.</p>
+<p>The explicit route sets <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmmethod</span> <span class="pre">=</span> <span class="pre">INPUT</span></code> and makes grompp take
 the cpmdc settings from the file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code>:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">qmmm-cp2k-active      = true
 </span><span data-line="2">qmmm-cp2k-qmgroup     = QM
@@ -438,12 +466,14 @@ the cpmdc settings from the file of <code class="docutils literal notranslate"><
 </div>
 <p>The file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code> holds a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside
 <code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code>: <code class="docutils literal notranslate"><span class="pre">PARAMS</span></code> names the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message, <code class="docutils literal notranslate"><span class="pre">CELL</span></code> and <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span></code> choose the cell and the QM-MM Coulomb term, <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>
-gives the QM atoms’ classical charges, and <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span></code> the ranks of an MPI
-GROMACS.
+gives the QM atoms’ classical charges, <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> scales the mechanical-embedding
+QM-MM Coulomb term when <code class="docutils literal notranslate"><span class="pre">.mdp</span></code> sets <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> other than 1 (because GROMACS’
+CP2K module does not forward <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> to <code class="docutils literal notranslate"><span class="pre">libcp2k</span></code>), and <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span></code> sets the
+ranks of an MPI GROMACS.
 The <a class="reference internal" href="../reference/gromacs.html"><span class="doc">reference</span></a> lists every key and what the
 library writes to <code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code>.
-GROMACS’ own generated input (<code class="docutils literal notranslate"><span class="pre">qmmethod</span> <span class="pre">=</span> <span class="pre">PBE</span></code> or <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>) has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code>
-section and is refused.</p>
+An explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section takes precedence over
+<code class="docutils literal notranslate"><span class="pre">CPMDC_GROMACS_PARAMS</span></code>.</p>
 </section>
 <section id="pressure-and-npt">
 <h2>Pressure and NPT<a class="headerlink" href="#pressure-and-npt" title="Link to this heading">¶</a></h2>

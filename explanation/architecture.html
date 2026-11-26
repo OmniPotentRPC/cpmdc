@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -382,11 +385,15 @@ library.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_memfd.c</span></code>, <code class="docutils literal notranslate"><span class="pre">src/cpmd_stop_intercept.c</span></code></p></td>
 <td><p>the in-memory deck file and working-directory switch; the <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> catch</p></td>
 </tr>
-<tr class="row-even"><td><p>Discovery</p></td>
+<tr class="row-even"><td><p>Host helpers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_embed_host.c</span></code>, declared in <code class="docutils literal notranslate"><span class="pre">src/cpmdc_embed_host.h</span></code></p></td>
+<td><p>the pseudopotential directory (<code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>, else <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code>) and the map that returns species-block gradients to atom order; the same header declares the working-directory switch of <code class="docutils literal notranslate"><span class="pre">src/cpmdc_memfd.c</span></code>, which enters the pseudopotential directory while CPMD reads the files and returns to the host directory, and the note of an embed failure for the C result path, which <code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code> defines</p></td>
+</tr>
+<tr class="row-odd"><td><p>Discovery</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_features.c</span></code>, <code class="docutils literal notranslate"><span class="pre">src/cpmdc_capabilities.c</span></code></p></td>
 <td><p>the feature table and the <code class="docutils literal notranslate"><span class="pre">Capabilities</span></code> message</p></td>
 </tr>
-<tr class="row-odd"><td><p>Stub</p></td>
+<tr class="row-even"><td><p>Stub</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_stub.c</span></code></p></td>
 <td><p>the same symbols for link checks; calls that need OpenCPMD fail, and <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> still returns the calculator index when MPI is linked</p></td>
 </tr>

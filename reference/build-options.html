@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -480,29 +483,47 @@ These suites group the tests of the default build by layer.
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stub</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">tests/test_stub_abi.c</span></code>, and when MPI is found <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code>, which run on four ranks</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">stub-abi</span></code>, <code class="docutils literal notranslate"><span class="pre">capabilities-cmocka</span></code>, <code class="docutils literal notranslate"><span class="pre">stub-abi-symbol-coverage</span></code>, and when MPI is found <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code> on four ranks</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">abi</span></code></p></td>
-<td><p>exported header and feature-discovery surface</p></td>
+<td><p>exported header, symbol-table, baseline, and feature-discovery checks</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cmocka</span></code>, <code class="docutils literal notranslate"><span class="pre">capnp</span></code></p></td>
-<td><p>structured <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck rendering</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cmocka</span></code>, <code class="docutils literal notranslate"><span class="pre">capnp</span></code>, <code class="docutils literal notranslate"><span class="pre">capnp-fortran</span></code></p></td>
+<td><p>structured <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck rendering, Fortran bridge application, and cmocka unit checks</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">inventory</span></code></p></td>
-<td><p>schema field coverage and CPMD catalog feature IDs</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">inventory</span></code>, <code class="docutils literal notranslate"><span class="pre">schema</span></code></p></td>
+<td><p>schema sync, field coverage, token fidelity, and CPMD catalog feature IDs</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code></p></td>
+<td><p>every registered test: Meson adds the project name as a suite to each test, so <code class="docutils literal notranslate"><span class="pre">--suite</span> <span class="pre">cpmdc</span></code> runs the whole default build, and <code class="docutils literal notranslate"><span class="pre">geometry-rmsd</span></code>, <code class="docutils literal notranslate"><span class="pre">warm-selector</span></code>, and <code class="docutils literal notranslate"><span class="pre">warm-selector-abi</span></code> belong to no other suite</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> sizing and session <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> buffer contract</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">e2e</span></code></p></td>
-<td><p>one-shot and session calls through the deterministic reference evaluator</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">embed</span></code>, <code class="docutils literal notranslate"><span class="pre">dlopen</span></code>, <code class="docutils literal notranslate"><span class="pre">mpi</span></code></p></td>
+<td><p>Fortran embed shell, <code class="docutils literal notranslate"><span class="pre">dlopen</span></code> ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
-<td><p>the documentation examples and the reference contract</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">e2e</span></code>, <code class="docutils literal notranslate"><span class="pre">fd-check</span></code></p></td>
+<td><p>one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">python</span></code></p></td>
+<td><p>Python bindings, <code class="docutils literal notranslate"><span class="pre">pytest</span></code> suite, <code class="docutils literal notranslate"><span class="pre">mypy</span></code> strict check (skips without <code class="docutils literal notranslate"><span class="pre">mypy</span></code>), and Python reference audit</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">restart</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code> binary <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> reader/writer and header macro checks</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">packaging</span></code></p></td>
+<td><p>installed <code class="docutils literal notranslate"><span class="pre">RUNPATH</span></code>, relocatable <code class="docutils literal notranslate"><span class="pre">pkg-config</span></code> layouts, and CMake/pkg-config consumer build</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code>, <code class="docutils literal notranslate"><span class="pre">examples</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">example-host-step</span></code>, runnable documentation blocks, <code class="docutils literal notranslate"><span class="pre">llms.txt</span></code> freshness, and API reference contracts</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>Opt-in options add <code class="docutils literal notranslate"><span class="pre">restart-con</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_readcon=true</span></code>), <code class="docutils literal notranslate"><span class="pre">pwscale</span></code>
+(<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>), and <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> plus <code class="docutils literal notranslate"><span class="pre">water</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code> with a
+non-empty <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code>).</p>
 <p>In the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> suite, <code class="docutils literal notranslate"><span class="pre">e2e-single-point</span></code> runs <code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code> and
 <code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code> on one <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>.
 <code class="docutils literal notranslate"><span class="pre">e2e-optimizer-session</span></code> runs three geometry steps on one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, the

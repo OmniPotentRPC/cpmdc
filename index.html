@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -404,49 +407,73 @@ composition requires a new session.</p>
 <td><p>Pass a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file through <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code></p></td>
 <td><p><a class="reference internal" href="tutorials/eon-rgpot.html"><span class="doc">eOn through rgpot</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Build and test the project</p></td>
-<td><p>Run the default Meson suite and learn what it covers</p></td>
-<td><p><a class="reference internal" href="howto/quickstart.html"><span class="doc">Build and test cpmdc</span></a> and <a class="reference internal" href="howto/install.html"><span class="doc">Install and build</span></a></p></td>
+<tr class="row-odd"><td><p>Build and test a checkout</p></td>
+<td><p>Run the default Meson suite and pick focused tests in the work loop</p></td>
+<td><p><a class="reference internal" href="howto/quickstart.html"><span class="doc">Build and test cpmdc</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Link a real OpenCPMD archive</p></td>
-<td><p>Apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and build with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code></p></td>
+<tr class="row-even"><td><p>Install the library or Python package</p></td>
+<td><p>Install dependencies, a prefix build, or the <code class="docutils literal notranslate"><span class="pre">cpmdc[ase]</span></code> wheel</p></td>
+<td><p><a class="reference internal" href="howto/install.html"><span class="doc">Install and build</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Link a real OpenCPMD archive</p></td>
+<td><p>Apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and build with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> and <code class="docutils literal notranslate"><span class="pre">-march=x86-64</span></code> or <code class="docutils literal notranslate"><span class="pre">-march=armv8-a</span></code></p></td>
 <td><p><a class="reference internal" href="howto/opencpmd-archive.html"><span class="doc">OpenCPMD archive</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Turn a CPMD deck into a message</p></td>
+<tr class="row-even"><td><p>Turn a CPMD deck into a message</p></td>
 <td><p>Pick typed section fields before raw deck text</p></td>
 <td><p><a class="reference internal" href="howto/write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Run cpmdc under i-PI or an ASE socket calculator</p></td>
-<td><p>Use the rgpot frontend after its documented CPMD command gaps close; the cpmdc drivers remain transitional</p></td>
-<td><p><a class="reference internal" href="howto/socket-drivers.html"><span class="doc">i-PI frontend status and transitional commands</span></a></p></td>
+<tr class="row-odd"><td><p>Call cpmdc from a C or Fortran host process</p></td>
+<td><p>Choose the API path first; new hosts usually want <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
+<td><p><a class="reference internal" href="howto/embedding.html"><span class="doc">Embedding cpmdc</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Run LAMMPS on cpmdc forces</p></td>
+<tr class="row-even"><td><p>Call cpmdc from Python without ASE</p></td>
+<td><p>Drive <code class="docutils literal notranslate"><span class="pre">Session</span></code> or an in-process <code class="docutils literal notranslate"><span class="pre">Potential</span></code> directly from NumPy arrays</p></td>
+<td><p><a class="reference internal" href="howto/python.html"><span class="doc">Call cpmdc from Python</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Run cpmdc under i-PI or an ASE socket calculator</p></td>
+<td><p>Run <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> when the rgpot build has the RPC stack (<code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code>, with <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code>); <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks</p></td>
+<td><p><a class="reference internal" href="howto/socket-drivers.html"><span class="doc">Drive cpmdc over the i-PI socket protocol</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Run LAMMPS on cpmdc forces</p></td>
 <td><p>Attach <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> from Python, or load <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code> from the plugin</p></td>
 <td><p><a class="reference internal" href="howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Run GROMACS on cpmdc forces</p></td>
+<tr class="row-odd"><td><p>Run GROMACS on cpmdc forces</p></td>
 <td><p>Link <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> into GROMACS’ CP2K QM/MM interface, for a QM group or the whole system</p></td>
 <td><p><a class="reference internal" href="howto/gromacs.html"><span class="doc">Run GROMACS on cpmdc forces</span></a></p></td>
-</tr>
-<tr class="row-odd"><td><p>Call cpmdc from a host process</p></td>
-<td><p>Choose the API path first; new hosts usually want <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
-<td><p><a class="reference internal" href="howto/embedding.html"><span class="doc">Embedding cpmdc</span></a> and <a class="reference internal" href="reference/c-abi.html"><span class="doc">C ABI reference</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p>Run on many ranks</p></td>
 <td><p>Bind calculator groups and share the parent rank’s result</p></td>
 <td><p><a class="reference internal" href="howto/mpi.html"><span class="doc">Run under mpirun</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Find out why a call failed or an energy is off</p></td>
-<td><p>Write the deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code></p></td>
+<tr class="row-odd"><td><p>Tune SCF convergence in <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code></p></td>
+<td><p>Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps</p></td>
+<td><p><a class="reference internal" href="howto/wavefunction-optimiser.html"><span class="doc">Choose a wavefunction optimiser</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Extrapolate orbitals across trajectory steps</p></td>
+<td><p>Seed each SCF from recent step orbitals with ASPC</p></td>
+<td><p><a class="reference internal" href="howto/extrapolate-orbitals.html"><span class="doc">Extrapolate orbitals between steps</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Inspect the rendered CPMD <code class="docutils literal notranslate"><span class="pre">INPUT</span></code> deck</p></td>
+<td><p>Capture the generated deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> and compare sections</p></td>
+<td><p><a class="reference internal" href="howto/debug-deck.html"><span class="doc">Inspect the rendered CPMD deck</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Verify forces and stress numerically</p></td>
+<td><p>Compare analytic forces and stress against central finite differences</p></td>
+<td><p><a class="reference internal" href="howto/check-forces.html"><span class="doc">Check forces and stress by finite differences</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Benchmark MPI rank scaling for a grid</p></td>
+<td><p>Measure 3D FFT scaling with the opt-in <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> scaffold</p></td>
+<td><p><a class="reference internal" href="howto/pwscale-ranks.html"><span class="doc">Choose an MPI rank count</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Find out why a call failed or an energy is off</p></td>
+<td><p>Match common error strings and failure modes to their fixes</p></td>
 <td><p><a class="reference internal" href="howto/troubleshooting.html"><span class="doc">Troubleshooting</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Understand what happens inside a call</p></td>
+<tr class="row-odd"><td><p>Understand what happens inside a call</p></td>
 <td><p>Layers, the in-process route, orbitals between calls</p></td>
 <td><p><a class="reference internal" href="explanation/architecture.html"><span class="doc">Architecture</span></a></p></td>
-</tr>
-<tr class="row-odd"><td><p>Build OpenCPMD for more than one CPU</p></td>
-<td><p>Use the PIC configure file, which passes <code class="docutils literal notranslate"><span class="pre">-march=x86-64</span></code> or <code class="docutils literal notranslate"><span class="pre">-march=armv8-a</span></code></p></td>
-<td><p><a class="reference internal" href="howto/opencpmd-archive.html"><span class="doc">OpenCPMD archive</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p>See which instruction sets cpmdc compiles for</p></td>
 <td><p>The force path has no hot kernel and nothing reads <code class="docutils literal notranslate"><span class="pre">CPMDC_SIMD</span></code></p></td>

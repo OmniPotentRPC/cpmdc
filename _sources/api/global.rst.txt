@@ -13,6 +13,7 @@ Global Namespace
 	struct_CPMDCEnergyComponents.rst
 	struct_CPMDCFeatureEntry.rst
 	struct_CPMDCMDTrajectoryRow.rst
+	struct_CPMDCMethodInfo.rst
 	struct_CPMDCMultiStateEnergies.rst
 	struct_CPMDCPropertySnapshot.rst
 	struct_CPMDCRankSpread.rst
@@ -42,6 +43,7 @@ Overview
 	typedef struct CPMDCDipole :ref:`CPMDCDipole<doxid-cpmdc_8h_1a31fdea8c4eeaeb610f7602ed106c06d5>`;
 	typedef struct CPMDCStressTensor :ref:`CPMDCStressTensor<doxid-cpmdc_8h_1ab0ed88166123b36bd5f3c01bba3400f4>`;
 	typedef struct CPMDCRankSpread :ref:`CPMDCRankSpread<doxid-cpmdc_8h_1a9da10067c6b6f8600a794799d2361dce>`;
+	typedef struct CPMDCMethodInfo :ref:`CPMDCMethodInfo<doxid-cpmdc_8h_1aa86d09bfa3f52974f5d62edce9c3eba1>`;
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
@@ -62,6 +64,7 @@ Overview
 	struct :ref:`CPMDCEnergyComponents<doxid-struct_c_p_m_d_c_energy_components>`;
 	struct :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`;
 	struct :ref:`CPMDCMDTrajectoryRow<doxid-struct_c_p_m_d_c_m_d_trajectory_row>`;
+	struct :ref:`CPMDCMethodInfo<doxid-struct_c_p_m_d_c_method_info>`;
 	struct :ref:`CPMDCMultiStateEnergies<doxid-struct_c_p_m_d_c_multi_state_energies>`;
 	struct :ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`;
 	struct :ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`;
@@ -72,6 +75,7 @@ Overview
 
 	// global functions
 
+	CPMDC_API int :ref:`cpmdc_params_method<doxid-cpmdc_8h_1a984e13cd741a7b572cb26e07dd4ed249>`(const void* params_capnp, size_t params_capnp_size_bytes, :ref:`CPMDCMethodInfo<doxid-struct_c_p_m_d_c_method_info>`* out);
 	CPMDC_API int :ref:`cpmdc_set_params<doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>`(const void* params_capnp, size_t params_capnp_size_bytes);
 	CPMDC_API int :ref:`cpmdc_configure<doxid-cpmdc_8h_1a4ead93418d798f0efa78201ee139a78e>`(const void* config_capnp, size_t config_capnp_size_bytes);
 	CPMDC_API :ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy_gradient<doxid-cpmdc_8h_1aaa45146d41dccf27daee54e9ea5855d1>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* grad_h_bohr);
@@ -290,6 +294,18 @@ How far the ranks of one calculator were from its rank 0.
 
 Written by an evaluation that ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI. The differences are taken before every rank receives rank 0's energy and gradient. A NaN difference is reported as infinity. Both are 0 when every rank held the same values.
 
+.. index:: pair: typedef; CPMDCMethodInfo
+.. _doxid-cpmdc_8h_1aa86d09bfa3f52974f5d62edce9c3eba1:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCMethodInfo CPMDCMethodInfo
+
+Effective scalar method settings decoded from ``CPMDParams``.
+
+Structured section values take precedence over top-level values, as they do when rendering the CPMD input deck.
+
 .. index:: pair: typedef; CPMDCSession
 .. _doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239:
 
@@ -376,6 +392,24 @@ Kept for code written against 0.4.0; new code names :ref:`CPMDCRestart <doxid-cp
 
 Global Functions
 ----------------
+
+.. index:: pair: function; cpmdc_params_method
+.. _doxid-cpmdc_8h_1a984e13cd741a7b572cb26e07dd4ed249:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API int cpmdc_params_method(const void* params_capnp, size_t params_capnp_size_bytes, :ref:`CPMDCMethodInfo<doxid-struct_c_p_m_d_c_method_info>`* out)
+
+Decode the effective functional, charge, and multiplicity.
+
+This validates and reads the message without applying it or initializing OpenCPMD.
+
+
+
+.. rubric:: Returns:
+
+0 on success, -1 on a null output or an invalid message. Failure text is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```.
 
 .. index:: pair: function; cpmdc_set_params
 .. _doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12:
@@ -816,7 +850,7 @@ Compiled library version string: ``cpmdc/`` followed by the version, or ``cpmdc-
 
 Diagnostic for the most recent public call on this thread that reports failure through this string.
 
-Written by ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a4ead93418d798f0efa78201ee139a78e>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a1d186f78a2871edca68f954e3cdd1055>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1a3248bc3610324ebe2d7709f1b6e1c212>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1ab23467cf922312d417497493f78b93ad>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a98afe31cb8ae1b9e2c53d80c2ffabd42>```, ``:ref:`cpmdc_session_set_constant_cutoff() <doxid-cpmdc_8h_1aeeea42852294c2c9de4d1958de04ee84>```, ``:ref:`cpmdc_session_select_orbitals() <doxid-cpmdc_8h_1a23e2405fce3175f46695bdb6030b05e4>```, ``:ref:`cpmdc_session_copy_orbitals() <doxid-cpmdc_8h_1a585f05a2f8a6a2a62994e841c1cab573>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a85d433de4dee32e3a3cec05587b3448d>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1aa75a9ff4660e780e32a8fcca0d57074d>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1aaa45146d41dccf27daee54e9ea5855d1>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1a61e3c6a4a0da4621b9d71778b330570f>```, the session variants, ``:ref:`cpmdc_session_calculate_au() <doxid-cpmdc_8h_1a091584d601b5f5d8a5586278921f507c>```, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
+Written by ``:ref:`cpmdc_params_method() <doxid-cpmdc_8h_1a984e13cd741a7b572cb26e07dd4ed249>```, ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a4ead93418d798f0efa78201ee139a78e>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a1d186f78a2871edca68f954e3cdd1055>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1a3248bc3610324ebe2d7709f1b6e1c212>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1ab23467cf922312d417497493f78b93ad>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a98afe31cb8ae1b9e2c53d80c2ffabd42>```, ``:ref:`cpmdc_session_set_constant_cutoff() <doxid-cpmdc_8h_1aeeea42852294c2c9de4d1958de04ee84>```, ``:ref:`cpmdc_session_select_orbitals() <doxid-cpmdc_8h_1a23e2405fce3175f46695bdb6030b05e4>```, ``:ref:`cpmdc_session_copy_orbitals() <doxid-cpmdc_8h_1a585f05a2f8a6a2a62994e841c1cab573>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a85d433de4dee32e3a3cec05587b3448d>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1aa75a9ff4660e780e32a8fcca0d57074d>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1aaa45146d41dccf27daee54e9ea5855d1>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1a61e3c6a4a0da4621b9d71778b330570f>```, the session variants, ``:ref:`cpmdc_session_calculate_au() <doxid-cpmdc_8h_1a091584d601b5f5d8a5586278921f507c>```, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
 
 Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_adopted_comm() <doxid-cpmdc_8h_1a877e3fb355229e5305acd8d113bec1af>``` and ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a34fb88fb7ba45f57249e29346ffb5d32>``` do not write it either. A capabilities return of -1 is the size query.
 

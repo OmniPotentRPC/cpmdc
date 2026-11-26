@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -600,23 +603,27 @@ decide which <code class="docutils literal notranslate"><span class="pre">libcpm
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMDC_ENGINE</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMD_ENGINE</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_GROMACS_PARAMS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message used when GROMACS generated <code class="docutils literal notranslate"><span class="pre">md_cp2k.inp</span></code> from an <code class="docutils literal notranslate"><span class="pre">.mdp</span></code> and <code class="docutils literal notranslate"><span class="pre">.tpr</span></code> without an explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section; its functional, charge, and multiplicity must match the generated input</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMDC_ENGINE</span></code>, <code class="docutils literal notranslate"><span class="pre">RGPOT_CPMD_ENGINE</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">rgpot</span></code> <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> and <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code></p></td>
 <td><p>path of the <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> to <code class="docutils literal notranslate"><span class="pre">dlopen</span></code>, tried in that order after an explicit engine path</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PARAMS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PARAMS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">examples/python/ase_energy.py</span></code></p></td>
 <td><p>encoded <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> the example reads; the <a class="reference internal" href="../tutorials/ase-energy.html"><span class="doc">ASE tutorial</span></a> sets it</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCHEMA</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCHEMA</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code> <code class="docutils literal notranslate"><span class="pre">find_schema</span></code></p></td>
 <td><p>path of <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code> for encoding <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> text; a cell needs no schema, because the package encodes <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> itself</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RGPOT_PARAMS_PATH</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">RGPOT_PARAMS_PATH</span></code></p></td>
 <td><p>eOn <code class="docutils literal notranslate"><span class="pre">RgpotPot</span></code> builds that read <code class="docutils literal notranslate"><span class="pre">params_path</span></code></p></td>
 <td><p>overrides <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code></p></td>
 <td><p>OpenMP runtime</p></td>
 <td><p>threads per rank inside CPMD when OpenCPMD was built with OpenMP</p></td>
 </tr>

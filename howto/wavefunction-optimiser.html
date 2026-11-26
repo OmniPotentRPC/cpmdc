@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -383,7 +386,9 @@ minimisation that costs about two energy evaluations per step.</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">odiisVectors</span> <span class="pre">=</span> <span class="pre">10</span></code> renders <code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> followed by <code class="docutils literal notranslate"><span class="pre">10</span></code> on the next line.
 With no optimiser keyword at all, OpenCPMD 4.3 also uses preconditioned DIIS
-with 10 vectors; its output then reads <code class="docutils literal notranslate"><span class="pre">WAVEFUNCTION</span> <span class="pre">OPTIMIZATION</span> <span class="pre">BY</span> <span class="pre">PRECONDITIONED</span> <span class="pre">DIIS</span></code> and <code class="docutils literal notranslate"><span class="pre">MAXIMUM</span> <span class="pre">NUMBER</span> <span class="pre">OF</span> <span class="pre">VECTORS</span> <span class="pre">RETAINED</span> <span class="pre">FOR</span> <span class="pre">DIIS:</span> <span class="pre">10</span></code>.
+with 10 vectors; its output then reads
+<code class="docutils literal notranslate"><span class="pre">WAVEFUNCTION</span> <span class="pre">OPTIMIZATION</span> <span class="pre">BY</span> <span class="pre">PRECONDITIONED</span> <span class="pre">DIIS</span></code> and
+<code class="docutils literal notranslate"><span class="pre">MAXIMUM</span> <span class="pre">NUMBER</span> <span class="pre">OF</span> <span class="pre">VECTORS</span> <span class="pre">RETAINED</span> <span class="pre">FOR</span> <span class="pre">DIIS:</span> <span class="pre">10</span></code>.
 Writing <code class="docutils literal notranslate"><span class="pre">odiisVectors</span></code> keeps the choice visible in the message.
 <code class="docutils literal notranslate"><span class="pre">odiis</span> <span class="pre">=</span> <span class="pre">true</span></code> renders a bare <code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> with CPMD’s default vector count, and
 <code class="docutils literal notranslate"><span class="pre">odiisOptions</span></code> adds inline options such as <code class="docutils literal notranslate"><span class="pre">NOPREC</span></code>.

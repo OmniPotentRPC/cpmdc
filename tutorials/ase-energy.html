@@ -168,6 +168,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMethodInfo.html">struct CPMDCMethodInfo</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
 </ul>
 </li>
@@ -320,13 +323,17 @@ data-aria-dark="Switch to auto color mode">
 <h1>An energy and forces from ASE<a class="headerlink" href="#an-energy-and-forces-from-ase" title="Link to this heading">¶</a></h1>
 <section id="run-the-example">
 <h2>Run the example<a class="headerlink" href="#run-the-example" title="Link to this heading">¶</a></h2>
-<p>This lesson evaluates the water geometry of the
-<a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a> with the ASE calculator.
-The default build’s reference well supplies the number.
+<p>This lesson evaluates the same internal water geometry as the
+<a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a>, placed near the origin rather than
+at <code class="docutils literal notranslate"><span class="pre">(5,</span> <span class="pre">5,</span> <span class="pre">5)</span></code>, with the ASE calculator.
+The default build’s origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.</p>
-<p>Configure and compile the default tree with <code class="docutils literal notranslate"><span class="pre">-Dwith_tests=true</span></code>, as the
+<p>Build and test the default tree with <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-stub</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">build</span> <span class="pre">-Dwith_tests=true</span></code> followed by <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span></code> or
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">compile</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">cpmdc</span> <span class="pre">water_params_bin</span></code>), as the
 <a class="reference internal" href="../howto/quickstart.html"><span class="doc">build-and-test how-to</span></a> does.
-The build writes the shared library and the encoded water message
+Plain <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">compile</span> <span class="pre">-C</span> <span class="pre">build</span></code> compiles <code class="docutils literal notranslate"><span class="pre">build/libcpmdc.so</span></code> while the test run
+or <code class="docutils literal notranslate"><span class="pre">water_params_bin</span></code> target writes the encoded water message
 <code class="docutils literal notranslate"><span class="pre">build/water_blyp_params.bin</span></code>.
 Point the example at both from the root of the checkout:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">CPMDC_PARAMS</span><span class="o">=</span>build/water_blyp_params.bin
@@ -353,7 +360,9 @@ neither does <code class="docutils literal notranslate"><span class="pre">get_fo
 <code class="docutils literal notranslate"><span class="pre">get_forces</span></code> returns an array of shape <code class="docutils literal notranslate"><span class="pre">(natoms,</span> <span class="pre">3)</span></code>.
 Change a position and the next call computes again on the same session, which a
 relaxation with <code class="docutils literal notranslate"><span class="pre">BFGS</span></code> and <code class="docutils literal notranslate"><span class="pre">FixAtoms</span></code> relies on.
-<code class="docutils literal notranslate"><span class="pre">energy</span></code> is in eV and <code class="docutils literal notranslate"><span class="pre">forces</span></code> in eV/Angstrom, the units of <code class="docutils literal notranslate"><span class="pre">ase.units</span></code>.
+<code class="docutils literal notranslate"><span class="pre">energy</span></code> is in eV and <code class="docutils literal notranslate"><span class="pre">forces</span></code> in eV/Angstrom, matching ASE’s unit system and
+converted from Hartree and Bohr with <code class="docutils literal notranslate"><span class="pre">cpmdc.HARTREE_TO_EV</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cpmdc.BOHR_TO_ANGSTROM</span></code> (CODATA 2018).
 <code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_conformance.py</span></code> checks those units, the cache, and the
 errors of the calculator with ASE’s own tools, against the same reference well.
 <a class="reference internal" href="../howto/ase.html"><span class="doc">Use cpmdc as an ASE calculator</span></a> lists every property,
