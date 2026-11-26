@@ -23,9 +23,14 @@ the byte layout of i-PI's ``ipi/interfaces/sockets.py`` and
 
 The extra string is ``{"dipole":[x,y,z]}``, the molecular dipole in
 electron Bohr, when the library recomputed a finite dipole for the step,
-and empty otherwise. i-PI's ``parse_extra`` (``ipi/interfaces/utils.py``)
-decodes that JSON, and its atomic unit of ``electric-dipole`` is electron
-Bohr. ASE's ``SocketIOCalculator`` reads the bytes and ignores them.
+and empty otherwise. Each finite component is printed with 16 digits
+after the decimal in scientific notation, the same bytes ``cpmdc-ipi-c``
+prints, so a binary64 value round-trips. i-PI's ``parse_extra``
+(``ipi/interfaces/utils.py``) decodes that JSON, and its atomic unit of
+``electric-dipole`` is electron Bohr. A missing dipole is not replaced
+with zeros. A dipole that is not three finite components stops the driver
+before that step is counted. ASE's ``SocketIOCalculator`` reads the bytes
+and ignores them.
 
 Every quantity on the wire is in atomic units: Bohr, Hartree, Hartree/Bohr.
 The library computes in those units, so the driver passes them through. A
@@ -45,7 +50,6 @@ sees the trajectory in order.
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
 import re
@@ -170,6 +174,29 @@ def _batch_size(init: bytes) -> int:
     return 1 if found is None else found
 
 
+def _dipole_extra(dipole: Sequence[float] | None) -> bytes:
+    """UTF-8 JSON for one molecular dipole, or empty when there is none.
+
+    Components are electron Bohr. A finite value is written with 16 digits
+    after the decimal in scientific notation, the same text
+    ``cpmdc_ipi_format_dipole`` prints. That width is the serialization, not
+    an acceptance tolerance. ``None`` is an empty extra string: the library
+    did not recompute a dipole, and a zero dipole is not invented in its place.
+    """
+    if dipole is None:
+        return b""
+    try:
+        values = [float(component) for component in dipole]
+    except (TypeError, ValueError) as exc:
+        raise CPMDCError("dipole is not finite") from exc
+    if len(values) != 3:
+        raise CPMDCError("dipole must have three components")
+    if not all(map(math.isfinite, values)):
+        raise CPMDCError("dipole is not finite")
+    text = ",".join(format(component, ".16e") for component in values)
+    return f'{{"dipole":[{text}]}}'.encode("ascii")
+
+
 class _Wire:
     def __init__(self, sock: socket.socket) -> None:
         self.sock = sock
@@ -246,7 +273,6 @@ class Driver:
         self.steps = 0
         self._log = log
         self._warned_virial = False
-        self._warned_dipole = False
         self._session = Session(params, library=library)
 
     def _say(self, text: str) -> None:
@@ -286,37 +312,14 @@ class Driver:
         lattice vectors as columns, row-major, in Bohr; the arguments come
         in the order of :meth:`cpmdc.Session.calculate_au`, not the wire's. The result is the
         energy in Hartree, 3N forces in Hartree/Bohr, and the row-major
-        virial ``-dE/d(strain)`` in Hartree, zero for a cluster.
+        virial ``-dE/d(strain)`` in Hartree, zero for a cluster. The
+        matching ``GETFORCE`` sends ``{"dipole":[x,y,z]}`` in electron Bohr
+        when the evaluation recomputed a finite dipole, and an empty extra
+        string when it did not. A dipole that is not three finite
+        components raises :class:`CPMDCError` before the step is counted.
         """
         energy, forces, virial, _ = self._evaluate(positions, cell)
         return energy, forces, virial
-
-    def _extra(self, dipole: Sequence[float] | None) -> bytes:
-        """The FORCEREADY extra string for one dipole, or empty bytes.
-
-        i-PI's ``parse_extra`` uses ``json.loads``, which accepts ``NaN``
-        and ``Infinity``. A non-finite dipole is omitted, the same as a
-        step that computed none, so the energy, forces, and virial still
-        go out and the server does not receive a non-finite dipole.
-        """
-        if dipole is None or len(dipole) != 3:
-            return b""
-        if not all(map(math.isfinite, dipole)):
-            if not self._warned_dipole:
-                self._warned_dipole = True
-                print(
-                    "cpmdc-ipi: warning: the library returned a dipole that is not "
-                    "finite; the extra string is empty for such steps",
-                    file=sys.stderr,
-                    flush=True,
-                )
-            return b""
-        text = json.dumps(
-            {"dipole": [float(value) for value in dipole]},
-            separators=(",", ":"),
-            allow_nan=False,
-        )
-        return text.encode("ascii")
 
     def _evaluate(
         self, positions: Sequence[float], cell: Sequence[float]
@@ -354,7 +357,7 @@ class Driver:
                 file=sys.stderr,
                 flush=True,
             )
-        extra = self._extra(done.dipole_e_bohr)
+        extra = _dipole_extra(done.dipole_e_bohr)
         self.steps += 1
         return float(done.energy_h), forces, virial, extra
 
@@ -365,7 +368,8 @@ class Driver:
         like ``EXIT``: ASE's ``SocketIOCalculator.close`` does that. A
         connection closed in the middle of a message, a message out of
         order, an unknown header, or an ``INIT`` whose ``batch_size`` is
-        not the integer 1 raises :class:`ProtocolError`.
+        not the integer 1 raises :class:`ProtocolError`. ``GETFORCE``
+        appends the extra string from that step.
         """
         wire = _Wire(sock)
         initialised = False
@@ -453,7 +457,8 @@ def _parser() -> argparse.ArgumentParser:
         prog="cpmdc-ipi",
         description=(
             "Serve cpmdc energies, forces, and virials to an i-PI protocol server "
-            "(i-PI, ASE SocketIOCalculator or SocketServer) over a UNIX or TCP socket."
+            "(i-PI, ASE SocketIOCalculator or SocketServer) over a UNIX or TCP socket. "
+            "A recomputed molecular dipole is sent in the extra string."
         ),
     )
     where = parser.add_mutually_exclusive_group(required=True)

@@ -14,12 +14,17 @@
  * - POSDATA carries the cell h (lattice vectors as columns) and its inverse,
  *   nine reals each in row-major order, the atom count, and the positions;
  * - GETFORCE is answered with FORCEREADY, the energy, the atom count, the
- *   forces, the virial laid out as the cell, and an extra string;
+ *   forces, the virial laid out as the cell, and a length-prefixed extra
+ *   string;
  * - EXIT ends the run.
  *
  * The extra string is {"dipole":[x,y,z]}, the molecular dipole in electron
  * Bohr, when the library recomputed a finite dipole for the step, and empty
- * otherwise. i-PI's parse_extra (ipi/interfaces/utils.py) decodes it.
+ * otherwise. Each finite component is printed with %.16e in the C numeric
+ * locale, the same text as Python format(value, ".16e"). A missing dipole
+ * is not replaced with zeros. A non-finite dipole stops the client before
+ * the step is counted. i-PI's parse_extra (ipi/interfaces/utils.py) decodes
+ * the JSON.
  *
  * Everything on the wire is atomic units, which the library takes and
  * returns, so nothing is converted. The virial is -dE/d(strain) in Hartree.
@@ -32,9 +37,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 #include "cpmdc_cell_rank.h"
+#include "ipi_extra.h"
 
 #include <errno.h>
-#include <locale.h>
 #include <math.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -451,12 +456,11 @@ struct driver {
   int natoms;
   int cluster;
   int warned_virial;
-  int warned_dipole;
   long steps;
   double *forces;
   double energy;
   double virial[9];
-  char extra[128];
+  char extra[CPMDC_IPI_DIPOLE_EXTRA_CAP];
   int32_t extra_len;
 };
 
@@ -501,43 +505,6 @@ static int cell_rows(const struct driver *d, const double *h, double *rows,
   return 0;
 }
 
-/* A finite dipole is {"dipole":[x,y,z]} in electron Bohr. i-PI's
- * parse_extra uses json.loads, which accepts NaN and Infinity, so a
- * non-finite dipole is left out: an empty extra is no dipole, and the
- * energy, forces, and virial of the step are still sent. %.17g is printed
- * in the C numeric locale so the decimal mark is a dot. */
-static void dipole_extra(struct driver *d) {
-  CPMDCDipole dipole;
-  locale_t c_locale;
-  locale_t previous;
-  int n;
-  memset(&dipole, 0, sizeof(dipole));
-  d->extra_len = 0;
-  if (cpmdc_session_last_dipole(d->session, &dipole) != 0 || !dipole.valid)
-    return;
-  for (int i = 0; i < 3; ++i)
-    if (!isfinite(dipole.values[i])) {
-      if (!d->warned_dipole) {
-        d->warned_dipole = 1;
-        fprintf(stderr, PROG ": warning: the library returned a dipole that "
-                        "is not finite; the extra string is empty for such "
-                        "steps\n");
-      }
-      return;
-    }
-  c_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
-  if (!c_locale)
-    return;
-  previous = uselocale(c_locale);
-  n = snprintf(d->extra, sizeof(d->extra),
-               "{\"dipole\":[%.17g,%.17g,%.17g]}", dipole.values[0],
-               dipole.values[1], dipole.values[2]);
-  uselocale(previous);
-  freelocale(c_locale);
-  if (n > 0 && (size_t)n < sizeof(d->extra))
-    d->extra_len = (int32_t)n;
-}
-
 static int compute(struct driver *d, const double *h, const double *positions) {
   double rows[9];
   int periodic = 0;
@@ -555,6 +522,18 @@ static int compute(struct driver *d, const double *h, const double *positions) {
     const char *why = cpmdc_last_error();
     return fail("%s", why && *why ? why : "evaluation failed");
   }
+  d->extra_len = 0;
+  {
+    CPMDCDipole dipole;
+    int32_t extra_len = 0;
+    memset(&dipole, 0, sizeof(dipole));
+    if (cpmdc_session_last_dipole(d->session, &dipole) == 0 && dipole.valid) {
+      if (cpmdc_ipi_format_dipole(dipole.valid, dipole.values, d->extra,
+                                  sizeof(d->extra), &extra_len) != 0)
+        return fail("dipole is not finite");
+      d->extra_len = extra_len;
+    }
+  }
   if (periodic && !d->warned_virial) {
     CPMDCStressTensor stress;
     memset(&stress, 0, sizeof(stress));
@@ -565,16 +544,16 @@ static int compute(struct driver *d, const double *h, const double *positions) {
                       "virial sent is zero\n");
     }
   }
-  dipole_extra(d);
   d->steps += 1;
   return 0;
 }
 
 static int send_forces(int fd, const struct driver *d) {
   size_t n3 = 3u * (size_t)d->natoms;
+  size_t extra_bytes = d->extra_len > 0 ? (size_t)d->extra_len : 0;
   size_t size = HEADER_BYTES + sizeof(double) + sizeof(int32_t) +
                 n3 * sizeof(double) + 9 * sizeof(double) + sizeof(int32_t) +
-                (size_t)d->extra_len;
+                extra_bytes;
   unsigned char *buf = (unsigned char *)malloc(size);
   if (!buf)
     return fail("out of memory");
@@ -594,9 +573,11 @@ static int send_forces(int fd, const struct driver *d) {
       memcpy(p, &d->virial[3 * j + i], sizeof(double));
       p += sizeof(double);
     }
-  memcpy(p, &d->extra_len, sizeof(d->extra_len));
-  p += sizeof(d->extra_len);
-  memcpy(p, d->extra, (size_t)d->extra_len);
+  int32_t extra = d->extra_len > 0 ? d->extra_len : 0;
+  memcpy(p, &extra, sizeof(extra));
+  p += sizeof(extra);
+  if (extra_bytes > 0)
+    memcpy(p, d->extra, extra_bytes);
   int rc = send_all(fd, buf, size);
   free(buf);
   if (rc == 0)
@@ -727,6 +708,7 @@ static void usage(FILE *to) {
           "Serve cpmdc energies, forces, and virials to an i-PI protocol "
           "server (i-PI, ASE\n"
           "SocketIOCalculator or SocketServer) over a UNIX or TCP socket.\n"
+          "A recomputed molecular dipole is sent in the extra string.\n"
           "\n"
           "  --unix NAME         UNIX socket address, as in i-PI and ASE\n"
           "  --port PORT         TCP port of the server\n"

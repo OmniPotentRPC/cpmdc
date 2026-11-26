@@ -35,7 +35,14 @@ from conftest import INSTALLED, ROOT, WATER
 import cpmdc.ipi
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, HARTREE_TO_EV, Evaluation, Session, _elements
 from cpmdc.ase import CPMDCCalculator
-from cpmdc.ipi import Driver, ProtocolError, connect, species_numbers, unix_socket_path
+from cpmdc.ipi import (
+    Driver,
+    ProtocolError,
+    _dipole_extra,
+    connect,
+    species_numbers,
+    unix_socket_path,
+)
 
 TRICLINIC = [[9.0, 0.0, 0.0], [1.2, 8.5, 0.0], [-0.7, 0.9, 9.4]]
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
@@ -692,7 +699,6 @@ def _fixed_stress_driver(stress: list[float], dipole: list[float] | None = None)
     driver.steps = 0
     driver._log = None
     driver._warned_virial = False
-    driver._warned_dipole = False
     driver._session = _FixedStress(stress, dipole)
     return driver
 
@@ -733,7 +739,10 @@ DIPOLE_E_BOHR = [0.1, -2.5e-7, 3.0]
 def test_recomputed_dipole_is_sent_as_json_in_electron_bohr() -> None:
     driver = _fixed_stress_driver([0.0] * 9, DIPOLE_E_BOHR)
     extras = _serve_extras(driver, 2)
-    assert extras == [b'{"dipole":[0.1,-2.5e-07,3.0]}'] * 2
+    assert extras == [
+        b'{"dipole":[1.0000000000000001e-01,-2.4999999999999999e-07,'
+        b"3.0000000000000000e+00]}"
+    ] * 2
     assert json.loads(extras[0]) == {"dipole": DIPOLE_E_BOHR}
     assert driver.steps == 2
 
@@ -751,10 +760,10 @@ def test_no_recomputed_dipole_sends_an_empty_extra_string() -> None:
 
 
 def test_dipole_extra_needs_three_components() -> None:
-    driver = _fixed_stress_driver([0.0] * 9)
-    assert driver._extra([0.1, 0.2]) == b""
-    assert driver._extra([0.1, 0.2, 0.3, 0.4]) == b""
-    assert driver._warned_dipole is False
+    with pytest.raises(CPMDCError, match="dipole must have three components"):
+        _dipole_extra([0.1, 0.2])
+    with pytest.raises(CPMDCError, match="dipole must have three components"):
+        _dipole_extra([0.1, 0.2, 0.3, 0.4])
 
 
 @pytest.mark.parametrize(
@@ -762,12 +771,11 @@ def test_dipole_extra_needs_three_components() -> None:
     [[float("nan"), 0.0, 0.0], [0.0, float("inf"), 0.0], [0.0, 0.0, -float("inf")]],
     ids=["nan", "inf", "minus-inf"],
 )
-def test_non_finite_dipole_sends_an_empty_extra_string_and_warns_once(dipole, capsys) -> None:
+def test_non_finite_dipole_is_not_counted(dipole) -> None:
     driver = _fixed_stress_driver([0.0] * 9, dipole)
-    assert _serve_extras(driver, 2) == [b"", b""]
-    assert driver.steps == 2
-    err = capsys.readouterr().err
-    assert err.count("the library returned a dipole that is not finite") == 1
+    with pytest.raises(CPMDCError, match="dipole is not finite"):
+        driver.compute([0.0] * 9, [0.0] * 9)
+    assert driver.steps == 0
 
 
 def test_ase_accepts_the_dipole_extra() -> None:

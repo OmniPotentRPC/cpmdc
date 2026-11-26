@@ -83,8 +83,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.ase.UnsupportedAtoms~ | a structure the calculator cannot take: mixed ~pbc~ flags, a periodic cell of rank below 3, or a periodic cell with a volume below the normal float64 range; both ASE's ~CalculatorSetupError~ and a ~ValueError~ |
 | ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message |
 | ~cpmdc.ipi.Driver~ | ~Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)~: answer i-PI protocol requests from one ~Session~ |
-| ~Driver.compute~ | ~compute(positions, cell)~: one step from ~3N~ Bohr ~positions~ and the wire's ~cell~ ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
-| ~Driver.serve~ | ~serve(sock)~: answer a connected socket until ~EXIT~ or a closed connection; return the step count |
+| ~Driver.compute~ | ~compute(positions, cell)~: one step from ~3N~ Bohr ~positions~ and the wire's ~cell~ ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree; a finite recomputed dipole is kept for the extra string ~{"dipole":[x,y,z]}~ in electron Bohr, and a missing dipole leaves that string empty |
+| ~Driver.serve~ | ~serve(sock)~: answer a connected socket until ~EXIT~ or a closed connection; return the step count; ~GETFORCE~ sends the extra string from the matching ~compute~ |
 | ~Driver.close~ | ~close()~: close the session |
 | ~cpmdc.ipi.ProtocolError~ | a ~CPMDCError~ for a message the driver cannot answer |
 | ~cpmdc.ipi.connect~ | ~connect(*, unix=None, host='localhost', port=None, prefix=None, wait=0.0)~: open the UNIX or TCP socket to the server, retrying for ~wait~ seconds |

@@ -290,7 +290,7 @@ returns.
 | energy | Hartree | ~Evaluation.energy_h~ |
 | forces | Hartree/Bohr, ~3N~ reals | ~Evaluation.forces_h_bohr~ |
 | virial | Hartree, nine reals laid out as the cell | ~-dE/d(strain)~, the library stress times the volume in Bohr^3 |
-| extra string | ~{"dipole":[x,y,z]}~ in electron Bohr, or empty | ~Evaluation.dipole_e_bohr~ |
+| extra string | ~{"dipole":[x,y,z]}~ in electron Bohr, or empty | ~Evaluation.dipole_e_bohr~ when that step recomputed a finite dipole |
 
 The virial is what ASE's ~SocketClient~ sends as ~-volume * stress~ and what
 i-PI's ASE driver sends, so ASE's ~stress = -virial / volume~ comes back with
@@ -309,15 +309,24 @@ agree to 1e-10, which the pytest suite checks.
 - One structure per request: ~INIT~ must be UTF-8, and ~batch_size~, when
   present, must appear once with the integer value 1.
   There is no shared-memory (~mode="shm"~) transport.
-- The extra string after the virial is the JSON ~{"dipole":[x,y,z]}~ when the
-  library recomputed the molecular dipole for that step, and empty otherwise.
-  The values are electron Bohr, the atomic unit of i-PI's ~electric-dipole~, and
-  i-PI's ~parse_extra~ exposes them as ~extras["dipole"]~.
+- The extra string after the virial is empty when the library did not recompute
+  a molecular dipole.
+  A missing dipole is not replaced with zeros.
+  When every component is finite, the string is UTF-8 JSON ~{"dipole":[x,y,z]}~,
+  each value in electron Bohr with 16 digits after the decimal in scientific
+  notation and no spaces.
+  i-PI ~parse_extra~ loads that object
+  (https://github.com/i-pi/i-pi/blob/master/ipi/interfaces/utils.py), and the
+  ~dipole~ field is the electric dipole in the same atomic units as the rest of
+  the wire, as in i-PI's own dummy driver
+  (https://github.com/i-pi/i-pi/blob/master/ipi/pes/dummy.py).
   Only an OpenCPMD periodic Gamma-point deck with ~DIPOLE DYNAMICS~ or
   ~PROP / DIPOLE MOMENT BERRY~ recomputes a dipole.
-  A dipole that is NaN or infinite sends an empty extra string and warns once on
-  standard error; the energy, forces, and virial of that step are still sent.
-  ASE's ~SocketIOCalculator~ reads the extra string and ignores it.
+  ASE reads the announced extra bytes and does not interpret them
+  (https://gitlab.com/ase/ase/-/blob/master/ase/calculators/socketio.py).
+  A dipole that is not three finite components stops either driver with "dipole
+  must have three components" or "dipole is not finite" before the step is
+  counted, and no reply is sent.
 - A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver.

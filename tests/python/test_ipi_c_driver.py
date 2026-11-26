@@ -40,7 +40,7 @@ from test_ipi_driver import (  # noqa: F401  (fixtures are used by name)
 )
 
 from cpmdc import BOHR_TO_ANGSTROM
-from cpmdc.ipi import Driver
+from cpmdc.ipi import Driver, _dipole_extra
 
 
 def c_client_path() -> Path | None:
@@ -222,8 +222,8 @@ def test_recomputed_dipole_matches_python_driver(mini, socket_dir, params):
             assert re.fullmatch(rb'\{"dipole":\[[^,\]]+,[^,\]]+,[^,\]]+\]\}', extra)
             assert json.loads(extra) == {"dipole": dipole}
             assert ipi_parse_extra(extra)["dipole"] == dipole
-            python_extra = Driver._extra(Driver.__new__(Driver), dipole)
-            assert json.loads(python_extra) == json.loads(extra)
+            python_extra = _dipole_extra(dipole)
+            assert extra == python_extra
         mini.send(mini.header("EXIT"))
         code, err = client.finish()
     finally:
@@ -234,24 +234,19 @@ def test_recomputed_dipole_matches_python_driver(mini, socket_dir, params):
 @needs_dipole_shim
 @pytest.mark.parametrize("text", ["nan 0 0", "0 inf 0", "0 0 -inf"],
                          ids=["nan", "inf", "minus-inf"])
-def test_non_finite_dipole_sends_an_empty_extra_string(mini, socket_dir, params, text):
+def test_non_finite_dipole_stops_the_driver(mini, socket_dir, params, text):
     client = CClient("--unix", str(socket_dir / "s"), "--params", str(params),
                      "--species", "OHH", "--verbose", env=dipole_env(text))
     try:
         mini.accept()
         mini.status()
         mini.init()
-        for _ in range(2):
-            energy, _, _, extra = mini.step(np.zeros((3, 3)), WATER)
-            assert energy == python_step(params, np.zeros((3, 3)), WATER)[0]
-            assert extra == b""
-        mini.send(mini.header("EXIT"))
+        mini.send(mini.posdata(np.zeros((3, 3)), WATER))
         code, err = client.finish()
     finally:
         client.kill()
-    assert code == 0, err
-    assert err.count("the library returned a dipole that is not finite") == 1
-    assert "2 steps" in err
+    assert code == 1, err
+    assert "dipole is not finite" in err
 
 
 def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, drivers, opencpmd):
