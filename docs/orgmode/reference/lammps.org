@@ -88,8 +88,9 @@ pass ~W~ times the energy factor, symmetrized, as ~xx yy zz xy xz yz~.
 The pressure LAMMPS prints is then ~P = (sum m v v + W) / V~ in its pressure
 units; a compressed cell has a positive diagonal of ~W~ and a positive pressure.
 ~fix npt~ and ~fix nph~ use it as they use any pair virial.
-~compute pressure NULL virial~ reports the virial part alone, ~W / V~ in
-pressure units.
+~compute ID all pressure NULL virial~ reports the virial part alone, ~W / V~
+in pressure units.
+LAMMPS accepts only the group ~all~ for that compute.
 
 * The Python session adapter
 ~cpmdc.lammps.FixExternal~ hands ~rgpot.lammps.FixExternal~ a small potential
@@ -146,4 +147,4 @@ before the first evaluation.
 ~FixExternal~ hands LAMMPS one energy and one virial and sets no per-atom
 values, so ~compute pe/atom~ and ~compute stress/atom~ take nothing from it.
 Per-atom forces work with every compute, for example
-~compute property/atom fx fy fz~.
+~compute ID group-ID property/atom fx fy fz~.
