@@ -1,6 +1,7 @@
 #include "cpmdc_params.h"
 #include "cpmdc_cell_rank.h"
 #include "cpmdc_embed_image.h"
+#include "cpmdc_xlbomd.h"
 
 _Static_assert(offsetof(CPMDCEnergyComponents, eefield) -
                        offsetof(CPMDCEnergyComponents, etot) ==
@@ -2200,22 +2201,33 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   if ((sec->extrapolateWfnOptions.str &&
        sec->extrapolateWfnOptions.len > 0) ||
       sec->extrapolateWfnOrder > 0) {
-    if (append_text(dst, dst_size, used, " EXTRAPOLATE WFN") != 0)
+    int xl_kind =
+        xlbomd_classify(sec->extrapolateWfnOptions.str,
+                        sec->extrapolateWfnOptions.len,
+                        sec->extrapolateWfnOrder, NULL);
+    if (xl_kind < 0) {
+      g_render_reason =
+          "EXTRAPOLATE WFN XLBOMD order must be 0 or 3 through 9";
       return -1;
-    if (sec->extrapolateWfnOptions.str &&
-        sec->extrapolateWfnOptions.len > 0) {
-      if (append_text(dst, dst_size, used, " ") != 0)
+    }
+    if (xl_kind != CPMDC_WFN_EXTRAP_XLBOMD) {
+      if (append_text(dst, dst_size, used, " EXTRAPOLATE WFN") != 0)
         return -1;
-      if (append_capn_text(dst, dst_size, used,
-                           sec->extrapolateWfnOptions) != 0)
+      if (sec->extrapolateWfnOptions.str &&
+          sec->extrapolateWfnOptions.len > 0) {
+        if (append_text(dst, dst_size, used, " ") != 0)
+          return -1;
+        if (append_capn_text(dst, dst_size, used,
+                             sec->extrapolateWfnOptions) != 0)
+          return -1;
+      }
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+      if (sec->extrapolateWfnOrder > 0 &&
+          append_fmt(dst, dst_size, used, "  %d\n",
+                     sec->extrapolateWfnOrder) != 0)
         return -1;
     }
-    if (append_text(dst, dst_size, used, "\n") != 0)
-      return -1;
-    if (sec->extrapolateWfnOrder > 0 &&
-        append_fmt(dst, dst_size, used, "  %d\n",
-                   sec->extrapolateWfnOrder) != 0)
-      return -1;
   }
   if (sec->extrapolateConstraintOrder > 0) {
     if (append_fmt(dst, dst_size, used,
@@ -6045,4 +6057,43 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     return -1;
   *potential_result_size_bytes = (size_t)wrote;
   return 0;
+}
+
+int cpmdc_params_xlbomd_order(CPMDParams_ptr params, int *order) {
+  struct CPMDParams view;
+  int nsec;
+  int i;
+  int found = 0;
+  int chosen = -1;
+  if (order)
+    *order = -1;
+  read_CPMDParams(&view, params);
+  nsec = struct_list_len(&view.inputSections.p);
+  if (nsec < 0)
+    return -1;
+  for (i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    struct CPMDCpmdSection body;
+    int got = -1;
+    int kind;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which != CPMDInputSection_cpmd)
+      continue;
+    read_CPMDCpmdSection(&body, sec.cpmd);
+    kind = xlbomd_classify(body.extrapolateWfnOptions.str,
+                           body.extrapolateWfnOptions.len,
+                           body.extrapolateWfnOrder, &got);
+    if (kind < 0)
+      return -1;
+    if (kind == CPMDC_WFN_EXTRAP_XLBOMD) {
+      found = 1;
+      chosen = got;
+    } else {
+      found = 0;
+      chosen = -1;
+    }
+  }
+  if (order)
+    *order = chosen;
+  return found ? 1 : 0;
 }

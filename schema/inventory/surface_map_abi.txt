@@ -70,9 +70,15 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_session_set_params=                    | cpmdc.h          | -   | Y        |
 | =cpmdc_set_params=                            | cpmdc.h          | -   | Y        |
 | =cpmdc_version=                               | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_classify=                       | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_clear_key=                      | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_coefficients=                   | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_configured_order=               | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_observe=                        | cpmdc.h          | -   | Y        |
+| =cpmdc_xlbomd_propagate=                      | cpmdc.h          | -   | Y        |
 
 * Summary
-Public declarations: 57
-Exported cpmdc_ symbols: 57
+Public declarations: 63
+Exported cpmdc_ symbols: 63
 Other exported symbols: 0
 Parity: OK

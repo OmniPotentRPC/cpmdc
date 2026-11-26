@@ -1038,7 +1038,11 @@ The feature IDs are the stable discovery keys returned by
 | ~catalog.cpmd.DCACP~ | ~params.inputSections.cpmd.dcacp~ | ~dcacp~ | ~DCACP~ |
 
 ~EXTRAPOLATE WFN~ renders into every deck that sets ~extrapolateWfnOptions~ or
-~extrapolateWfnOrder~.
+~extrapolateWfnOrder~, except options that are exactly ~XLBOMD~.
+That token selects extended Lagrangian propagation in cpmdc, and the deck
+omits the line.
+Order 0 or 3 through 9 is accepted.
+Any other order is refused.
 ~cpmd.x~ applies it in Born-Oppenheimer molecular dynamics only.
 On the in-process route it applies to every call that starts from stored
 orbitals, when the archive carries ~tools/opencpmd_embed_extrapolate.patch~.
@@ -1049,6 +1053,7 @@ message and the check.
 |------+------------------|
 | ~ASPC~, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
 | ~POLY~ | polynomial coefficients |
+| ~XLBOMD~ | extended Lagrangian auxiliary vector in cpmdc; the deck omits the line; order 0 or 3 through 9 |
 | order | number of earlier calls in the prediction |
 | ~STORE~ | no effect, with no ~RESTART~ file from a library call |
 | ~CSTEPS~ | no effect, with converged orbitals on every call |

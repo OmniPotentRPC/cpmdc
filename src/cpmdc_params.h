@@ -150,3 +150,9 @@ const char *cpmdc_params_deck_conflict(const char *input_deck);
 int cpmdc_params_copy_output_dir(const void *params_capnp,
                                  size_t params_capnp_size_bytes, char *dst,
                                  size_t dst_cap);
+
+/* 1 and *order set when the last &CPMD section is valid XLBOMD.
+ * 0 and *order = -1 when that section is not XLBOMD.
+ * -1 when any &CPMD section names XLBOMD with an order that is not
+ * 0 or 3 through 9. */
+int cpmdc_params_xlbomd_order(CPMDParams_ptr params, int *order);

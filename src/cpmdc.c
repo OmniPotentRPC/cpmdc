@@ -2,6 +2,7 @@
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
 #include "cpmdc_adopt.h"
+#include "cpmdc_xlbomd.h"
 #include "cpmdc_cell_rank.h"
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
@@ -481,8 +482,21 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     cpmdc_store_error(msg);
     return -1;
   }
-  cpmdc_params_release(&arena);
-  *input_deck = deck;
+  {
+    int xl_order = -1;
+    int xl = cpmdc_params_xlbomd_order(root, &xl_order);
+    if (xl < 0) {
+      free(deck);
+      cpmdc_params_release(&arena);
+      cpmdc_store_error(
+          "CPMDParams deck render failed: EXTRAPOLATE WFN XLBOMD order "
+          "must be 0 or 3 through 9");
+      return -1;
+    }
+    cpmdc_params_release(&arena);
+    *input_deck = deck;
+    xlbomd_set_configured(xl ? xl_order : -1);
+  }
   return 0;
 }
 
@@ -3414,6 +3428,7 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
       return -1;
     }
   }
+  xlbomd_note_copy(from_key, to_key);
   cpmdc_store_error("");
   return 0;
 }
@@ -4083,6 +4098,31 @@ int cpmdc_available(void) {
   return 1;
 #endif
 }
+
+int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out) {
+  return xlbomd_classify(text, len, order, order_out);
+}
+
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c,
+                              int c_len) {
+  return xlbomd_coefficients(order, kappa, alpha, c, c_len);
+}
+
+int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                           const double *history, int nhist, double *p_next) {
+  return xlbomd_propagate(order, density, n, history, nhist, p_next);
+}
+
+int cpmdc_xlbomd_observe(int order, long long key, int has_key,
+                         const double *density, int n, double *p_next) {
+  return xlbomd_observe(order, key, has_key, density, n, p_next);
+}
+
+void cpmdc_xlbomd_clear_key(long long key, int has_key) {
+  xlbomd_clear_key(key, has_key);
+}
+
+int cpmdc_xlbomd_configured_order(void) { return xlbomd_configured(); }
 
 void cpmdc_finalize(void) {
   g_active_session = NULL;

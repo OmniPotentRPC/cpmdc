@@ -4,12 +4,15 @@
  * when this build links CPMD; that table counts parked c0 plus populated
  * extrapolation histories. This file agrees the cap across calculator ranks
  * and, on the reference evaluator, applies the same rule to keyed evaluations.
- * The reference evaluator has no orbital or extrapolation storage, so its
- * ledger counts parked keys only. Exceeding the cap reports an error and
+ * The reference evaluator has no OpenCPMD orbital or extrapolation-ring
+ * storage, so its ledger counts parked keys only. Extended Lagrangian
+ * auxiliary samples are a separate table and are not part of this count.
+ * Exceeding the cap reports an error and
  * leaves the parked keys in place. The codes ok, invalid and exceeded match
  * the Fortran parameters embed_slot_limit_ok, embed_slot_limit_invalid and
  * embed_slot_limit_exceeded. The no memory code has no Fortran twin. */
 #include "cpmdc.h"
+#include "cpmdc_xlbomd.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -81,6 +84,7 @@ const char *cpmdc_orbital_limit_message(int code) {
 }
 
 void cpmdc_orbital_ledger_reset(void) {
+  xlbomd_reset();
   g_parked_n = 0;
   g_have_selected = 0;
   g_selected_key = 0;
@@ -91,6 +95,7 @@ void cpmdc_orbital_ledger_reset(void) {
 /* No key is selected afterwards, in the embed and in this ledger, so the
  * next keyed evaluation does not park the store under the cleared key. */
 void cpmdc_orbital_clear_key(int drop_history) {
+  xlbomd_clear_current(g_have_selected, g_selected_key, drop_history);
   cpmdc_embed_clear_orbital_key(drop_history);
   g_have_selected = 0;
   g_selected_key = 0;
@@ -98,6 +103,7 @@ void cpmdc_orbital_clear_key(int drop_history) {
 }
 
 void cpmdc_orbital_ledger_finalize(void) {
+  xlbomd_reset();
   free(g_parked);
   g_parked = NULL;
   g_parked_n = 0;

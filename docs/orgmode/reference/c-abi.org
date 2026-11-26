@@ -798,3 +798,36 @@ The ~cpmdc-restart~ command exposes ~info~, ~positions~, ~velocities~,
 ~patch-positions~, and ~patch-velocities~, with ~--angstrom~ for Angstrom input
 and output (Angstrom per atomic unit of time for velocities), and, in a
 ~-Dwith_readcon=true~ build, ~export-con~ and ~import-con~.
+
+* Extended Lagrangian orbital propagation
+
+~CPMDCWfnExtrap~ says whether an ~extrapolateWfnOptions~ token stays on the
+deck path.
+The token must be exactly ~XLBOMD~.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100,
+123004 (2008).
+Orders 3 through 9 are Table I of Niklasson, Steneteg, Odell, Bock,
+Challacombe, Tymczak, Holmström, Zheng, and Weber, J. Chem. Phys. 130, 214109
+(2009), with alpha stored unscaled.
+The last successful ~CPMDParams~ apply records the order of its last ~&CPMD~
+section.
+A failed apply leaves that record unchanged.
+Samples are kept per orbital key, and the unkeyed trajectory does not share
+storage with key 0.
+They do not count toward ~CPMDC_ORBITAL_SLOT_LIMIT~.
+~cpmdc_session_copy_orbitals()~ drops the destination samples when the keys
+differ and leaves them when the keys are the same.
+
+| ~CPMDCWfnExtrap~ constant | Value | Meaning |
+|---------------------------+-------+---------|
+| ~CPMDC_WFN_EXTRAP_DECK~ | 0 | render the token as written |
+| ~CPMDC_WFN_EXTRAP_XLBOMD~ | 1 | options are exactly ~XLBOMD~ and the order is 0 or 3 through 9; the deck omits the line |
+
+| Function | Behaviour |
+|----------+-----------|
+| ~int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out)~ | ~CPMDC_WFN_EXTRAP_XLBOMD~ and the order when the token is exactly ~XLBOMD~ and the order is 0 or 3 through 9; ~CPMDC_WFN_EXTRAP_DECK~ for any other token; -1 when the token is ~XLBOMD~ and the order is not one of those values |
+| ~int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c, int c_len)~ | write kappa, alpha when the pointer is set, and c_0 through c_K when ~c~ is set; order 0 is kappa 2 and alpha 0; orders 3 through 9 are the 2009 table; -1 for another order, a NULL kappa, or a short ~c~ buffer |
+| ~int cpmdc_xlbomd_propagate(int order, const double *density, int n, const double *history, int nhist, double *p_next)~ | one step; ~history~ is most recent first and holds two samples for order 0 or K + 1 samples otherwise; ~n == 0~ writes nothing and returns 0; -1 when the order or the history cannot be used |
+| ~int cpmdc_xlbomd_observe(int order, long long key, int has_key, const double *density, int n, double *p_next)~ | store one converged vector for that key and write the next guess; 1 when the guess was propagated, 0 when it is a startup copy, -1 on a bad order or a missing buffer; ~has_key~ zero is the unkeyed trajectory; a new order or length on that key starts again |
+| ~void cpmdc_xlbomd_clear_key(long long key, int has_key)~ | drop that key's samples; ~has_key~ zero drops the unkeyed trajectory |
+| ~int cpmdc_xlbomd_configured_order(void)~ | the order recorded by the last successful ~CPMDParams~ apply, or -1 when that apply did not select ~XLBOMD~ |

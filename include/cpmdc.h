@@ -62,6 +62,18 @@ typedef enum CPMDCErrorCode {
 } CPMDCErrorCode;
 
 /**
+ * @brief Which wavefunction guess an extrapolateWfnOptions token selects.
+ *
+ * CPMDC_WFN_EXTRAP_DECK leaves the rendered EXTRAPOLATE WFN line unchanged.
+ * CPMDC_WFN_EXTRAP_XLBOMD selects extended Lagrangian propagation and omits
+ * that line.
+ */
+typedef enum CPMDCWfnExtrap {
+  CPMDC_WFN_EXTRAP_DECK = 0,
+  CPMDC_WFN_EXTRAP_XLBOMD = 1
+} CPMDCWfnExtrap;
+
+/**
  * @brief In-process snapshot of OpenCPMD `ener_com` scalars (Hartree a.u.).
  *
  * Filled after a successful embed SCF (`wfopts`) or reference PEF evaluation.
@@ -663,6 +675,9 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
  * key that is named and then replaced before an evaluation does not park
  * orbitals. A key also keeps its own `EXTRAPOLATE WFN` ring, so switching
  * keys preserves each trajectory's predictor history.
+ * An extended Lagrangian guess, selected when extrapolateWfnOptions is
+ * exactly XLBOMD, keeps a separate auxiliary vector per key. That vector
+ * is not an orbital copy and does not count toward CPMDC_ORBITAL_SLOT_LIMIT.
  * CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked orbital
  * copies plus populated extrapolation-ring entries, including the selected
  * key's entries, on an OpenCPMD build. The reference build stores neither
@@ -695,6 +710,8 @@ CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key
  * not a positive integer, which fails the call. The link stub returns -1,
  * including a same key copy. Every rank of a calculator names the same
  * keys, the same rule `cpmdc_session_select_orbitals()` has.
+ * An extended Lagrangian auxiliary vector on `to_key` is cleared when
+ * `from_key` differs. A copy onto the same key leaves that vector in place.
  *
  * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet,
  * `from_key` has no converged orbitals, or the copy cannot be completed.
@@ -1112,6 +1129,74 @@ CPMDC_API int cpmdc_session_last_stress(const CPMDCSession *session,
  * write `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_last_rank_spread(CPMDCRankSpread *out);
+
+/**
+ * @brief Classify an EXTRAPOLATE WFN options token.
+ *
+ * The token XLBOMD with order 0 or 3 through 9 selects extended Lagrangian
+ * propagation and writes that order. Any other token, including a different
+ * length or a trailing space, selects the unchanged deck path. XLBOMD with
+ * any other order is refused.
+ *
+ * @return CPMDC_WFN_EXTRAP_XLBOMD, CPMDC_WFN_EXTRAP_DECK, or -1.
+ */
+CPMDC_API int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                                    int *order_out);
+
+/**
+ * @brief Copy kappa, alpha, and the c_k row for one propagation order.
+ *
+ * Order 0 is the reversible Verlet step, kappa 2 and alpha 0. Orders 3
+ * through 9 are Table I of Niklasson et al., J. Chem. Phys. 130, 214109
+ * (2009). The table prints alpha times 10^3. This call writes the unscaled
+ * alpha. `c` may be NULL. When it is set, `c_len` must hold c_0 through c_K.
+ *
+ * @return 0, or -1 for another order, a NULL kappa, or a short c buffer.
+ */
+CPMDC_API int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                                        double *c, int c_len);
+
+/**
+ * @brief Take one extended Lagrangian step.
+ *
+ * `history` is most recent first: n doubles of P_n, then P_{n-1}, and so on.
+ * Order 0 needs two samples. Order K needs K + 1. n == 0 writes nothing.
+ *
+ * @return 0, or -1 when the order, pointers, or history length are unusable.
+ */
+CPMDC_API int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                                     const double *history, int nhist,
+                                     double *p_next);
+
+/**
+ * @brief Record one converged vector and write the next guess.
+ *
+ * `has_key` zero is the unkeyed trajectory and does not share storage with
+ * key 0. The first sample is stored and copied into `p_next`. The reversible
+ * second call propagates. A dissipative order copies the converged vector
+ * until K + 1 samples are stored, then propagates. A new order or length on
+ * that key starts again.
+ *
+ * @return 1 when `p_next` was propagated, 0 on a startup copy, or -1.
+ */
+CPMDC_API int cpmdc_xlbomd_observe(int order, long long key, int has_key,
+                                   const double *density, int n,
+                                   double *p_next);
+
+/**
+ * @brief Drop the auxiliary samples stored for one key.
+ *
+ * `has_key` zero drops the unkeyed trajectory.
+ */
+CPMDC_API void cpmdc_xlbomd_clear_key(long long key, int has_key);
+
+/**
+ * @brief Order selected by the last successful CPMDParams apply.
+ *
+ * The last &CPMD section decides. A successful apply that does not select
+ * XLBOMD returns -1. A failed apply leaves the previous value.
+ */
+CPMDC_API int cpmdc_xlbomd_configured_order(void);
 
 #ifdef __cplusplus
 }

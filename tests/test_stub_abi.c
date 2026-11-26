@@ -66,6 +66,12 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_feature_count",
     "abi.cpmdc_feature_table",
     "abi.cpmdc_feature_find",
+    "abi.cpmdc_xlbomd_classify",
+    "abi.cpmdc_xlbomd_clear_key",
+    "abi.cpmdc_xlbomd_coefficients",
+    "abi.cpmdc_xlbomd_configured_order",
+    "abi.cpmdc_xlbomd_observe",
+    "abi.cpmdc_xlbomd_propagate",
 };
 
 static void test_stub_reports_unavailable(void **state) {

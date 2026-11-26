@@ -104,7 +104,7 @@ composition requires a new session.
      - Pick ODIIS or PCG; an unconverged DIIS pass continues once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
-     - Seed each SCF from recent step orbitals with ASPC
+     - Seed each SCF from recent step orbitals with ASPC or opt-in XL-BOMD
      - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
    * - Inspect the rendered CPMD ``INPUT`` deck
      - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections

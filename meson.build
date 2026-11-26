@@ -258,7 +258,7 @@ endif
 
 cpmdc_stub = static_library(
   'cpmdc_stub',
-  ['src/cpmdc_stub.c', 'src/cpmdc_features.c', 'src/cpmdc_adopt.c'],
+  ['src/cpmdc_stub.c', 'src/cpmdc_xlbomd.c', 'src/cpmdc_features.c', 'src/cpmdc_adopt.c'],
   include_directories: inc,
   c_args: stub_c_args,
   dependencies: stub_deps,
@@ -362,6 +362,7 @@ endif
 
 cpmd_embed_sources = [
   'src/cpmdc.c',
+  'src/cpmdc_xlbomd.c',
   'src/cpmdc_adopt.c',
   'src/cpmdc_orbital_limit.c',
   'src/cpmd_embed_c_api.F90',
@@ -2613,6 +2614,41 @@ if get_option('with_tests')
     timeout: 900,
   )
 
+  water_xlbomd_params_bin = custom_target(
+    'water_xlbomd_params_bin',
+    input: 'tests/xlbomd/water_xlbomd_params.capnp.txt',
+    output: 'water_xlbomd_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_xlbomd_bad_params_bin = custom_target(
+    'water_xlbomd_bad_params_bin',
+    input: 'tests/xlbomd/water_xlbomd_bad_params.capnp.txt',
+    output: 'water_xlbomd_bad_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'xlbomd',
+    executable(
+      'test_xlbomd',
+      'tests/test_xlbomd.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc],
+      c_args: common_c_args,
+    ),
+    args: [
+      water_aspc_params_bin.full_path(),
+      water_xlbomd_params_bin.full_path(),
+      water_xlbomd_bad_params_bin.full_path(),
+      meson.current_source_dir() / 'tests/golden/water_xlbomd_bomd.txt',
+    ],
+    depends: [
+      water_aspc_params_bin,
+      water_xlbomd_params_bin,
+      water_xlbomd_bad_params_bin,
+    ],
+    suite: ['cmocka', 'e2e'],
+    timeout: 120,
+  )
 
   test(
     'features-cmocka',

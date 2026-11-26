@@ -1,5 +1,6 @@
 #include "cpmdc.h"
 #include "cpmdc_adopt.h"
+#include "cpmdc_xlbomd.h"
 
 #include <stdio.h>
 
@@ -457,3 +458,28 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
     memset(out, 0, sizeof(*out));
   return -1;
 }
+
+int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out) {
+  return xlbomd_classify(text, len, order, order_out);
+}
+
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c,
+                              int c_len) {
+  return xlbomd_coefficients(order, kappa, alpha, c, c_len);
+}
+
+int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                           const double *history, int nhist, double *p_next) {
+  return xlbomd_propagate(order, density, n, history, nhist, p_next);
+}
+
+int cpmdc_xlbomd_observe(int order, long long key, int has_key,
+                         const double *density, int n, double *p_next) {
+  return xlbomd_observe(order, key, has_key, density, n, p_next);
+}
+
+void cpmdc_xlbomd_clear_key(long long key, int has_key) {
+  xlbomd_clear_key(key, has_key);
+}
+
+int cpmdc_xlbomd_configured_order(void) { return xlbomd_configured(); }

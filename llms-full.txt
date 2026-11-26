@@ -3554,6 +3554,42 @@ A library call writes no `RESTART` file, and every call converges its SCF to
 The energy and forces are those of a converged SCF, so only the number of
 iterations changes.
 
+# Propagate with the extended Lagrangian
+Set `extrapolateWfnOptions` to exactly `XLBOMD`.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100,
+123004 (2008)
+(doi:10.1103/PhysRevLett.100.123004 (https://doi.org/10.1103/PhysRevLett.100.123004)),
+with kappa equal to 2.
+Orders 3 through 9 use the dissipative coefficients in Table I of Niklasson,
+Steneteg, Odell, Bock, Challacombe, Tymczak, Holmström, Zheng, and Weber,
+J. Chem. Phys. 130, 214109 (2009)
+(doi:10.1063/1.3148075 (https://doi.org/10.1063/1.3148075)).
+The printed alpha in that table is alpha times 10^3.
+Any other order is refused, and the previous successful parameters stay.
+The rendered deck omits `EXTRAPOLATE WFN` for that section, so an OpenCPMD
+build does not also run the ASPC predictor.
+`ASPC`, `POLY`, an empty option, and any other token keep the deck line they
+have now.
+Each orbital key named with `cpmdc_session_select_orbitals()` keeps its own
+auxiliary samples, and the unkeyed trajectory is a separate store from key 0.
+Those samples are not orbital copies and do not count toward
+`CPMDC_ORBITAL_SLOT_LIMIT`.
+A copy onto a different key drops the destination samples.
+A copy onto the same key leaves them.
+Destroying the session that evaluated last drops every auxiliary vector, as
+it drops the extrapolation rings.
+OpenCPMD is not required.
+The propagator lives in cpmdc, and the reference build has no plane-wave SCF.
+`tests/test_xlbomd.c` checks the coefficient table and the time reversal of
+the reversible step.
+It also steps a harmonic water stand-in on the step 0 geometry of
+`tests/golden/water_aspc_bomd.txt`, once with ASPC order 4 and once with
+dissipative order 5.
+The nuclear forces of that stand-in do not use the electronic residual, so
+the two trajectories and their energy drifts match when both mixes converge.
+The SCF iteration counts are what the guess changes.
+That stand-in is not a CPMD energy.
+
 
 ## File: docs/orgmode/howto/gromacs.org
 
@@ -6120,7 +6156,7 @@ composition requires a new session.
      - Pick ODIIS or PCG; an unconverged DIIS pass continues once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
-     - Seed each SCF from recent step orbitals with ASPC
+     - Seed each SCF from recent step orbitals with ASPC or opt-in XL-BOMD
      - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
    * - Inspect the rendered CPMD ``INPUT`` deck
      - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections
@@ -7238,6 +7274,39 @@ The `cpmdc-restart` command exposes `info`, `positions`, `velocities`,
 and output (Angstrom per atomic unit of time for velocities), and, in a
 `-Dwith_readcon=true` build, `export-con` and `import-con`.
 
+# Extended Lagrangian orbital propagation
+
+`CPMDCWfnExtrap` says whether an `extrapolateWfnOptions` token stays on the
+deck path.
+The token must be exactly `XLBOMD`.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100,
+123004 (2008).
+Orders 3 through 9 are Table I of Niklasson, Steneteg, Odell, Bock,
+Challacombe, Tymczak, Holmström, Zheng, and Weber, J. Chem. Phys. 130, 214109
+(2009), with alpha stored unscaled.
+The last successful `CPMDParams` apply records the order of its last `&CPMD`
+section.
+A failed apply leaves that record unchanged.
+Samples are kept per orbital key, and the unkeyed trajectory does not share
+storage with key 0.
+They do not count toward `CPMDC_ORBITAL_SLOT_LIMIT`.
+`cpmdc_session_copy_orbitals()` drops the destination samples when the keys
+differ and leaves them when the keys are the same.
+
+| `CPMDCWfnExtrap` constant | Value | Meaning |
+|---------------------------+-------+---------|
+| `CPMDC_WFN_EXTRAP_DECK` | 0 | render the token as written |
+| `CPMDC_WFN_EXTRAP_XLBOMD` | 1 | options are exactly `XLBOMD` and the order is 0 or 3 through 9; the deck omits the line |
+
+| Function | Behaviour |
+|----------+-----------|
+| `int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out)` | `CPMDC_WFN_EXTRAP_XLBOMD` and the order when the token is exactly `XLBOMD` and the order is 0 or 3 through 9; `CPMDC_WFN_EXTRAP_DECK` for any other token; -1 when the token is `XLBOMD` and the order is not one of those values |
+| `int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c, int c_len)` | write kappa, alpha when the pointer is set, and c_0 through c_K when `c` is set; order 0 is kappa 2 and alpha 0; orders 3 through 9 are the 2009 table; -1 for another order, a NULL kappa, or a short `c` buffer |
+| `int cpmdc_xlbomd_propagate(int order, const double *density, int n, const double *history, int nhist, double *p_next)` | one step; `history` is most recent first and holds two samples for order 0 or K + 1 samples otherwise; `n == 0` writes nothing and returns 0; -1 when the order or the history cannot be used |
+| `int cpmdc_xlbomd_observe(int order, long long key, int has_key, const double *density, int n, double *p_next)` | store one converged vector for that key and write the next guess; 1 when the guess was propagated, 0 when it is a startup copy, -1 on a bad order or a missing buffer; `has_key` zero is the unkeyed trajectory; a new order or length on that key starts again |
+| `void cpmdc_xlbomd_clear_key(long long key, int has_key)` | drop that key's samples; `has_key` zero drops the unkeyed trajectory |
+| `int cpmdc_xlbomd_configured_order(void)` | the order recorded by the last successful `CPMDParams` apply, or -1 when that apply did not select `XLBOMD` |
+
 
 ## File: docs/orgmode/reference/contracts.org
 
@@ -7622,6 +7691,86 @@ A session is created by one of two functions and released by
 | Returns and errors | Returns 0 on success and -1 for a NULL session, before any evaluation, when `from_key` has no converged orbitals, or when the backend copy fails; the text is `cpmdc_last_error()`. The reference build has no orbital store: it returns 0 after any evaluation and copies nothing. |
 | Python | `cpmdc.Session.copy_orbitals` raises `cpmdc.CPMDCError`, also for a library that lacks the symbol. |
 | Defaults | none |
+
+# Extended Lagrangian propagation
+
+The auxiliary vector is dimensionless.
+Order 0 is the reversible Verlet step.
+Orders 3 through 9 are the dissipative rows.
+The samples of one key are not shared with another key, and the unkeyed
+trajectory is not key 0.
+
+### ~cpmdc_xlbomd_classify~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | `text` is the options bytes, length `len`, and need not be NUL terminated. `order_out` may be NULL; otherwise it receives the accepted order. |
+| Ownership | The caller owns `text` and `order_out`. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns `CPMDC_WFN_EXTRAP_XLBOMD`, `CPMDC_WFN_EXTRAP_DECK`, or -1 when the token is exactly `XLBOMD` and the order is not 0 or 3 through 9. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | none |
+
+### ~cpmdc_xlbomd_coefficients~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless: `kappa`, `alpha`, and `c` are the Table I numbers, with `alpha` unscaled. |
+| Layout | `kappa` is required. `alpha` may be NULL. `c` may be NULL; when it is set, `c_len` must hold c_0 through c_K. |
+| Ownership | The caller owns `kappa`, `alpha`, and `c`. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, or -1 for another order, a NULL `kappa`, or a short `c` buffer. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | order 0 writes kappa 2 and alpha 0 and ignores `c`. |
+
+### ~cpmdc_xlbomd_propagate~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | `density` and `history` hold `n` components per sample. `history` is most recent first: P_n, then P_{n-1}, and so on. Order 0 needs two samples. Order K needs K + 1. `p_next` receives `n` components. |
+| Ownership | The caller owns `density`, `history`, and `p_next`. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, including `n == 0`, or -1 when the order, a pointer, or the history length cannot be used. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | none |
+
+### ~cpmdc_xlbomd_observe~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | `density` and `p_next` each hold `n` components. `has_key` zero selects the unkeyed trajectory, which is not key 0. |
+| Ownership | The caller owns `density` and `p_next`. The call keeps its own copy of the samples. |
+| Threads and MPI | Not thread-safe: the auxiliary table is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 1 when `p_next` was propagated, 0 when it is a startup copy, and -1 for a bad order, a negative `n`, or a NULL buffer when `n` is positive. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | the first sample is stored and copied; a dissipative order copies until K + 1 samples exist. |
+
+### ~cpmdc_xlbomd_clear_key~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none: `key` and `has_key` select the store, and `has_key` zero is the unkeyed trajectory. |
+| Ownership | none |
+| Threads and MPI | Not thread-safe: the auxiliary table is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | none: the call cannot fail and does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | a missing key is left absent. |
+
+### ~cpmdc_xlbomd_configured_order~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none |
+| Ownership | none |
+| Threads and MPI | Not thread-safe: the recorded order is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns the order of the last successful `CPMDParams` apply whose last `&CPMD` section selected `XLBOMD`, or -1 when that apply did not. A failed apply leaves the value. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped. |
+| Defaults | -1 before any successful apply. |
 
 ## Session evaluation
 
@@ -8498,6 +8647,15 @@ Python.
 | Ownership | Scalar value returned by value; nothing to free. |
 | Python | Exposed as `cpmdc.CPMDCError.code` and mapped to `CPMDCInvalidArgument`, `CPMDCUnavailable`, `CPMDCUnsupportedPeriodicEmbedding`, `CPMDCEvaluationFailed`, and `CPMDCDeckExternalPotential`. |
 
+## ~CPMDCWfnExtrap~
+
+| Item | Description |
+|--------+--------|
+| Layout | An `enum` returned by `cpmdc_xlbomd_classify()`, with `CPMDC_WFN_EXTRAP_DECK` and `CPMDC_WFN_EXTRAP_XLBOMD`. |
+| Units | none |
+| Ownership | Scalar value returned by value; nothing to free. |
+| Python | not wrapped. |
+
 ## ~CPMDCResult~
 
 | Item | Description |
@@ -8656,6 +8814,8 @@ Every macro and enum constant of the installed headers.
 | CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | `CPMDCErrorCode`: external charges paired with a periodic cell. | `cpmdc.CPMDCUnsupportedPeriodicEmbedding` |
 | CPMDC_ERROR_EVALUATION_FAILED | 4 | `CPMDCErrorCode`: SCF or backend evaluation did not produce a valid result. | `cpmdc.CPMDCEvaluationFailed` |
 | CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | `CPMDCErrorCode`: session external charges paired with a deck `EXTERNAL POTENTIAL` block. | `cpmdc.CPMDCDeckExternalPotential` |
+| CPMDC_WFN_EXTRAP_DECK | 0 | `CPMDCWfnExtrap`: render the extrapolate token as written. | none |
+| CPMDC_WFN_EXTRAP_XLBOMD | 1 | `CPMDCWfnExtrap`: the options are exactly XLBOMD and the order is 0 or 3 through 9. | none |
 | CPMDC_FEATURE_SECTION | 1 | `CPMDCFeatureKind`: a CPMD input section, such as `catalog.section.PIMD`. | none |
 | CPMDC_FEATURE_PARAMS | 2 | `CPMDCFeatureKind`: a `CPMDParams` field. | none |
 | CPMDC_FEATURE_ABI | 3 | `CPMDCFeatureKind`: an exported C function. | none |
@@ -10939,7 +11099,11 @@ The feature IDs are the stable discovery keys returned by
 | `catalog.cpmd.DCACP` | `params.inputSections.cpmd.dcacp` | `dcacp` | `DCACP` |
 
 `EXTRAPOLATE WFN` renders into every deck that sets `extrapolateWfnOptions` or
-`extrapolateWfnOrder`.
+`extrapolateWfnOrder`, except options that are exactly `XLBOMD`.
+That token selects extended Lagrangian propagation in cpmdc, and the deck
+omits the line.
+Order 0 or 3 through 9 is accepted.
+Any other order is refused.
 `cpmd.x` applies it in Born-Oppenheimer molecular dynamics only.
 On the in-process route it applies to every call that starts from stored
 orbitals, when the archive carries `tools/opencpmd_embed_extrapolate.patch`.
@@ -10950,6 +11114,7 @@ message and the check.
 |------+------------------|
 | `ASPC`, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
 | `POLY` | polynomial coefficients |
+| `XLBOMD` | extended Lagrangian auxiliary vector in cpmdc; the deck omits the line; order 0 or 3 through 9 |
 | order | number of earlier calls in the prediction |
 | `STORE` | no effect, with no `RESTART` file from a library call |
 | `CSTEPS` | no effect, with converged orbitals on every call |

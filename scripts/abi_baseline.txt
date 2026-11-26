@@ -56,3 +56,9 @@ cpmdc_session_set_external_charges
 cpmdc_session_set_params
 cpmdc_set_params
 cpmdc_version
+cpmdc_xlbomd_classify
+cpmdc_xlbomd_clear_key
+cpmdc_xlbomd_coefficients
+cpmdc_xlbomd_configured_order
+cpmdc_xlbomd_observe
+cpmdc_xlbomd_propagate

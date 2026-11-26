@@ -383,6 +383,86 @@ A session is created by one of two functions and released by
 | Python | ~cpmdc.Session.copy_orbitals~ raises ~cpmdc.CPMDCError~, also for a library that lacks the symbol. |
 | Defaults | none |
 
+* Extended Lagrangian propagation
+
+The auxiliary vector is dimensionless.
+Order 0 is the reversible Verlet step.
+Orders 3 through 9 are the dissipative rows.
+The samples of one key are not shared with another key, and the unkeyed
+trajectory is not key 0.
+
+*** ~cpmdc_xlbomd_classify~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~text~ is the options bytes, length ~len~, and need not be NUL terminated. ~order_out~ may be NULL; otherwise it receives the accepted order. |
+| Ownership | The caller owns ~text~ and ~order_out~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns ~CPMDC_WFN_EXTRAP_XLBOMD~, ~CPMDC_WFN_EXTRAP_DECK~, or -1 when the token is exactly ~XLBOMD~ and the order is not 0 or 3 through 9. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | none |
+
+*** ~cpmdc_xlbomd_coefficients~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless: ~kappa~, ~alpha~, and ~c~ are the Table I numbers, with ~alpha~ unscaled. |
+| Layout | ~kappa~ is required. ~alpha~ may be NULL. ~c~ may be NULL; when it is set, ~c_len~ must hold c_0 through c_K. |
+| Ownership | The caller owns ~kappa~, ~alpha~, and ~c~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, or -1 for another order, a NULL ~kappa~, or a short ~c~ buffer. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | order 0 writes kappa 2 and alpha 0 and ignores ~c~. |
+
+*** ~cpmdc_xlbomd_propagate~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | ~density~ and ~history~ hold ~n~ components per sample. ~history~ is most recent first: P_n, then P_{n-1}, and so on. Order 0 needs two samples. Order K needs K + 1. ~p_next~ receives ~n~ components. |
+| Ownership | The caller owns ~density~, ~history~, and ~p_next~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, including ~n == 0~, or -1 when the order, a pointer, or the history length cannot be used. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | none |
+
+*** ~cpmdc_xlbomd_observe~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | ~density~ and ~p_next~ each hold ~n~ components. ~has_key~ zero selects the unkeyed trajectory, which is not key 0. |
+| Ownership | The caller owns ~density~ and ~p_next~. The call keeps its own copy of the samples. |
+| Threads and MPI | Not thread-safe: the auxiliary table is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 1 when ~p_next~ was propagated, 0 when it is a startup copy, and -1 for a bad order, a negative ~n~, or a NULL buffer when ~n~ is positive. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | the first sample is stored and copied; a dissipative order copies until K + 1 samples exist. |
+
+*** ~cpmdc_xlbomd_clear_key~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none: ~key~ and ~has_key~ select the store, and ~has_key~ zero is the unkeyed trajectory. |
+| Ownership | none |
+| Threads and MPI | Not thread-safe: the auxiliary table is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | none: the call cannot fail and does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | a missing key is left absent. |
+
+*** ~cpmdc_xlbomd_configured_order~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none |
+| Ownership | none |
+| Threads and MPI | Not thread-safe: the recorded order is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns the order of the last successful ~CPMDParams~ apply whose last ~&CPMD~ section selected ~XLBOMD~, or -1 when that apply did not. A failed apply leaves the value. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | -1 before any successful apply. |
+
 ** Session evaluation
 
 ~session_accept_topology~ fixes the topology only after an evaluation call
@@ -1258,6 +1338,15 @@ Python.
 | Ownership | Scalar value returned by value; nothing to free. |
 | Python | Exposed as ~cpmdc.CPMDCError.code~ and mapped to ~CPMDCInvalidArgument~, ~CPMDCUnavailable~, ~CPMDCUnsupportedPeriodicEmbedding~, ~CPMDCEvaluationFailed~, and ~CPMDCDeckExternalPotential~. |
 
+** ~CPMDCWfnExtrap~
+
+| Item | Description |
+|--------+--------|
+| Layout | An ~enum~ returned by ~cpmdc_xlbomd_classify()~, with ~CPMDC_WFN_EXTRAP_DECK~ and ~CPMDC_WFN_EXTRAP_XLBOMD~. |
+| Units | none |
+| Ownership | Scalar value returned by value; nothing to free. |
+| Python | not wrapped. |
+
 ** ~CPMDCResult~
 
 | Item | Description |
@@ -1416,6 +1505,8 @@ Every macro and enum constant of the installed headers.
 | CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | ~CPMDCErrorCode~: external charges paired with a periodic cell. | ~cpmdc.CPMDCUnsupportedPeriodicEmbedding~ |
 | CPMDC_ERROR_EVALUATION_FAILED | 4 | ~CPMDCErrorCode~: SCF or backend evaluation did not produce a valid result. | ~cpmdc.CPMDCEvaluationFailed~ |
 | CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | ~CPMDCErrorCode~: session external charges paired with a deck ~EXTERNAL POTENTIAL~ block. | ~cpmdc.CPMDCDeckExternalPotential~ |
+| CPMDC_WFN_EXTRAP_DECK | 0 | ~CPMDCWfnExtrap~: render the extrapolate token as written. | none |
+| CPMDC_WFN_EXTRAP_XLBOMD | 1 | ~CPMDCWfnExtrap~: the options are exactly XLBOMD and the order is 0 or 3 through 9. | none |
 | CPMDC_FEATURE_SECTION | 1 | ~CPMDCFeatureKind~: a CPMD input section, such as ~catalog.section.PIMD~. | none |
 | CPMDC_FEATURE_PARAMS | 2 | ~CPMDCFeatureKind~: a ~CPMDParams~ field. | none |
 | CPMDC_FEATURE_ABI | 3 | ~CPMDCFeatureKind~: an exported C function. | none |
