@@ -2316,6 +2316,27 @@ static int deck_or_cell_is_periodic(const char *deck, const double *cell_ang,
          cpmdc_cell_rank3_state(cell_ang) != CPMDC_CELL_ZERO;
 }
 
+/* Drop energy, gradient, stress, charges, and the other per-evaluation
+ * snapshots. A failed attempt must not leave the previous step readable.
+ * The warm cell and the method knobs stay. */
+static void image_invalidate_results(CPMDCEmbedImage *image) {
+  if (!image)
+    return;
+  memset(image, 0, offsetof(CPMDCEmbedImage, warm_cell));
+}
+
+static void session_drop_results(CPMDCSession *session) {
+  if (!session)
+    return;
+  session->external_forces_valid = 0;
+  image_invalidate_results(&session->image);
+}
+
+static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
+  image_invalidate_results(image);
+  return fail_msg(msg);
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -2332,17 +2353,17 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   g_embed_code = CPMDC_ERROR_EVALUATION_FAILED;
   if (n_atoms > (int)(sizeof(image->prop.hessian) /
                       (3u * sizeof(image->prop.hessian[0]))))
-    return fail_msg(
-        "property gradient snapshot supports at most 1365 atoms");
+    return fail_image(image,
+                      "property gradient snapshot supports at most 1365 atoms");
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr)
-    return fail_msg("invalid arguments");
+    return fail_image(image, "invalid arguments");
   {
     int unavailable = !ensure_embed_init() || !cpmdc_embed_available();
     if (cpmdc_orbital_allreduce(&unavailable, 1) != 0)
-      return fail_msg("MPI collective failed");
+      return fail_image(image, "MPI collective failed");
     if (unavailable)
-      return fail_msg("CPMD embed not available");
+      return fail_image(image, "CPMD embed not available");
   }
   double cell[9] = {0};
   if (has_cell && cell_ang)
@@ -2380,13 +2401,14 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   cpmdc_stop_disarm();
   if (rank_consensus(&ok, &stop, (size_t)n_atoms * 3u, &energy, grad_h_bohr,
                      image) != 0)
-    return fail_msg("CPMDC_RANK_CONSENSUS: an MPI collective failed");
+    return fail_image(image, "CPMDC_RANK_CONSENSUS: an MPI collective failed");
   if (stop != 0) {
     /* stopgm returned on this rank. The wavefunction, forces and module
      * state of this call are undefined. Drop them so the next call sets
      * CPMD up again. The caller handles the error. This rank does not
      * abort the process. */
     (void)cpmdc_embed_reset_state(image);
+    image_invalidate_results(image);
     return fail_msg("CPMD stopgm during embed SCF");
   }
   if (!ok) {
@@ -2395,7 +2417,17 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
             ? g_embed_detail
             : "CPMD energy/gradient failed: orbitals not converged within "
               "MAXITER, or no energy";
-    return fail_msg(detail);
+    return fail_image(image, detail);
+  }
+  /* CPMDC_TEST_FAULT=charge-snapshot records one charge per atom when the
+   * evaluator stored none. OpenCPMD keeps the charges it already wrote. */
+  if (test_fault("charge-snapshot") && !image->charges.valid && n_atoms > 0 &&
+      n_atoms <= CPMDC_EMBED_CHARGE_CAP) {
+    int atom;
+    for (atom = 0; atom < n_atoms; ++atom)
+      image->charges.values[atom] = 0.01 * (double)atomic_numbers[atom];
+    image->charges.count = (size_t)n_atoms;
+    image->charges.valid = 1;
   }
   cpmdc_orbital_note_stored();
   r.ok = 1;
@@ -2449,8 +2481,10 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
   else if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
   err = orbital_limit_gate(err);
-  if (err)
+  if (err) {
+    image_invalidate_results(&g_image);
     return fail_msg(err);
+  }
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
                                           g_has_overrides ? &g_overrides : NULL,
                                           n_atoms,
@@ -2495,6 +2529,7 @@ CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
   err = collective_call_gate(err);
   if (err) {
     free(grad);
+    image_invalidate_results(&g_image);
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,
@@ -2514,8 +2549,10 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
                                         forces_h_bohr);
   if (r.ok && forces_h_bohr) {
     size_t n3 = 0;
-    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    if (grad_len_from_atoms(n_atoms, &n3) != 0) {
+      image_invalidate_results(&g_image);
       return fail_msg("invalid arguments");
+    }
     for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
@@ -3171,8 +3208,7 @@ static CPMDCResult session_energy_gradient_cell(
   }
   err = orbital_limit_gate(err);
   if (err) {
-    if (session)
-      session->external_forces_valid = 0;
+    session_drop_results(session);
     return fail_msg(err);
   }
   /* The copy is committed only after every preflight collective succeeds, so
@@ -3191,7 +3227,7 @@ static CPMDCResult session_energy_gradient_cell(
   err = collective_call_gate(err);
   if (err) {
     free(pending_topology);
-    session->external_forces_valid = 0;
+    session_drop_results(session);
     return fail_msg(err);
   }
   if (rank_consensus_all(
@@ -3225,6 +3261,7 @@ static CPMDCResult session_energy_gradient_cell(
   err = collective_call_gate(err);
   if (err) {
     free(pending_topology);
+    session_drop_results(session);
     return fail_msg(err);
   }
   {
@@ -3233,6 +3270,7 @@ static CPMDCResult session_energy_gradient_cell(
     if (cpmdc_orbital_key_agree(&has_orbital_key, session->orbital_key,
                                 &slot_err) != 0) {
       free(pending_topology);
+      session_drop_results(session);
       return fail_msg(slot_err);
     }
     if (has_orbital_key) {
@@ -3248,14 +3286,17 @@ static CPMDCResult session_energy_gradient_cell(
         stale_failed = 1;
       if (cpmdc_orbital_allreduce(&stale_failed, 1) != 0) {
         free(pending_topology);
+        session_drop_results(session);
         return fail_msg("MPI collective failed");
       }
       if (stale_failed) {
         free(pending_topology);
+        session_drop_results(session);
         return fail_msg("failed to discard stale orbitals");
       }
       if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0) {
         free(pending_topology);
+        session_drop_results(session);
         return fail_msg(slot_err);
       }
     } else {
@@ -3389,6 +3430,7 @@ CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
   err = collective_call_gate(err);
   if (err) {
     free(grad);
+    session_drop_results(session);
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
@@ -3405,8 +3447,10 @@ CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
                                                 atomic_numbers, forces_h_bohr);
   if (r.ok && forces_h_bohr) {
     size_t n3 = 0;
-    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    if (grad_len_from_atoms(n_atoms, &n3) != 0) {
+      session_drop_results(session);
       return fail_msg("invalid arguments");
+    }
     for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
@@ -3453,8 +3497,10 @@ CPMDCResult cpmdc_session_calculate_forces(
   if (arena_open)
     cpmdc_params_release(&arena);
   err = collective_call_gate(err);
-  if (err)
+  if (err) {
+    session_drop_results(session);
     return fail_msg(err);
+  }
   r = session_energy_gradient_cell(session, (int)n_atoms,
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
@@ -3541,8 +3587,7 @@ CPMDCResult cpmdc_session_calculate_result(
   err = collective_call_gate(err);
   if (err) {
     free(forces);
-    if (session)
-      session->external_forces_valid = 0;
+    session_drop_results(session);
     return fail_msg(err);
   }
   r = session_energy_gradient_cell(session, (int)n_atoms,
@@ -3569,8 +3614,8 @@ CPMDCResult cpmdc_session_calculate_result(
     snprintf(r.message, sizeof(r.message), "%s", write_err);
     cpmdc_store_error(r.message);
   }
-  if (!r.ok && session)
-    session->external_forces_valid = 0;
+  if (!r.ok)
+    session_drop_results(session);
   free(forces);
   return r;
 }
@@ -3607,8 +3652,7 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
   }
   err = collective_call_gate(err);
   if (err) {
-    if (session)
-      session->external_forces_valid = 0;
+    session_drop_results(session);
     (void)fail_msg(err);
     return -1;
   }
@@ -3638,13 +3682,11 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
     }
     virial_err = collective_call_gate(virial_err);
     if (!r.ok) {
-      if (session)
-        session->external_forces_valid = 0;
+      session_drop_results(session);
       return -1;
     }
     if (virial_err) {
-      if (session)
-        session->external_forces_valid = 0;
+      session_drop_results(session);
       (void)fail_msg(virial_err);
       return -1;
     }

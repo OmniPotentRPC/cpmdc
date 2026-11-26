@@ -131,6 +131,79 @@ static void assert_permutation(const double *original, const double *permuted) {
   assert_true(fabs(permuted[2] - original[2]) < k_perm_tol);
 }
 
+static void test_preflight_failure_drops_cached_charges(void **state) {
+  size_t n = 0;
+  unsigned char *params;
+  CPMDCSession *session;
+  CPMDCResult result;
+  CPMDCEnergyComponents energy;
+  CPMDCChargeIntegrals integrals;
+  CPMDCMultiStateEnergies multi;
+  CPMDCMDTrajectoryRow row;
+  CPMDCStressTensor stress;
+  CPMDCDipole dipole;
+  double forces[9];
+  double gradient[9];
+  double charges[4];
+  size_t gradient_count;
+  const int other_z[1] = {1};
+  const double other_pos[3] = {0.0, 0.0, 0.0};
+  (void)state;
+  if (cpmdc_available() && !pseudopotentials_present())
+    skip();
+
+  params = read_file(g_params, &n);
+  assert_non_null(params);
+  session = cpmdc_session_create(params, n);
+  assert_non_null(session);
+  /* The reference evaluator stores no Hirshfeld charges. The test fault
+   * records one value per atomic number so a later failure can be seen. */
+  if (!cpmdc_available())
+    assert_int_equal(setenv("CPMDC_TEST_FAULT", "charge-snapshot", 1), 0);
+  result = cpmdc_session_energy_forces(session, 3, k_pos, k_z, forces);
+  unsetenv("CPMDC_TEST_FAULT");
+  assert_int_equal(result.ok, 1);
+  memset(charges, 0x5a, sizeof(charges));
+  assert_int_equal(cpmdc_session_last_charges(session, charges, 3), 0);
+  if (!cpmdc_available()) {
+    assert_true(fabs(charges[0] - 0.08) < 1.0e-12);
+    assert_true(fabs(charges[1] - 0.01) < 1.0e-12);
+    assert_true(fabs(charges[2] - 0.01) < 1.0e-12);
+    assert_int_equal(cpmdc_session_last_charge_integrals(session, &integrals),
+                     0);
+    assert_int_equal(cpmdc_session_last_multi_state_energies(session, &multi),
+                     0);
+    assert_int_equal(cpmdc_session_last_md_trajectory_row(session, &row), 0);
+  }
+  assert_int_equal(cpmdc_session_last_energy_components(session, &energy), 0);
+  assert_int_equal(energy.valid, 1);
+  gradient_count = 0;
+  assert_int_equal(
+      cpmdc_session_last_gradient(session, gradient, 9, &gradient_count), 0);
+  assert_int_equal(gradient_count, 9);
+
+  result = cpmdc_session_energy_forces(session, 1, other_pos, other_z, forces);
+  assert_int_equal(result.ok, 0);
+  assert_non_null(strstr(result.message, "topology change"));
+  memset(charges, 0x5a, sizeof(charges));
+  assert_int_equal(cpmdc_session_last_charges(session, charges, 3), -1);
+  assert_true(buffer_untouched(charges, 4));
+  assert_int_equal(cpmdc_session_last_energy_components(session, &energy), -1);
+  gradient_count = 7;
+  assert_int_equal(
+      cpmdc_session_last_gradient(session, gradient, 9, &gradient_count), -1);
+  assert_int_equal(gradient_count, 0);
+  assert_int_equal(cpmdc_session_last_charge_integrals(session, &integrals),
+                   -1);
+  assert_int_equal(cpmdc_session_last_multi_state_energies(session, &multi),
+                   -1);
+  assert_int_equal(cpmdc_session_last_md_trajectory_row(session, &row), -1);
+  assert_int_equal(cpmdc_session_last_stress(session, &stress), -1);
+  assert_int_equal(cpmdc_session_last_dipole(session, &dipole), -1);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
 static void test_opencpmd_water_charges_sum_and_follow_atoms(void **state) {
   size_t n = 0;
   unsigned char *params;
@@ -199,6 +272,7 @@ static void test_opencpmd_water_charges_sum_and_follow_atoms(void **state) {
 int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unset_charges_do_not_write_the_buffer),
+      cmocka_unit_test(test_preflight_failure_drops_cached_charges),
       cmocka_unit_test(test_opencpmd_water_charges_sum_and_follow_atoms),
   };
   if (argc < 2)

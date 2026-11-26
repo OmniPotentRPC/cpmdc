@@ -738,7 +738,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are the caller's atoms, in that order. The values are not fields of ~CPMDCPropertySnapshot~. |
 | Ownership | The caller owns ~charges~. The copy does not alias library memory. A failing call does not write ~charges~. |
 | Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
-| Returns and errors | Returns 0 only when this evaluation stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL ~charges~, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 only when this evaluation stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL ~charges~, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. A failed evaluation invalidates stored charges, which then read as no stored charges. |
 | Python | not wrapped directly; ~cpmdc.Session.charges~ uses the session form. |
 | Defaults | none |
 
@@ -750,7 +750,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are that session's atoms, in the caller's order. The values are not fields of ~CPMDCPropertySnapshot~. |
 | Ownership | ~session~ is borrowed and stays owned by the caller. The caller owns ~charges~, and the copy does not alias library memory. A failing call does not write ~charges~. |
 | Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
-| Returns and errors | Returns 0 only when that session stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL argument, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 only when that session stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL argument, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. A failed evaluation invalidates stored charges, which then read as no stored charges. |
 | Python | ~cpmdc.Session.charges~ reads this value; -1 gives ~None~. |
 | Defaults | none |
 
