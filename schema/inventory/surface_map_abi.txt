@@ -80,6 +80,15 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_xlbomd_observe=                        | cpmdc.h          | -   | Y        |
 | =cpmdc_xlbomd_propagate=                      | cpmdc.h          | -   | Y        |
 
+* Types and constants
+CPMDCWfnExtrap and the constants of that enum, from the same headers.
+
+| name                    | kind     | header  | value |
+|-------------------------+----------+---------+-------|
+| CPMDCWfnExtrap          | enum     | cpmdc.h | -     |
+| CPMDC_WFN_EXTRAP_DECK   | constant | cpmdc.h | 0     |
+| CPMDC_WFN_EXTRAP_XLBOMD | constant | cpmdc.h | 1     |
+
 * Summary
 Public declarations: 66
 Exported cpmdc_ symbols: 66

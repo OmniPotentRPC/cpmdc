@@ -1039,13 +1039,13 @@ The feature IDs are the stable discovery keys returned by
 
 ~EXTRAPOLATE WFN~ renders into every deck that sets ~extrapolateWfnOptions~ or
 ~extrapolateWfnOrder~, except options that are exactly ~XLBOMD~.
-That token selects extended Lagrangian propagation in cpmdc, and the deck
-omits the line.
+That token selects extended Lagrangian propagation in cpmdc, and the deck omits
+the line.
 Order 0 or 3 through 9 is accepted.
 Any other order is refused.
-A build that links OpenCPMD refuses the option when the parameters are
-applied, because the embed API cannot carry the converged coefficients or
-the propagated guess.
+A build that links OpenCPMD refuses the option when the parameters are applied,
+because the embed API cannot carry the converged coefficients or the propagated
+guess.
 The reference evaluator runs the step inside each session evaluation.
 The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows the
 call.

@@ -9,7 +9,7 @@ part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 57 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 66 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -803,33 +803,33 @@ and output (Angstrom per atomic unit of time for velocities), and, in a
 
 * Extended Lagrangian orbital propagation
 
-~CPMDCWfnExtrap~ says whether an ~extrapolateWfnOptions~ token stays on the
-deck path.
+~CPMDCWfnExtrap~ says whether an ~extrapolateWfnOptions~ token stays on the deck
+path.
 The token must be exactly ~XLBOMD~.
-Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100,
-123004 (2008).
-Orders 3 through 9 are Table I of Niklasson, Steneteg, Odell, Bock,
-Challacombe, Tymczak, Holmström, Zheng, and Weber, J. Chem. Phys. 130, 214109
-(2009), with alpha stored unscaled.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100, 123004
+(2008).
+Orders 3 through 9 are Table I of Niklasson, Steneteg, Odell, Bock, Challacombe,
+Tymczak, Holmström, Zheng, and Weber, J. Chem. Phys. 130, 214109 (2009), with
+alpha stored unscaled.
 The last successful ~CPMDParams~ apply records the order of its last ~&CPMD~
 section.
 A failed apply leaves that record unchanged.
-Each session keeps its own samples, per orbital key, and the unkeyed
-trajectory does not share storage with key 0.
+Each session keeps its own samples, per orbital key, and the unkeyed trajectory
+does not share storage with key 0.
 They do not count toward ~CPMDC_ORBITAL_SLOT_LIMIT~.
 ~cpmdc_session_copy_orbitals()~ drops the destination samples when the keys
 differ and leaves them when the keys are the same.
 Destroying a session drops only that session's samples.
 A build that links OpenCPMD refuses ~XLBOMD~ when the parameters are applied.
-The embed API cannot export the converged plane-wave coefficients or install
-a propagated guess, so the option would otherwise run with no extrapolation.
+The embed API cannot export the converged plane-wave coefficients or install a
+propagated guess, so the option would otherwise run with no extrapolation.
 The reference evaluator mixes the caller coordinates in Bohr from the stored
 guess and records the converged vector on that session.
 The published energy and forces stay the reference potential.
 A repeat of a stored geometry does not take another step.
 A call with no session fails when ~XLBOMD~ is configured.
-~cpmdc_session_xlbomd_export()~ copies the samples, and
-~cpmdc_restart_set_xlbomd()~ stores that blob after the CPMD sections.
+~cpmdc_session_xlbomd_export()~ copies the samples, and ~cpmdc_restart_set_xlbomd()~
+stores that blob after the CPMD sections.
 
 | ~CPMDCWfnExtrap~ constant | Value | Meaning |
 |---------------------------+-------+---------|

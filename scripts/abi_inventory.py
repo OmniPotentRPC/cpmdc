@@ -132,6 +132,27 @@ def exported_symbols(library: Path) -> set[str]:
     return symbols
 
 
+def wfn_enum_rows(root: Path) -> list[list[str]]:
+    """CPMDCWfnExtrap and its constants, in header order."""
+    found: list[list[str]] = []
+    pattern = re.compile(
+        r"typedef\s+enum\s+CPMDCWfnExtrap\s*\{(.*?)\}\s*CPMDCWfnExtrap\s*;",
+        re.S,
+    )
+    enumerator = re.compile(r"\b(CPMDC_[A-Z0-9_]+)\s*=\s*(-?\d+)")
+    for relative in HEADERS:
+        code = blank_comments((root / relative).read_text(encoding="utf-8"))
+        match = pattern.search(code)
+        if not match:
+            continue
+        header = Path(relative).name
+        found.append(["CPMDCWfnExtrap", "enum", header, "-"])
+        found.extend(
+            [name, "constant", header, value] for name, value in enumerator.findall(match.group(1))
+        )
+    return found
+
+
 def table(header: list[str], rows: list[list[str]]) -> list[str]:
     widths = [max(len(row[i]) for row in [header, *rows]) for i in range(len(header))]
 
@@ -217,6 +238,11 @@ def build(root: Path, exported: set[str]) -> tuple[str, list[str]]:
         "libcpmdc exports these symbols and no other.",
         "",
         *table(["symbol", "header", "abi", "exported"], public_rows),
+        "",
+        "* Types and constants",
+        "CPMDCWfnExtrap and the constants of that enum, from the same headers.",
+        "",
+        *table(["name", "kind", "header", "value"], wfn_enum_rows(root)),
         "",
         "* Summary",
         f"Public declarations: {len(public)}",

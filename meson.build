@@ -258,7 +258,12 @@ endif
 
 cpmdc_stub = static_library(
   'cpmdc_stub',
-  ['src/cpmdc_stub.c', 'src/cpmdc_xlbomd.c', 'src/cpmdc_features.c', 'src/cpmdc_adopt.c'],
+  [
+    'src/cpmdc_stub.c',
+    'src/cpmdc_xlbomd.c',
+    'src/cpmdc_features.c',
+    'src/cpmdc_adopt.c',
+  ],
   include_directories: inc,
   c_args: stub_c_args,
   dependencies: stub_deps,
@@ -2631,7 +2636,12 @@ if get_option('with_tests')
     executable(
       'test_xlbomd',
       'tests/test_xlbomd.c',
-      dependencies: [cpmdc_embed_shell_dep, cpmdc_restart_dep, cmocka_dep, math_dep],
+      dependencies: [
+        cpmdc_embed_shell_dep,
+        cpmdc_restart_dep,
+        cmocka_dep,
+        math_dep,
+      ],
       include_directories: [inc],
       c_args: common_c_args,
     ),

@@ -42,6 +42,9 @@ static const double k_kth = 0.12;
 static const double k_mass_h = 1.00784 * 1822.888486;
 static const double k_mass_o = 15.999 * 1822.888486;
 static const double k_dt = 20.0;
+static const double k_beta = 0.35;
+static const double k_scf_tol = 1.0e-12;
+static const int k_scf_max = 400;
 
 static const int k_paper_c[7][10] = {
     {-2, 3, 0, -1, 0, 0, 0, 0, 0, 0},
@@ -472,6 +475,57 @@ static double water_gradient(const double *r, double *grad) {
 
 static double mass_of(int atom) { return atom == 0 ? k_mass_o : k_mass_h; }
 
+/* Same linear mix the reference session uses for an XL-BOMD step. */
+static int mix_scf(const double *guess, const double *target, int n, double *out) {
+  int steps = 0;
+  int i;
+  memcpy(out, guess, (size_t)n * sizeof(*out));
+  for (;;) {
+    double sum = 0.0;
+    ++steps;
+    for (i = 0; i < n; ++i) {
+      double d = out[i] - target[i];
+      sum += d * d;
+    }
+    if (sqrt(sum) < k_scf_tol || steps >= k_scf_max)
+      break;
+    for (i = 0; i < n; ++i)
+      out[i] = (1.0 - k_beta) * out[i] + k_beta * target[i];
+  }
+  return steps;
+}
+
+static void aspc_push(double *hist, int *count, const double *d, int n) {
+  int keep = *count < ASPC_ORDER ? *count : ASPC_ORDER - 1;
+  if (keep > 0)
+    memmove(hist + n, hist, (size_t)keep * (size_t)n * sizeof(*hist));
+  memcpy(hist, d, (size_t)n * sizeof(*d));
+  if (*count < ASPC_ORDER)
+    *count += 1;
+}
+
+/* Geometry at the start of each nuclear step, before that step moves. */
+static void water_frames(double geom[WATER_STEPS][9]) {
+  double r[9];
+  double v[9];
+  double grad[9];
+  int step;
+  int i;
+  memcpy(r, k_bohr0, sizeof r);
+  memset(v, 0, sizeof v);
+  water_gradient(r, grad);
+  for (step = 0; step < WATER_STEPS; ++step) {
+    memcpy(geom[step], r, sizeof r);
+    for (i = 0; i < 9; ++i)
+      v[i] += 0.5 * k_dt * (-grad[i] / mass_of(i / 3));
+    for (i = 0; i < 9; ++i)
+      r[i] += k_dt * v[i];
+    water_gradient(r, grad);
+    for (i = 0; i < 9; ++i)
+      v[i] += 0.5 * k_dt * (-grad[i] / mass_of(i / 3));
+  }
+}
+
 static void nuclear_drift(double *drift, double *max_abs) {
   double r[9];
   double v[9];
@@ -579,6 +633,94 @@ static void test_water_golden(void **state) {
   assert_int_equal(saw_drift + saw_max, 2);
   assert_true(fabs(drift - want_drift) < 1.0e-9);
   assert_true(fabs(max_abs - want_max) < 1.0e-9);
+}
+
+/* Twelve nuclear steps. No extrapolation reuses the previous converged
+ * vector. ASPC is order 4. XL-BOMD is the session propagation of order 5,
+ * checked here with the same mixer and, on the reference build, with
+ * cpmdc_session_calculate_au(). */
+static void test_water_scf(void **state) {
+  double geom[WATER_STEPS][9];
+  double guess[9];
+  double converged[9];
+  double next[9];
+  double hist[ASPC_ORDER * 9];
+  int none_total = 0;
+  int aspc_total = 0;
+  int xl_total = 0;
+  int nhist = 0;
+  int step;
+  int want_none = -1;
+  int want_aspc = -1;
+  int want_xl = -1;
+  int saw = 0;
+  FILE *fp;
+  char line[512];
+  CPMDCSession *session;
+  (void)state;
+  water_frames(geom);
+  memset(guess, 0, sizeof guess);
+  for (step = 0; step < WATER_STEPS; ++step) {
+    none_total += mix_scf(guess, geom[step], 9, converged);
+    memcpy(guess, converged, sizeof guess);
+  }
+  memset(guess, 0, sizeof guess);
+  memset(hist, 0, sizeof hist);
+  for (step = 0; step < WATER_STEPS; ++step) {
+    aspc_guess(hist, nhist, 9, guess);
+    aspc_total += mix_scf(guess, geom[step], 9, converged);
+    aspc_push(hist, &nhist, converged, 9);
+  }
+  session = open_session(g_aspc_path);
+  assert_non_null(session);
+  memset(guess, 0, sizeof guess);
+  for (step = 0; step < WATER_STEPS; ++step) {
+    int rc;
+    xl_total += mix_scf(guess, geom[step], 9, converged);
+    rc = cpmdc_xlbomd_observe(session, XL_ORDER, 42, 1, converged, 9, next);
+    assert_true(rc >= 0);
+    memcpy(guess, next, sizeof guess);
+  }
+  cpmdc_session_destroy(session);
+  if (!cpmdc_available()) {
+    CPMDCSession *xl;
+    int session_total = 0;
+    int z[3] = {8, 1, 1};
+    double energy = 0.0;
+    double forces[9];
+    int order = -1;
+    int steps = -1;
+    int propagated = -1;
+    xl = open_session(g_xl_path);
+    assert_non_null(xl);
+    for (step = 0; step < WATER_STEPS; ++step) {
+      assert_int_equal(cpmdc_session_calculate_au(xl, 3, geom[step], z, NULL,
+                                                   &energy, forces, NULL),
+                       0);
+      assert_int_equal(
+          cpmdc_session_xlbomd_last(xl, &order, &steps, &propagated), 0);
+      session_total += steps;
+    }
+    cpmdc_session_destroy(xl);
+    assert_int_equal(session_total, xl_total);
+  }
+  printf("scf_none %d\n", none_total);
+  printf("scf_aspc %d\n", aspc_total);
+  printf("scf_xlbomd %d\n", xl_total);
+  fp = fopen(g_golden_path, "r");
+  assert_non_null(fp);
+  while (fgets(line, sizeof line, fp)) {
+    if (sscanf(line, "scf_none %d", &want_none) == 1 ||
+        sscanf(line, "scf_aspc %d", &want_aspc) == 1 ||
+        sscanf(line, "scf_xlbomd %d", &want_xl) == 1)
+      saw += 1;
+  }
+  fclose(fp);
+  assert_int_equal(saw, 3);
+  assert_int_equal(none_total, want_none);
+  assert_int_equal(aspc_total, want_aspc);
+  assert_int_equal(xl_total, want_xl);
+  assert_true(xl_total > want_aspc);
 }
 
 static void geometry(int step, double *pos) {
@@ -750,6 +892,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_copy_keeps_keys_apart),
       cmocka_unit_test(test_water_forces),
       cmocka_unit_test(test_water_golden),
+      cmocka_unit_test(test_water_scf),
       cmocka_unit_test(test_session_calculate),
   };
   if (argc != 5) {
