@@ -4,6 +4,7 @@
  * defines EXTERNAL POTENTIAL, with or without ADD, is its own error and is
  * not an evaluation failure.
  */
+#define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 #include "schema/Potentials.capnp.h"
 #include <capn.h>
@@ -462,6 +463,161 @@ static void test_periodic_refusal_replaces_the_deck_clash_code(void **state) {
   cpmdc_session_destroy(clash_session);
 }
 
+static void expect_empty_result_readable(CPMDCSession *session) {
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, NULL, 0),
+                   0);
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_NONE);
+  assert_int_equal(cpmdc_last_error()[0], '\0');
+}
+
+/* Positions below are Angstrom, the unit of
+ * cpmdc_session_set_external_charges. */
+static void test_empty_charge_set_has_a_readable_empty_result(void **state) {
+  CPMDCSession *session = open_params(g_params);
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
+  double widths[1] = {0.30};
+  double moved[9];
+  double qm_forces[9];
+  (void)state;
+
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, NULL, 0),
+                   -1);
+  expect_invalid("not available");
+  assert_int_equal(
+      cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces).ok,
+      1);
+  expect_empty_result_readable(session);
+
+  assert_int_equal(cpmdc_session_set_external_charges(session, 1, positions,
+                                                      charges, widths),
+                   0);
+  assert_int_equal(
+      cpmdc_session_set_external_charges(session, 0, NULL, NULL, NULL), 0);
+  memcpy(moved, k_water, sizeof(moved));
+  moved[0] += 0.01;
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, NULL, 0),
+                   -1);
+  expect_invalid("not available");
+  assert_int_equal(
+      cpmdc_session_energy_forces(session, 3, moved, k_numbers, qm_forces).ok,
+      1);
+  expect_empty_result_readable(session);
+  cpmdc_session_destroy(session);
+}
+
+static void expect_forces_hidden(CPMDCSession *session) {
+  double again[3] = {0};
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, again, 3),
+                   -1);
+  expect_invalid("not available");
+}
+
+static void expect_cached_forces(CPMDCSession *session, const double *first,
+                                 double energy_h) {
+  double qm_forces[9];
+  double again[3];
+  CPMDCResult cached =
+      cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces);
+  assert_int_equal(cached.ok, 1);
+  assert_true(cached.energy_h == energy_h);
+  memset(again, 0, sizeof(again));
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, again, 3),
+                   0);
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_NONE);
+  assert_memory_equal(again, first, 3 * sizeof(*first));
+}
+
+/* A refused call clears the forces. The repeat of the stored step answers
+ * from the cache and has to make them readable again. Charge positions are
+ * Angstrom. */
+static void test_failure_hides_forces_and_cache_hit_restores_them(void **state) {
+  CPMDCSession *session = open_params(g_params);
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
+  double widths[1] = {0.30};
+  const int bad_numbers[] = {0, 1, 1};
+  double qm_forces[9];
+  double first[3];
+  double energy = 0.0;
+  double good_energy = 0.0;
+  double virial[9];
+  double water_bohr[9];
+  size_t result_size = 0;
+  CPMDCResult step;
+  int au_rc;
+  int i;
+  (void)state;
+
+  assert_int_equal(cpmdc_session_set_external_charges(session, 1, positions,
+                                                      charges, widths),
+                   0);
+  step = cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces);
+  assert_int_equal(step.ok, 1);
+  good_energy = step.energy_h;
+  assert_int_equal(cpmdc_session_last_external_charge_forces(session, first, 3),
+                   0);
+
+  assert_int_equal(cpmdc_session_energy_forces(session, 3, k_water, bad_numbers,
+                                               qm_forces)
+                       .ok,
+                   0);
+  expect_forces_hidden(session);
+  expect_cached_forces(session, first, good_energy);
+
+  assert_int_equal(cpmdc_session_calculate_au(session, 3, NULL, k_numbers, NULL,
+                                              &energy, qm_forces, NULL),
+                   -1);
+  expect_forces_hidden(session);
+  expect_cached_forces(session, first, good_energy);
+
+  step = cpmdc_session_calculate_result(session, NULL, 0, NULL, 0, &result_size);
+  assert_int_equal(step.ok, 0);
+  expect_forces_hidden(session);
+  expect_cached_forces(session, first, good_energy);
+
+  for (i = 0; i < 9; ++i)
+    water_bohr[i] = k_water[i] / 0.529177210903;
+  assert_int_equal(setenv("CPMDC_TEST_FAULT", "calculate-au-virial", 1), 0);
+  au_rc = cpmdc_session_calculate_au(session, 3, water_bohr, k_numbers, NULL,
+                                    &energy, qm_forces, virial);
+  assert_int_equal(unsetenv("CPMDC_TEST_FAULT"), 0);
+  assert_int_equal(au_rc, -1);
+  expect_forces_hidden(session);
+  expect_cached_forces(session, first, good_energy);
+  cpmdc_session_destroy(session);
+}
+
+/* The bridge adds the session charges' energy to ener_com%eext, and the
+ * public snapshot has to carry it. The reference evaluator fills only etot.
+ * The charge sits 4 Angstrom from the origin. */
+static void test_energy_snapshot_carries_the_external_energy(void **state) {
+  CPMDCSession *session = open_params(g_params);
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
+  double widths[1] = {0.30};
+  double qm_forces[9];
+  CPMDCEnergyComponents parts;
+  (void)state;
+
+  assert_int_equal(cpmdc_session_set_external_charges(session, 1, positions,
+                                                      charges, widths),
+                   0);
+  assert_int_equal(
+      cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces).ok,
+      1);
+  memset(&parts, 0, sizeof(parts));
+  assert_int_equal(cpmdc_last_energy_components(&parts), 0);
+  assert_int_equal(parts.valid, 1);
+  assert_true(isfinite(parts.eext));
+#if defined(CPMDC_HAS_CPMD)
+  assert_true(fabs(parts.eext) > 1.0e-6);
+#else
+  assert_true(parts.eext == 0.0);
+#endif
+  cpmdc_session_destroy(session);
+}
+
 int main(int argc, char **argv) {
   if (argc != 5) {
     fprintf(stderr, "usage: %s PARAMS POTENTIAL POTENTIAL_ADD PERIODIC\n",
@@ -482,6 +638,9 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_deck_external_potential_add),
       cmocka_unit_test(test_periodic_deck_is_refused_without_a_cell),
       cmocka_unit_test(test_periodic_refusal_replaces_the_deck_clash_code),
+      cmocka_unit_test(test_empty_charge_set_has_a_readable_empty_result),
+      cmocka_unit_test(test_failure_hides_forces_and_cache_hit_restores_them),
+      cmocka_unit_test(test_energy_snapshot_carries_the_external_energy),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

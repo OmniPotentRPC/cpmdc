@@ -63,6 +63,15 @@ def main() -> int:
                 "IF (embed_external_count > 0): an EXTERNAL POTENTIAL ADD deck "
                 "without session charges would count it twice"
             )
+    if not any(
+        re.search(
+            r"image%energy%eext\s*=\s*REAL\(ener_com%eext", line, re.I
+        )
+        for line in lines
+    ):
+        raise SystemExit(
+            "ener_com%eext is not copied into the energy-component snapshot"
+        )
     print("embed_eval_energy_grad guards the eext sum")
     return 0
 
