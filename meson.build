@@ -642,9 +642,9 @@ cpmdc_ipi_exe = disabler()
 if cc.has_header('sys/un.h')
   cpmdc_ipi_exe = executable(
     'cpmdc-ipi-c',
-    ['tools/cpmdc_ipi.c', 'src/cpmdc_cell_rank.c'],
+    ['tools/cpmdc_ipi.c', 'tools/ipi_extra.c', 'src/cpmdc_cell_rank.c'],
     link_with: cpmdc_shared,
-    include_directories: include_directories('include', 'src'),
+    include_directories: include_directories('include', 'src', 'tools'),
     dependencies: [math_dep],
     c_args: common_c_args,
     install: not get_option('with_python'),
@@ -2032,6 +2032,25 @@ if get_option('with_tests')
     pytest_env += {'CPMDC_GROMACS_LIB': cpmdc_gromacs_lib.full_path()}
     pytest_depends += cpmdc_gromacs_lib
   endif
+  ipi_dipole_interpose = shared_library(
+    'ipi_dipole_interpose',
+    'tests/ipi_dipole_interpose.c',
+    dependencies: [math_dep],
+    c_args: common_c_args,
+  )
+  pytest_env += {'CPMDC_IPI_DIPOLE_INTERPOSE': ipi_dipole_interpose.full_path()}
+  pytest_depends += ipi_dipole_interpose
+  test(
+    'ipi-dipole-extra',
+    executable(
+      'test_ipi_extra',
+      ['tests/test_ipi_extra.c', 'tools/ipi_extra.c'],
+      include_directories: include_directories('tools'),
+      dependencies: [cmocka_dep, math_dep],
+      c_args: common_c_args,
+    ),
+    suite: ['cmocka'],
+  )
   test(
     'python-pytest',
     python,

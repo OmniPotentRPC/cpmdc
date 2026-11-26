@@ -5296,7 +5296,7 @@ returns.
 | energy | Hartree | `Evaluation.energy_h` |
 | forces | Hartree/Bohr, `3N` reals | `Evaluation.forces_h_bohr` |
 | virial | Hartree, nine reals laid out as the cell | `-dE/d(strain)`, the library stress times the volume in Bohr^3 |
-| extra string | `{"dipole":[x,y,z]}` in electron Bohr, or empty | `Evaluation.dipole_e_bohr` |
+| extra string | `{"dipole":[x,y,z]}` in electron Bohr, or empty | `Evaluation.dipole_e_bohr` when that step recomputed a finite dipole |
 
 The virial is what ASE's `SocketClient` sends as `-volume * stress` and what
 i-PI's ASE driver sends, so ASE's `stress = -virial / volume` comes back with
@@ -5315,15 +5315,24 @@ agree to 1e-10, which the pytest suite checks.
 - One structure per request: `INIT` must be UTF-8, and `batch_size`, when
   present, must appear once with the integer value 1.
   There is no shared-memory (`mode="shm"`) transport.
-- The extra string after the virial is the JSON `{"dipole":[x,y,z]}` when the
-  library recomputed the molecular dipole for that step, and empty otherwise.
-  The values are electron Bohr, the atomic unit of i-PI's `electric-dipole`, and
-  i-PI's `parse_extra` exposes them as `extras["dipole"]`.
+- The extra string after the virial is empty when the library did not recompute
+  a molecular dipole.
+  A missing dipole is not replaced with zeros.
+  When every component is finite, the string is UTF-8 JSON `{"dipole":[x,y,z]}`,
+  each value in electron Bohr with 16 digits after the decimal in scientific
+  notation and no spaces.
+  i-PI `parse_extra` loads that object
+  (https://github.com/i-pi/i-pi/blob/master/ipi/interfaces/utils.py), and the
+  `dipole` field is the electric dipole in the same atomic units as the rest of
+  the wire, as in i-PI's own dummy driver
+  (https://github.com/i-pi/i-pi/blob/master/ipi/pes/dummy.py).
   Only an OpenCPMD periodic Gamma-point deck with `DIPOLE DYNAMICS` or
   `PROP / DIPOLE MOMENT BERRY` recomputes a dipole.
-  A dipole that is NaN or infinite sends an empty extra string and warns once on
-  standard error; the energy, forces, and virial of that step are still sent.
-  ASE's `SocketIOCalculator` reads the extra string and ignores it.
+  ASE reads the announced extra bytes and does not interpret them
+  (https://gitlab.com/ase/ase/-/blob/master/ase/calculators/socketio.py).
+  A dipole that is not three finite components stops either driver with "dipole
+  must have three components" or "dipole is not finite" before the step is
+  counted, and no reply is sent.
 - A cluster, an isolated deck, or `CPMDC_STRESS=0` sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver.
@@ -9142,9 +9151,9 @@ The i-PI protocol driver.
 |--------+--------|
 | Signature | `compute(positions, cell)` |
 | Units | `positions` and `cell` in Bohr; returns the energy in Hartree, forces in Hartree/Bohr and the virial `-dE/d(strain)` in Hartree. |
-| Shape and dtype | `positions` 3N floats; `cell` nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns  of 1, 3N and 9 values. |
+| Shape and dtype | `positions` 3N floats; `cell` nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns  of 1, 3N and 9 values. When the evaluation recomputed a finite molecular dipole, the bytes `serve` appends are UTF-8 JSON `{"dipole":[x,y,z]}` in electron Bohr; otherwise those bytes are empty. |
 | Ownership and threads | Returns new lists; counts the step in `steps`. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | `ProtocolError` for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range, both judged on the Bohr values of `cell`; `CPMDCError` for a cell volume above the largest float64, before the session is called, or a virial component that is not finite; `ValueError` for a position that is not finite (`positions must be finite`) or, when the cell is used, a cell value that is not finite (`cell must be finite`), checked after the rank and before the volume; `CPMDCError` and `ValueError` from the session. |
+| Raises | `ProtocolError` for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range, both judged on the Bohr values of `cell`; `CPMDCError` for a cell volume above the largest float64, before the session is called, a virial component that is not finite, a dipole that is not three components (`dipole must have three components`), or a dipole component that is not finite (`dipole is not finite`), the dipole checks before the step is counted; `ValueError` for a position that is not finite (`positions must be finite`) or, when the cell is used, a cell value that is not finite (`cell must be finite`), checked after the rank and before the volume; `CPMDCError` and `ValueError` from the session. |
 | Defaults | none: both arguments are required. |
 
 ### ~cpmdc.ipi.Driver.serve~
@@ -9152,10 +9161,10 @@ The i-PI protocol driver.
 | Item | Description |
 |--------+--------|
 | Signature | `serve(sock)` |
-| Units | Atomic units on the wire, as for `compute`; the extra string after the virial carries the dipole in electron Bohr. |
-| Shape and dtype | `sock` a connected stream socket; returns the number of steps served as an `int`. The extra string is the ASCII JSON `{"dipole":[x,y,z]}` when `Evaluation.dipole_e_bohr` holds three finite values for the step, and empty otherwise; a non-finite dipole warns once on standard error. |
+| Units | Atomic units on the wire, as for `compute`; the extra string after the virial carries a finite recomputed dipole in electron Bohr. |
+| Shape and dtype | `sock` a connected stream socket; returns the number of steps served as an `int`. `GETFORCE` is answered with `FORCEREADY`, the energy, the atom count, the forces, the virial laid out as the cell, and the length-prefixed extra string from that step. The string is ASCII JSON `{"dipole":[x,y,z]}` with 16 digits after the decimal when the dipole is three finite values, and empty when none was recomputed. |
 | Ownership and threads | The caller owns the socket and closes it. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | `ProtocolError` for a connection closed in the middle of a message, a message out of order, an unknown header, an `INIT` that is not UTF-8 or whose `batch_size` appears more than once or is not the integer 1, or a negative announced size; `OSError` for a socket failure; `CPMDCError` from the session. A close between messages ends the run like `EXIT`. |
+| Raises | `ProtocolError` for a connection closed in the middle of a message, a message out of order, an unknown header, an `INIT` that is not UTF-8 or whose `batch_size` appears more than once or is not the integer 1, or a negative announced size; `OSError` for a socket failure; `CPMDCError` from the session, including a dipole that is not three finite components (`dipole must have three components` or `dipole is not finite`) before a reply is sent. A close between messages ends the run like `EXIT`. |
 | Defaults | none |
 
 ### ~cpmdc.ipi.Driver.steps~
@@ -12132,8 +12141,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.ase.UnsupportedAtoms` | a structure the calculator cannot take: mixed `pbc` flags, a periodic cell of rank below 3, or a periodic cell with a volume below the normal float64 range; both ASE's `CalculatorSetupError` and a `ValueError` |
 | `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
 | `cpmdc.ipi.Driver` | `Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)`: answer i-PI protocol requests from one `Session` |
-| `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree |
-| `Driver.serve` | `serve(sock)`: answer a connected socket until `EXIT` or a closed connection; return the step count |
+| `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree; a finite recomputed dipole is kept for the extra string `{"dipole":[x,y,z]}` in electron Bohr, and a missing dipole leaves that string empty |
+| `Driver.serve` | `serve(sock)`: answer a connected socket until `EXIT` or a closed connection; return the step count; `GETFORCE` sends the extra string from the matching `compute` |
 | `Driver.close` | `close()`: close the session |
 | `cpmdc.ipi.ProtocolError` | a `CPMDCError` for a message the driver cannot answer |
 | `cpmdc.ipi.connect` | `connect(*, unix=None, host='localhost', port=None, prefix=None, wait=0.0)`: open the UNIX or TCP socket to the server, retrying for `wait` seconds |
