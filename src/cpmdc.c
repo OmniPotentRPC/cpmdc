@@ -2385,7 +2385,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   cpmdc_orbital_note_stored();
   r.ok = 1;
   r.energy_h = energy;
-  if (session && session->external_count > 0)
+  if (session)
     session->external_forces_valid = 1;
   snprintf(r.message, sizeof(r.message), "ok");
   cpmdc_store_error("");
@@ -3140,6 +3140,7 @@ static CPMDCResult session_energy_gradient_cell(
   err = collective_call_gate(err);
   if (err) {
     free(pending_topology);
+    session->external_forces_valid = 0;
     return fail_msg(err);
   }
   if (rank_consensus_all(
@@ -3155,6 +3156,10 @@ static CPMDCResult session_energy_gradient_cell(
       memcpy(session->fixed_atomic_numbers, atomic_numbers,
              (size_t)n_atoms * sizeof(*atomic_numbers));
     }
+    /* The cache holds a successful step, and replacing the charges
+     * drops it, so the force buffer still holds that step. A failed
+     * call in between may have cleared the flag. */
+    session->external_forces_valid = 1;
     CPMDCResult cached;
     cached.ok = 1;
     cached.energy_h = session->cached_energy_h;
@@ -3485,6 +3490,8 @@ CPMDCResult cpmdc_session_calculate_result(
   err = collective_call_gate(err);
   if (err) {
     free(forces);
+    if (session)
+      session->external_forces_valid = 0;
     return fail_msg(err);
   }
   r = session_energy_gradient_cell(session, (int)n_atoms,
@@ -3511,6 +3518,8 @@ CPMDCResult cpmdc_session_calculate_result(
     snprintf(r.message, sizeof(r.message), "%s", write_err);
     cpmdc_store_error(r.message);
   }
+  if (!r.ok && session)
+    session->external_forces_valid = 0;
   free(forces);
   return r;
 }
@@ -3547,6 +3556,8 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
   }
   err = collective_call_gate(err);
   if (err) {
+    if (session)
+      session->external_forces_valid = 0;
     (void)fail_msg(err);
     return -1;
   }
@@ -3575,9 +3586,14 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
         virial_err = "virial is not finite";
     }
     virial_err = collective_call_gate(virial_err);
-    if (!r.ok)
+    if (!r.ok) {
+      if (session)
+        session->external_forces_valid = 0;
       return -1;
+    }
     if (virial_err) {
+      if (session)
+        session->external_forces_valid = 0;
       (void)fail_msg(virial_err);
       return -1;
     }

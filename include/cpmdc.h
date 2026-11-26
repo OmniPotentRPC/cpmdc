@@ -602,6 +602,10 @@ CPMDC_API int cpmdc_session_set_external_charges(
  * and a message, when `session` is NULL, when no successful evaluation has
  * stored forces for the current charge set, when `forces_len` is not
  * `3 * n_charges`, or when the buffer is NULL and `forces_len` is positive.
+ * An empty charge set has an empty result: after a successful evaluation,
+ * `forces_len = 0` returns 0 and copies nothing. A failed evaluation clears
+ * that result. A later call answered from the session cache marks it
+ * readable again.
  */
 CPMDC_API int cpmdc_session_last_external_charge_forces(
     const CPMDCSession *session, double *forces_h_bohr, size_t forces_len);

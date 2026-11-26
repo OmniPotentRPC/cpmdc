@@ -343,7 +343,7 @@ A session is created by one of two functions and released by
 | Layout | ~forces_h_bohr~ is a caller-owned array of at least ~forces_len >= 3 * n_charges~ doubles, atom-major, C order. |
 | Ownership | ~session~ stays owned by the caller; the library copies into the caller's ~forces_h_bohr~ buffer. |
 | Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to each rank after an evaluation. |
-| Returns and errors | Returns 0 on success (including ~n_charges = 0~) and -1 with ~CPMDC_ERROR_INVALID_ARGUMENT~ for a NULL session, NULL output buffer when active charges exist, wrong ~forces_len~, or before any evaluation with the installed charges; the text is ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 on success, including ~n_charges = 0~ with ~forces_len = 0~ after a successful evaluation, when nothing is copied; a repeat of the stored step answered from the session cache counts as that evaluation. Returns -1 with ~CPMDC_ERROR_INVALID_ARGUMENT~ for a NULL session, a NULL output buffer when active charges exist, ~forces_len~ other than ~3 * n_charges~, or when the last call failed or no successful evaluation with the installed charges has run; the text is ~cpmdc_last_error()~. |
 | Python | ~cpmdc.Session.external_charge_forces_au~ raises ~cpmdc.CPMDCError~ (or ~cpmdc.CPMDCInvalidArgument~). |
 | Defaults | none |
 
@@ -1900,7 +1900,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Units | Hartree/Bohr (atomic units, negative gradient with respect to the MM charge positions). |
 | Shape and dtype | ~n_charges~ a non-negative integer matching the installed external charge count; returns a ~float64~ ~array('d')~ of length ~3 * n_charges~ in atom-major C order. |
 | Ownership and threads | Returns a new buffer; not thread-safe against evaluation or close on the same session. MPI: local to each rank after an evaluation. |
-| Raises | ~ValueError~ for a negative ~n_charges~; ~CPMDCError~ for a closed session, a library without ~cpmdc_session_last_external_charge_forces~, a mismatched count, or before any evaluation with the active external charges. |
+| Raises | ~ValueError~ for a negative ~n_charges~; ~CPMDCError~ for a closed session, a library without ~cpmdc_session_last_external_charge_forces~, a mismatched count, before any evaluation with the active external charges, or after a failed evaluation; a repeat answered from the session cache counts as a successful evaluation, and ~n_charges = 0~ returns an empty array. |
 | Defaults | none: ~n_charges~ is required. |
 
 *** ~cpmdc.Session.select_orbitals~

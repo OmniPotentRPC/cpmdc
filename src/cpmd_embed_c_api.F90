@@ -3179,6 +3179,7 @@ CONTAINS
     image%energy%enl = REAL(ener_com%enl, KIND=c_double)
     image%energy%eht = REAL(ener_com%eht, KIND=c_double)
     image%energy%exc = REAL(ener_com%exc, KIND=c_double)
+    image%energy%eext = REAL(ener_com%eext, KIND=c_double)
     image%energy%valid = 1_c_int
     image%charge%csumg = REAL(chrg%csumg, KIND=c_double)
     image%charge%csumr = REAL(chrg%csumr, KIND=c_double)
