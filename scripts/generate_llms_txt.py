@@ -60,21 +60,176 @@ def page_title(org_path: Path) -> str:
     return org_path.stem.replace("-", " ").title()
 
 
+# Org emphasis borders, from org-element's default emphasis components:
+# pre is "-", whitespace, or ('"{ and post adds the closing punctuation.
+_LITERAL_BEGIN = re.compile(r"(?i)^#\+begin_(src|example|verse|export)\b")
+_LITERAL_END = re.compile(r"(?i)^#\+end_(src|example|verse|export)\b")
+_BACKSLASH_MATH = re.compile(
+    r"\\\(.*?\\\)|\\\[.*?\\\]|\\begin\{([A-Za-z*]+)\}.*?\\end\{\1\}",
+    re.DOTALL,
+)
+_LINK_WITH_DESC = re.compile(r"(?<!\[)\[\[([^][]+)\]\[([^]]*)\]\](?!\])")
+_LINK_BARE = re.compile(r"(?<!\[)\[\[([^][]+)\]\](?!\])")
+_MATH_TOKEN = re.compile(r"\x00M(\d+)\x00")
+
+
+def _is_emphasis_pre(char: str) -> bool:
+    return char.isspace() or char in "-('\"{"
+
+
+def _is_emphasis_post(char: str) -> bool:
+    return char.isspace() or char in "-.,:;!?'\")}[]\\"
+
+
+def _emphasis_end(line: str, start: int, marker: str) -> int | None:
+    """Closing index of an Org code or verbatim span, or None.
+
+    Only the next marker can close the span. A later marker would pull the
+    first marker into the body, which is how ``=1`` inside math gets spliced
+    into a following verbatim span.
+    """
+    if start >= len(line) or line[start] != marker:
+        return None
+    if start > 0 and not _is_emphasis_pre(line[start - 1]):
+        return None
+    end = line.find(marker, start + 1)
+    if end < 0:
+        return None
+    body = line[start + 1 : end]
+    if not body or body[0].isspace() or body[-1].isspace() or "\x00" in body:
+        return None
+    if end != len(line) - 1 and not _is_emphasis_post(line[end + 1]):
+        return None
+    return end
+
+
+def _backslash_math_end(line: str, start: int) -> int | None:
+    if line.startswith(r"\(", start):
+        end = line.find(r"\)", start + 2)
+        return None if end < 0 else end + 2
+    if line.startswith(r"\[", start):
+        end = line.find(r"\]", start + 2)
+        return None if end < 0 else end + 2
+    if line.startswith(r"\begin{", start):
+        match = re.match(r"\\begin\{([A-Za-z*]+)\}", line[start:])
+        if match is None:
+            return None
+        closer = "\\end{" + match.group(1) + "}"
+        end = line.find(closer, start + match.end())
+        return None if end < 0 else end + len(closer)
+    return None
+
+
+def _dollar_math_end(line: str, start: int) -> int | None:
+    if start >= len(line) or line[start] != "$":
+        return None
+    if start > 0 and line[start - 1] == "$":
+        return None
+    if start + 1 < len(line) and line[start + 1] == "$":
+        end = line.find("$$", start + 2)
+        return None if end < 0 else end + 2
+    end = line.find("$", start + 1)
+    if end < 0:
+        return None
+    return end + 1
+
+
+def _shield_backslash_math(text: str, vault: list[str]) -> str:
+    def stash(match: re.Match[str]) -> str:
+        vault.append(match.group(0))
+        return f"\x00M{len(vault) - 1}\x00"
+
+    return _BACKSLASH_MATH.sub(stash, text)
+
+
+def _restore_math(text: str, vault: list[str]) -> str:
+    def restore(match: re.Match[str]) -> str:
+        return vault[int(match.group(1))]
+
+    return _MATH_TOKEN.sub(restore, text)
+
+
+def _skip_token(line: str, start: int) -> int | None:
+    if line[start] != "\x00":
+        return None
+    end = line.find("\x00", start + 1)
+    if end < 0:
+        return None
+    return end + 1
+
+
+def _link_match(line: str, start: int) -> re.Match[str] | None:
+    if start > 0 and line[start - 1] == "[":
+        return None
+    described = _LINK_WITH_DESC.match(line, start)
+    if described is not None:
+        return described
+    return _LINK_BARE.match(line, start)
+
+
+def _convert_inline(line: str) -> str:
+    """Convert inline markup, keeping link targets and code interiors literal.
+
+    Code and verbatim are recognized before links, so a code span that shows
+    an Org link keeps the brackets. Math is copied before either of those.
+    """
+    out: list[str] = []
+    index = 0
+    while index < len(line):
+        token_end = _skip_token(line, index)
+        if token_end is not None:
+            out.append(line[index:token_end])
+            index = token_end
+            continue
+        math_end = _backslash_math_end(line, index)
+        if math_end is None:
+            math_end = _dollar_math_end(line, index)
+        if math_end is not None:
+            out.append(line[index:math_end])
+            index = math_end
+            continue
+        if line[index] in "~=":
+            end = _emphasis_end(line, index, line[index])
+            if end is not None:
+                out.append("`" + line[index + 1 : end] + "`")
+                index = end + 1
+                continue
+        link = _link_match(line, index)
+        if link is not None:
+            if link.lastindex == 2:
+                out.append(f"{_convert_inline(link.group(2))} ({link.group(1)})")
+            else:
+                out.append(link.group(1))
+            index = link.end()
+            continue
+        out.append(line[index])
+        index += 1
+    return "".join(out)
+
+
 def org_plaintext(text: str) -> str:
-    """Rough Org to plain text for llms-full.txt (not a full exporter)."""
+    """Rough Org to plain text for llms-full.txt (not a full exporter).
+
+    Backslash math, display math, dollar math, and LaTeX environments are
+    copied unchanged, so ``=1`` and ``~x~`` inside them are not inline markup.
+    Org code and verbatim become backtick spans. Source, example, verse, and
+    export blocks are copied as written.
+    """
     text = normalize_wrapped_org_links(text)
+    math_vault: list[str] = []
+    text = _shield_backslash_math(text, math_vault)
     lines: list[str] = []
-    in_export = False
+    in_literal = False
     for raw in text.splitlines():
         line = raw.rstrip()
-        if line.startswith("#+begin_export") or line.startswith("#+BEGIN_EXPORT"):
-            in_export = True
+        if _LITERAL_BEGIN.match(line):
+            in_literal = True
             continue
-        if line.startswith("#+end_export") or line.startswith("#+END_EXPORT"):
-            in_export = False
+        if _LITERAL_END.match(line):
+            in_literal = False
             continue
-        if in_export:
-            lines.append(line)
+        if in_literal:
+            lines.append(_restore_math(line, math_vault))
             continue
         if line.startswith("#+"):
             continue
@@ -82,13 +237,10 @@ def org_plaintext(text: str) -> str:
         if heading_match:
             level = len(heading_match.group(1))
             heading = (heading_match.group(2) or "").strip()
+            heading = _restore_math(_convert_inline(heading), math_vault)
             lines.append("#" * min(level, 6) + " " + heading)
             continue
-        line = re.sub(r"~\([^)]+\)~", "", line)
-        line = re.sub(r"~([^~]+)~", r"`\1`", line)
-        line = re.sub(r"(?<!\[)\[\[([^][]+)\]\[([^]]*)\]\](?!\])", r"\2 (\1)", line)
-        line = re.sub(r"(?<!\[)\[\[([^][]+)\]\](?!\])", r"\1", line)
-        lines.append(line)
+        lines.append(_restore_math(_convert_inline(line), math_vault))
     return "\n".join(lines).strip() + "\n"
 
 
