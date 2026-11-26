@@ -68,6 +68,9 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_session_set_constant_cutoff=           | cpmdc.h          | -   | Y        |
 | =cpmdc_session_set_external_charges=          | cpmdc.h          | -   | Y        |
 | =cpmdc_session_set_params=                    | cpmdc.h          | -   | Y        |
+| =cpmdc_session_xlbomd_export=                 | cpmdc.h          | -   | Y        |
+| =cpmdc_session_xlbomd_import=                 | cpmdc.h          | -   | Y        |
+| =cpmdc_session_xlbomd_last=                   | cpmdc.h          | -   | Y        |
 | =cpmdc_set_params=                            | cpmdc.h          | -   | Y        |
 | =cpmdc_version=                               | cpmdc.h          | -   | Y        |
 | =cpmdc_xlbomd_classify=                       | cpmdc.h          | -   | Y        |
@@ -78,7 +81,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_xlbomd_propagate=                      | cpmdc.h          | -   | Y        |
 
 * Summary
-Public declarations: 63
-Exported cpmdc_ symbols: 63
+Public declarations: 66
+Exported cpmdc_ symbols: 66
 Other exported symbols: 0
 Parity: OK

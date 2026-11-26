@@ -1,16 +1,16 @@
 /**
- * XL-BOMD auxiliary propagation, and a surrogate water BOMD.
+ * XL-BOMD auxiliary propagation, and a session evaluation on the reference
+ * engine.
  *
  * The coefficient rows are Table I of Niklasson, Steneteg, Odell, Bock,
  * Challacombe, Tymczak, Holmstrom, Zheng, and Weber, J. Chem. Phys. 130,
  * 214109 (2009). The reversible map is Niklasson, Phys. Rev. Lett. 100,
- * 123004 (2008). OpenCPMD is not linked here, so the water run is a
- * harmonic stand-in on the step-0 geometry of water_aspc_bomd.txt, not a
- * plane-wave SCF. It records energy drift and SCF iterations against an
- * ASPC guess of order 4 on that same model.
+ * 123004 (2008). The water drift is the nuclear Verlet energy of a harmonic
+ * stand-in. The session test calls cpmdc_session_calculate_au().
  */
 #include "cpmdc.h"
 #include "cpmdc_params.h"
+#include "cpmdc_restart.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -23,7 +23,7 @@
 
 #include <cmocka.h>
 
-enum { DIM = 4, ASPC_ORDER = 4, XL_ORDER = 5, WATER_STEPS = 12, REV_STEPS = 16 };
+enum { ASPC_ORDER = 4, XL_ORDER = 5, WATER_STEPS = 12, REV_STEPS = 16 };
 
 static const char *g_aspc_path;
 static const char *g_xl_path;
@@ -42,9 +42,6 @@ static const double k_kth = 0.12;
 static const double k_mass_h = 1.00784 * 1822.888486;
 static const double k_mass_o = 15.999 * 1822.888486;
 static const double k_dt = 20.0;
-static const double k_beta = 0.35;
-static const double k_scf_tol = 1.0e-12;
-static const int k_scf_max = 400;
 
 static const int k_paper_c[7][10] = {
     {-2, 3, 0, -1, 0, 0, 0, 0, 0, 0},
@@ -94,6 +91,17 @@ static int read_file(const char *path, unsigned char **buf, size_t *n) {
   *buf = data;
   *n = (size_t)sz;
   return 0;
+}
+
+static CPMDCSession *open_session(const char *path) {
+  unsigned char *buf = NULL;
+  size_t n = 0;
+  CPMDCSession *session;
+  if (read_file(path, &buf, &n) != 0)
+    return NULL;
+  session = cpmdc_session_create(buf, n);
+  free(buf);
+  return session;
 }
 
 static void test_coefficients(void **state) {
@@ -213,33 +221,42 @@ static void test_per_key(void **state) {
   double got[2];
   double hist[4 * 2];
   double expect[2];
+  CPMDCSession *session;
+  CPMDCSession *other;
   int s;
   int i;
   (void)state;
-  cpmdc_xlbomd_clear_key(1, 1);
-  cpmdc_xlbomd_clear_key(2, 1);
-  cpmdc_xlbomd_clear_key(0, 0);
-  cpmdc_xlbomd_clear_key(0, 1);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 1, 1, a, 2, next), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 2, 1, b, 2, bnext), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 1, 1, a2, 2, next), 1);
+  session = open_session(g_aspc_path);
+  assert_non_null(session);
+  other = open_session(g_aspc_path);
+  assert_non_null(other);
+  cpmdc_xlbomd_clear_key(session, 1, 1);
+  cpmdc_xlbomd_clear_key(session, 2, 1);
+  cpmdc_xlbomd_clear_key(session, 0, 0);
+  cpmdc_xlbomd_clear_key(session, 0, 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 1, 1, a, 2, next), 0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 2, 1, b, 2, bnext), 0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 1, 1, a2, 2, next), 1);
   assert_true(fabs(next[0] - 1.2) < 1.0e-12);
   assert_true(fabs(next[1] - 0.4) < 1.0e-12);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 2, 1, b2, 2, bnext), 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 2, 1, b2, 2, bnext), 1);
   assert_true(fabs(bnext[0] - 1.0) < 1.0e-12);
   assert_true(fabs(bnext[1] + 0.5) < 1.0e-12);
-  cpmdc_xlbomd_clear_key(1, 1);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 1, 1, a, 2, next), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 2, 1, b2, 2, bnext), 1);
+  cpmdc_xlbomd_clear_key(session, 1, 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 1, 1, a, 2, next), 0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 2, 1, b2, 2, bnext), 1);
+  assert_int_equal(cpmdc_xlbomd_observe(other, 0, 2, 1, b2, 2, bnext), 0);
 
   for (s = 0; s < 5; ++s) {
     series[s][0] = 0.2 * (double)s;
     series[s][1] = 0.05 * (double)(s + 1);
   }
-  cpmdc_xlbomd_clear_key(11, 1);
+  cpmdc_xlbomd_clear_key(session, 11, 1);
   for (s = 0; s < 4; ++s)
-    assert_int_equal(cpmdc_xlbomd_observe(3, 11, 1, series[s], 2, got), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(3, 11, 1, series[4], 2, got), 1);
+    assert_int_equal(cpmdc_xlbomd_observe(session, 3, 11, 1, series[s], 2, got),
+                     0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 3, 11, 1, series[4], 2, got),
+                   1);
   for (s = 0; s < 4; ++s) {
     hist[s * 2] = series[3 - s][0];
     hist[s * 2 + 1] = series[3 - s][1];
@@ -254,13 +271,15 @@ static void test_per_key(void **state) {
     double un = 0.0;
     double z = 9.0;
     double zn = 0.0;
-    assert_int_equal(cpmdc_xlbomd_observe(0, 0, 0, &u, 1, &un), 0);
-    assert_int_equal(cpmdc_xlbomd_observe(0, 0, 1, &z, 1, &zn), 0);
-    assert_int_equal(cpmdc_xlbomd_observe(0, 0, 0, &u2, 1, &un), 1);
+    assert_int_equal(cpmdc_xlbomd_observe(session, 0, 0, 0, &u, 1, &un), 0);
+    assert_int_equal(cpmdc_xlbomd_observe(session, 0, 0, 1, &z, 1, &zn), 0);
+    assert_int_equal(cpmdc_xlbomd_observe(session, 0, 0, 0, &u2, 1, &un), 1);
     assert_true(fabs(un - 4.0) < 1.0e-12);
-    assert_int_equal(cpmdc_xlbomd_observe(0, 0, 1, &z, 1, &zn), 1);
+    assert_int_equal(cpmdc_xlbomd_observe(session, 0, 0, 1, &z, 1, &zn), 1);
     assert_true(fabs(zn - 9.0) < 1.0e-12);
   }
+  cpmdc_session_destroy(other);
+  cpmdc_session_destroy(session);
 }
 
 static char *render_message(const unsigned char *bytes, size_t n) {
@@ -298,11 +317,22 @@ static void test_parameter_surface(void **state) {
   assert_non_null(strstr(aspc_deck, "\n  4\n"));
   assert_null(strstr(xl_deck, "EXTRAPOLATE WFN"));
   assert_non_null(strstr(xl_deck, "OPTIMIZE WAVEFUNCTION\n"));
-  assert_int_equal(cpmdc_set_params(xl, xl_n), 0);
-  assert_int_equal(cpmdc_xlbomd_configured_order(), 5);
-  assert_int_equal(cpmdc_set_params(bad, bad_n), -1);
-  assert_non_null(strstr(cpmdc_last_error(), "3 through 9"));
-  assert_int_equal(cpmdc_xlbomd_configured_order(), 5);
+  if (cpmdc_available()) {
+    assert_int_equal(cpmdc_set_params(xl, xl_n), -1);
+    assert_non_null(strstr(cpmdc_last_error(), "embed API"));
+    assert_int_equal(cpmdc_xlbomd_configured_order(), -1);
+    assert_int_equal(cpmdc_set_params(bad, bad_n), -1);
+    assert_non_null(strstr(cpmdc_last_error(), "3 through 9"));
+    assert_int_equal(cpmdc_xlbomd_configured_order(), -1);
+    assert_null(cpmdc_session_create(xl, xl_n));
+    assert_non_null(strstr(cpmdc_last_error(), "embed API"));
+  } else {
+    assert_int_equal(cpmdc_set_params(xl, xl_n), 0);
+    assert_int_equal(cpmdc_xlbomd_configured_order(), 5);
+    assert_int_equal(cpmdc_set_params(bad, bad_n), -1);
+    assert_non_null(strstr(cpmdc_last_error(), "3 through 9"));
+    assert_int_equal(cpmdc_xlbomd_configured_order(), 5);
+  }
   assert_int_equal(cpmdc_set_params(aspc, aspc_n), 0);
   assert_int_equal(cpmdc_xlbomd_configured_order(), -1);
   free(aspc_deck);
@@ -332,15 +362,15 @@ static void test_copy_keeps_keys_apart(void **state) {
     ang[i] = k_bohr0[i] * CPMDC_BOHR_TO_ANGSTROM;
   result = cpmdc_session_energy_gradient(session, 3, ang, z, grad);
   assert_int_equal(result.ok, 1);
-  cpmdc_xlbomd_clear_key(7, 1);
-  cpmdc_xlbomd_clear_key(8, 1);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 7, 1, src, 2, next), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 8, 1, src, 2, next), 0);
+  cpmdc_xlbomd_clear_key(session, 7, 1);
+  cpmdc_xlbomd_clear_key(session, 8, 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 7, 1, src, 2, next), 0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 8, 1, src, 2, next), 0);
   assert_int_equal(cpmdc_session_copy_orbitals(session, 7, 7), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 7, 1, src2, 2, next), 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 7, 1, src2, 2, next), 1);
   assert_int_equal(cpmdc_session_copy_orbitals(session, 7, 8), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 8, 1, src2, 2, next), 0);
-  assert_int_equal(cpmdc_xlbomd_observe(0, 7, 1, src, 2, next), 1);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 8, 1, src2, 2, next), 0);
+  assert_int_equal(cpmdc_xlbomd_observe(session, 0, 7, 1, src, 2, next), 1);
   cpmdc_session_destroy(session);
   free(aspc);
 }
@@ -402,15 +432,6 @@ static void invariants(const double *r, double *l1, double *l2, double *theta,
   *theta = acos(c);
 }
 
-static void electronic_target(const double *r, double *g) {
-  double l1, l2, theta, cosine, u1[3], u2[3];
-  invariants(r, &l1, &l2, &theta, &cosine, u1, u2);
-  g[0] = l1;
-  g[1] = l2;
-  g[2] = theta;
-  g[3] = 0.5 * (l1 + l2);
-}
-
 static double water_gradient(const double *r, double *grad) {
   double l1, l2, theta, cosine, u1[3], u2[3];
   double e;
@@ -451,84 +472,21 @@ static double water_gradient(const double *r, double *grad) {
 
 static double mass_of(int atom) { return atom == 0 ? k_mass_o : k_mass_h; }
 
-static int mix_scf(const double *guess, const double *target, double *out) {
-  int it = 0;
-  int i;
-  memcpy(out, guess, DIM * sizeof(*out));
-  for (;;) {
-    double err = 0.0;
-    ++it;
-    for (i = 0; i < DIM; ++i) {
-      double d = out[i] - target[i];
-      err += d * d;
-    }
-    if (sqrt(err) < k_scf_tol || it >= k_scf_max)
-      break;
-    for (i = 0; i < DIM; ++i)
-      out[i] = (1.0 - k_beta) * out[i] + k_beta * target[i];
-  }
-  return it;
-}
-
-static void aspc_push(double *hist, int *count, const double *d) {
-  int keep = *count < ASPC_ORDER ? *count : ASPC_ORDER - 1;
-  if (keep > 0)
-    memmove(hist + DIM, hist, (size_t)keep * DIM * sizeof(*hist));
-  memcpy(hist, d, DIM * sizeof(*d));
-  if (*count < ASPC_ORDER)
-    *count += 1;
-}
-
-typedef struct WaterRun {
-  int scf[WATER_STEPS];
-  int scf_total;
-  double drift;
-  double max_abs;
-  double final_energy;
-  double end_r[9];
-} WaterRun;
-
-static void run_water(int use_xl, WaterRun *run) {
+static void nuclear_drift(double *drift, double *max_abs) {
   double r[9];
   double v[9];
   double grad[9];
-  double hist[ASPC_ORDER * DIM];
-  double guess[DIM];
-  double next_guess[DIM];
-  int nhist = 0;
   int step;
   int i;
   double e0;
   memcpy(r, k_bohr0, sizeof r);
   memset(v, 0, sizeof v);
-  memset(guess, 0, sizeof guess);
   e0 = water_gradient(r, grad);
-  run->scf_total = 0;
-  run->drift = 0.0;
-  run->max_abs = 0.0;
-  if (use_xl)
-    cpmdc_xlbomd_clear_key(42, 1);
+  *drift = 0.0;
+  *max_abs = 0.0;
   for (step = 0; step < WATER_STEPS; ++step) {
-    double target[DIM];
-    double converged[DIM];
     double pot;
     double kin = 0.0;
-    int iters;
-    electronic_target(r, target);
-    if (!use_xl)
-      aspc_guess(hist, nhist, DIM, guess);
-    iters = mix_scf(guess, target, converged);
-    assert_true(iters < k_scf_max);
-    run->scf[step] = iters;
-    run->scf_total += iters;
-    if (use_xl) {
-      assert_true(cpmdc_xlbomd_observe(XL_ORDER, 42, 1, converged, DIM,
-                                       next_guess) >= 0);
-      memcpy(guess, next_guess, sizeof guess);
-    } else {
-      aspc_push(hist, &nhist, converged);
-      aspc_guess(hist, nhist, DIM, guess);
-    }
     for (i = 0; i < 9; ++i)
       v[i] += 0.5 * k_dt * (-grad[i] / mass_of(i / 3));
     for (i = 0; i < 9; ++i)
@@ -540,13 +498,11 @@ static void run_water(int use_xl, WaterRun *run) {
       kin += 0.5 * mass_of(i / 3) * v[i] * v[i];
     {
       double delta = (pot + kin) - e0;
-      if (fabs(delta) > run->max_abs)
-        run->max_abs = fabs(delta);
-      run->drift = delta;
+      if (fabs(delta) > *max_abs)
+        *max_abs = fabs(delta);
+      *drift = delta;
     }
   }
-  run->final_energy = e0 + run->drift;
-  memcpy(run->end_r, r, sizeof r);
 }
 
 static void test_water_forces(void **state) {
@@ -591,23 +547,6 @@ static void test_water_forces(void **state) {
   }
 }
 
-static int parse_ints(const char *line, const char *key, int *out, int n) {
-  const char *p;
-  int i;
-  if (strncmp(line, key, strlen(key)) != 0)
-    return -1;
-  p = line + strlen(key);
-  for (i = 0; i < n; ++i) {
-    char *end = NULL;
-    long v = strtol(p, &end, 10);
-    if (end == p)
-      return -1;
-    out[i] = (int)v;
-    p = end;
-  }
-  return 0;
-}
-
 static int parse_double(const char *line, const char *key, double *out) {
   if (strncmp(line, key, strlen(key)) != 0)
     return -1;
@@ -616,57 +555,189 @@ static int parse_double(const char *line, const char *key, double *out) {
 }
 
 static void test_water_golden(void **state) {
-  WaterRun aspc;
-  WaterRun xl;
   FILE *fp;
   char line[512];
-  int aspc_scf[WATER_STEPS];
-  int xl_scf[WATER_STEPS];
-  double aspc_drift = 0.0;
-  double xl_drift = 0.0;
-  double aspc_max = 0.0;
-  double xl_max = 0.0;
-  int i;
-  int saw_aspc = 0;
-  int saw_xl = 0;
-  int saw_ad = 0;
-  int saw_xd = 0;
-  int saw_am = 0;
-  int saw_xm = 0;
+  double drift = 0.0;
+  double max_abs = 0.0;
+  double want_drift = 0.0;
+  double want_max = 0.0;
+  int saw_drift = 0;
+  int saw_max = 0;
   (void)state;
-  run_water(0, &aspc);
-  run_water(1, &xl);
-  for (i = 0; i < 9; ++i)
-    assert_true(fabs(aspc.end_r[i] - xl.end_r[i]) < 1.0e-9);
-  assert_true(fabs(aspc.drift - xl.drift) < 1.0e-9);
+  nuclear_drift(&drift, &max_abs);
   fp = fopen(g_golden_path, "r");
   assert_non_null(fp);
   while (fgets(line, sizeof line, fp)) {
     if (line[0] == '#' || line[0] == '\n')
       continue;
-    if (parse_ints(line, "aspc_scf", aspc_scf, WATER_STEPS) == 0)
-      saw_aspc = 1;
-    else if (parse_ints(line, "xl_scf", xl_scf, WATER_STEPS) == 0)
-      saw_xl = 1;
-    else if (parse_double(line, "aspc_drift ", &aspc_drift) == 0)
-      saw_ad = 1;
-    else if (parse_double(line, "xl_drift ", &xl_drift) == 0)
-      saw_xd = 1;
-    else if (parse_double(line, "aspc_max_abs ", &aspc_max) == 0)
-      saw_am = 1;
-    else if (parse_double(line, "xl_max_abs ", &xl_max) == 0)
-      saw_xm = 1;
+    if (parse_double(line, "drift ", &want_drift) == 0)
+      saw_drift = 1;
+    else if (parse_double(line, "max_abs ", &want_max) == 0)
+      saw_max = 1;
   }
   fclose(fp);
-  assert_int_equal(saw_aspc + saw_xl + saw_ad + saw_xd + saw_am + saw_xm, 6);
-  for (i = 0; i < WATER_STEPS; ++i) {
-    assert_int_equal(aspc.scf[i], aspc_scf[i]);
-    assert_int_equal(xl.scf[i], xl_scf[i]);
+  assert_int_equal(saw_drift + saw_max, 2);
+  assert_true(fabs(drift - want_drift) < 1.0e-9);
+  assert_true(fabs(max_abs - want_max) < 1.0e-9);
+}
+
+static void geometry(int step, double *pos) {
+  memcpy(pos, k_bohr0, 9 * sizeof(*pos));
+  pos[0] += 0.02 * (double)step;
+}
+
+static int header_image(unsigned char **out, size_t *n) {
+  char header[80];
+  int32_t mark = 80;
+  unsigned char *buf = (unsigned char *)malloc(88);
+  if (!buf)
+    return -1;
+  memset(header, ' ', sizeof header);
+  memcpy(header, " STUTTGART VERSION 3.0", 22);
+  memcpy(buf, &mark, 4);
+  memcpy(buf + 4, header, 80);
+  memcpy(buf + 84, &mark, 4);
+  *out = buf;
+  *n = 88;
+  return 0;
+}
+
+static void test_session_calculate(void **state) {
+  CPMDCSession *session;
+  CPMDCSession *other;
+  CPMDCSession *restored;
+  unsigned char *xl = NULL;
+  size_t xl_n = 0;
+  double pos[9];
+  double forces[9];
+  double energy = 0.0;
+  double cold_energy = 0.0;
+  int z[3] = {8, 1, 1};
+  int step;
+  int order = -2;
+  int steps = -1;
+  int propagated = -2;
+  int held_steps = -1;
+  int held_prop = -2;
+  void *blob = NULL;
+  size_t blob_n = 0;
+  void *again = NULL;
+  size_t again_n = 0;
+  unsigned char *image = NULL;
+  size_t image_n = 0;
+  void *written = NULL;
+  size_t written_n = 0;
+  char err[128];
+  CPMDCRestart *file;
+  CPMDCRestart *back;
+  void *got = NULL;
+  size_t got_n = 0;
+  double ang[9];
+  double grad[9];
+  CPMDCResult bare;
+  int i;
+  (void)state;
+  assert_int_equal(read_file(g_xl_path, &xl, &xl_n), 0);
+  if (cpmdc_available()) {
+    assert_null(cpmdc_session_create(xl, xl_n));
+    assert_non_null(strstr(cpmdc_last_error(), "embed API"));
+    free(xl);
+    return;
   }
-  assert_true(fabs(aspc.drift - aspc_drift) < 1.0e-9);
-  assert_true(fabs(xl.drift - xl_drift) < 1.0e-9);
-  assert_true(fabs(aspc.max_abs - aspc_max) < 1.0e-9);
-  assert_true(fabs(xl.max_abs - xl_max) < 1.0e-9);
+  for (i = 0; i < 9; ++i)
+    ang[i] = k_bohr0[i] * CPMDC_BOHR_TO_ANGSTROM;
+  bare = cpmdc_energy_gradient(3, ang, z, xl, xl_n, grad);
+  assert_int_equal(bare.ok, 0);
+  assert_non_null(strstr(cpmdc_last_error(), "requires a session"));
+  session = cpmdc_session_create(xl, xl_n);
+  assert_non_null(session);
+  for (step = 0; step < 7; ++step) {
+    geometry(step, pos);
+    assert_int_equal(
+        cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
+                                   NULL),
+        0);
+    assert_int_equal(cpmdc_session_xlbomd_last(session, &order, &steps,
+                                               &propagated),
+                     0);
+    assert_int_equal(order, XL_ORDER);
+    assert_true(steps > 0 && steps < 400);
+    assert_int_equal(propagated, step < 6 ? 0 : 1);
+  }
+  held_steps = steps;
+  held_prop = propagated;
+  assert_int_equal(cpmdc_session_xlbomd_export(session, &blob, &blob_n), 0);
+  assert_non_null(blob);
+  assert_true(blob_n > 0);
+  geometry(6, pos);
+  assert_int_equal(
+      cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
+                                 NULL),
+      0);
+  assert_int_equal(
+      cpmdc_session_xlbomd_last(session, &order, &steps, &propagated), 0);
+  assert_int_equal(steps, held_steps);
+  assert_int_equal(propagated, held_prop);
+  assert_int_equal(cpmdc_session_xlbomd_export(session, &again, &again_n), 0);
+  assert_int_equal(again_n, blob_n);
+  assert_int_equal(memcmp(again, blob, blob_n), 0);
+  free(again);
+  other = cpmdc_session_create(xl, xl_n);
+  assert_non_null(other);
+  geometry(7, pos);
+  assert_int_equal(
+      cpmdc_session_calculate_au(other, 3, pos, z, NULL, &cold_energy, forces,
+                                 NULL),
+      0);
+  assert_int_equal(
+      cpmdc_session_xlbomd_last(other, &order, &steps, &propagated), 0);
+  assert_int_equal(propagated, 0);
+  assert_int_equal(header_image(&image, &image_n), 0);
+  file = cpmdc_restart_read_mem(image, image_n, err, sizeof err);
+  assert_non_null(file);
+  assert_int_equal(cpmdc_restart_ncoords(file), 0);
+  assert_int_equal(cpmdc_restart_set_xlbomd(file, blob, blob_n), 0);
+  assert_int_equal(
+      cpmdc_restart_write_mem(file, &written, &written_n, err, sizeof err), 0);
+  cpmdc_restart_free(file);
+  back = cpmdc_restart_read_mem(written, written_n, err, sizeof err);
+  assert_non_null(back);
+  assert_int_equal(cpmdc_restart_ncoords(back), 0);
+  assert_int_equal(cpmdc_restart_xlbomd(back, &got, &got_n), 0);
+  assert_int_equal(got_n, blob_n);
+  assert_int_equal(memcmp(got, blob, blob_n), 0);
+  restored = cpmdc_session_create(xl, xl_n);
+  assert_non_null(restored);
+  assert_int_equal(cpmdc_session_xlbomd_import(restored, got, got_n), 0);
+  geometry(7, pos);
+  assert_int_equal(
+      cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
+                                 NULL),
+      0);
+  assert_int_equal(
+      cpmdc_session_xlbomd_last(session, &order, &steps, &propagated), 0);
+  held_steps = steps;
+  held_prop = propagated;
+  assert_int_equal(propagated, 1);
+  assert_true(energy == cold_energy);
+  assert_int_equal(
+      cpmdc_session_calculate_au(restored, 3, pos, z, NULL, &cold_energy,
+                                 forces, NULL),
+      0);
+  assert_int_equal(
+      cpmdc_session_xlbomd_last(restored, &order, &steps, &propagated), 0);
+  assert_int_equal(steps, held_steps);
+  assert_int_equal(propagated, held_prop);
+  assert_true(cold_energy == energy);
+  cpmdc_restart_free(back);
+  cpmdc_session_destroy(restored);
+  cpmdc_session_destroy(other);
+  cpmdc_session_destroy(session);
+  free(got);
+  free(written);
+  free(image);
+  free(blob);
+  free(xl);
 }
 
 int main(int argc, char **argv) {
@@ -679,6 +750,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_copy_keeps_keys_apart),
       cmocka_unit_test(test_water_forces),
       cmocka_unit_test(test_water_golden),
+      cmocka_unit_test(test_session_calculate),
   };
   if (argc != 5) {
     fprintf(stderr,

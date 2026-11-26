@@ -348,7 +348,10 @@
   "cpmdc_xlbomd_coefficients",
   "cpmdc_xlbomd_configured_order",
   "cpmdc_xlbomd_observe",
-  "cpmdc_xlbomd_propagate"
+  "cpmdc_xlbomd_propagate",
+  "cpmdc_session_xlbomd_last",
+  "cpmdc_session_xlbomd_export",
+  "cpmdc_session_xlbomd_import"
  ],
  "cpmd_sections": [
   "ATOM",
@@ -11244,6 +11247,27 @@
    "feature_id": "abi.cpmdc_xlbomd_configured_order",
    "kind": "abi",
    "name": "cpmdc_xlbomd_configured_order",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_last",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_last",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_export",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_export",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_import",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_import",
    "stub_applicable": true,
    "embed_applicable": true
   }

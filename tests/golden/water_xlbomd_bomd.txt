@@ -1,8 +1,4 @@
-# Harmonic water stand-in on step 0 of water_aspc_bomd.txt.
-# Not a plane-wave SCF. Forces ignore the electronic residual.
-aspc_scf 69 54 56 54 52 50 51 53 53 54 54 54
-xl_scf 69 54 57 58 59 59 59 59 59 55 58 54
-aspc_drift -3.0973710134425333e-05
-xl_drift -3.0973710134425333e-05
-aspc_max_abs 9.6440296003232062e-05
-xl_max_abs 9.6440296003232062e-05
+# Harmonic water stand-in. Forces ignore the electronic residual.
+# The drift is the nuclear Verlet energy, not an SCF count.
+drift -3.0973710134425333e-05
+max_abs 9.6440296003232062e-05

@@ -72,6 +72,9 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_xlbomd_configured_order",
     "abi.cpmdc_xlbomd_observe",
     "abi.cpmdc_xlbomd_propagate",
+    "abi.cpmdc_session_xlbomd_last",
+    "abi.cpmdc_session_xlbomd_export",
+    "abi.cpmdc_session_xlbomd_import",
 };
 
 static void test_stub_reports_unavailable(void **state) {

@@ -1171,32 +1171,76 @@ CPMDC_API int cpmdc_xlbomd_propagate(int order, const double *density, int n,
 /**
  * @brief Record one converged vector and write the next guess.
  *
- * `has_key` zero is the unkeyed trajectory and does not share storage with
- * key 0. The first sample is stored and copied into `p_next`. The reversible
- * second call propagates. A dissipative order copies the converged vector
- * until K + 1 samples are stored, then propagates. A new order or length on
- * that key starts again.
+ * The samples belong to `session`. `has_key` zero is the unkeyed trajectory
+ * and does not share storage with key 0. The first sample is stored and
+ * copied into `p_next`. The reversible second call propagates. A dissipative
+ * order copies the converged vector until K + 1 samples are stored, then
+ * propagates. A new order or length on that key starts again.
  *
  * @return 1 when `p_next` was propagated, 0 on a startup copy, or -1.
  */
-CPMDC_API int cpmdc_xlbomd_observe(int order, long long key, int has_key,
+CPMDC_API int cpmdc_xlbomd_observe(CPMDCSession *session, int order,
+                                   long long key, int has_key,
                                    const double *density, int n,
                                    double *p_next);
 
 /**
- * @brief Drop the auxiliary samples stored for one key.
+ * @brief Drop the auxiliary samples stored for one key of this session.
  *
- * `has_key` zero drops the unkeyed trajectory.
+ * `has_key` zero drops the unkeyed trajectory. Another session is left as
+ * it was.
  */
-CPMDC_API void cpmdc_xlbomd_clear_key(long long key, int has_key);
+CPMDC_API void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key,
+                                      int has_key);
 
 /**
  * @brief Order selected by the last successful CPMDParams apply.
  *
  * The last &CPMD section decides. A successful apply that does not select
- * XLBOMD returns -1. A failed apply leaves the previous value.
+ * XLBOMD returns -1. A failed apply leaves the previous value. This record
+ * is process global. Each session keeps the order of its own apply.
  */
 CPMDC_API int cpmdc_xlbomd_configured_order(void);
+
+/**
+ * @brief Read the extended Lagrangian state of the last real evaluation.
+ *
+ * `order` is the session order, or -1 when the session is not XLBOMD.
+ * `scf_steps` is the surrogate mixing count of the last evaluation that
+ * updated the history. `propagated` is 1 when that step propagated, 0 when
+ * it stored a startup copy, and -1 before any such step. A cached repeat
+ * does not change these values. Any of the three pointers may be NULL.
+ * A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session` is NULL.
+ */
+CPMDC_API int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order,
+                                        int *scf_steps, int *propagated);
+
+/**
+ * @brief Copy this session's auxiliary history into a new buffer.
+ *
+ * An empty history sets `*bytes` to NULL and `*nbytes` to 0. Otherwise
+ * `*bytes` is one malloc buffer and the caller releases it with free.
+ * A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session`, `bytes`, or `nbytes` is NULL.
+ */
+CPMDC_API int cpmdc_session_xlbomd_export(const CPMDCSession *session,
+                                          void **bytes, size_t *nbytes);
+
+/**
+ * @brief Replace this session's auxiliary history.
+ *
+ * `bytes` is a buffer from `cpmdc_session_xlbomd_export()` or from
+ * `cpmdc_restart_xlbomd()`. A NULL buffer of length 0 clears the history.
+ * A bad buffer leaves the history as it was. The session order is not
+ * changed. A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session` is NULL or the buffer is unusable.
+ */
+CPMDC_API int cpmdc_session_xlbomd_import(CPMDCSession *session,
+                                          const void *bytes, size_t nbytes);
 
 #ifdef __cplusplus
 }

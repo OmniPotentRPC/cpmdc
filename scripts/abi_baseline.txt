@@ -54,6 +54,9 @@ cpmdc_session_select_orbitals
 cpmdc_session_set_constant_cutoff
 cpmdc_session_set_external_charges
 cpmdc_session_set_params
+cpmdc_session_xlbomd_export
+cpmdc_session_xlbomd_import
+cpmdc_session_xlbomd_last
 cpmdc_set_params
 cpmdc_version
 cpmdc_xlbomd_classify

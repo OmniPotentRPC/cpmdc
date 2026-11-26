@@ -1493,6 +1493,88 @@ static int check_atomic_replace(void) {
   return rc;
 }
 
+static int check_xlbomd_trailer(void) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  unsigned char *plain = NULL;
+  size_t plain_n = 0;
+  unsigned char *with = NULL;
+  size_t with_n = 0;
+  const char payload[] = "xl-history-v1";
+  char err[160];
+  CPMDCRestart *file;
+  CPMDCRestart *back;
+  void *got = NULL;
+  size_t got_n = 0;
+  double xyz_a[9];
+  double xyz_b[9];
+  int ncoord;
+  if (build_sample(&bytes, &n, 0, 1, 0) != 0)
+    return fail("xlbomd sample");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  if (!file)
+    return fail(err);
+  if (cpmdc_restart_xlbomd(file, &got, &got_n) != 0 || got != NULL || got_n != 0)
+    return fail("absent trailer");
+  ncoord = cpmdc_restart_ncoords(file);
+  if (ncoord != 3 || cpmdc_restart_coordinates(file, xyz_a, ncoord * 3) != 0)
+    return fail("coords before trailer");
+  if (cpmdc_restart_write_mem(file, (void **)&plain, &plain_n, err, sizeof err) !=
+      0)
+    return fail(err);
+  if (plain_n != n || memcmp(plain, bytes, n) != 0)
+    return fail("classic image changed");
+  if (cpmdc_restart_set_xlbomd(file, payload, sizeof payload) != 0)
+    return fail("set trailer");
+  if (cpmdc_restart_write_mem(file, (void **)&with, &with_n, err, sizeof err) !=
+      0)
+    return fail(err);
+  cpmdc_restart_free(file);
+  back = cpmdc_restart_read_mem(with, with_n, err, sizeof err);
+  if (!back)
+    return fail(err);
+  if (cpmdc_restart_coordinates(back, xyz_b, ncoord * 3) != 0 ||
+      memcmp(xyz_a, xyz_b, sizeof xyz_a) != 0)
+    return fail("coords changed by trailer");
+  if (cpmdc_restart_xlbomd(back, &got, &got_n) != 0 || got_n != sizeof payload ||
+      memcmp(got, payload, got_n) != 0)
+    return fail("trailer payload");
+  free(got);
+  got = NULL;
+  with[with_n - 1] ^= 0x5a;
+  file = cpmdc_restart_read_mem(with, with_n, err, sizeof err);
+  if (file) {
+    void *bad = NULL;
+    size_t bad_n = 0;
+    int accepted = cpmdc_restart_xlbomd(file, &bad, &bad_n) == 0 &&
+                   bad_n == sizeof payload && bad &&
+                   memcmp(bad, payload, bad_n) == 0;
+    free(bad);
+    cpmdc_restart_free(file);
+    if (accepted)
+      return fail("corrupt trailer accepted");
+  }
+  with[with_n - 1] ^= 0x5a;
+  file = cpmdc_restart_read_mem(with, with_n, err, sizeof err);
+  if (!file)
+    return fail("reread trailer");
+  if (cpmdc_restart_set_xlbomd(file, NULL, 0) != 0)
+    return fail("clear trailer");
+  free(with);
+  with = NULL;
+  if (cpmdc_restart_write_mem(file, (void **)&with, &with_n, err, sizeof err) !=
+      0)
+    return fail(err);
+  if (with_n != plain_n || memcmp(with, plain, plain_n) != 0)
+    return fail("cleared image differs");
+  cpmdc_restart_free(file);
+  cpmdc_restart_free(back);
+  free(bytes);
+  free(plain);
+  free(with);
+  return 0;
+}
+
 int main(int argc, char **argv) {
   unsigned char *bytes = NULL;
   size_t n = 0;
@@ -1534,6 +1616,8 @@ int main(int argc, char **argv) {
   if (check_malformed() != 0)
     return 1;
   if (check_coordinate_record_sizes() != 0)
+    return 1;
+  if (check_xlbomd_trailer() != 0)
     return 1;
   if (argc > 1 && check_geo1(argv[1]) != 0)
     return 1;

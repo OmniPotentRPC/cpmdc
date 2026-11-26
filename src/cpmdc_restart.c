@@ -54,6 +54,8 @@ struct cpmdc_restart {
   int ngwl;
   int nhg;
   int nhgl;
+  unsigned char *xl;
+  size_t xl_len;
 };
 
 static void set_err(char *err, size_t cap, const char *msg) {
@@ -410,6 +412,65 @@ static int decode_typed(CPMDCRestart *file, char *err, size_t err_cap) {
   return 0;
 }
 
+/* IEEE CRC-32. The trailer header stores this of the payload bytes. */
+static uint32_t crc32_ieee(const unsigned char *data, size_t n) {
+  uint32_t crc = 0xffffffffu;
+  size_t i;
+  int b;
+  for (i = 0; i < n; i++) {
+    crc ^= data[i];
+    for (b = 0; b < 8; b++) {
+      uint32_t bit = crc & 1u;
+      crc >>= 1;
+      if (bit)
+        crc ^= 0xedb88320u;
+    }
+  }
+  return ~crc;
+}
+
+/* The last two records are a trailer only when the header, version, length,
+ * and CRC all match. Anything else stays, and section indexing rejects it. */
+static int peel_xlbomd_trailer(CPMDCRestart *file) {
+  struct rec *head;
+  struct rec *body;
+  uint32_t magic = 0;
+  uint32_t version = 0;
+  uint32_t length = 0;
+  uint32_t crc = 0;
+  unsigned char *copy;
+  if (!file || file->nrecs < 2)
+    return 0;
+  head = &file->recs[file->nrecs - 2];
+  body = &file->recs[file->nrecs - 1];
+  if (head->len != 16 || !head->data)
+    return 0;
+  memcpy(&magic, head->data, 4);
+  memcpy(&version, head->data + 4, 4);
+  memcpy(&length, head->data + 8, 4);
+  memcpy(&crc, head->data + 12, 4);
+  if (magic != 0x31424C58u || version != 1u || (size_t)length != body->len ||
+      (body->len && !body->data))
+    return 0;
+  if (crc32_ieee(body->data, body->len) != crc)
+    return 0;
+  copy = NULL;
+  if (body->len) {
+    copy = (unsigned char *)malloc(body->len);
+    if (!copy)
+      return -1;
+    memcpy(copy, body->data, body->len);
+  }
+  free(head->data);
+  free(body->data);
+  head->data = NULL;
+  body->data = NULL;
+  file->nrecs -= 2;
+  file->xl = copy;
+  file->xl_len = body->len;
+  return 0;
+}
+
 static CPMDCRestart *from_bytes(const void *bytes, size_t nbytes, char *err,
                                 size_t err_cap) {
   CPMDCRestart *file;
@@ -426,7 +487,15 @@ static CPMDCRestart *from_bytes(const void *bytes, size_t nbytes, char *err,
     free(file);
     return NULL;
   }
+  if (peel_xlbomd_trailer(file) != 0) {
+    set_err(err, err_cap, "out of memory");
+    free(file->xl);
+    free_recs(file);
+    free(file);
+    return NULL;
+  }
   if (index_sections(file, err, err_cap) != 0 || decode_typed(file, err, err_cap) != 0) {
+    free(file->xl);
     free(file->na);
     free_recs(file);
     free(file);
@@ -482,6 +551,7 @@ CPMDCRestart *cpmdc_restart_read_path(const char *path, char *err, size_t err_ca
 void cpmdc_restart_free(CPMDCRestart *file) {
   if (!file)
     return;
+  free(file->xl);
   free(file->na);
   free_recs(file);
   free(file);
@@ -746,8 +816,65 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbyt
       return -1;
     }
   }
+  if (file->xl_len > 0) {
+    unsigned char hdr[16];
+    uint32_t magic = 0x31424C58u;
+    uint32_t version = 1u;
+    uint32_t length;
+    uint32_t crc;
+    if (file->xl_len > (size_t)UINT32_MAX || !file->xl) {
+      set_err(err, err_cap, "XL-BOMD trailer does not fit");
+      free(buf);
+      return -1;
+    }
+    length = (uint32_t)file->xl_len;
+    crc = crc32_ieee(file->xl, file->xl_len);
+    memcpy(hdr, &magic, 4);
+    memcpy(hdr + 4, &version, 4);
+    memcpy(hdr + 8, &length, 4);
+    memcpy(hdr + 12, &crc, 4);
+    if (emit_record(&buf, &len, &cap, hdr, sizeof hdr) != 0 ||
+        emit_record(&buf, &len, &cap, file->xl, file->xl_len) != 0) {
+      set_err(err, err_cap, "out of memory");
+      free(buf);
+      return -1;
+    }
+  }
   *bytes = buf;
   *nbytes = len;
+  return 0;
+}
+
+int cpmdc_restart_set_xlbomd(CPMDCRestart *file, const void *bytes,
+                             size_t nbytes) {
+  unsigned char *copy = NULL;
+  if (!file || (nbytes > 0 && !bytes))
+    return -1;
+  if (nbytes > 0) {
+    copy = (unsigned char *)malloc(nbytes);
+    if (!copy)
+      return -1;
+    memcpy(copy, bytes, nbytes);
+  }
+  free(file->xl);
+  file->xl = copy;
+  file->xl_len = nbytes;
+  return 0;
+}
+
+int cpmdc_restart_xlbomd(const CPMDCRestart *file, void **bytes,
+                         size_t *nbytes) {
+  if (!file || !bytes || !nbytes)
+    return -1;
+  *bytes = NULL;
+  *nbytes = 0;
+  if (file->xl_len == 0)
+    return 0;
+  *bytes = malloc(file->xl_len);
+  if (!*bytes)
+    return -1;
+  memcpy(*bytes, file->xl, file->xl_len);
+  *nbytes = file->xl_len;
   return 0;
 }
 

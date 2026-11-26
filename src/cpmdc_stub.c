@@ -473,13 +473,53 @@ int cpmdc_xlbomd_propagate(int order, const double *density, int n,
   return xlbomd_propagate(order, density, n, history, nhist, p_next);
 }
 
-int cpmdc_xlbomd_observe(int order, long long key, int has_key,
-                         const double *density, int n, double *p_next) {
-  return xlbomd_observe(order, key, has_key, density, n, p_next);
+int cpmdc_xlbomd_observe(CPMDCSession *session, int order, long long key,
+                         int has_key, const double *density, int n,
+                         double *p_next) {
+  (void)session;
+  (void)order;
+  (void)key;
+  (void)has_key;
+  (void)density;
+  (void)n;
+  (void)p_next;
+  return -1;
 }
 
-void cpmdc_xlbomd_clear_key(long long key, int has_key) {
-  xlbomd_clear_key(key, has_key);
+void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key, int has_key) {
+  (void)session;
+  (void)key;
+  (void)has_key;
 }
 
 int cpmdc_xlbomd_configured_order(void) { return xlbomd_configured(); }
+
+int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order,
+                              int *scf_steps, int *propagated) {
+  (void)session;
+  (void)order;
+  (void)scf_steps;
+  (void)propagated;
+  stub_store_error("cpmdc_session_xlbomd_last");
+  return -1;
+}
+
+int cpmdc_session_xlbomd_export(const CPMDCSession *session, void **bytes,
+                                size_t *nbytes) {
+  (void)session;
+  if (bytes)
+    *bytes = NULL;
+  if (nbytes)
+    *nbytes = 0;
+  stub_store_error("cpmdc_session_xlbomd_export");
+  return -1;
+}
+
+int cpmdc_session_xlbomd_import(CPMDCSession *session, const void *bytes,
+                                size_t nbytes) {
+  (void)session;
+  (void)bytes;
+  (void)nbytes;
+  stub_store_error("cpmdc_session_xlbomd_import");
+  return -1;
+}

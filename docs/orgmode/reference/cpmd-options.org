@@ -1043,17 +1043,18 @@ That token selects extended Lagrangian propagation in cpmdc, and the deck
 omits the line.
 Order 0 or 3 through 9 is accepted.
 Any other order is refused.
-~cpmd.x~ applies it in Born-Oppenheimer molecular dynamics only.
-On the in-process route it applies to every call that starts from stored
-orbitals, when the archive carries ~tools/opencpmd_embed_extrapolate.patch~.
-The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows a
-message and the check.
+A build that links OpenCPMD refuses the option when the parameters are
+applied, because the embed API cannot carry the converged coefficients or
+the propagated guess.
+The reference evaluator runs the step inside each session evaluation.
+The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows the
+call.
 
 | Part | In-process route |
 |------+------------------|
 | ~ASPC~, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
 | ~POLY~ | polynomial coefficients |
-| ~XLBOMD~ | extended Lagrangian auxiliary vector in cpmdc; the deck omits the line; order 0 or 3 through 9 |
+| ~XLBOMD~ | extended Lagrangian samples on a reference session; an OpenCPMD build refuses the option; the deck omits the line; order 0 or 3 through 9 |
 | order | number of earlier calls in the prediction |
 | ~STORE~ | no effect, with no ~RESTART~ file from a library call |
 | ~CSTEPS~ | no effect, with converged orbitals on every call |
