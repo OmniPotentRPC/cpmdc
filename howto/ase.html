@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Use cpmdc as an ASE calculator - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" /><link rel="prev" title="Call cpmdc from Python" href="python.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Use cpmdc as an ASE calculator - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" /><link rel="prev" title="Call cpmdc from Python" href="python.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/ase.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -668,10 +668,24 @@ bound on the rounding error of adding <code class="docutils literal notranslate"
 float64 unit roundoff; any other sum raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names the sum.
 The multiplicity is <code class="docutils literal notranslate"><span class="pre">|M|</span> <span class="pre">+</span> <span class="pre">1</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc.params_method</span></code> reports the effective charge and multiplicity of the
-message, and a charge of 0 or a multiplicity of 1 is the schema default, so the
-calculator takes it as unset whether the message left the field out or wrote the
-default.
-Each of the two settings follows the same rules:</p>
+message.
+A multiplicity of 1 is the schema default, so the calculator takes it as unset
+whether the message left the field out or wrote 1.
+A charge of 0 is unset only when <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> is false on the value that wins.
+That value is the top-level <code class="docutils literal notranslate"><span class="pre">charge</span></code> when no typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge is explicit,
+and the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge when <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> is true or that charge is
+not 0.
+Zero with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> true is explicit.
+The deck renderer and the Fortran embed record that same charge for the
+message the session opens with.
+Neither reads <code class="docutils literal notranslate"><span class="pre">Atoms.initial_charges</span></code>, and the C API does not read the
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> charge fields.
+The calculator decides the total before that handoff.
+The sum of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> is written into the top-level <code class="docutils literal notranslate"><span class="pre">charge</span></code> only when
+the top-level <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> bit is false and the effective charge is still 0.
+A typed section that still reports another charge after that write is refused
+before a session opens.</p>
+<p>Each of the two settings follows these rules:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -695,16 +709,18 @@ Each of the two settings follows the same rules:</p>
 </tr>
 <tr class="row-odd"><td><p>nonzero</p></td>
 <td><p>set and different</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names both values and both sources, <code class="docutils literal notranslate"><span class="pre">Atoms.initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">Atoms.initial_magmoms</span></code> and the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message in <code class="docutils literal notranslate"><span class="pre">params</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names both values and both sources, <code class="docutils literal notranslate"><span class="pre">Atoms.initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">Atoms.initial_magmoms</span></code> and the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message in <code class="docutils literal notranslate"><span class="pre">params</span></code>; the set value is kept and the step is refused</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>An explicit charge of 0 or multiplicity of 1 in the message cannot be told from
-the default, so a nonzero <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value replaces it.
-A message whose typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section fixes the charge, such as one with
-<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>, keeps that value after the edit, and the calculator
-raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> instead of evaluating the wrong method.
+<p>An explicit charge of 0 (<code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> true) is a set value.
+A nonzero <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> total raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and the charge stays 0.
+A multiplicity of 1 has no such flag on <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, so a nonzero moment
+replaces a multiplicity of 1.
+A message whose typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section fixes the charge, including
+<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> with charge 0, keeps that value.
+The calculator raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> before the step runs.
 A message that <code class="docutils literal notranslate"><span class="pre">cpmdc_params_method()</span></code> refuses as ambiguous, because a raw
 <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> block or a <code class="docutils literal notranslate"><span class="pre">SYSTEM.</span></code> set directive holds the scalar, raises
 <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> the first time an <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> value needs it.</p>
@@ -1052,7 +1068,7 @@ the previous attempt to open one failed.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

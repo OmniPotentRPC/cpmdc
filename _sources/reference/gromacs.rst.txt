@@ -25,7 +25,8 @@ and 2026.4 generate this structure:
   ``&XC_FUNCTIONAL PBE`` or ``BLYP``;
 
 - ``&QMMM`` contains a periodic QM cell, QM atom indices, ``ECOUPL GAUSS``,
-  and any ``&LINK`` sections;
+  and one ``&LINK`` with ``QM_INDEX`` and ``MM_INDEX`` for each bond between a QM
+  atom and an MM atom;
 
 - ``&SUBSYS &CELL`` contains the full GROMACS box;
 
@@ -68,14 +69,39 @@ An explicit ``&CPMDC`` section inside ``&FORCE_EVAL`` takes precedence:
     | ``QM_RANKS 1``           | rank 0 alone runs the QM calculation, the other ranks wait for its result                                                                                                |
     +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-On the explicit path, everything outside ``&CPMDC`` is checked and otherwise
-ignored: the method is the ``CPMDParams`` deck, not CP2K's ``&DFT``.
+On the explicit path the method is the ``CPMDParams`` deck, not CP2K's ``&DFT``.
+Matching GROMACS' own input reader (``qmmmoptions.cpp``), which scans the
+external input as a stream of tokens and keeps the first ``CHARGE`` and
+``MULTIPLICITY`` it sees anywhere in the file, the library compares the first
+``CHARGE`` and first ``MULTIPLICITY`` in the input with the effective charge and
+multiplicity of that deck on both the explicit and generated paths.
+GROMACS takes the QM charge from that first ``CHARGE``, so a value that the deck
+does not share would run another system than the one GROMACS set up.
+Later ``CHARGE`` or ``MULTIPLICITY`` lines do not override the first occurrence,
+whether inside or outside ``&DFT``, though every ``CHARGE`` or ``MULTIPLICITY`` line
+must carry a single value and a non-integer first value is refused.
+That includes a ``CHARGE`` or ``MULTIPLICITY`` line inside ``&CPMDC``: it is not a
+``&CPMDC`` key, but GROMACS reads it, and ``qmi_input()`` writes ``&CPMDC`` before
+``&DFT``, so such a line comes first and is the value compared.
+A disagreement names both values, for example
+``&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0``.
+The disagreement message says ``&DFT`` whichever section the line sat in; a
+non-integer value outside ``&DFT`` is reported as ``input CHARGE`` or
+``input MULTIPLICITY``.
+The ``&XC_FUNCTIONAL`` of the file is not compared, because CP2K writes a
+functional as nested sections as well as a name; the deck holds the functional.
+A link hydrogen is not part of that comparison. The values are the effective
+charge and multiplicity of the deck, which describes the QM atoms, and not a
+recount of the capped region.
+Everything else outside ``&CPMDC`` is checked for structure and otherwise
+ignored, apart from ``COORD_FILE_NAME``, the ``&LINK`` sections of
+`Link atoms`_, and the first ``CHARGE`` and ``MULTIPLICITY``.
 With neither ``&CPMDC`` nor ``CPMDC_GROMACS_PARAMS``, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (``md_cp2k.out``):
 the cpmdc version, the atom counts, the cell and embedding modes, the Ewald
-precision, ``epsilon_r``, the number of ranks and of QM ranks, the Ewald
-parameters in Bohr, and, for the first step,
+precision, ``epsilon_r``, the number of ranks, QM ranks, and link atoms, the
+Ewald parameters in Bohr, and, for the first step,
 the backend (``opencpmd``, or ``reference`` for the evaluator of a build without
 OpenCPMD) and the QM and QM-MM energies.
 A refused input or a failed step prints ``cpmdc-gromacs:`` and the reason to
@@ -133,6 +159,67 @@ The cell must still hold the region with room for its density;
 ``CPMDC_RECENTER_MARGIN`` makes a step fail when an atom comes closer to a face
 than that.
 
+Link atoms
+----------
+
+GROMACS cuts a covalent bond between a QM atom and an MM atom and leaves the
+valence of the QM atom open; CP2K caps it with a hydrogen that exists in the
+QM calculation only.
+``libcpmdc_gromacs`` does the same for every ``&LINK`` section of the input, in
+the generated input and beside ``&CPMDC`` in a ``-qmi`` file:
+
+.. table::
+
+    +-----------------------+--------------------------------------------------------------------------------------------------------------+
+    | Key                   | Meaning                                                                                                      |
+    +=======================+==============================================================================================================+
+    | ``QM_INDEX n``        | the QM atom of the bond, a 1-based GROMACS atom number; required                                             |
+    +-----------------------+--------------------------------------------------------------------------------------------------------------+
+    | ``MM_INDEX n``        | the MM atom of the bond, a 1-based GROMACS atom number; required                                             |
+    +-----------------------+--------------------------------------------------------------------------------------------------------------+
+    | ``ALPHA_IMOMM alpha`` | the bond is scaled by 1/alpha; default 1.38, CP2K's default, the ratio of a C-C to a C-H bond; must exceed 1 |
+    +-----------------------+--------------------------------------------------------------------------------------------------------------+
+    | ``LINK_TYPE IMOMM``   | the only scheme implemented; any other value is refused                                                      |
+    +-----------------------+--------------------------------------------------------------------------------------------------------------+
+
+Any other key, a ``QM_INDEX`` that is not a QM atom of the PDB file, an ``MM_INDEX``
+that is not an MM atom, an atom number outside the system, and a repeated pair
+stop ``mdrun`` with the reason.
+GROMACS writes no ``ALPHA_IMOMM``, so a generated input uses 1.38;
+an input of ``-qmi`` may set it for each bond.
+One QM atom can have several links, and one MM atom can be the end of several.
+
+Each link adds a hydrogen to the atoms of ``cpmdc_session_calculate_au()``, after
+the QM atoms, at the IMOMM position of CP2K,
+
+::
+
+    x_H = x_QM + (x_MM - x_QM) / alpha = (1 - a) x_QM + a x_MM,   a = 1 / alpha
+
+with the nearest image of the MM atom to the QM atom when GROMACS sends a box.
+The QM energy is that of the capped region, so the topology must describe the
+QM atoms' bonds with the MM atom at the MM level, as GROMACS' preprocessing
+does: bonded terms that cross the boundary stay, and bonds, angles, and
+dihedrals of QM atoms only go.
+
+The hydrogen moves with the two atoms of its bond, so by the chain rule the
+library returns the share ``1 - a`` of its force to the QM atom and ``a`` to the
+MM atom, the distribution of CP2K's IMOMM link.
+The two shares add up to the force on the hydrogen, and the force on the MM
+atom joins the other forces GROMACS reads for it.
+
+The virial is the strain derivative of the energy returned, for a strain that
+moves every atom and the box, as without links.
+With ``CELL NONE`` the sum ``x (x) f`` runs over the QM atoms and the hydrogens at
+the positions cpmdc used, which equals the sum over the two bonded atoms with
+the MM atom at the image the hydrogen used.
+With ``CELL PERIODIC`` cpmdc's stress already treats the hydrogen as an atom
+that scales with the cell.
+
+Not implemented: the ``PSEUDO`` link scheme, a cap other than hydrogen, and any
+redistribution of the MM charges around a cut bond other than the one that
+`Embedding`_ describes.
+
 Embedding
 ---------
 
@@ -155,6 +242,14 @@ sides:
   and the QM charges are zero in GROMACS;
 
 - no box: the direct sum.
+
+With link atoms, the MM atom of each cut bond sits one bond from a QM charge,
+where a pair of point charges is not a model of anything physical.
+``EMBEDDING MECHANICAL`` therefore deletes the charge of that MM atom from the
+QM-MM sum, the Z1 scheme of the QM/MM literature, and keeps the charges of
+every other MM atom, including those two bonds away.
+The charge is removed from the Coulomb term of the library only; GROMACS still
+holds the MM atom's own charge for its classical terms.
 
 The returned energy is the QM energy plus that Coulomb energy; both appear in
 ``Quantum En.``.
@@ -201,18 +296,16 @@ Charge precision across the interface:
   ``QMMMForceProvider::calculateForces()`` never forwards ``fInput.chargeA_``
   through ``libcp2k``;
 
-- the total QM charge (``qmmm-cp2k-qmcharge``, ``CHARGE`` in ``&DFT``, and
-  ``CPMDCMethodInfo.charge``) is an integer (``int``); ``grompp`` checks the removed
-  classical charge of the QM atoms against it and warns if they differ by more
-  than 10\ :sup:`-5`  e (``qmmmoptions.cpp``).
+- the total QM charge (``qmmm-cp2k-qmcharge``, the first ``CHARGE`` in the input,
+  and ``CPMDCMethodInfo.charge``) is an integer (``int``); ``grompp`` checks the
+  removed classical charge of the QM atoms against it and warns if they differ
+  by more than 10\ :sup:`-5`  e (``qmmmoptions.cpp``).
 
 Not implemented:
 
 - electrostatic embedding: the MM charges do not polarize the QM density.
   ``cpmdc_session_calculate_au()`` takes no external potential, so
-  ``EMBEDDING ELECTROSTATIC`` is refused;
-
-- link atoms across a QM-MM covalent bond; ``&LINK`` sections are refused.
+  ``EMBEDDING ELECTROSTATIC`` is refused.
 
 QM virial
 ---------
@@ -256,6 +349,9 @@ a symmetric strain that moves every atom with the box:
   Ewald sum (its real-space, reciprocal, and background terms), divided by
   ``EPSILON_R``.
 
+Link hydrogens are atoms of the QM calculation in the first two cases, as
+described in `Link atoms`_.
+
 It reports the stress as unavailable with no box (``pbc = no``), and with
 ``CELL PERIODIC`` when cpmdc computes no stress: an isolated deck, or
 ``CPMDC_STRESS=0``.
@@ -279,7 +375,7 @@ GROMACS is built with, and then:
   GROMACS' own;
 
 - reads the input and the PDB file on rank 0 and broadcasts the atom counts, the
-  QM atoms, and the ``CPMDParams`` message;
+  QM atoms, the link atoms, and the ``CPMDParams`` message;
 
 - hands the duplicate to cpmdc with
   ``cpmdc_adopt_calculator_comm()`` before the first session, with every rank as one calculator (``QM_RANKS ALL``),
@@ -288,8 +384,9 @@ GROMACS is built with, and then:
   communicator only when it starts MPI itself;
 
 - each step broadcasts rank 0's positions and box, so every QM rank evaluates
-  identical input whatever GROMACS' decomposition, adds the embedding on rank 0,
-  and broadcasts rank 0's energy and forces.
+  identical input whatever GROMACS' decomposition, builds each link hydrogen
+  from those positions, adds the embedding and the link force shares on rank
+  0, and broadcasts rank 0's energy and forces.
 
 The forces GROMACS reads are therefore identical on every rank, and domain
 decomposition changes which rank applies a force, not its value, including for

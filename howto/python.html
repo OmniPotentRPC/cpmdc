@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use cpmdc as an ASE calculator" href="ase.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use cpmdc as an ASE calculator" href="ase.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/python.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -235,6 +235,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#evaluate-a-step">Evaluate a step</a></li>
 <li><a class="reference internal" href="#use-it-as-an-rgpot-provider">Use it as an rgpot provider</a></li>
 <li><a class="reference internal" href="#use-it-from-ase">Use it from ASE</a></li>
+<li><a class="reference internal" href="#measure-the-client-overhead">Measure the client overhead</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -402,6 +403,14 @@ A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The <code class="docutils literal notranslate"><span class="pre">schema</span></code> argument of <code class="docutils literal notranslate"><span class="pre">Session</span></code>, <code class="docutils literal notranslate"><span class="pre">Potential</span></code>, and <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> is
 deprecated and ignored, and passing it warns with <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>.</p>
+<p>A C-contiguous <code class="docutils literal notranslate"><span class="pre">float64</span></code> array of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code>, and lists or tuples of plain
+<code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code> rows, are packed without a Python loop over the
+coordinates.
+Another container, or a coordinate that is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>, a string, or a NumPy
+scalar inside a list, is still accepted where it was and takes the checked
+loop.
+For <code class="docutils literal notranslate"><span class="pre">calculate_au</span></code>, a C-contiguous <code class="docutils literal notranslate"><span class="pre">float64</span></code> or <code class="docutils literal notranslate"><span class="pre">int32</span></code> buffer is the only
+form that is not copied.</p>
 </section>
 <section id="use-it-as-an-rgpot-provider">
 <h2>Use it as an rgpot provider<a class="headerlink" href="#use-it-as-an-rgpot-provider" title="Link to this heading">¶</a></h2>
@@ -435,6 +444,37 @@ same library, in eV and Angstrom.
 <a class="reference internal" href="ase.html"><span class="doc">Use cpmdc as an ASE calculator</span></a> shows it on a molecule, on a
 periodic cell, and in relaxations, and lists its properties, units, caching
 rules, working directory, and errors.</p>
+</section>
+<section id="measure-the-client-overhead">
+<h2>Measure the client overhead<a class="headerlink" href="#measure-the-client-overhead" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">bench/client_overhead.py</span></code> times what one call costs on the Python side, with
+the SCF out of the measurement, for N atoms in a cubic cell.
+It builds a mock <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> from <code class="docutils literal notranslate"><span class="pre">bench/client_overhead_mock.c</span></code> that does one
+pass over the positions and one over the forces, and, given a stub build, it
+also runs the reference evaluator.
+That evaluator takes at most 1365 atoms, so the 4096 atom rows are measured on
+the mock only.
+The <code class="docutils literal notranslate"><span class="pre">floor</span></code> row calls <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au</span></code> through bare <code class="docutils literal notranslate"><span class="pre">ctypes</span></code>, so a
+path minus the floor is what the Python layer adds.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>setup<span class="w"> </span>build<span class="w"> </span>-Dwith_tests<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>meson<span class="w"> </span>compile<span class="w"> </span>-C<span class="w"> </span>build
+</span><span data-line="2">python3<span class="w"> </span>bench/client_overhead.py<span class="w"> </span>--library<span class="w"> </span>build/libcpmdc.so<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>--params<span class="w"> </span>build/water_blyp_params.bin<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>--periodic-params<span class="w"> </span>build/water_blyp_periodic_params.bin<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">    </span>--runs<span class="w"> </span><span class="m">15</span><span class="w"> </span>--pin<span class="w"> </span><span class="m">3</span><span class="w"> </span>--json<span class="w"> </span>tip.json
+</span><span data-line="6"><span class="nv">CPMDC_BENCH_PYTHON</span><span class="o">=</span><span class="nv">$OTHER_TREE</span>/python<span class="w"> </span>python3<span class="w"> </span>bench/client_overhead.py<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">    </span>--library<span class="w"> </span>build/libcpmdc.so<span class="w"> </span>--params<span class="w"> </span>build/water_blyp_params.bin<span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">    </span>--periodic-params<span class="w"> </span>build/water_blyp_periodic_params.bin<span class="w"> </span>--json<span class="w"> </span>base.json
+</span><span data-line="9">python3<span class="w"> </span>bench/client_overhead.py<span class="w"> </span>--base-json<span class="w"> </span>base.json<span class="w"> </span>--tip-json<span class="w"> </span>tip.json
+</span><span data-line="10">python3<span class="w"> </span>bench/client_overhead.py<span class="w"> </span>--profile<span class="w"> </span><span class="s2">&quot;Session.energy_forces (periodic, numpy)&quot;</span>
+</span></pre></div>
+</div>
+<p>One run is a batch of calls of about 50 ms and the figure is the mean time per
+call.
+A ring of four geometries is cycled, so the session never answers from its
+last geometry.
+The tables give the median over the runs, the quartiles, and the extremes.
+<code class="docutils literal notranslate"><span class="pre">bench/results/client_overhead.org</span></code> holds the base and tip tables of the
+change that packs inputs with <code class="docutils literal notranslate"><span class="pre">array</span></code> and <code class="docutils literal notranslate"><span class="pre">memoryview</span></code>.</p>
 </section>
 </section>
 
@@ -545,7 +585,7 @@ rules, working directory, and errors.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run GROMACS on cpmdc forces - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run under mpirun" href="mpi.html" /><link rel="prev" title="Run LAMMPS on cpmdc forces" href="lammps.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run GROMACS on cpmdc forces - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run under mpirun" href="mpi.html" /><link rel="prev" title="Run LAMMPS on cpmdc forces" href="lammps.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/gromacs.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -232,6 +232,7 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#build">Build</a></li>
 <li><a class="reference internal" href="#set-up-a-run">Set up a run</a></li>
+<li><a class="reference internal" href="#cap-a-bond-across-the-qm-boundary">Cap a bond across the QM boundary</a></li>
 <li><a class="reference internal" href="#pressure-and-npt">Pressure and NPT</a></li>
 <li><a class="reference internal" href="#several-ranks">Several ranks</a></li>
 </ul>
@@ -464,7 +465,15 @@ the cpmdc settings from the file of <code class="docutils literal notranslate"><
 </span><span data-line="2">gmx_d<span class="w"> </span>mdrun<span class="w"> </span>-deffnm<span class="w"> </span>md<span class="w"> </span>-ntmpi<span class="w"> </span><span class="m">1</span>
 </span></pre></div>
 </div>
-<p>The file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code> holds a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside
+<p>The <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> that <code class="docutils literal notranslate"><span class="pre">write_qmi()</span></code> writes in <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> (or the
+first <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> anywhere in a hand-written <code class="docutils literal notranslate"><span class="pre">-qmi</span></code> input,
+which GROMACS reads for the QM charge) must equal the charge and multiplicity
+of the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message: pass <code class="docutils literal notranslate"><span class="pre">charge=</span></code> and <code class="docutils literal notranslate"><span class="pre">multiplicity=</span></code> to
+<code class="docutils literal notranslate"><span class="pre">write_qmi()</span></code> for a deck that is not neutral and singlet, and <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> stops
+with both values when they differ.
+A <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> line added above <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>, even inside <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code>, is the
+one GROMACS and the library read.
+The file of <code class="docutils literal notranslate"><span class="pre">-qmi</span></code> holds a <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section inside
 <code class="docutils literal notranslate"><span class="pre">&amp;FORCE_EVAL</span></code>: <code class="docutils literal notranslate"><span class="pre">PARAMS</span></code> names the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message, <code class="docutils literal notranslate"><span class="pre">CELL</span></code> and <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span></code> choose the cell and the QM-MM Coulomb term, <code class="docutils literal notranslate"><span class="pre">QM_CHARGES</span></code>
 gives the QM atoms’ classical charges, <code class="docutils literal notranslate"><span class="pre">EPSILON_R</span></code> scales the mechanical-embedding
 QM-MM Coulomb term when <code class="docutils literal notranslate"><span class="pre">.mdp</span></code> sets <code class="docutils literal notranslate"><span class="pre">epsilon-r</span></code> other than 1 (because GROMACS’
@@ -474,6 +483,36 @@ The <a class="reference internal" href="../reference/gromacs.html"><span class="
 library writes to <code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code>.
 An explicit <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code> section takes precedence over
 <code class="docutils literal notranslate"><span class="pre">CPMDC_GROMACS_PARAMS</span></code>.</p>
+</section>
+<section id="cap-a-bond-across-the-qm-boundary">
+<h2>Cap a bond across the QM boundary<a class="headerlink" href="#cap-a-bond-across-the-qm-boundary" title="Link to this heading">¶</a></h2>
+<p>A QM group that cuts a covalent bond needs no extra step with the generated
+input: grompp finds each bond between a QM atom and an MM atom and writes a
+<code class="docutils literal notranslate"><span class="pre">&amp;LINK</span></code> section for it, and the library caps the bond with a hydrogen in the
+QM calculation.
+The <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message describes the QM atoms only; the hydrogens are added
+to them for you, so their number does not appear in the deck.
+The input <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> (placed in <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> by <code class="docutils literal notranslate"><span class="pre">write_qmi()</span></code>) stay
+the charge and multiplicity of that message when a bond is capped. The hydrogen
+is not counted into either value.
+<code class="docutils literal notranslate"><span class="pre">md_cp2k.out</span></code> reports <code class="docutils literal notranslate"><span class="pre">links</span> <span class="pre">N</span></code> on its line of atom counts.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">qmmm-cp2k-qmmethod</span> <span class="pre">=</span> <span class="pre">INPUT</span></code> name each bond beside <code class="docutils literal notranslate"><span class="pre">&amp;CPMDC</span></code>, by the
+1-based atom numbers of the GROMACS system, QM atom first:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.gromacs</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_qmi</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="c1"># atom 1 (QM) is bonded to atom 4 (MM)</span>
+</span><span data-line="4"><span class="n">write_qmi</span><span class="p">(</span><span class="s2">&quot;cpmdc.inp&quot;</span><span class="p">,</span> <span class="s2">&quot;water.params.bin&quot;</span><span class="p">,</span> <span class="n">embedding</span><span class="o">=</span><span class="s2">&quot;NONE&quot;</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)])</span>
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">link_alpha</span></code> sets <code class="docutils literal notranslate"><span class="pre">ALPHA_IMOMM</span></code>; the library default is CP2K’s 1.38.
+Choose it as the ratio of the equilibrium QM-MM bond length to the QM-H bond
+length of the method.</p>
+<p>The MM atom gets its share of the force on the hydrogen, so GROMACS integrates
+it as it does any other atom.
+With <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">MECHANICAL</span></code> the charge of the MM atom of each cut bond leaves
+the QM-MM Coulomb sum; see the <a class="reference internal" href="../reference/gromacs.html"><span class="doc">reference</span></a> for
+the hydrogen position, the force shares, the virial, and what is not
+implemented.</p>
 </section>
 <section id="pressure-and-npt">
 <h2>Pressure and NPT<a class="headerlink" href="#pressure-and-npt" title="Link to this heading">¶</a></h2>
@@ -640,7 +679,7 @@ shares each step across the ranks.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

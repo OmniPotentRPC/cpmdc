@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>First energy and forces through the C API - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="An energy and forces from ASE" href="ase-energy.html" /><link rel="prev" title="cpmdc" href="../index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>First energy and forces through the C API - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="An energy and forces from ASE" href="ase-energy.html" /><link rel="prev" title="cpmdc" href="../index.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/tutorials/first-energy.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -495,7 +495,7 @@ The Fortran wrapper adds the MPI library and the Fortran runtime for <code class
 </span><span data-line="4">./first_forces<span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.6.0 available=0
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.7.0 available=0
 </span><span data-line="2">energy_h=0.95870388
 </span><span data-line="3">force[0] =  -0.053992  -0.053992  -0.055259
 </span><span data-line="4">force[1] =  -0.006749  -0.007771  -0.006116
@@ -551,7 +551,7 @@ link, for example with <code class="docutils literal notranslate"><span class="p
 CPMD then prints its usual output, which ends with the self-consistent field
 (SCF) iterations and the energy breakdown.
 The program prints the energy and forces last:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.6.0 available=1
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.7.0 available=1
 </span><span data-line="2"> ...
 </span><span data-line="3"> NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
 </span><span data-line="4">   1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58
@@ -712,7 +712,7 @@ over several ranks.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

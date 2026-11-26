@@ -43,7 +43,9 @@ Checklist
 
 5. Add a fragment ``docs/newsfragments/+NAME.TYPE.md`` for each user-visible
    change, with ``TYPE`` one of the types in ``towncrier.toml``; ``cog bump`` runs
-   towncrier, which moves the fragments into ``CHANGELOG.md``, and
-   ``pixi run towncrier-draft`` previews the result.
+   towncrier, which moves the fragments into ``CHANGELOG.md``,
+   ``pixi run towncrier-draft`` previews the result, and
+   ``pixi run towncrier-check`` verifies fragments and changelog state against the
+   base branch.
 
 6. Tag ``vX.Y.Z`` when publishing.

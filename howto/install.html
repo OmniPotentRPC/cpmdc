@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install and build - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build and test cpmdc" href="quickstart.html" /><link rel="prev" title="Minimise a structure from eOn through rgpot" href="../tutorials/eon-rgpot.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install and build - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build and test cpmdc" href="quickstart.html" /><link rel="prev" title="Minimise a structure from eOn through rgpot" href="../tutorials/eon-rgpot.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/install.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -370,7 +370,7 @@ The tests use it to check the ABI without a working evaluator.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.MAJOR</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.MAJOR</span></code>, or an unversioned <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so</span></code> when <code class="docutils literal notranslate"><span class="pre">with_python</span></code> is on</p></td>
 <td><p>the C ABI from <code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>public headers</p></td>
@@ -390,8 +390,8 @@ The tests use it to check the ABI without a working evaluator.</p>
 <td><p>compiler and linker flags</p></td>
 </tr>
 <tr class="row-odd"><td><p>CMake package</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">cpmdcConfig.cmake</span></code></p></td>
-<td><p>imported target <code class="docutils literal notranslate"><span class="pre">cpmdc::cpmdc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/cmake/cpmdc/cpmdcConfig.cmake</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdcConfigVersion.cmake</span></code></p></td>
+<td><p>imported target <code class="docutils literal notranslate"><span class="pre">cpmdc::cpmdc</span></code>; the version file accepts any release with the same major version</p></td>
 </tr>
 </tbody>
 </table>
@@ -399,7 +399,8 @@ The tests use it to check the ABI without a working evaluator.</p>
 <p>The optional tools (<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, the LAMMPS plugin, and <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code>)
 are listed with the options that build them in the
 <a class="reference internal" href="../reference/build-options.html"><span class="doc">build reference</span></a>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>. A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build
+sets no soversion, because a wheel stores no symlinks.</p>
 </section>
 <section id="requirements">
 <h2>Requirements<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h2>
@@ -436,7 +437,7 @@ Without Pixi, install the same set from your package manager:</p>
 </tr>
 <tr class="row-odd"><td><p>CMake</p></td>
 <td><p>3.24 or newer</p></td>
-<td><p>writing <code class="docutils literal notranslate"><span class="pre">cpmdcConfig.cmake</span></code> and the <code class="docutils literal notranslate"><span class="pre">packaging</span></code> consumer build</p></td>
+<td><p>configuring: Meson reads the CMake template for <code class="docutils literal notranslate"><span class="pre">cpmdcConfigVersion.cmake</span></code> and stops when <code class="docutils literal notranslate"><span class="pre">cmake</span></code> is missing; also the <code class="docutils literal notranslate"><span class="pre">packaging</span></code> consumer build, whose CMake leg is skipped when <code class="docutils literal notranslate"><span class="pre">cmake</span></code> is not installed</p></td>
 </tr>
 <tr class="row-even"><td><p>Python 3</p></td>
 <td><p>3.10 or newer, below 4</p></td>
@@ -707,7 +708,7 @@ The published site is <a class="reference external" href="https://cpmdc.rgoswami
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

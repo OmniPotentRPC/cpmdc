@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build options, artifacts, and Pixi tasks - cpmdc 0.6.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMDParams schema fields" href="cpmdparams-schema.html" /><link rel="prev" title="Environment variables" href="environment.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build options, artifacts, and Pixi tasks - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMDParams schema fields" href="cpmdparams-schema.html" /><link rel="prev" title="Environment variables" href="environment.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/build-options.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -363,7 +363,7 @@ Pass one as <code class="docutils literal notranslate"><span class="pre">-DNAME=
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">with_python</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
-<td><p>install <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code>, its schema, and an unversioned <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> for a wheel; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> sets it, and it turns off the LAMMPS plugin, the GROMACS library, and the install of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code></p></td>
+<td><p>install <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code>, its schema, and an unversioned <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> for a wheel; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">with_readcon</span></code></p></td>
 <td><p>boolean</p></td>
@@ -398,8 +398,11 @@ Pass one as <code class="docutils literal notranslate"><span class="pre">-DNAME=
 </tbody>
 </table>
 </div>
-<p>Configuration stops when <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> and <code class="docutils literal notranslate"><span class="pre">DIR/lib/libcpmd.a</span></code> or
-<code class="docutils literal notranslate"><span class="pre">DIR/obj/timetag.o</span></code> is missing.
+<p>Meson takes the project version from <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> leaves the Python package version dynamic and takes it from
+that Meson version.</p>
+<p>Configuration stops when <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmd_root=DIR</span></code> is non-empty, and
+<code class="docutils literal notranslate"><span class="pre">DIR/lib/libcpmd.a</span></code> or <code class="docutils literal notranslate"><span class="pre">DIR/obj/timetag.o</span></code> is missing.
 OpenCPMD keeps <code class="docutils literal notranslate"><span class="pre">timetag</span></code> outside the archive, and <code class="docutils literal notranslate"><span class="pre">header</span></code> calls it.</p>
 </section>
 <section id="darwin-link-behavior-for-wheels">
@@ -428,7 +431,7 @@ match only symbols that are present.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.MAJOR</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.MAJOR</span></code>, or an unversioned <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so</span></code> when <code class="docutils literal notranslate"><span class="pre">with_python</span></code> is on</p></td>
 <td><p>always</p></td>
 </tr>
 <tr class="row-odd"><td><p>public headers</p></td>
@@ -448,8 +451,8 @@ match only symbols that are present.</p>
 <td><p>always</p></td>
 </tr>
 <tr class="row-odd"><td><p>CMake package</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">cpmdcConfig.cmake</span></code>, imported target <code class="docutils literal notranslate"><span class="pre">cpmdc::cpmdc</span></code></p></td>
-<td><p>always</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/cmake/cpmdc/cpmdcConfig.cmake</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdcConfigVersion.cmake</span></code>, imported target <code class="docutils literal notranslate"><span class="pre">cpmdc::cpmdc</span></code></p></td>
+<td><p>always; Meson writes <code class="docutils literal notranslate"><span class="pre">cpmdcConfig.cmake</span></code> from <code class="docutils literal notranslate"><span class="pre">cmake/cpmdcConfig.cmake.in</span></code>, and the version file needs <code class="docutils literal notranslate"><span class="pre">cmake</span></code> at configure time</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bin/cpmdc-ipi-c</span></code></p></td>
@@ -457,7 +460,7 @@ match only symbols that are present.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdcplugin.so</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">lib/cpmdc/cpmdcplugin.so</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">with_lammps_plugin</span></code> finds the LAMMPS headers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">with_lammps_plugin</span></code> is not disabled, <code class="docutils literal notranslate"><span class="pre">with_python</span></code> is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_gromacs.so</span></code>, <code class="docutils literal notranslate"><span class="pre">include/cpmdc/gromacs/libcp2k.h</span></code>, <code class="docutils literal notranslate"><span class="pre">lib/cpmdc/gromacs/pkgconfig/libcp2k.pc</span></code></p></td>
@@ -466,7 +469,8 @@ match only symbols that are present.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>. A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets
+no soversion, because a wheel stores no symlinks.
 The stub archive <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> is built for the tests and not installed.</p>
 </section>
 <section id="meson-test-suites">
@@ -501,7 +505,7 @@ These suites group the tests of the default build by layer.
 <td><p><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> sizing and session <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> buffer contract</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">embed</span></code>, <code class="docutils literal notranslate"><span class="pre">dlopen</span></code>, <code class="docutils literal notranslate"><span class="pre">mpi</span></code></p></td>
-<td><p>Fortran embed shell, <code class="docutils literal notranslate"><span class="pre">dlopen</span></code> ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests</p></td>
+<td><p>Fortran embed shell, <code class="docutils literal notranslate"><span class="pre">dlopen</span></code> ABI loading (<code class="docutils literal notranslate"><span class="pre">dlopen-leak</span></code> only when <code class="docutils literal notranslate"><span class="pre">b_sanitize</span></code> includes <code class="docutils literal notranslate"><span class="pre">address</span></code>), and the MPI tests. <code class="docutils literal notranslate"><span class="pre">adopt-comm-shell</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-shell</span></code> run on four ranks; <code class="docutils literal notranslate"><span class="pre">orbital-limit-agree-mpi</span></code>, <code class="docutils literal notranslate"><span class="pre">periodic-cell-mpi</span></code>, and <code class="docutils literal notranslate"><span class="pre">orbital-divergence-mpi</span></code> run on two (those five join the <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> suite when <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code> is true). <code class="docutils literal notranslate"><span class="pre">rank-consensus</span></code> runs on four ranks and registers only when MPI is found and <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code> is false, because it compares exact per-rank values from the reference evaluator. The <code class="docutils literal notranslate"><span class="pre">mpi</span></code> suite also holds the two <code class="docutils literal notranslate"><span class="pre">stub</span></code> tests above. All MPI tests register only when MPI is found, and skip when no <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> or <code class="docutils literal notranslate"><span class="pre">mpiexec</span></code> is on <code class="docutils literal notranslate"><span class="pre">PATH</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">e2e</span></code>, <code class="docutils literal notranslate"><span class="pre">fd-check</span></code></p></td>
 <td><p>one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks</p></td>
@@ -521,14 +525,20 @@ These suites group the tests of the default build by layer.
 </tbody>
 </table>
 </div>
+<p>The <code class="docutils literal notranslate"><span class="pre">mpi</span></code> tests above are added when <code class="docutils literal notranslate"><span class="pre">with_tests=true</span></code> and the C MPI
+dependency is found (<code class="docutils literal notranslate"><span class="pre">rank-consensus</span></code> also requires <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code> to be false).
+They launch through <code class="docutils literal notranslate"><span class="pre">tests/run_mpi_test.py</span></code>, which uses <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> or <code class="docutils literal notranslate"><span class="pre">mpiexec</span></code>
+when one is on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and otherwise exits 77 so Meson marks the test skipped.</p>
 <p>Opt-in options add <code class="docutils literal notranslate"><span class="pre">restart-con</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_readcon=true</span></code>), <code class="docutils literal notranslate"><span class="pre">pwscale</span></code>
 (<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>), and <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> plus <code class="docutils literal notranslate"><span class="pre">water</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code> with a
 non-empty <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code>).</p>
-<p>In the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> suite, <code class="docutils literal notranslate"><span class="pre">e2e-single-point</span></code> runs <code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code> and
-<code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code> on one <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>.
+<p>In the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> suite, <code class="docutils literal notranslate"><span class="pre">e2e-single-point</span></code> runs <code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code> and a
+session force call on one <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, then <code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code> on bare
+positions.
 <code class="docutils literal notranslate"><span class="pre">e2e-optimizer-session</span></code> runs three geometry steps on one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, the
-topology rejection, and a second session for a change of species.</p>
-<p>cmocka is resolved through pkg-config.
+topology rejection, and a second session for a change of species.
+Both skip when <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code> is <code class="docutils literal notranslate"><span class="pre">0</span></code>, which is every build without OpenCPMD.</p>
+<p>cmocka is resolved through pkg-config or CMake.
 The parser tests use Cap’n Proto text fixtures encoded by the <code class="docutils literal notranslate"><span class="pre">capnp</span></code> CLI
 (<code class="docutils literal notranslate"><span class="pre">tests/encode_capnp.py</span></code>).
 The stub archive only provides linkable symbols.
@@ -583,9 +593,9 @@ linked.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
 <td><p>link check over README, <code class="docutils literal notranslate"><span class="pre">docs/orgmode</span></code>, and news fragments</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">release-assert</span></code>, <code class="docutils literal notranslate"><span class="pre">version-sync</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-draft</span></code>, <code class="docutils literal notranslate"><span class="pre">release-cog-dry</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">release-assert</span></code>, <code class="docutils literal notranslate"><span class="pre">version-sync</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-draft</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-check</span></code>, <code class="docutils literal notranslate"><span class="pre">release-cog-dry</span></code></p></td>
 <td><p>default</p></td>
-<td><p>release metadata checks, and <code class="docutils literal notranslate"><span class="pre">version.txt</span></code> copies</p></td>
+<td><p>release metadata checks, fragment/changelog checks, and <code class="docutils literal notranslate"><span class="pre">version.txt</span></code> copies</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mkrst</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
@@ -614,7 +624,7 @@ and transport exclusions in both the environment and launcher arguments.</p>
 <section id="meson-test-parallelism-and-blas-threads">
 <h2>Meson test parallelism and BLAS threads<a class="headerlink" href="#meson-test-parallelism-and-blas-threads" title="Link to this heading">¶</a></h2>
 <p>The default test setup (<code class="docutils literal notranslate"><span class="pre">blasthreads</span></code>) sets <code class="docutils literal notranslate"><span class="pre">OPENBLAS_NUM_THREADS</span></code>,
-<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>, and <code class="docutils literal notranslate"><span class="pre">MKL_NUM_THREADS</span></code> to <code class="docutils literal notranslate"><span class="pre">1</span></code> so eight parallel <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code>
+<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>, and <code class="docutils literal notranslate"><span class="pre">MKL_NUM_THREADS</span></code> to <code class="docutils literal notranslate"><span class="pre">1</span></code> so parallel <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code>
 workers do not each spawn a full OpenBLAS pool. Meson applies those values to
 every test child; exports of the same names in the shell that runs <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code>
 are not passed through. To force different caps, set them on the <code class="docutils literal notranslate"><span class="pre">env:</span></code> keyword
@@ -729,7 +739,7 @@ of the individual test or run the executable outside Meson.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>
