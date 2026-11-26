@@ -47,6 +47,21 @@ from cpmdc.gromacs import qmi_input, write_qmi
         ({"links": [(1, 4)], "link_alpha": 1.0}, ValueError, "link_alpha must exceed 1"),
         ({"links": [(1, 4)], "link_alpha": float("nan")}, ValueError, "link_alpha must be finite"),
         ({"link_alpha": 1.38}, ValueError, "link_alpha needs links"),
+        (
+            {"embedding": "ELECTROSTATIC", "cell": "PERIODIC"},
+            ValueError,
+            "periodic electrostatic embedding is unsupported",
+        ),
+        (
+            {"embedding": "NONE", "mm_width": 0.03},
+            ValueError,
+            "mm_width needs embedding='ELECTROSTATIC'",
+        ),
+        (
+            {"embedding": "ELECTROSTATIC", "mm_width": 1.0e-14},
+            ValueError,
+            "mm_width must be at least",
+        ),
     ],
 )
 def test_bad_options_are_refused(options, error, fragment):
@@ -103,6 +118,27 @@ def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
         charge=1,
     )
     assert "EPSILON_R 78.4\n" in target.read_text(encoding="utf-8")
+    electrostatic = tmp_path / "water_es.qmi"
+    assert (
+        write_qmi(
+            electrostatic,
+            "water.bin",
+            embedding="ELECTROSTATIC",
+            cell="NONE",
+            mm_width=0.025,
+            epsilon_r=2.5,
+        )
+        == electrostatic
+    )
+    assert electrostatic.read_text(encoding="utf-8") == qmi_input(
+        "water.bin",
+        embedding="ELECTROSTATIC",
+        cell="NONE",
+        mm_width=0.025,
+        epsilon_r=2.5,
+    )
+    assert "MM_WIDTH 0.025\n" in electrostatic.read_text(encoding="utf-8")
+    assert "EPSILON_R 2.5\n" in electrostatic.read_text(encoding="utf-8")
     linked = write_qmi(tmp_path / "linked.qmi", "water.bin", links=[(1, 4)], link_alpha=1.4)
     assert linked.read_text(encoding="utf-8") == qmi_input("water.bin", links=[(1, 4)], link_alpha=1.4)
     with pytest.raises(ValueError, match="multiplicity must be 1 or more"):
