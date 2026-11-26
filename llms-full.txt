@@ -5682,13 +5682,31 @@ To keep the deck's PCG line instead, use a directive:
 Set only one optimiser in a message.
 Check the rendered `&CPMD` section with `CPMDC_DECK_OUT` (see debugging a deck (file:debug-deck.org)).
 
-# When to keep PCG
+# ODIIS continuation and when to keep PCG
 `cpmdc` applies one deck to every call of a session, so the optimiser chosen for
 the warm calls also runs the cold first call from atomic orbitals.
-Keep `PCG MINIMIZE` for a system whose ODIIS calls stop at `MAXITER`: each such
-call is reported as a failure (see troubleshooting (file:troubleshooting.org)),
-and the optimiser choice does not change the converged state, only the path to
-it.
+
+On the OpenCPMD path the first pass of a call is one `wfopts` with the deck's
+optimiser.
+`cpmdc` turns DIIS off and continues once with preconditioned `PCG MINIMIZE`
+when that pass leaves the orbitals unconverged, DIIS is selected, and `stopgm`
+has not fired.
+An `ODIIS` line selects DIIS.
+So does a wavefunction optimisation that names no wavefunction optimiser:
+OpenCPMD then uses preconditioned DIIS with 10 vectors.
+A `PCG` line, or electronic steepest descent (`TSDE` or
+`STEEPEST DESCENT ELECTRONS`), with no `ODIIS` line, leaves DIIS unselected, so
+that pass does not continue.
+The continuation restores the previous converged orbitals when a converged copy
+is already stored.
+With no converged copy yet, it starts from the orbitals of the pass that just
+returned, instead of rebuilding the atomic guess.
+It runs once per call.
+If the continuation also fails to converge, the call fails.
+
+Keep `PCG MINIMIZE` in the deck when that single continuation still fails, or
+when the first pass hits `stopgm` and the continuation is not attempted (see troubleshooting (file:troubleshooting.org)).
+The optimiser choice does not change the converged state, only the path to it.
 
 # Always set MAXITER
 Without `maxIter`, the OpenCPMD path inserts `MAXITER 40` into the first deck.
@@ -5971,7 +5989,7 @@ composition requires a new session.
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
    * - Tune SCF convergence in ``&CPMD``
-     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - Pick ODIIS or PCG; an unconverged DIIS pass continues once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
@@ -5983,7 +6001,7 @@ composition requires a new session.
      - Compare analytic forces and stress against central finite differences
      - :doc:`Check forces and stress by finite differences <howto/check-forces>`
    * - Benchmark MPI rank scaling for a grid
-     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - Measure structure-factor rank scaling with the opt-in ``pwscale`` scaffold
      - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
      - Match common error strings and failure modes to their fixes
@@ -6220,6 +6238,9 @@ These suites group the tests of the default build by layer.
 | `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
 | `packaging` | installed `RUNPATH`, relocatable `pkg-config` layouts, and CMake/pkg-config consumer build |
 | `docs`, `examples` | `example-host-step`, runnable documentation blocks, `llms.txt` freshness, and API reference contracts |
+
+Run `geometry-rmsd`, `warm-selector`, and `warm-selector-abi` by name with
+`meson test -C build geometry-rmsd warm-selector warm-selector-abi`.
 
 The `mpi` tests above are added when
 `with_tests=true` and the C MPI dependency is found (`rank-consensus` also requires `has_cpmd`

@@ -101,7 +101,7 @@ composition requires a new session.
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
    * - Tune SCF convergence in ``&CPMD``
-     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - Pick ODIIS or PCG; an unconverged DIIS pass continues once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
@@ -113,7 +113,7 @@ composition requires a new session.
      - Compare analytic forces and stress against central finite differences
      - :doc:`Check forces and stress by finite differences <howto/check-forces>`
    * - Benchmark MPI rank scaling for a grid
-     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - Measure structure-factor rank scaling with the opt-in ``pwscale`` scaffold
      - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
      - Match common error strings and failure modes to their fixes

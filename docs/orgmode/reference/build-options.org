@@ -81,6 +81,9 @@ These suites group the tests of the default build by layer.
 | ~packaging~ | installed ~RUNPATH~, relocatable ~pkg-config~ layouts, and CMake/pkg-config consumer build |
 | ~docs~, ~examples~ | ~example-host-step~, runnable documentation blocks, ~llms.txt~ freshness, and API reference contracts |
 
+Run ~geometry-rmsd~, ~warm-selector~, and ~warm-selector-abi~ by name with
+~meson test -C build geometry-rmsd warm-selector warm-selector-abi~.
+
 The ~mpi~ tests above are added when
 ~with_tests=true~ and the C MPI dependency is found (~rank-consensus~ also requires ~has_cpmd~
 to be false).
