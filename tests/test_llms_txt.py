@@ -230,7 +230,10 @@ def test_normalize_joins_only_well_formed_links(root: Path = ROOT) -> None:
                 raise AssertionError(f"normalize changed {sample!r} to {got!r}")
 
 
-_MATH_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]", re.DOTALL)
+_MATH_SPAN = re.compile(
+    r"\$\$.*?\$\$|\\\(.*?\\\)|\\\[.*?\\\]|\\begin\{([A-Za-z*]+)\}.*?\\end\{\1\}",
+    re.DOTALL,
+)
 
 
 def markup_corruption(text: str) -> list[str]:
@@ -275,18 +278,24 @@ def test_org_plaintext_preserves_math_spans(root: Path = ROOT) -> None:
         tree = Path(tmp) / "repo"
         _copy_generator_inputs(root, tree)
         generator = _load_generator_module(tree)
-        sample = "\n".join(
-            [
-                r"Keep \(\epsilon_{rf}=1\) next to =one= and \(~x~\).",
-                r"Also $\epsilon_{rf}=1,~x~$ and \[E = 1,~x~\].",
-                r"\begin{equation}\epsilon_{rf}=1,~x~\end{equation}",
-                "Outside ~x~ and shape ~(N, 3)~.",
-                "See ~[[file:../howto/mpi.org][text]]~.",
-                "E0 = 85 and sigma = 4 stays.",
-                "#+begin_src awk",
-                r"NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/",
-                "#+end_src",
-            ]
+        sample = (
+            r"Keep \(\epsilon_{rf}=1\) next to =one= and \(~x~\)."
+            "\n"
+            r"Also $\epsilon_{rf}=1,~x~$ and \[E = 1,~x~\]."
+            "\n"
+            r"\begin{equation}\epsilon_{rf}=1,~x~\end{equation}"
+            "\n"
+            "Outside ~x~ and shape ~(N, 3)~."
+            "\n"
+            "See ~[[file:../howto/mpi.org][text]]~."
+            "\n"
+            "E0 = 85 and sigma = 4 stays."
+            "\n"
+            "#+begin_src awk"
+            "\n"
+            r"NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/"
+            "\n"
+            "#+end_src"
         )
         rendered = generator.org_plaintext(sample)
         required = [
@@ -321,14 +330,12 @@ def test_org_plaintext_keeps_parenthesized_code(root: Path = ROOT) -> None:
         tree = Path(tmp) / "repo"
         _copy_generator_inputs(root, tree)
         generator = _load_generator_module(tree)
-        sample = "\n".join(
-            [
-                "row: ~(lx, 0, 0)~, ~(xy, ly, 0)~, ~(xz, yz, lz)~ end",
-                "pairs ~(1, 3)~, ~(2, 6)~,",
-                "and ~(5, 7)~ as the symmetrized terms",
-                "shape ~(N, 3)~ and empty ~()~ beside ~(h[0], 0, 0)~.",
-                r"Math \(-dE/d(\mathrm{strain})\) stays with ~(xlo, ylo, zlo)~.",
-            ]
+        sample = (
+            "row: ~(lx, 0, 0)~, ~(xy, ly, 0)~, ~(xz, yz, lz)~ end\n"
+            "pairs ~(1, 3)~, ~(2, 6)~,\n"
+            "and ~(5, 7)~ as the symmetrized terms\n"
+            "shape ~(N, 3)~ and empty ~()~ beside ~(h[0], 0, 0)~.\n"
+            r"Math \(-dE/d(\mathrm{strain})\) stays with ~(xlo, ylo, zlo)~."
         )
         rendered = generator.org_plaintext(sample)
         required = (
@@ -372,6 +379,130 @@ def test_org_plaintext_keeps_parenthesized_code(root: Path = ROOT) -> None:
                 raise AssertionError(f"llms-full.txt still has blank span {piece!r}")
 
 
+def test_org_plaintext_keeps_multiline_math_blocks(root: Path = ROOT) -> None:
+    """Math blocks that span lines are copied unchanged.
+
+    A line-wise walk turns a code marker inside an open dollar block into
+    a backtick span. Multiline dollar math, bracket math, and LaTeX
+    environments keep the marker, including spaces on a math line.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = (
+            "before ~y~\n"
+            "$$\n"
+            "~x~  \n"
+            "$$\n"
+            "$$~x~$$\n"
+            "\\[\n"
+            "~x~\n"
+            "\\]\n"
+            "\\begin{equation}\n"
+            "~x~\n"
+            "\\end{equation}\n"
+            "\\begin{align*}\n"
+            "~x~\n"
+            "\\end{align*}\n"
+            "after ~z~\n"
+        )
+        rendered = generator.org_plaintext(sample)
+        required = (
+            "$$\n~x~  \n$$",
+            "$$~x~$$",
+            "\\[\n~x~\n\\]",
+            "\\begin{equation}\n~x~\n\\end{equation}",
+            "\\begin{align*}\n~x~\n\\end{align*}",
+            "`y`",
+            "`z`",
+        )
+        for piece in required:
+            if piece not in rendered:
+                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
+        if "`x`" in rendered:
+            raise AssertionError(f"math code marker became a span:\n{rendered}")
+
+
+def test_org_plaintext_keeps_literal_trailing_whitespace(root: Path = ROOT) -> None:
+    """Source and example blocks keep trailing spaces and tabs.
+
+    Prose still drops trailing spaces. The block markers themselves are
+    not part of the plain text.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = (
+            "before\n"
+            "#+begin_src text\n"
+            "keep two  \n"
+            "tab\t\n"
+            "   \n"
+            "#+end_src\n"
+            "#+begin_example\n"
+            "ex   \n"
+            "#+end_example\n"
+            "#+BEGIN_SRC python\n"
+            "upper  \n"
+            "#+END_SRC\n"
+            "prose trailing   \n"
+        )
+        rendered = generator.org_plaintext(sample)
+        required = (
+            "keep two  \n",
+            "tab\t\n",
+            "   \n",
+            "ex   \n",
+            "upper  \n",
+        )
+        for piece in required:
+            if piece not in rendered:
+                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
+        if "prose trailing   " in rendered:
+            raise AssertionError(f"prose kept trailing spaces:\n{rendered}")
+        if "prose trailing\n" not in rendered:
+            raise AssertionError(f"prose line missing:\n{rendered}")
+        if "#+begin_" in rendered or "#+end_" in rendered or "#+BEGIN_" in rendered:
+            raise AssertionError(f"block marker leaked:\n{rendered}")
+
+
+def test_markup_corruption_flags_dollar_math_and_environments(
+    root: Path = ROOT,
+) -> None:
+    """Dollar math and LaTeX environments count as math spans.
+
+    A backtick inside those spans is corruption, the same as inside
+    backslash math. A clean span, and a code span outside it, is not.
+    """
+    del root
+    flagged = (
+        "$$`x`$$",
+        "$$\n`x`\n$$",
+        "\\begin{equation}`x`\\end{equation}",
+        "\\begin{align*}\n`x`\n\\end{align*}",
+    )
+    for sample in flagged:
+        hits = markup_corruption(sample)
+        if not any(hit.startswith("backtick inside math") for hit in hits):
+            raise AssertionError(
+                f"math corruption was not flagged: {sample!r} -> {hits}"
+            )
+    clean = (
+        "$$~x~$$",
+        "$$\n~x~\n$$",
+        "\\begin{equation}~x~\\end{equation}",
+        "\\(~x~\\)",
+        "\\[~x~\\]",
+        "prose `code`",
+    )
+    for sample in clean:
+        hits = markup_corruption(sample)
+        if hits:
+            raise AssertionError(f"clean sample flagged: {sample!r} -> {hits}")
+
+
 TESTS = (
     test_deterministic_generation,
     test_stale_failure_is_actionable,
@@ -382,6 +513,9 @@ TESTS = (
     test_committed_llms_have_no_markup_corruption,
     test_org_plaintext_preserves_math_spans,
     test_org_plaintext_keeps_parenthesized_code,
+    test_org_plaintext_keeps_multiline_math_blocks,
+    test_org_plaintext_keeps_literal_trailing_whitespace,
+    test_markup_corruption_flags_dollar_math_and_environments,
 )
 
 

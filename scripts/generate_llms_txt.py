@@ -64,8 +64,10 @@ def page_title(org_path: Path) -> str:
 # pre is "-", whitespace, or ('"{ and post adds the closing punctuation.
 _LITERAL_BEGIN = re.compile(r"(?i)^#\+begin_(src|example|verse|export)\b")
 _LITERAL_END = re.compile(r"(?i)^#\+end_(src|example|verse|export)\b")
-_BACKSLASH_MATH = re.compile(
-    r"\\\(.*?\\\)|\\\[.*?\\\]|\\begin\{([A-Za-z*]+)\}.*?\\end\{\1\}",
+# Dollar display math is included here. A line-wise scan leaves the closer
+# on a later line, and a code marker inside the open block becomes a span.
+_SHIELDED_MATH = re.compile(
+    r"\$\$.*?\$\$|\\\(.*?\\\)|\\\[.*?\\\]|\\begin\{([A-Za-z*]+)\}.*?\\end\{\1\}",
     re.DOTALL,
 )
 _LINK_WITH_DESC = re.compile(r"(?<!\[)\[\[([^][]+)\]\[([^]]*)\]\](?!\])")
@@ -134,12 +136,12 @@ def _dollar_math_end(line: str, start: int) -> int | None:
     return end + 1
 
 
-def _shield_backslash_math(text: str, vault: list[str]) -> str:
+def _shield_math(text: str, vault: list[str]) -> str:
     def stash(match: re.Match[str]) -> str:
         vault.append(match.group(0))
         return f"\x00M{len(vault) - 1}\x00"
 
-    return _BACKSLASH_MATH.sub(stash, text)
+    return _SHIELDED_MATH.sub(stash, text)
 
 
 def _restore_math(text: str, vault: list[str]) -> str:
@@ -213,23 +215,23 @@ def org_plaintext(text: str) -> str:
     Backslash math, display math, dollar math, and LaTeX environments are
     copied unchanged, so ``=1`` and ``~x~`` inside them are not inline markup.
     Org code and verbatim become backtick spans. Source, example, verse, and
-    export blocks are copied as written.
+    export blocks are copied as written, including trailing spaces.
     """
     text = normalize_wrapped_org_links(text)
     math_vault: list[str] = []
-    text = _shield_backslash_math(text, math_vault)
+    text = _shield_math(text, math_vault)
     lines: list[str] = []
     in_literal = False
     for raw in text.splitlines():
+        if in_literal:
+            if _LITERAL_END.match(raw.rstrip()):
+                in_literal = False
+                continue
+            lines.append(_restore_math(raw, math_vault))
+            continue
         line = raw.rstrip()
         if _LITERAL_BEGIN.match(line):
             in_literal = True
-            continue
-        if _LITERAL_END.match(line):
-            in_literal = False
-            continue
-        if in_literal:
-            lines.append(_restore_math(line, math_vault))
             continue
         if line.startswith("#+"):
             continue
