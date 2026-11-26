@@ -89,9 +89,9 @@ def attach(lmp: Any, spec: dict[str, Any]) -> Any:
 def measure(lmp: Any) -> dict[str, Any]:
     """Potential energy, forces by atom ID, and the virial ``xx yy zz xy xz yz``.
 
-    The virial is the ``compute pressure NULL virial`` tensor times the
-    volume over ``nktv2p``, in LAMMPS energy units. Call after a run whose
-    thermo output includes ``c_cpmdc_vir``.
+    The virial is the ``compute cpmdc_vir all pressure NULL virial`` tensor
+    times the volume over ``nktv2p``, in LAMMPS energy units. Call after a
+    run whose thermo output includes ``c_cpmdc_vir``.
     """
     pressure = np.array(lmp.numpy.extract_compute("cpmdc_vir", 0, 1), dtype=float)
     volume = lmp.get_thermo("vol")
