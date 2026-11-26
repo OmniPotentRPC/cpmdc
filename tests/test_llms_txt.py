@@ -310,6 +310,68 @@ def test_org_plaintext_preserves_math_spans(root: Path = ROOT) -> None:
             raise AssertionError(f"rendered math was corrupted:\n{hits}\n{rendered}")
 
 
+def test_org_plaintext_keeps_parenthesized_code(root: Path = ROOT) -> None:
+    """A code span whose body is a parenthesized group is copied through.
+
+    The body may contain commas and spaces. Several such spans may sit on
+    one line, separated by a comma. Deleting the whole span leaves the
+    surrounding punctuation and a blank where the vector or index pair was.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = "\n".join(
+            [
+                "row: ~(lx, 0, 0)~, ~(xy, ly, 0)~, ~(xz, yz, lz)~ end",
+                "pairs ~(1, 3)~, ~(2, 6)~,",
+                "and ~(5, 7)~ as the symmetrized terms",
+                "shape ~(N, 3)~ and empty ~()~ beside ~(h[0], 0, 0)~.",
+                r"Math \(-dE/d(\mathrm{strain})\) stays with ~(xlo, ylo, zlo)~.",
+            ]
+        )
+        rendered = generator.org_plaintext(sample)
+        required = (
+            "`(lx, 0, 0)`, `(xy, ly, 0)`, `(xz, yz, lz)`",
+            "`(1, 3)`, `(2, 6)`",
+            "`(5, 7)`",
+            "`(N, 3)`",
+            "`()`",
+            "`(h[0], 0, 0)`",
+            "`(xlo, ylo, zlo)`",
+            r"\(-dE/d(\mathrm{strain})\)",
+        )
+        for piece in required:
+            if piece not in rendered:
+                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
+        if "row: , , " in rendered or "pairs , ," in rendered:
+            raise AssertionError(f"parenthesized code was removed:\n{rendered}")
+        page = (
+            root / "docs" / "orgmode" / "reference" / "lammps.org"
+        ).read_text(encoding="utf-8")
+        page_text = generator.org_plaintext(page)
+        page_bits = (
+            "one lattice vector per row: `(lx, 0, 0)`, `(xy, ly, 0)`, `(xz, yz, lz)`",
+            "and the pairs `(1, 3)`, `(2, 6)`,",
+            "and `(5, 7)` as the symmetrized",
+        )
+        for piece in page_bits:
+            if piece not in page_text:
+                raise AssertionError(f"lammps page lost {piece!r} in:\n{page_text}")
+        full = (root / "llms-full.txt").read_text(encoding="utf-8")
+        for piece in page_bits:
+            if piece not in full:
+                raise AssertionError(f"llms-full.txt lost {piece!r}")
+        blanks = (
+            "one lattice vector per row: , , ",
+            "and the pairs , ,",
+            "and  as the symmetrized",
+        )
+        for piece in blanks:
+            if piece in full:
+                raise AssertionError(f"llms-full.txt still has blank span {piece!r}")
+
+
 TESTS = (
     test_deterministic_generation,
     test_stale_failure_is_actionable,
@@ -319,6 +381,7 @@ TESTS = (
     test_markup_corruption_flags_synthetic_input,
     test_committed_llms_have_no_markup_corruption,
     test_org_plaintext_preserves_math_spans,
+    test_org_plaintext_keeps_parenthesized_code,
 )
 
 
