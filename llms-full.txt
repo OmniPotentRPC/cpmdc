@@ -342,7 +342,7 @@ Build docs (exports Org to RST, Doxygen XML, Sphinx HTML with Antics analytics):
 
 pixi run -e docs docbld
 
-Link between pages with Org file links, `text (file:../howto/mpi.org)`.
+Link between pages with Org file links, `[[file:../howto/mpi.org][text]]`.
 The default export is `ox-rst`.
 A file link whose target ends in `.org` becomes a Sphinx `:doc:` role, so the
 same link works on the forge and in the built site.
@@ -1658,18 +1658,18 @@ OpenCPMD is linked.
 
 A host can reach CPMD through several layers.
 The default local interface is the in-process session API:
-=Session.calculate_au()= for atomic-unit arrays, or =cpmdc_session_calculate_result()=
+`Session.calculate_au()` for atomic-unit arrays, or `cpmdc_session_calculate_result()`
 for Cap'n Proto messages.
-The default remote interface is rgpot's Cap'n Proto RPC over =CPMDPot=.
+The default remote interface is rgpot's Cap'n Proto RPC over `CPMDPot`.
 i-PI is an optional rgpot protocol frontend over potentials; protocol frontends
 do not belong inside an engine library.
-In an rgpot build with the RPC stack, =rgpot-ipi-driver= selects =CPMDPot= for
-=--pot "CPMD params FILE"= and for `-m CPMD -o params=FILE`.
-Pass =--preserve-open-cell= for CPMD so a singular cell is passed through
+In an rgpot build with the RPC stack, `rgpot-ipi-driver` selects `CPMDPot` for
+`--pot "CPMD params FILE"` and for `-m CPMD -o params=FILE`.
+Pass `--preserve-open-cell` for CPMD so a singular cell is passed through
 instead of padded.
 The i-PI migration status (file:../howto/socket-drivers.org) records that
 route.
-=cpmdc-ipi= and =cpmdc-ipi-c= remain compatibility fallbacks.
+`cpmdc-ipi` and `cpmdc-ipi-c` remain compatibility fallbacks.
 
 The measurements below compare the two original execution routes.
 The file route writes a deck, starts `cpmd.x` for each force call, and reads the
@@ -2317,10 +2317,10 @@ so `get_forces` after `get_potential_energy` does not evaluate again:
 |----------+----------+------+-----------------+---------------|
 | `energy` | `get_potential_energy()` | eV | yes | yes |
 | `free_energy` | `get_potential_energy(force_consistent=True)` | eV | equals `energy` | equals `energy` |
-| `forces` | `get_forces()` | eV/Angstrom, shape  | yes | yes |
-| `stress` | `get_stress()` | eV/Angstrom^3, Voigt  | raises `PropertyNotImplementedError` | yes, unless the deck is isolated or `CPMDC_STRESS=0` |
-| `dipole` | `get_dipole_moment()` | e*Angstrom, shape  | raises `PropertyNotImplementedError` | yes for a supported deck that requests Berry dipole evaluation |
-| `charges` | `get_charges()` | electrons, shape  | yes for a supported deck | yes for a supported deck |
+| `forces` | `get_forces()` | eV/Angstrom, shape `(N, 3)` | yes | yes |
+| `stress` | `get_stress()` | eV/Angstrom^3, Voigt `(xx, yy, zz, yz, xz, xy)` | raises `PropertyNotImplementedError` | yes, unless the deck is isolated or `CPMDC_STRESS=0` |
+| `dipole` | `get_dipole_moment()` | e*Angstrom, shape `(3,)` | raises `PropertyNotImplementedError` | yes for a supported deck that requests Berry dipole evaluation |
+| `charges` | `get_charges()` | electrons, shape `(N,)` | yes for a supported deck | yes for a supported deck |
 | `energies`, `magmom`, `magmoms` | `get_property(name)` | | raises `PropertyNotImplementedError` | raises `PropertyNotImplementedError` |
 
 `free_energy` is the potential energy of the step, because the library does not
@@ -2540,7 +2540,7 @@ calculators for GPAW, ORCA, NWChem, and Psi4 do, so a charged or spin-polarised
 
 The total charge is `Q = sum(atoms.get_initial_charges())` and the total moment
 is `M = sum(atoms.get_initial_magnetic_moments())`.
-The moments are collinear, one per atom: an array of shape  with a
+The moments are collinear, one per atom: an array of shape `(N, 3)` with a
 nonzero entry raises `ValueError`.
 `Q` and `M` must be integers.
 A sum counts as an integer when it lies within `n * eps * sum(|x|)` of one, the
@@ -3147,7 +3147,7 @@ if (pimd != NULL && pimd->embed_applicable) {
   /* The embedded OpenCPMD build can render a &PIMD section. */
 }
 
-The entry layout (file:../reference/c-abi.org::*`CPMDCFeatureEntry` and `CPMDCFeatureKind`)
+The entry layout (file:../reference/c-abi.org::*~CPMDCFeatureEntry~ and ~CPMDCFeatureKind~)
 says which builds expose a feature.
 The CPMD option mapping (file:../reference/cpmd-options.org) lists the ID
 namespaces (`catalog.section.*`, `catalog.cpmd.*`, `catalog.dft.*`, `params.*`,
@@ -3252,7 +3252,7 @@ Three habits keep a host loop correct:
   as above; session message steps (file:../reference/c-abi.org::*Session message steps)
   say what a zero size and a short buffer mean.
 - Free the `CPMDParams` bytes after creating the session; the session keeps its
-  own copy (the session type (file:../reference/c-abi.org::*`CPMDCSession`)).
+  own copy (the session type (file:../reference/c-abi.org::*~CPMDCSession~)).
 - Create a new `CPMDCSession` to change the atom count, the elemental
   composition, or the method once an evaluation has been accepted
   (sessions (file:../reference/c-abi.org::*Sessions) say when the topology is
@@ -4940,7 +4940,7 @@ calculator in process globals.
 The `schema` argument of `Session`, `Potential`, and `CPMDCCalculator` is
 deprecated and ignored, and passing it warns with `DeprecationWarning`.
 
-A C-contiguous `float64` array of shape , and lists or tuples of plain
+A C-contiguous `float64` array of shape `(N, 3)`, and lists or tuples of plain
 `float` and `int` rows, are packed without a Python loop over the coordinates.
 Another container, or a coordinate that is a `bool`, a string, or a NumPy scalar
 inside a list, is still accepted where it was and takes the checked loop.
@@ -5145,49 +5145,49 @@ When a build or a call fails, see troubleshooting (file:troubleshooting.org).
 # Migration status
 Protocol frontends belong in rgpot (https://github.com/OmniPotentRPC/rgpot),
 where they can wrap every potential.
-The primary socket route is rgpot's =IPIDriver= over =CPMDPot=, while direct
-=Session.calculate_au()= calls and rgpot's Cap'n Proto RPC remain the preferred
+The primary socket route is rgpot's `IPIDriver` over `CPMDPot`, while direct
+`Session.calculate_au()` calls and rgpot's Cap'n Proto RPC remain the preferred
 in-process and remote interfaces.
 
 The audit covered the rgpot develop branch as of this change.
 In that snapshot,
-=engines/pot_spec.cpp:182-218= reads a flat serialized =CPMDParams= file and constructs =CPMDPot=; =engines/pot_spec.cpp:223-225= selects it and =engines/pot_spec.cpp:325-328=
+`engines/pot_spec.cpp:182-218` reads a flat serialized `CPMDParams` file and constructs `CPMDPot`; `engines/pot_spec.cpp:223-225` selects it and `engines/pot_spec.cpp:325-328`
 lists it.
-Both =--pot "CPMD params FILE"= and =-m CPMD -o params=FILE= completed a
+Both `--pot "CPMD params FILE"` and `-m CPMD -o params=FILE` completed a
 stub-backed CPMD force request in the audit.
 
 The three protocol and cell differences from the earlier audit are closed:
 
-- =CppCore/rgpot/IPIPot/IPIDriver.cc:410-417= still pads a zero-volume cell by
+- `CppCore/rgpot/IPIPot/IPIDriver.cc:410-417` still pads a zero-volume cell by
   default.
-  Pass =--preserve-open-cell= for CPMD.
+  Pass `--preserve-open-cell` for CPMD.
   The same branch then passes an all-zero cell through so cpmdc keeps the deck
   cell, and passes a nonzero singular cell through so cpmdc rejects it.
   The audit exercised all four default and preserved cases.
   Left-handed full-rank cells still have positive absolute volume and follow the
   periodic path.
-- =CppCore/rgpot/IPIPot/IPIDriver.cc:347-351= marks a completed direct =POSDATA=
+- `CppCore/rgpot/IPIPot/IPIDriver.cc:347-351` marks a completed direct `POSDATA`
   as initialized.
-  The audit sent =POSDATA= without =INIT= and the following =STATUS= returned
-  =HAVEDATA=.
-- =CppCore/rgpot/IPIPot/IPIDriver.cc:315-318= rejects an =INIT= request whose
-  =batch_size= is greater than one.
-  The audit sent =batch_size: 2= and the driver exited with the explicit
+  The audit sent `POSDATA` without `INIT` and the following `STATUS` returned
+  `HAVEDATA`.
+- `CppCore/rgpot/IPIPot/IPIDriver.cc:315-318` rejects an `INIT` request whose
+  `batch_size` is greater than one.
+  The audit sent `batch_size: 2` and the driver exited with the explicit
   one-structure error.
 
-| Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
+| Capability | cpmdc driver | rgpot `IPIDriver` and `CPMDPot` |
 |------------+--------------+----------------------------------|
-| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
+| Protocol messages | `STATUS`, `INIT`, `POSDATA`, `GETFORCE`, `EXIT`; pipelined `POSDATA=/GETFORCE`; rejects `batch_size > 1` | the same messages and pipeline; accepts `POSDATA` without `INIT` and rejects `batch_size > 1` |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
-| Cell | transpose i-PI columns to CPMD rows; zero cell preserves the deck cell; nonzero singular cell is rejected; inverse is read and ignored | transpose to rgpot rows; inverse ignored; =--preserve-open-cell= gives the same zero and singular behavior; without it rgpot pads either zero-volume case |
+| Cell | transpose i-PI columns to CPMD rows; zero cell preserves the deck cell; nonzero singular cell is rejected; inverse is read and ignored | transpose to rgpot rows; inverse ignored; `--preserve-open-cell` gives the same zero and singular behavior; without it rgpot pads either zero-volume case |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
-| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= takes =--pot "CPMD params FILE"= or =-m CPMD -o params=FILE= |
-| ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=; the audit drove =CPMDPot= through the same wire protocol |
-| LAMMPS =fix ipi= | both are clients and meet through an i-PI server | the same topology |
+| Command | `cpmdc-ipi` and `cpmdc-ipi-c` take serialized `CPMDParams` | `rgpot-ipi-driver` takes `--pot "CPMD params FILE"` or `-m CPMD -o params=FILE` |
+| ASE | `SocketIOCalculator` over UNIX or TCP | generic driver is tested with `SocketIOCalculator`; the audit drove `CPMDPot` through the same wire protocol |
+| LAMMPS `fix ipi` | both are clients and meet through an i-PI server | the same topology |
 
 # Start the generic driver
 Give rgpot the serialized parameters and the species in server order.
-For CPMD, include =--preserve-open-cell=: it leaves periodic cells unchanged,
+For CPMD, include `--preserve-open-cell`: it leaves periodic cells unchanged,
 keeps the deck cell for an all-zero wire cell, and lets cpmdc reject any other
 singular cell.
 
@@ -5198,11 +5198,11 @@ CPMDC_LIBRARY=/path/to/libcpmdc.so rgpot-ipi-driver \
   -m CPMD -o params=water.params.bin --species O,H,H \
   --preserve-open-cell -a localhost -p 31415
 
-The first command uses the i-PI UNIX socket name =water=; the second uses TCP.
+The first command uses the i-PI UNIX socket name `water`; the second uses TCP.
 The audit ran both potential spellings against the cpmdc stub library and
 completed a force request.
 The cpmdc documentation harness cannot run this block because rgpot is a
-separate checkout. rgpot's =IPIDriverTest= and the audit socket probe cover the
+separate checkout. rgpot's `IPIDriverTest` and the audit socket probe cover the
 protocol behavior.
 
 # cpmdc driver fallback
@@ -5547,7 +5547,7 @@ smoothly with the cell between setups.
 
 # Failed calls
 
-## ~orbitals not converged within MAXITER, or no energy~
+## `orbitals not converged within MAXITER, or no energy`
 *Cause:* the SCF stopped at `MAXITER` before reaching the orbital convergence
 threshold.
 OpenCPMD computes ionic forces only for converged orbitals, so the forces of
@@ -5577,7 +5577,7 @@ into `ForceInput` order.
 A step whose atomic numbers do not match the species counts still fails, and the
 message names the species blocks rather than `MAXITER`.
 
-## ~CPMD stopgm during embed SCF~
+## `CPMD stopgm during embed SCF`
 *Cause:* CPMD called `stopgm`, its fatal-error routine, inside the call.
 With `opencpmd_stopgm_return.patch` in the archive, `stopgm` calls
 `cpmd_stopgm_hook`.
@@ -5596,7 +5596,7 @@ same session sets CPMD up again.
 With more than one MPI rank, `cpmdc` aborts the other ranks, which would
 otherwise stay blocked in the call `stopgm` returned from.
 
-## ~topology change requires a new session~
+## `topology change requires a new session`
 *Cause:* `session_accept_topology` fixes the topology after an evaluation call
 passes its argument checks and collective orbital preflight.
 A later step with a different count or composition is refused before CPMD runs.
@@ -5606,13 +5606,13 @@ A reordering of the same elements stays on the session.
 A reordering of the same elements keeps the stored orbitals.
 A different elemental composition runs setup.
 
-## ~PotentialResult buffer too small~
+## `PotentialResult buffer too small`
 *Cause:* the output buffer is smaller than the serialized result.
 `cpmdc` writes the required size to the size argument and does not evaluate.
 
 *Fix:* allocate `cpmdc_potential_result_size_for_force_input()` bytes.
 
-## ~invalid ForceInput result units~
+## `invalid ForceInput result units`
 *Cause:* the `lengthUnit` or `energyUnit` of the `ForceInput` is not a unit
 string `cpmdc` knows.
 The call fails before it evaluates.
@@ -5620,7 +5620,7 @@ The call fails before it evaluates.
 *Fix:* use one of the unit strings of the C ABI reference (file:../reference/c-abi.org),
 such as `angstrom`, `bohr`, `eV`, or `hartree`; case does not matter.
 
-## ~CPMD embed not available~
+## `CPMD embed not available`
 *Cause:* the library was finalized with `cpmdc_finalize()`, or the session could
 not apply its configuration.
 
@@ -5669,25 +5669,25 @@ ranks still running when one exits without `MPI_Finalize`.
 
 # Build and link
 
-## ~with_cpmd requires DIR/lib/libcpmd.a~
+## `with_cpmd requires DIR/lib/libcpmd.a`
 *Cause:* `cpmd_root` does not point at a completed OpenCPMD build tree.
 
 *Fix:* pass the `-DEST` directory of the OpenCPMD build, which holds
 `lib/`, `obj/`, and `src/`.
 
-## Link fails with ~R_X86_64_PC32~ against ~libcpmd.a~
+## Link fails with `R_X86_64_PC32` against `libcpmd.a`
 *Cause:* OpenCPMD was compiled without `-fPIC`.
 
 *Fix:* use `tools/LINUX-X86_64-GFORTRAN-MPI-PIC`, which adds `-fPIC` to `FFLAGS`
 and `CFLAGS`, and rebuild the archive.
 
-## ~cpmd_embed_c_api.F90~ fails to compile on ~embed_set_warm_orbitals~
+## `cpmd_embed_c_api.F90` fails to compile on `embed_set_warm_orbitals`
 *Cause:* the archive's module files come from an unpatched tree.
 
 *Fix:* apply `opencpmd_embed_rwfopt.patch`, then rebuild with
 `tools/rebuild_opencpmd_embed.sh`.
 
-## ~capnp encode~ rejects a message
+## `capnp encode` rejects a message
 *Cause:* the text names a field that is not in the schema, or it is encoded
 against the wrong root type.
 
@@ -5695,7 +5695,7 @@ against the wrong root type.
 holds, `CPMDParams` or `ForceInput`; the error names the field it could not
 find.
 
-## CPMD cannot find ~O_MT_BLYP.psp~
+## CPMD cannot find `O_MT_BLYP.psp`
 *Cause:* the pseudopotential directory is not set.
 CPMD takes `argv[2]` as its pseudopotential library whenever the process has
 more than one argument, so a host with command-line arguments cannot rely on
@@ -5843,7 +5843,7 @@ steps than that, and an SCF that stops at the limit fails the call.
 
 # Strict PCG line minimization
 
-For strict orbital targets, apply =tools/opencpmd_pcg_step.patch= to the
+For strict orbital targets, apply `tools/opencpmd_pcg_step.patch` to the
 OpenCPMD source linked into the native archive.
 The directional slope and curvature both scale with the square of the orbital
 residual.
@@ -5866,8 +5866,8 @@ Expected output:
 
 726 scaled native line-search roots and four degenerate/extrapolation cases pass
 
-Relink =libcpmdc= against the rebuilt archive.
-Preserve the separate =opencpmd_omp_info.patch= correction for calculator groups
+Relink `libcpmdc` against the rebuilt archive.
+Preserve the separate `opencpmd_omp_info.patch` correction for calculator groups
 spanning nodes.
 The algebraic check establishes scale invariance; native force convergence must
 also be checked on the requested system and orbital target.
@@ -5939,7 +5939,7 @@ lists every one of them with its feature ID.
 | `FUNCTIONAL BLYP` | `dft` | `functional = "BLYP"` |
 | `NEWCODE` | `dft` | `newCode = true` |
 | `GC-CUTOFF` / `1.0d-7` | `dft` | `gcCutoff = 1.0e-7` |
-| `*Si_MT_BLYP.psp KLEINMAN-BYLANDER` / `LMAX=D LOC=D` | `atoms` |  |
+| `*Si_MT_BLYP.psp KLEINMAN-BYLANDER` / `LMAX=D LOC=D` | `atoms` | `(element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true)` |
 
 `lmax`, `loc`, and `skip` take the channel as an integer: 0 renders `S`, 1 `P`,
 2 `D`, 3 `F`.
@@ -6588,7 +6588,7 @@ The `hasCharge`, `charge`, `hasMultiplicity`, and `multiplicity` fields of
 
 # Types
 
-## ~CPMDCResult~
+## `CPMDCResult`
 
 | Field | Type | Meaning |
 |-------+------+---------|
@@ -6596,7 +6596,7 @@ The `hasCharge`, `charge`, `hasMultiplicity`, and `multiplicity` fields of
 | `energy_h` | `double` | total energy in Hartree, 0 on failure |
 | `message` | `char[512]` | null-terminated status or error text |
 
-## ~CPMDCSession~
+## `CPMDCSession`
 An opaque handle.
 A session holds a copy of the `CPMDParams` bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
@@ -6704,7 +6704,7 @@ a call filled.
 | `energy_h` | `CPMDCRankSpread` | largest absolute energy difference from rank 0 over the ranks, Hartree |
 | `gradient_h_bohr` | `CPMDCRankSpread` | largest nuclear-gradient component difference from rank 0, Hartree/Bohr |
 
-## ~CPMDCFeatureEntry~ and ~CPMDCFeatureKind~
+## `CPMDCFeatureEntry` and `CPMDCFeatureKind`
 
 | Field | Meaning |
 |-------+---------|
@@ -7307,7 +7307,7 @@ call.
 Calls that report the build and the failure text.
 None of them evaluates.
 
-### ~cpmdc_version~
+### `cpmdc_version`
 
 | Item | Description |
 |--------+--------|
@@ -7319,7 +7319,7 @@ None of them evaluates.
 | Python | `cpmdc.Session.version`, which returns the same text; no exception. |
 | Defaults | none |
 
-### ~cpmdc_abi_version~
+### `cpmdc_abi_version`
 
 | Item | Description |
 |--------+--------|
@@ -7331,7 +7331,7 @@ None of them evaluates.
 | Python | `cpmdc.Session.abi_version`; no exception. |
 | Defaults | none |
 
-### ~cpmdc_available~
+### `cpmdc_available`
 
 | Item | Description |
 |--------+--------|
@@ -7343,7 +7343,7 @@ None of them evaluates.
 | Python | `cpmdc.Session.available`; no exception. |
 | Defaults | none |
 
-### ~cpmdc_finalize~
+### `cpmdc_finalize`
 
 | Item | Description |
 |--------+--------|
@@ -7355,7 +7355,7 @@ None of them evaluates.
 | Python | not wrapped; `cpmdc.Session` never finalizes the runtime. |
 | Defaults | none |
 
-### ~cpmdc_last_error~
+### `cpmdc_last_error`
 
 | Item | Description |
 |--------+--------|
@@ -7367,7 +7367,7 @@ None of them evaluates.
 | Python | the text of `cpmdc.CPMDCError`; the package reads it after each failing call. |
 | Defaults | empty string before any call |
 
-### ~cpmdc_last_error_code~
+### `cpmdc_last_error_code`
 
 | Item | Description |
 |--------+--------|
@@ -7384,7 +7384,7 @@ None of them evaluates.
 Calls that choose the communicator of one calculator.
 See the MPI how-to for the sequence.
 
-### ~cpmdc_bind_calculator~
+### `cpmdc_bind_calculator`
 
 | Item | Description |
 |--------+--------|
@@ -7396,7 +7396,7 @@ See the MPI how-to for the sequence.
 | Python | not wrapped; use `cpmdc.lammps.FixExternal` or the host's own communicator. |
 | Defaults | `ranks_per_calc` zero or less takes the whole world as one calculator |
 
-### ~cpmdc_adopt_calculator_comm~
+### `cpmdc_adopt_calculator_comm`
 
 | Item | Description |
 |--------+--------|
@@ -7408,7 +7408,7 @@ See the MPI how-to for the sequence.
 | Python | `cpmdc.CPMDCError` in `cpmdc.lammps.FixExternal`, which adopts `MPI_COMM_SELF` on rank 0. |
 | Defaults | `ranks_per_calc` zero or less skips the size check |
 
-### ~cpmdc_adopted_comm~
+### `cpmdc_adopted_comm`
 
 | Item | Description |
 |--------+--------|
@@ -7426,7 +7426,7 @@ These calls use the process-wide state.
 An evaluation is cold when the process has no stored basis or the basis differs,
 and warm when the basis matches.
 
-### ~cpmdc_params_method~
+### `cpmdc_params_method`
 
 | Item | Description |
 |--------+--------|
@@ -7438,7 +7438,7 @@ and warm when the basis matches.
 | Python | `cpmdc.params_method` returns the corresponding frozen `cpmdc.MethodInfo`. |
 | Defaults | Top-level functional `BLYP`, charge 0 and multiplicity 1; a structured DFT or SYSTEM typed field takes precedence when it is explicit, and a typed SYSTEM charge of 0 is explicit only with `hasCharge` `true`. |
 
-### ~cpmdc_set_params~
+### `cpmdc_set_params`
 
 | Item | Description |
 |--------+--------|
@@ -7450,7 +7450,7 @@ and warm when the basis matches.
 | Python | not wrapped; `cpmdc.Session` takes the bytes instead. |
 | Defaults | none |
 
-### ~cpmdc_configure~
+### `cpmdc_configure`
 
 | Item | Description |
 |--------+--------|
@@ -7462,7 +7462,7 @@ and warm when the basis matches.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_energy_gradient~
+### `cpmdc_energy_gradient`
 
 | Item | Description |
 |--------+--------|
@@ -7474,7 +7474,7 @@ and warm when the basis matches.
 | Python | not wrapped. |
 | Defaults | none: the gradient is `dE/dR`, the negative of the force |
 
-### ~cpmdc_energy~
+### `cpmdc_energy`
 
 | Item | Description |
 |--------+--------|
@@ -7486,7 +7486,7 @@ and warm when the basis matches.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_energy_forces~
+### `cpmdc_energy_forces`
 
 | Item | Description |
 |--------+--------|
@@ -7503,7 +7503,7 @@ and warm when the basis matches.
 A session is created by one of two functions and released by
 `cpmdc_session_destroy()`.
 
-### ~cpmdc_session_create~
+### `cpmdc_session_create`
 
 | Item | Description |
 |--------+--------|
@@ -7515,7 +7515,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.Session` constructor raises `cpmdc.CPMDCError` with that text. |
 | Defaults | none |
 
-### ~cpmdc_session_create_from_config~
+### `cpmdc_session_create_from_config`
 
 | Item | Description |
 |--------+--------|
@@ -7527,7 +7527,7 @@ A session is created by one of two functions and released by
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_set_params~
+### `cpmdc_session_set_params`
 
 | Item | Description |
 |--------+--------|
@@ -7539,7 +7539,7 @@ A session is created by one of two functions and released by
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_configure~
+### `cpmdc_session_configure`
 
 | Item | Description |
 |--------+--------|
@@ -7551,7 +7551,7 @@ A session is created by one of two functions and released by
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_set_constant_cutoff~
+### `cpmdc_session_set_constant_cutoff`
 
 | Item | Description |
 |--------+--------|
@@ -7563,7 +7563,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.CPMDCError` from the `cpmdc.Session` constructor when `constant_cutoff=` is given. |
 | Defaults | `cutoff_ry` zero or less turns the functional off; `height_ry` zero or less selects 50 times the deck cutoff; `width_ry` zero or less selects `cutoff_ry / 10` |
 
-### ~cpmdc_session_set_external_charges~
+### `cpmdc_session_set_external_charges`
 
 | Item | Description |
 |--------+--------|
@@ -7575,7 +7575,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.Session.set_external_charges` raises `cpmdc.CPMDCError` (or `cpmdc.CPMDCInvalidArgument`). |
 | Defaults | `widths_ang` is NULL: each charge uses the default Gaussian width of 0.30 Angstrom. |
 
-### ~cpmdc_session_last_external_charge_forces~
+### `cpmdc_session_last_external_charge_forces`
 
 | Item | Description |
 |--------+--------|
@@ -7587,7 +7587,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.Session.external_charge_forces_au` raises `cpmdc.CPMDCError` (or `cpmdc.CPMDCInvalidArgument`). |
 | Defaults | none |
 
-### ~cpmdc_session_destroy~
+### `cpmdc_session_destroy`
 
 | Item | Description |
 |--------+--------|
@@ -7599,7 +7599,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.Session.close` (also on leaving a `with` block and when the object is collected). |
 | Defaults | none |
 
-### ~cpmdc_session_select_orbitals~
+### `cpmdc_session_select_orbitals`
 
 | Item | Description |
 |--------+--------|
@@ -7611,7 +7611,7 @@ A session is created by one of two functions and released by
 | Python | `cpmdc.Session.select_orbitals` raises `cpmdc.CPMDCError`. |
 | Defaults | a session that never names a key keeps one stored copy |
 
-### ~cpmdc_session_copy_orbitals~
+### `cpmdc_session_copy_orbitals`
 
 | Item | Description |
 |--------+--------|
@@ -7634,7 +7634,7 @@ fixed.
 A session that already holds another system reports the topology change instead
 of the atom limit.
 
-### ~cpmdc_session_energy_gradient~
+### `cpmdc_session_energy_gradient`
 
 | Item | Description |
 |--------+--------|
@@ -7646,7 +7646,7 @@ of the atom limit.
 | Python | not wrapped; `cpmdc.Session.energy_forces` calls `cpmdc_session_energy_forces()` and raises `cpmdc.CPMDCError`. |
 | Defaults | none |
 
-### ~cpmdc_session_energy~
+### `cpmdc_session_energy`
 
 | Item | Description |
 |--------+--------|
@@ -7658,7 +7658,7 @@ of the atom limit.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_energy_forces~
+### `cpmdc_session_energy_forces`
 
 | Item | Description |
 |--------+--------|
@@ -7670,7 +7670,7 @@ of the atom limit.
 | Python | `cpmdc.Session.energy_forces` without a cell raises `cpmdc.CPMDCError`; the sizes, the range of the atomic numbers and the finiteness are checked first and raise `ValueError`. |
 | Defaults | none |
 
-### ~cpmdc_session_calculate_forces~
+### `cpmdc_session_calculate_forces`
 
 | Item | Description |
 |--------+--------|
@@ -7682,7 +7682,7 @@ of the atom limit.
 | Python | `cpmdc.Session.energy_forces` with a cell encodes a `ForceInput` in process and raises `cpmdc.CPMDCError`. |
 | Defaults | `ForceInput` unit strings left empty read as `angstrom` and `hartree` |
 
-### ~cpmdc_session_calculate_result~
+### `cpmdc_session_calculate_result`
 
 | Item | Description |
 |--------+--------|
@@ -7694,7 +7694,7 @@ of the atom limit.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_calculate_au~
+### `cpmdc_session_calculate_au`
 
 | Item | Description |
 |--------+--------|
@@ -7710,7 +7710,7 @@ of the atom limit.
 
 Each call creates a session, evaluates one step and destroys the session.
 
-### ~cpmdc_calculate_result~
+### `cpmdc_calculate_result`
 
 | Item | Description |
 |--------+--------|
@@ -7722,7 +7722,7 @@ Each call creates a session, evaluates one step and destroys the session.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_calculate_result_from_config~
+### `cpmdc_calculate_result_from_config`
 
 | Item | Description |
 |--------+--------|
@@ -7734,7 +7734,7 @@ Each call creates a session, evaluates one step and destroys the session.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_potential_result_size_for_force_input~
+### `cpmdc_potential_result_size_for_force_input`
 
 | Item | Description |
 |--------+--------|
@@ -7750,7 +7750,7 @@ Each call creates a session, evaluates one step and destroys the session.
 
 Read-only tables and the capabilities message.
 
-### ~cpmdc_capabilities_result~
+### `cpmdc_capabilities_result`
 
 | Item | Description |
 |--------+--------|
@@ -7762,7 +7762,7 @@ Read-only tables and the capabilities message.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_feature_count~
+### `cpmdc_feature_count`
 
 | Item | Description |
 |--------+--------|
@@ -7774,7 +7774,7 @@ Read-only tables and the capabilities message.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_feature_table~
+### `cpmdc_feature_table`
 
 | Item | Description |
 |--------+--------|
@@ -7786,7 +7786,7 @@ Read-only tables and the capabilities message.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_feature_find~
+### `cpmdc_feature_find`
 
 | Item | Description |
 |--------+--------|
@@ -7802,7 +7802,7 @@ Read-only tables and the capabilities message.
 
 Each getter copies one snapshot struct and returns 0 when it is valid.
 
-### ~cpmdc_last_energy_components~
+### `cpmdc_last_energy_components`
 
 | Item | Description |
 |--------+--------|
@@ -7814,7 +7814,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_last_energy_components~
+### `cpmdc_session_last_energy_components`
 
 | Item | Description |
 |--------+--------|
@@ -7826,7 +7826,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_last_charge_integrals~
+### `cpmdc_last_charge_integrals`
 
 | Item | Description |
 |--------+--------|
@@ -7838,7 +7838,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_last_charge_integrals~
+### `cpmdc_session_last_charge_integrals`
 
 | Item | Description |
 |--------+--------|
@@ -7850,7 +7850,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_last_multi_state_energies~
+### `cpmdc_last_multi_state_energies`
 
 | Item | Description |
 |--------+--------|
@@ -7862,7 +7862,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_last_multi_state_energies~
+### `cpmdc_session_last_multi_state_energies`
 
 | Item | Description |
 |--------+--------|
@@ -7874,7 +7874,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_last_md_trajectory_row~
+### `cpmdc_last_md_trajectory_row`
 
 | Item | Description |
 |--------+--------|
@@ -7886,7 +7886,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_last_md_trajectory_row~
+### `cpmdc_session_last_md_trajectory_row`
 
 | Item | Description |
 |--------+--------|
@@ -7898,7 +7898,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_last_property_snapshot~
+### `cpmdc_last_property_snapshot`
 
 | Item | Description |
 |--------+--------|
@@ -7910,7 +7910,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_session_last_property_snapshot~
+### `cpmdc_session_last_property_snapshot`
 
 | Item | Description |
 |--------+--------|
@@ -7922,7 +7922,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_last_gradient~
+### `cpmdc_last_gradient`
 
 | Item | Description |
 |--------+--------|
@@ -7934,7 +7934,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped; `cpmdc.Session.energy_forces` returns the force, the negative of this gradient. |
 | Defaults | none |
 
-### ~cpmdc_session_last_gradient~
+### `cpmdc_session_last_gradient`
 
 | Item | Description |
 |--------+--------|
@@ -7946,7 +7946,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped; `cpmdc.Session.energy_forces` returns the force, the negative of this gradient. |
 | Defaults | none |
 
-### ~cpmdc_last_dipole~
+### `cpmdc_last_dipole`
 
 | Item | Description |
 |--------+--------|
@@ -7958,7 +7958,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped directly; `cpmdc.Session.energy_forces` uses the session form. |
 | Defaults | none |
 
-### ~cpmdc_session_last_dipole~
+### `cpmdc_session_last_dipole`
 
 | Item | Description |
 |--------+--------|
@@ -7970,7 +7970,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | `cpmdc.Session.energy_forces` reads this value; -1 gives `Evaluation.dipole_e_bohr` of `None`. |
 | Defaults | none |
 
-### ~cpmdc_last_charges~
+### `cpmdc_last_charges`
 
 | Item | Description |
 |--------+--------|
@@ -7982,7 +7982,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped directly; `cpmdc.Session.charges` uses the session form. |
 | Defaults | none |
 
-### ~cpmdc_session_last_charges~
+### `cpmdc_session_last_charges`
 
 | Item | Description |
 |--------+--------|
@@ -7994,7 +7994,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | `cpmdc.Session.charges` reads this value; -1 gives `None`. |
 | Defaults | none |
 
-### ~cpmdc_last_stress~
+### `cpmdc_last_stress`
 
 | Item | Description |
 |--------+--------|
@@ -8006,7 +8006,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | `cpmdc.Session.energy_forces` reads the stress through the session form; -1 gives `Evaluation.stress_h_bohr3` of `None`. |
 | Defaults | none |
 
-### ~cpmdc_session_last_stress~
+### `cpmdc_session_last_stress`
 
 | Item | Description |
 |--------+--------|
@@ -8018,7 +8018,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | `cpmdc.Session.energy_forces` reads the stress; -1 gives `Evaluation.stress_h_bohr3` of `None`. |
 | Defaults | none |
 
-### ~cpmdc_last_rank_spread~
+### `cpmdc_last_rank_spread`
 
 | Item | Description |
 |--------+--------|
@@ -8035,7 +8035,7 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 These functions live in `libcpmdc_restart`, not in `libcpmdc`, and keep no error
 state.
 
-### ~cpmdc_restart_read_mem~
+### `cpmdc_restart_read_mem`
 
 | Item | Description |
 |--------+--------|
@@ -8047,7 +8047,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_read_path~
+### `cpmdc_restart_read_path`
 
 | Item | Description |
 |--------+--------|
@@ -8059,7 +8059,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_free~
+### `cpmdc_restart_free`
 
 | Item | Description |
 |--------+--------|
@@ -8071,7 +8071,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_is_stream~
+### `cpmdc_restart_is_stream`
 
 | Item | Description |
 |--------+--------|
@@ -8083,7 +8083,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_header~
+### `cpmdc_restart_header`
 
 | Item | Description |
 |--------+--------|
@@ -8095,7 +8095,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_section~
+### `cpmdc_restart_section`
 
 | Item | Description |
 |--------+--------|
@@ -8107,7 +8107,7 @@ state.
 | Python | not wrapped. |
 | Defaults | `count` NULL skips the count |
 
-### ~cpmdc_restart_cell~
+### `cpmdc_restart_cell`
 
 | Item | Description |
 |--------+--------|
@@ -8119,7 +8119,7 @@ state.
 | Python | not wrapped. |
 | Defaults | `ibrav` and `indpg` NULL skip them |
 
-### ~cpmdc_restart_species~
+### `cpmdc_restart_species`
 
 | Item | Description |
 |--------+--------|
@@ -8131,7 +8131,7 @@ state.
 | Python | not wrapped. |
 | Defaults | `nsp` and `na_per_species` NULL skip them |
 
-### ~cpmdc_restart_expand_species_symbols~
+### `cpmdc_restart_expand_species_symbols`
 
 | Item | Description |
 |--------+--------|
@@ -8143,7 +8143,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_ncoords~
+### `cpmdc_restart_ncoords`
 
 | Item | Description |
 |--------+--------|
@@ -8155,7 +8155,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_coordinates~
+### `cpmdc_restart_coordinates`
 
 | Item | Description |
 |--------+--------|
@@ -8167,7 +8167,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_velocities~
+### `cpmdc_restart_velocities`
 
 | Item | Description |
 |--------+--------|
@@ -8179,7 +8179,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_initial_coordinates~
+### `cpmdc_restart_initial_coordinates`
 
 | Item | Description |
 |--------+--------|
@@ -8191,7 +8191,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_set_coordinates~
+### `cpmdc_restart_set_coordinates`
 
 | Item | Description |
 |--------+--------|
@@ -8203,7 +8203,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_set_velocities~
+### `cpmdc_restart_set_velocities`
 
 | Item | Description |
 |--------+--------|
@@ -8215,7 +8215,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_set_cell~
+### `cpmdc_restart_set_cell`
 
 | Item | Description |
 |--------+--------|
@@ -8227,7 +8227,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_cutoff~
+### `cpmdc_restart_cutoff`
 
 | Item | Description |
 |--------+--------|
@@ -8239,7 +8239,7 @@ state.
 | Python | not wrapped. |
 | Defaults | an output NULL skips that value |
 
-### ~cpmdc_restart_states~
+### `cpmdc_restart_states`
 
 | Item | Description |
 |--------+--------|
@@ -8251,7 +8251,7 @@ state.
 | Python | not wrapped. |
 | Defaults | an output NULL skips that value |
 
-### ~cpmdc_restart_write_mem~
+### `cpmdc_restart_write_mem`
 
 | Item | Description |
 |--------+--------|
@@ -8263,7 +8263,7 @@ state.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cpmdc_restart_write_path~
+### `cpmdc_restart_write_path`
 
 | Item | Description |
 |--------+--------|
@@ -8280,7 +8280,7 @@ state.
 Declared in the installed `gromacs/libcp2k.h` with CP2K's signatures and served
 by `libcpmdc_gromacs`.
 
-### ~cp2k_get_version~
+### `cp2k_get_version`
 
 | Item | Description |
 |--------+--------|
@@ -8292,7 +8292,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_init~
+### `cp2k_init`
 
 | Item | Description |
 |--------+--------|
@@ -8304,7 +8304,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_init_without_mpi~
+### `cp2k_init_without_mpi`
 
 | Item | Description |
 |--------+--------|
@@ -8316,7 +8316,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_finalize~
+### `cp2k_finalize`
 
 | Item | Description |
 |--------+--------|
@@ -8328,7 +8328,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_finalize_without_mpi~
+### `cp2k_finalize_without_mpi`
 
 | Item | Description |
 |--------+--------|
@@ -8340,7 +8340,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_create_force_env~
+### `cp2k_create_force_env`
 
 | Item | Description |
 |--------+--------|
@@ -8352,7 +8352,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_create_force_env_comm~
+### `cp2k_create_force_env_comm`
 
 | Item | Description |
 |--------+--------|
@@ -8364,7 +8364,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_destroy_force_env~
+### `cp2k_destroy_force_env`
 
 | Item | Description |
 |--------+--------|
@@ -8376,7 +8376,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_set_positions~
+### `cp2k_set_positions`
 
 | Item | Description |
 |--------+--------|
@@ -8388,7 +8388,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_set_cell~
+### `cp2k_set_cell`
 
 | Item | Description |
 |--------+--------|
@@ -8400,7 +8400,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_get_natom~
+### `cp2k_get_natom`
 
 | Item | Description |
 |--------+--------|
@@ -8412,7 +8412,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_get_positions~
+### `cp2k_get_positions`
 
 | Item | Description |
 |--------+--------|
@@ -8424,7 +8424,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_get_forces~
+### `cp2k_get_forces`
 
 | Item | Description |
 |--------+--------|
@@ -8436,7 +8436,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_get_stress_tensor~
+### `cp2k_get_stress_tensor`
 
 | Item | Description |
 |--------+--------|
@@ -8448,7 +8448,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_get_potential_energy~
+### `cp2k_get_potential_energy`
 
 | Item | Description |
 |--------+--------|
@@ -8460,7 +8460,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_calc_energy_force~
+### `cp2k_calc_energy_force`
 
 | Item | Description |
 |--------+--------|
@@ -8472,7 +8472,7 @@ by `libcpmdc_gromacs`.
 | Python | not wrapped. |
 | Defaults | none |
 
-### ~cp2k_calc_energy~
+### `cp2k_calc_energy`
 
 | Item | Description |
 |--------+--------|
@@ -8489,7 +8489,7 @@ by `libcpmdc_gromacs`.
 Each type of the installed headers, with the rows Layout, Units, Ownership and
 Python.
 
-## ~CPMDCErrorCode~
+## `CPMDCErrorCode`
 
 | Item | Description |
 |--------+--------|
@@ -8498,7 +8498,7 @@ Python.
 | Ownership | Scalar value returned by value; nothing to free. |
 | Python | Exposed as `cpmdc.CPMDCError.code` and mapped to `CPMDCInvalidArgument`, `CPMDCUnavailable`, `CPMDCUnsupportedPeriodicEmbedding`, `CPMDCEvaluationFailed`, and `CPMDCDeckExternalPotential`. |
 
-## ~CPMDCResult~
+## `CPMDCResult`
 
 | Item | Description |
 |--------+--------|
@@ -8507,7 +8507,7 @@ Python.
 | Ownership | Returned by value; the caller owns the copy. `message` is inside the struct, so there is nothing to free. |
 | Python | Not wrapped as a type; the Python `Session` reads `ok`, `energy_h` and `message` and raises `cpmdc.CPMDCError` with the message when `ok` is 0. |
 
-## ~CPMDCEnergyComponents~
+## `CPMDCEnergyComponents`
 
 | Item | Description |
 |--------+--------|
@@ -8516,7 +8516,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_energy_components()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCChargeIntegrals~
+## `CPMDCChargeIntegrals`
 
 | Item | Description |
 |--------+--------|
@@ -8525,7 +8525,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_charge_integrals()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCMultiStateEnergies~
+## `CPMDCMultiStateEnergies`
 
 | Item | Description |
 |--------+--------|
@@ -8534,7 +8534,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_multi_state_energies()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCMDTrajectoryRow~
+## `CPMDCMDTrajectoryRow`
 
 | Item | Description |
 |--------+--------|
@@ -8543,7 +8543,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_md_trajectory_row()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCPropertySnapshot~
+## `CPMDCPropertySnapshot`
 
 | Item | Description |
 |--------+--------|
@@ -8552,7 +8552,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_property_snapshot()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCDipole~
+## `CPMDCDipole`
 
 | Item | Description |
 |--------+--------|
@@ -8561,7 +8561,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_dipole()` or `cpmdc_session_last_dipole()` into a caller-owned struct; no pointers. |
 | Python | `cpmdc.Evaluation.dipole_e_bohr` holds the three values, or `None` when `valid` is 0. |
 
-## ~CPMDCStressTensor~
+## `CPMDCStressTensor`
 
 | Item | Description |
 |--------+--------|
@@ -8570,7 +8570,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_stress()` into a caller-owned struct; no pointers. |
 | Python | `cpmdc.Evaluation.stress_h_bohr3` holds the nine values, or `None` when `valid` is 0. |
 
-## ~CPMDCRankSpread~
+## `CPMDCRankSpread`
 
 | Item | Description |
 |--------+--------|
@@ -8579,7 +8579,7 @@ Python.
 | Ownership | Filled by `cpmdc_last_rank_spread()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
-## ~CPMDCMethodInfo~
+## `CPMDCMethodInfo`
 
 | Item | Description |
 |--------+--------|
@@ -8588,7 +8588,7 @@ Python.
 | Ownership | Filled by `cpmdc_params_method()` into a caller-owned struct; no pointers. |
 | Python | Wrapped as the frozen `cpmdc.MethodInfo` dataclass. |
 
-## ~CPMDCSession~
+## `CPMDCSession`
 
 | Item | Description |
 |--------+--------|
@@ -8597,7 +8597,7 @@ Python.
 | Ownership | Created by `cpmdc_session_create()` or `cpmdc_session_create_from_config()`, owned by the caller, and freed only by `cpmdc_session_destroy()`; a NULL handle is accepted by destroy. A session is used by one thread at a time. |
 | Python | `cpmdc.Session` owns one handle and closes it. |
 
-## ~CPMDCFeatureEntry~
+## `CPMDCFeatureEntry`
 
 | Item | Description |
 |--------+--------|
@@ -8606,7 +8606,7 @@ Python.
 | Ownership | `feature_id` points at static storage of the library; the table is contiguous, read-only and never freed. |
 | Python | Not wrapped. |
 
-## ~CPMDCFeatureKind~
+## `CPMDCFeatureKind`
 
 | Item | Description |
 |--------+--------|
@@ -8615,7 +8615,7 @@ Python.
 | Ownership | A value type with no ownership. |
 | Python | Not wrapped. |
 
-## ~CPMDCRestart~
+## `CPMDCRestart`
 
 | Item | Description |
 |--------+--------|
@@ -8624,7 +8624,7 @@ Python.
 | Ownership | Created by the `cpmdc_restart_read_*` functions, owned by the caller, freed only by `cpmdc_restart_free()`. One image is not used by two threads at once when either writes. |
 | Python | Not wrapped. |
 
-## ~cpmdc_restart~
+## `cpmdc_restart`
 
 | Item | Description |
 |--------+--------|
@@ -8633,7 +8633,7 @@ Python.
 | Ownership | As for `CPMDCRestart`. |
 | Python | Not wrapped. |
 
-## ~force_env_t~
+## `force_env_t`
 
 | Item | Description |
 |--------+--------|
@@ -8668,11 +8668,11 @@ The Signature row is what `inspect.signature` reports for the object, without
 `self`; the audit compares the two.
 A name that is a context manager says so in its Ownership and threads row.
 
-## ~cpmdc~
+## `cpmdc`
 
 The package: sessions, the rgpot-shaped provider and the unit helpers.
 
-### ~cpmdc.ATOMIC_NUMBER_MAX~
+### `cpmdc.ATOMIC_NUMBER_MAX`
 
 | Item | Description |
 |--------+--------|
@@ -8683,7 +8683,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 118, the largest atomic number any call accepts. |
 
-### ~cpmdc.ATOMIC_NUMBER_MIN~
+### `cpmdc.ATOMIC_NUMBER_MIN`
 
 | Item | Description |
 |--------+--------|
@@ -8694,7 +8694,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 1, the smallest atomic number any call accepts. |
 
-### ~cpmdc.BOHR_TO_ANGSTROM~
+### `cpmdc.BOHR_TO_ANGSTROM`
 
 | Item | Description |
 |--------+--------|
@@ -8705,7 +8705,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 0.529177210903, the constant of the parameter lowering (`CPMDC_BOHR_TO_ANGSTROM` in `src/cpmdc_params.h`). The restart library uses 0.529177210859 (see the restart section of the C ABI reference). |
 
-### ~cpmdc.HARTREE_TO_EV~
+### `cpmdc.HARTREE_TO_EV`
 
 | Item | Description |
 |--------+--------|
@@ -8716,7 +8716,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 27.211386245988, the constant of `src/cpmdc.c` (`CPMDC_HARTREE_EV`). |
 
-### ~cpmdc.HARTREE_TO_KCAL_PER_MOL~
+### `cpmdc.HARTREE_TO_KCAL_PER_MOL`
 
 | Item | Description |
 |--------+--------|
@@ -8727,7 +8727,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | CODATA 2018 Hartree energy times the Avogadro constant over 4184 J, 627.5094740630558. |
 
-### ~cpmdc.CPMDCError~
+### `cpmdc.CPMDCError`
 
 | Item | Description |
 |--------+--------|
@@ -8738,7 +8738,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. It subclasses `RuntimeError`. The C status codes map to the typed subclasses below, and `cpmdc.ase.CalculationFailed` and `cpmdc.ipi.ProtocolError` subclass it. |
 | Defaults | `message` is `''` and `code` is `None` (which sets `code` from the exception class). |
 
-### ~cpmdc.CPMDCError.code~
+### `cpmdc.CPMDCError.code`
 
 | Item | Description |
 |--------+--------|
@@ -8749,7 +8749,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 0 on `CPMDCError`; 1..5 on the subclasses below. |
 
-### ~cpmdc.CPMDCInvalidArgument~
+### `cpmdc.CPMDCInvalidArgument`
 
 | Item | Description |
 |--------+--------|
@@ -8760,7 +8760,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. |
 | Defaults | `code = 1` |
 
-### ~cpmdc.CPMDCInvalidArgument.code~
+### `cpmdc.CPMDCInvalidArgument.code`
 
 | Item | Description |
 |--------+--------|
@@ -8771,7 +8771,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 1 |
 
-### ~cpmdc.CPMDCUnavailable~
+### `cpmdc.CPMDCUnavailable`
 
 | Item | Description |
 |--------+--------|
@@ -8782,7 +8782,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. |
 | Defaults | `code = 2` |
 
-### ~cpmdc.CPMDCUnavailable.code~
+### `cpmdc.CPMDCUnavailable.code`
 
 | Item | Description |
 |--------+--------|
@@ -8793,7 +8793,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 2 |
 
-### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding~
+### `cpmdc.CPMDCUnsupportedPeriodicEmbedding`
 
 | Item | Description |
 |--------+--------|
@@ -8804,7 +8804,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. |
 | Defaults | `code = 3` |
 
-### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding.code~
+### `cpmdc.CPMDCUnsupportedPeriodicEmbedding.code`
 
 | Item | Description |
 |--------+--------|
@@ -8815,7 +8815,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 3 |
 
-### ~cpmdc.CPMDCEvaluationFailed~
+### `cpmdc.CPMDCEvaluationFailed`
 
 | Item | Description |
 |--------+--------|
@@ -8826,7 +8826,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. |
 | Defaults | `code = 4` |
 
-### ~cpmdc.CPMDCEvaluationFailed.code~
+### `cpmdc.CPMDCEvaluationFailed.code`
 
 | Item | Description |
 |--------+--------|
@@ -8837,7 +8837,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 4 |
 
-### ~cpmdc.CPMDCDeckExternalPotential~
+### `cpmdc.CPMDCDeckExternalPotential`
 
 | Item | Description |
 |--------+--------|
@@ -8848,7 +8848,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: this is the exception. |
 | Defaults | `code = 5` |
 
-### ~cpmdc.CPMDCDeckExternalPotential.code~
+### `cpmdc.CPMDCDeckExternalPotential.code`
 
 | Item | Description |
 |--------+--------|
@@ -8859,7 +8859,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | 5 |
 
-### ~cpmdc.ConstantCutoff~
+### `cpmdc.ConstantCutoff`
 
 | Item | Description |
 |--------+--------|
@@ -8870,7 +8870,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `TypeError` when a field is not a real number (a `bool` is refused); `ValueError` when a field is not finite and positive. |
 | Defaults | `height_ry` and `width_ry` are `None`: the library then uses 50 times the cutoff of the message and `cutoff_ry / 10`. `cutoff_ry` has no default. |
 
-### ~cpmdc.ConstantCutoff.coerce~
+### `cpmdc.ConstantCutoff.coerce`
 
 | Item | Description |
 |--------+--------|
@@ -8881,7 +8881,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `TypeError` for an unsupported type or a mapping with an unknown key; `ValueError` for a non-finite or non-positive value. |
 | Defaults | none: `None` in gives `None` out. |
 
-### ~cpmdc.ConstantCutoff.cutoff_ry~
+### `cpmdc.ConstantCutoff.cutoff_ry`
 
 | Item | Description |
 |--------+--------|
@@ -8892,7 +8892,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default: it is the one required field. |
 
-### ~cpmdc.ConstantCutoff.height_ry~
+### `cpmdc.ConstantCutoff.height_ry`
 
 | Item | Description |
 |--------+--------|
@@ -8903,7 +8903,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `None`: 50 times the cutoff of the `CPMDParams` message. |
 
-### ~cpmdc.ConstantCutoff.todict~
+### `cpmdc.ConstantCutoff.todict`
 
 | Item | Description |
 |--------+--------|
@@ -8914,7 +8914,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | none: unset fields are left out. |
 
-### ~cpmdc.ConstantCutoff.width_ry~
+### `cpmdc.ConstantCutoff.width_ry`
 
 | Item | Description |
 |--------+--------|
@@ -8925,7 +8925,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `None`: `cutoff_ry / 10`. |
 
-### ~cpmdc.Evaluation~
+### `cpmdc.Evaluation`
 
 | Item | Description |
 |--------+--------|
@@ -8936,7 +8936,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `dipole_e_bohr=None` and `charges_e=None`; the first three fields are required, in this order or by keyword. |
 
-### ~cpmdc.Evaluation.energy_h~
+### `cpmdc.Evaluation.energy_h`
 
 | Item | Description |
 |--------+--------|
@@ -8947,7 +8947,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.Evaluation.forces_h_bohr~
+### `cpmdc.Evaluation.forces_h_bohr`
 
 | Item | Description |
 |--------+--------|
@@ -8958,7 +8958,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.Evaluation.stress_h_bohr3~
+### `cpmdc.Evaluation.stress_h_bohr3`
 
 | Item | Description |
 |--------+--------|
@@ -8969,7 +8969,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.Evaluation.dipole_e_bohr~
+### `cpmdc.Evaluation.dipole_e_bohr`
 
 | Item | Description |
 |--------+--------|
@@ -8980,7 +8980,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `None`. |
 
-### ~cpmdc.Evaluation.charges_e~
+### `cpmdc.Evaluation.charges_e`
 
 | Item | Description |
 |--------+--------|
@@ -8991,7 +8991,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `None`. |
 
-### ~cpmdc.MethodInfo~
+### `cpmdc.MethodInfo`
 
 | Item | Description |
 |--------+--------|
@@ -9002,7 +9002,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | none: all three fields are required. |
 
-### ~cpmdc.MethodInfo.functional~
+### `cpmdc.MethodInfo.functional`
 
 | Item | Description |
 |--------+--------|
@@ -9013,7 +9013,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.MethodInfo.charge~
+### `cpmdc.MethodInfo.charge`
 
 | Item | Description |
 |--------+--------|
@@ -9024,7 +9024,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.MethodInfo.multiplicity~
+### `cpmdc.MethodInfo.multiplicity`
 
 | Item | Description |
 |--------+--------|
@@ -9035,7 +9035,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | No default. |
 
-### ~cpmdc.Potential~
+### `cpmdc.Potential`
 
 | Item | Description |
 |--------+--------|
@@ -9046,7 +9046,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `CPMDCError` when the library cannot be found or loaded, the message is empty or rejected, or the library lacks constant-cutoff support; `OSError` when a path cannot be read; `TypeError` or `ValueError` for a bad `constant_cutoff`. |
 | Defaults | `library` is `None` (the search of `find_library`), `schema` is `None` and ignored (a `DeprecationWarning` when given), `constant_cutoff` is `None` (the message as it is). |
 
-### ~cpmdc.Potential.caps~
+### `cpmdc.Potential.caps`
 
 | Item | Description |
 |--------+--------|
@@ -9057,7 +9057,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `stress` is true and `energies` is false. `dipole` is `Session.dipole_possible()`. `charges` is `Session.charges_possible()`. A dipole result on `Potential.evaluate` is three e*Angstrom components, present only when that evaluation recomputed one. A charges result is one value per atom in electrons, present only when that evaluation stored Hirshfeld charges. |
 
-### ~cpmdc.Potential.close~
+### `cpmdc.Potential.close`
 
 | Item | Description |
 |--------+--------|
@@ -9068,7 +9068,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.Potential.evaluate~
+### `cpmdc.Potential.evaluate`
 
 | Item | Description |
 |--------+--------|
@@ -9079,7 +9079,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, a malformed box, and `TypeError` for a non-integer atomic number; `CPMDCError` for a closed session, a change of composition, a non-zero box rejected by the C ABI (rank below 3, volume underflow, volume overflow, or isolated-deck mismatch), or a failed step. |
 | Defaults | `box` is `None`: an isolated system, which the deck's boundary conditions then define. |
 
-### ~cpmdc.Session~
+### `cpmdc.Session`
 
 | Item | Description |
 |--------+--------|
@@ -9090,7 +9090,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `CPMDCError` when the library cannot be found or loaded, the message is empty or rejected, or the library lacks `cpmdc_session_set_constant_cutoff`; `OSError` when a path cannot be read; `TypeError` or `ValueError` for a bad `constant_cutoff`. |
 | Defaults | `library` is `None` (see `find_library`), `schema` is `None` and ignored (a `DeprecationWarning` when given), `constant_cutoff` is `None` (the message as it is). |
 
-### ~cpmdc.Session.abi_version~
+### `cpmdc.Session.abi_version`
 
 | Item | Description |
 |--------+--------|
@@ -9101,7 +9101,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: cannot fail, even on a closed session. |
 | Defaults | none |
 
-### ~cpmdc.Session.available~
+### `cpmdc.Session.available`
 
 | Item | Description |
 |--------+--------|
@@ -9112,7 +9112,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: cannot fail, even on a closed session. |
 | Defaults | none |
 
-### ~cpmdc.Session.dipole_possible~
+### `cpmdc.Session.dipole_possible`
 
 | Item | Description |
 |--------+--------|
@@ -9123,7 +9123,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: a closed session, the reference evaluator, and a library without `cpmdc_session_last_dipole` return `False`. |
 | Defaults | none |
 
-### ~cpmdc.Session.charges~
+### `cpmdc.Session.charges`
 
 | Item | Description |
 |--------+--------|
@@ -9134,7 +9134,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: a closed session and a step without charges return `None`. |
 | Defaults | none |
 
-### ~cpmdc.Session.charges_possible~
+### `cpmdc.Session.charges_possible`
 
 | Item | Description |
 |--------+--------|
@@ -9145,18 +9145,18 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: a closed session, the reference evaluator, and a library without `cpmdc_session_last_charges` return `False`. |
 | Defaults | none |
 
-### ~cpmdc.Session.calculate_au~
+### `cpmdc.Session.calculate_au`
 
 | Item | Description |
 |--------+--------|
 | Signature | `calculate_au(positions_bohr, atomic_numbers, cell_bohr=None, *, forces=None, virial=None)` |
 | Units | `positions_bohr` and `cell_bohr` in Bohr; returns the energy in Hartree, forces in Hartree/Bohr (`-dE/dR`) and the virial `-dE/d(strain)` in Hartree (zero without a cell or a stress tensor). |
-| Shape and dtype | `positions_bohr`: `3 * N` finite floats, flat or N rows; `atomic_numbers`: N integers in 1..118 (a C-contiguous `int32` buffer is used without a copy); `cell_bohr`: nine finite floats or three rows, one lattice vector per row, or `None`; `forces` and `virial`: writable C-contiguous `float64` buffers of `3 * N` and nine values, or `None`. Returns ; a buffer is the one passed in or a new `array('d')`. |
+| Shape and dtype | `positions_bohr`: `3 * N` finite floats, flat or N rows; `atomic_numbers`: N integers in 1..118 (a C-contiguous `int32` buffer is used without a copy); `cell_bohr`: nine finite floats or three rows, one lattice vector per row, or `None`; `forces` and `virial`: writable C-contiguous `float64` buffers of `3 * N` and nine values, or `None`. Returns `(float, buffer, buffer)`; a buffer is the one passed in or a new `array('d')`. |
 | Ownership and threads | The caller keeps the inputs. Output buffers passed in are filled in place and returned. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | `ValueError` for no atoms, a wrong number of values, a non-finite coordinate or cell value, an atomic number outside 1..118, or an output buffer that is not writable and C-contiguous with the right size; `TypeError` for a value that is not a real number or an atomic number that is not an integer; `CPMDCError` for a closed session, a change of composition, a non-zero cell rejected by the C ABI (rank below 3, Angstrom volume underflow, Bohr volume overflow, or isolated-deck mismatch), a non-finite virial, or a failed step. |
 | Defaults | `cell_bohr` is `None`: no cell is passed; `forces` and `virial` are `None`: new buffers are returned. |
 
-### ~cpmdc.Session.close~
+### `cpmdc.Session.close`
 
 | Item | Description |
 |--------+--------|
@@ -9167,7 +9167,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.Session.copy_orbitals~
+### `cpmdc.Session.copy_orbitals`
 
 | Item | Description |
 |--------+--------|
@@ -9178,7 +9178,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `TypeError` for a key that is not an integer (a `bool` is refused); `ValueError` for a non-whole float or a key outside the signed 64-bit range; `CPMDCError` for a closed session, a library without `cpmdc_session_copy_orbitals`, or the library's refusal: before the first evaluation there are no stored orbitals, and an OpenCPMD build refuses a `from_key` that never converged. The reference build has no orbital store, so after one evaluation the call succeeds and copies nothing. |
 | Defaults | none: both keys are required. |
 
-### ~cpmdc.Session.energy_forces~
+### `cpmdc.Session.energy_forces`
 
 | Item | Description |
 |--------+--------|
@@ -9189,7 +9189,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, or a malformed cell; `TypeError` for an atomic number that is not an integer (a whole float such as `8.0` is accepted); `CPMDCError` for a closed session, a change of atom count or composition, a non-zero cell rejected by the C ABI (rank below 3, volume underflow, volume overflow, or isolated-deck mismatch), or a failed step. |
 | Defaults | `cell` is `None`: an isolated system, evaluated with `cpmdc_session_energy_forces()`; a cell goes through `cpmdc_session_calculate_forces()`. |
 
-### ~cpmdc.Session.external_charge_forces_au~
+### `cpmdc.Session.external_charge_forces_au`
 
 | Item | Description |
 |--------+--------|
@@ -9200,7 +9200,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` for a negative `n_charges`; `CPMDCError` for a closed session, a library without `cpmdc_session_last_external_charge_forces`, a mismatched count, before any evaluation with the active external charges, or after a failed evaluation; a repeat answered from the session cache counts as a successful evaluation, and `n_charges = 0` returns an empty array. |
 | Defaults | none: `n_charges` is required. |
 
-### ~cpmdc.Session.select_orbitals~
+### `cpmdc.Session.select_orbitals`
 
 | Item | Description |
 |--------+--------|
@@ -9211,7 +9211,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `TypeError` for a key that is not an integer (a `bool` is refused); `ValueError` for a non-whole float or a key outside the signed 64-bit range; `CPMDCError` for a closed session or the library's refusal. |
 | Defaults | none: the key is required. A new session has no key selected. |
 
-### ~cpmdc.Session.set_external_charges~
+### `cpmdc.Session.set_external_charges`
 
 | Item | Description |
 |--------+--------|
@@ -9222,7 +9222,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` or `TypeError` for mismatched array sizes or non-real inputs; `CPMDCInvalidArgument` for non-finite values or widths below `1e-12` Angstrom; `CPMDCError` for a closed session or a library without `cpmdc_session_set_external_charges`. |
 | Defaults | `widths_angstrom` is `None`: each charge uses the library default width of 0.30 Angstrom. |
 
-### ~cpmdc.Session.version~
+### `cpmdc.Session.version`
 
 | Item | Description |
 |--------+--------|
@@ -9233,7 +9233,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: cannot fail, even on a closed session. |
 | Defaults | none |
 
-### ~cpmdc.find_library~
+### `cpmdc.find_library`
 
 | Item | Description |
 |--------+--------|
@@ -9244,7 +9244,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `CPMDCError` when no library is found; the message lists the places searched. |
 | Defaults | `path` is `None`: `CPMDC_LIBRARY`, then `RGPOT_CPMDC_ENGINE`, then `RGPOT_CPMD_ENGINE`, then the library beside the package that a wheel installs, then the dynamic linker, then `build/libcpmdc.so` in the working directory. |
 
-### ~cpmdc.find_schema~
+### `cpmdc.find_schema`
 
 | Item | Description |
 |--------+--------|
@@ -9255,7 +9255,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `CPMDCError` when no schema file is found. |
 | Defaults | `path` is `None`: `CPMDC_SCHEMA`, then the copy a wheel installs inside the package, then `schema/Potentials.capnp` in the working directory. |
 
-### ~cpmdc.params_method~
+### `cpmdc.params_method`
 
 | Item | Description |
 |--------+--------|
@@ -9266,7 +9266,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, a library without `cpmdc_params_method`, or a library failure. |
 | Defaults | `library` is `None`, using `find_library`. |
 
-### ~cpmdc.forces_to_ev_per_angstrom~
+### `cpmdc.forces_to_ev_per_angstrom`
 
 | Item | Description |
 |--------+--------|
@@ -9277,7 +9277,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none: a row that is not a sequence of numbers raises the ordinary `TypeError` of the multiplication. |
 | Defaults | none |
 
-### ~cpmdc.dipole_to_e_angstrom~
+### `cpmdc.dipole_to_e_angstrom`
 
 | Item | Description |
 |--------+--------|
@@ -9288,7 +9288,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` when there are not three components. |
 | Defaults | none |
 
-### ~cpmdc.stress_to_ev_per_angstrom3~
+### `cpmdc.stress_to_ev_per_angstrom3`
 
 | Item | Description |
 |--------+--------|
@@ -9299,12 +9299,12 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` when there are not nine components. |
 | Defaults | none |
 
-## ~cpmdc.ase~
+## `cpmdc.ase`
 
 The ASE calculator.
 Importing it imports ASE.
 
-### ~cpmdc.ase.CalculationFailed~
+### `cpmdc.ase.CalculationFailed`
 
 | Item | Description |
 |--------+--------|
@@ -9315,7 +9315,7 @@ Importing it imports ASE.
 | Raises | none: this is the exception. It subclasses both `cpmdc.CPMDCError` and ASE's `CalculationFailed`, so either `except` clause catches it. |
 | Defaults | `message` is `''` and `code` is `None`. |
 
-### ~cpmdc.ase.UnsupportedAtoms~
+### `cpmdc.ase.UnsupportedAtoms`
 
 | Item | Description |
 |--------+--------|
@@ -9326,7 +9326,7 @@ Importing it imports ASE.
 | Raises | none: this is the exception. It subclasses both ASE's `CalculatorSetupError`, which is a `CalculatorError`, and `ValueError`, so either `except` clause catches it. |
 | Defaults | none |
 
-### ~cpmdc.ase.CPMDCCalculator~
+### `cpmdc.ase.CPMDCCalculator`
 
 | Item | Description |
 |--------+--------|
@@ -9337,7 +9337,7 @@ Importing it imports ASE.
 | Raises | `TypeError` when `params` is missing or a keyword is unknown; the errors of `Calculator.__init__` and of `set`. |
 | Defaults | `params`, `library` and `constant_cutoff` are `None`; `params` is then required. `directory` is `'.'` and `label` is ASE's default. |
 
-### ~cpmdc.ase.CPMDCCalculator.calculate~
+### `cpmdc.ase.CPMDCCalculator.calculate`
 
 | Item | Description |
 |--------+--------|
@@ -9348,7 +9348,7 @@ Importing it imports ASE.
 | Raises | `cpmdc.ase.UnsupportedAtoms` for a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range; `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets, where charge 0 is set when `hasCharge` is true and unset when `hasCharge` is false (the message names both values and both sources, and the set charge is kept) or that a typed section of `params` fixes, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for, and when dipole or charges are asked for a step that stored none; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
 | Defaults | `atoms` is `None`: the atoms already attached; `properties` is `None`: `['energy']`, but every property the step can provide is filled; `system_changes` is ASE's `all_changes`. |
 
-### ~cpmdc.ase.CPMDCCalculator.close~
+### `cpmdc.ase.CPMDCCalculator.close`
 
 | Item | Description |
 |--------+--------|
@@ -9359,7 +9359,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.ase.CPMDCCalculator.default_parameters~
+### `cpmdc.ase.CPMDCCalculator.default_parameters`
 
 | Item | Description |
 |--------+--------|
@@ -9370,7 +9370,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | Every value is `None`. |
 
-### ~cpmdc.ase.CPMDCCalculator.discard_results_on_any_change~
+### `cpmdc.ase.CPMDCCalculator.discard_results_on_any_change`
 
 | Item | Description |
 |--------+--------|
@@ -9381,7 +9381,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | `True`: any change of the atoms discards the stored results. |
 
-### ~cpmdc.ase.CPMDCCalculator.ignored_changes~
+### `cpmdc.ase.CPMDCCalculator.ignored_changes`
 
 | Item | Description |
 |--------+--------|
@@ -9392,7 +9392,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | The empty set: `initial_charges` and `initial_magmoms` are system changes, because the calculator reads them as the total charge and the multiplicity. |
 
-### ~cpmdc.ase.CPMDCCalculator.implemented_properties~
+### `cpmdc.ase.CPMDCCalculator.implemented_properties`
 
 | Item | Description |
 |--------+--------|
@@ -9403,7 +9403,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | none: the six names are fixed. |
 
-### ~cpmdc.ase.CPMDCCalculator.potential~
+### `cpmdc.ase.CPMDCCalculator.potential`
 
 | Item | Description |
 |--------+--------|
@@ -9414,7 +9414,7 @@ Importing it imports ASE.
 | Raises | `CPMDCError` when the library or the message cannot be opened. |
 | Defaults | none |
 
-### ~cpmdc.ase.CPMDCCalculator.check_state~
+### `cpmdc.ase.CPMDCCalculator.check_state`
 
 | Item | Description |
 |--------+--------|
@@ -9425,7 +9425,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | The arguments after `atoms` go to ASE's `Calculator.check_state`, so `tol` keeps ASE's default. The list is ASE's, except that `cell` is left out while the stored structure and `atoms` both have every `pbc` flag false, because a cluster step sends no cell. |
 
-### ~cpmdc.ase.CPMDCCalculator.reset~
+### `cpmdc.ase.CPMDCCalculator.reset`
 
 | Item | Description |
 |--------+--------|
@@ -9436,7 +9436,7 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.ase.CPMDCCalculator.read~
+### `cpmdc.ase.CPMDCCalculator.read`
 
 | Item | Description |
 |--------+--------|
@@ -9447,7 +9447,7 @@ Importing it imports ASE.
 | Raises | `ase.calculators.calculator.ReadError`, with the refused `label` in the message, because a step writes no file that holds results. |
 | Defaults | none |
 
-### ~cpmdc.ase.CPMDCCalculator.set~
+### `cpmdc.ase.CPMDCCalculator.set`
 
 | Item | Description |
 |--------+--------|
@@ -9458,7 +9458,7 @@ Importing it imports ASE.
 | Raises | `TypeError` for an unknown key or a `params` of `None`; `CPMDCError`, `OSError` or `ValueError` when the new session cannot be opened. |
 | Defaults | No keyword is required; `schema` is deprecated and ignored. |
 
-### ~cpmdc.ase.CPMDCCalculator.todict~
+### `cpmdc.ase.CPMDCCalculator.todict`
 
 | Item | Description |
 |--------+--------|
@@ -9469,11 +9469,11 @@ Importing it imports ASE.
 | Raises | none |
 | Defaults | `skip_default` is `True`: parameters equal to their default are left out. |
 
-## ~cpmdc.gromacs~
+## `cpmdc.gromacs`
 
 Input files and unit constants for GROMACS.
 
-### ~cpmdc.gromacs.BOHR_TO_NM~
+### `cpmdc.gromacs.BOHR_TO_NM`
 
 | Item | Description |
 |--------+--------|
@@ -9484,7 +9484,7 @@ Input files and unit constants for GROMACS.
 | Raises | none |
 | Defaults | 0.0529177210903, `BOHR_TO_ANGSTROM` over ten. |
 
-### ~cpmdc.gromacs.HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~
+### `cpmdc.gromacs.HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM`
 
 | Item | Description |
 |--------+--------|
@@ -9495,7 +9495,7 @@ Input files and unit constants for GROMACS.
 | Raises | none |
 | Defaults | 49614.752589206466, `HARTREE_TO_KJ_PER_MOL` divided by `BOHR_TO_NM`. |
 
-### ~cpmdc.gromacs.HARTREE_TO_KJ_PER_MOL~
+### `cpmdc.gromacs.HARTREE_TO_KJ_PER_MOL`
 
 | Item | Description |
 |--------+--------|
@@ -9506,18 +9506,18 @@ Input files and unit constants for GROMACS.
 | Raises | none |
 | Defaults | 2625.4996394798673, CODATA 2018. |
 
-### ~cpmdc.gromacs.qmi_input~
+### `cpmdc.gromacs.qmi_input`
 
 | Item | Description |
 |--------+--------|
 | Signature | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)` |
 | Units | `mm_width` and `ewald_rcut` in nm; `ewald_precision`, `epsilon_r`, `link_alpha` and `multiplicity` are dimensionless; `qm_charges` in units of the elementary charge; `charge` in elementary charges. |
-| Shape and dtype | `params` a path; `qm_charges` a sequence of floats, one per QM atom; `links` a sequence of  pairs of 1-based GROMACS atom numbers, one `&LINK` section each in `&QMMM`; the others are scalars or strings. Returns the `qmi` file as one `str` that ends in a newline. |
+| Shape and dtype | `params` a path; `qm_charges` a sequence of floats, one per QM atom; `links` a sequence of `(qm_index, mm_index)` pairs of 1-based GROMACS atom numbers, one `&LINK` section each in `&QMMM`; the others are scalars or strings. Returns the `qmi` file as one `str` that ends in a newline. |
 | Ownership and threads | Builds a new string and touches no file; stateless, so thread-safe. |
 | Raises | `ValueError` for an unknown `cell` or `embedding` keyword, `qm_ranks` other than `ALL` or `1`, `qm_charges` without `MECHANICAL` embedding or `MECHANICAL` embedding without `qm_charges`, `epsilon_r` without `MECHANICAL` or `ELECTROSTATIC` embedding, `mm_width` without `ELECTROSTATIC` embedding or below `1e-13` nm, a non-finite value, a non-positive `ewald_rcut`, `ewald_precision`, or `epsilon_r`, a `multiplicity` below 1, a `charge`, `multiplicity`, or link atom number that is not a whole number, a link that is not a pair, has an atom number below 1, or joins an atom to itself, a `link_alpha` of 1 or less, or `link_alpha` without `links`; `TypeError` for a value that is not a real number or not an integer. |
 | Defaults | `cell`, `embedding`, `qm_charges`, `mm_width`, `ewald_rcut`, `ewald_precision`, `epsilon_r` and `qm_ranks` are `None` and not written, so the library defaults apply (`PERIODIC` when every atom is QM and `NONE` otherwise; no embedding; `MM_WIDTH` 0.03 nm; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in `tools/gromacs/cpmdc_gromacs.c`; `EPSILON_R` 1; `ALL`); `links` and `link_alpha` are `None`, so no bond is capped, and `ALPHA_IMOMM` is not written, so the library takes 1.38; `charge` is 0 and `multiplicity` is 1. |
 
-### ~cpmdc.gromacs.write_qmi~
+### `cpmdc.gromacs.write_qmi`
 
 | Item | Description |
 |--------+--------|
@@ -9528,11 +9528,11 @@ Input files and unit constants for GROMACS.
 | Raises | `ValueError` as for `qmi_input`; `OSError` when the file cannot be written. |
 | Defaults | As for `qmi_input`. |
 
-## ~cpmdc.ipi~
+## `cpmdc.ipi`
 
 The i-PI protocol driver.
 
-### ~cpmdc.ipi.DEFAULT_SOCKET_PREFIX~
+### `cpmdc.ipi.DEFAULT_SOCKET_PREFIX`
 
 | Item | Description |
 |--------+--------|
@@ -9543,7 +9543,7 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | The `ipi_` prefix in the temporary directory that i-PI and ASE use. |
 
-### ~cpmdc.ipi.HEADER_BYTES~
+### `cpmdc.ipi.HEADER_BYTES`
 
 | Item | Description |
 |--------+--------|
@@ -9554,7 +9554,7 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | 12, the width of an i-PI message header. |
 
-### ~cpmdc.ipi.ProtocolError~
+### `cpmdc.ipi.ProtocolError`
 
 | Item | Description |
 |--------+--------|
@@ -9565,7 +9565,7 @@ The i-PI protocol driver.
 | Raises | none: this is the exception. It subclasses `cpmdc.CPMDCError`. |
 | Defaults | none |
 
-### ~cpmdc.ipi.Driver~
+### `cpmdc.ipi.Driver`
 
 | Item | Description |
 |--------+--------|
@@ -9576,7 +9576,7 @@ The i-PI protocol driver.
 | Raises | `ValueError` for no atoms or an atomic number outside 1..118; `CPMDCError` when the session cannot be opened. |
 | Defaults | `library` is `None` (see `find_library`), `cluster` is `False`, `log` is `None` (no log). |
 
-### ~cpmdc.ipi.Driver.atomic_numbers~
+### `cpmdc.ipi.Driver.atomic_numbers`
 
 | Item | Description |
 |--------+--------|
@@ -9587,7 +9587,7 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | No default: it is set by the constructor. |
 
-### ~cpmdc.ipi.Driver.close~
+### `cpmdc.ipi.Driver.close`
 
 | Item | Description |
 |--------+--------|
@@ -9598,7 +9598,7 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.ipi.Driver.cluster~
+### `cpmdc.ipi.Driver.cluster`
 
 | Item | Description |
 |--------+--------|
@@ -9609,18 +9609,18 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | `False` unless the constructor was given `cluster=True`. |
 
-### ~cpmdc.ipi.Driver.compute~
+### `cpmdc.ipi.Driver.compute`
 
 | Item | Description |
 |--------+--------|
 | Signature | `compute(positions, cell)` |
 | Units | `positions` and `cell` in Bohr; returns the energy in Hartree, forces in Hartree/Bohr and the virial `-dE/d(strain)` in Hartree. |
-| Shape and dtype | `positions` 3N floats; `cell` nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns  of 1, 3N and 9 values. When the evaluation recomputed a finite molecular dipole, the bytes `serve` appends are UTF-8 JSON `{"dipole":[x,y,z]}` in electron Bohr; otherwise those bytes are empty. |
+| Shape and dtype | `positions` 3N floats; `cell` nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns `(float, list[float], list[float])` of 1, 3N and 9 values. When the evaluation recomputed a finite molecular dipole, the bytes `serve` appends are UTF-8 JSON `{"dipole":[x,y,z]}` in electron Bohr; otherwise those bytes are empty. |
 | Ownership and threads | Returns new lists; counts the step in `steps`. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | `ProtocolError` for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range, both judged on the Bohr values of `cell`; `CPMDCError` for a cell volume above the largest float64, before the session is called, a virial component that is not finite, a dipole that is not three components (`dipole must have three components`), or a dipole component that is not finite (`dipole is not finite`), the dipole checks before the step is counted; `ValueError` for a position that is not finite (`positions must be finite`) or, when the cell is used, a cell value that is not finite (`cell must be finite`), checked after the rank and before the volume; `CPMDCError` and `ValueError` from the session. |
 | Defaults | none: both arguments are required. |
 
-### ~cpmdc.ipi.Driver.serve~
+### `cpmdc.ipi.Driver.serve`
 
 | Item | Description |
 |--------+--------|
@@ -9631,7 +9631,7 @@ The i-PI protocol driver.
 | Raises | `ProtocolError` for a connection closed in the middle of a message, a message out of order, an unknown header, an `INIT` that is not UTF-8 or whose `batch_size` appears more than once or is not the integer 1, or a negative announced size; `OSError` for a socket failure; `CPMDCError` from the session, including a dipole that is not three finite components (`dipole must have three components` or `dipole is not finite`) before a reply is sent. A close between messages ends the run like `EXIT`. |
 | Defaults | none |
 
-### ~cpmdc.ipi.Driver.steps~
+### `cpmdc.ipi.Driver.steps`
 
 | Item | Description |
 |--------+--------|
@@ -9642,7 +9642,7 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | 0 until the first step. |
 
-### ~cpmdc.ipi.connect~
+### `cpmdc.ipi.connect`
 
 | Item | Description |
 |--------+--------|
@@ -9653,7 +9653,7 @@ The i-PI protocol driver.
 | Raises | `ValueError` unless exactly one of `unix` and `port` is given, or, before a socket is opened, when `wait` is negative, NaN or infinite; `CPMDCError` when the server is not listening after `wait` seconds; `OSError` for any other socket failure. |
 | Defaults | `host` is `'localhost'`, `prefix` is `None` (`DEFAULT_SOCKET_PREFIX`), `wait` is 0.0: one attempt. |
 
-### ~cpmdc.ipi.main~
+### `cpmdc.ipi.main`
 
 | Item | Description |
 |--------+--------|
@@ -9664,7 +9664,7 @@ The i-PI protocol driver.
 | Raises | `ValueError`, `OSError` and `CPMDCError` are caught and turn into status 1; `SystemExit` comes from the argument parser for a bad command line. |
 | Defaults | `argv` is `None`: `sys.argv[1:]`. |
 
-### ~cpmdc.ipi.species_numbers~
+### `cpmdc.ipi.species_numbers`
 
 | Item | Description |
 |--------+--------|
@@ -9675,7 +9675,7 @@ The i-PI protocol driver.
 | Raises | `ValueError` for text that names no atom, an unknown element, text that is not a formula and an atomic number outside 1..118. |
 | Defaults | none |
 
-### ~cpmdc.ipi.unix_socket_path~
+### `cpmdc.ipi.unix_socket_path`
 
 | Item | Description |
 |--------+--------|
@@ -9686,11 +9686,11 @@ The i-PI protocol driver.
 | Raises | none |
 | Defaults | `prefix` is `None`: `DEFAULT_SOCKET_PREFIX`. A name that contains a path separator is returned as it is. |
 
-## ~cpmdc.lammps~
+## `cpmdc.lammps`
 
 The `fix external` driver for LAMMPS.
 
-### ~cpmdc.lammps.UNIT_STYLES~
+### `cpmdc.lammps.UNIT_STYLES`
 
 | Item | Description |
 |--------+--------|
@@ -9701,7 +9701,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | The keys `metal`, `real` and `electron`. |
 
-### ~cpmdc.lammps.FixExternal~
+### `cpmdc.lammps.FixExternal`
 
 | Item | Description |
 |--------+--------|
@@ -9712,7 +9712,7 @@ The `fix external` driver for LAMMPS.
 | Raises | `ValueError` for an unsupported unit style, a wrong number of elements, an unknown element, an empty `qm_types`, `mm_width_angstrom` below `1e-12` or non-finite, or a partly periodic box; `CPMDCError` when the session cannot be opened, `mpi4py` is missing on several ranks, or `comm` has the wrong size. |
 | Defaults | `fix_id` is `'cpmdc'`, `create` is `True`, `library` is `None`, `comm` is `None` (`MPI.COMM_WORLD`), `qm_types` is `None` (all atoms are QM), `mm_width_angstrom` is `0.3`. |
 
-### ~cpmdc.lammps.FixExternal.close~
+### `cpmdc.lammps.FixExternal.close`
 
 | Item | Description |
 |--------+--------|
@@ -9723,7 +9723,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.lammps.FixExternal.energy~
+### `cpmdc.lammps.FixExternal.energy`
 
 | Item | Description |
 |--------+--------|
@@ -9734,7 +9734,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | 0.0 until the first step. |
 
-### ~cpmdc.lammps.FixExternal.error~
+### `cpmdc.lammps.FixExternal.error`
 
 | Item | Description |
 |--------+--------|
@@ -9745,7 +9745,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | `None`. |
 
-### ~cpmdc.lammps.FixExternal.evaluations~
+### `cpmdc.lammps.FixExternal.evaluations`
 
 | Item | Description |
 |--------+--------|
@@ -9756,7 +9756,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | 0 until the first step. |
 
-### ~cpmdc.lammps.FixExternal.fix_id~
+### `cpmdc.lammps.FixExternal.fix_id`
 
 | Item | Description |
 |--------+--------|
@@ -9767,7 +9767,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | The `fix_id` argument, `'cpmdc'` by default. |
 
-### ~cpmdc.lammps.FixExternal.mm_width_angstrom~
+### `cpmdc.lammps.FixExternal.mm_width_angstrom`
 
 | Item | Description |
 |--------+--------|
@@ -9778,7 +9778,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | Set by the constructor from `mm_width_angstrom`, `0.3` by default. |
 
-### ~cpmdc.lammps.FixExternal.periodic~
+### `cpmdc.lammps.FixExternal.periodic`
 
 | Item | Description |
 |--------+--------|
@@ -9789,7 +9789,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | Set by the constructor from the box. |
 
-### ~cpmdc.lammps.FixExternal.qm_types~
+### `cpmdc.lammps.FixExternal.qm_types`
 
 | Item | Description |
 |--------+--------|
@@ -9800,7 +9800,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | Set by the constructor from `qm_types`; `None` when all atoms are QM. |
 
-### ~cpmdc.lammps.FixExternal.run~
+### `cpmdc.lammps.FixExternal.run`
 
 | Item | Description |
 |--------+--------|
@@ -9811,7 +9811,7 @@ The `fix external` driver for LAMMPS.
 | Raises | `CPMDCError` for a failed step, with the original error chained; any other exception of LAMMPS is re-raised. |
 | Defaults | No keywords. |
 
-### ~cpmdc.lammps.FixExternal.type_numbers~
+### `cpmdc.lammps.FixExternal.type_numbers`
 
 | Item | Description |
 |--------+--------|
@@ -9822,7 +9822,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | Set by the constructor from `elements`. |
 
-### ~cpmdc.lammps.FixExternal.units~
+### `cpmdc.lammps.FixExternal.units`
 
 | Item | Description |
 |--------+--------|
@@ -9833,7 +9833,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | Read from the LAMMPS object. |
 
-### ~cpmdc.lammps.box_rows~
+### `cpmdc.lammps.box_rows`
 
 | Item | Description |
 |--------+--------|
@@ -9844,7 +9844,7 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | none |
 
-### ~cpmdc.lammps.type_numbers~
+### `cpmdc.lammps.type_numbers`
 
 | Item | Description |
 |--------+--------|
@@ -9855,7 +9855,7 @@ The `fix external` driver for LAMMPS.
 | Raises | `ValueError` for an item that is not one element, an unknown element, or a count different from `n_types`. |
 | Defaults | none |
 
-### ~cpmdc.lammps.unit_factors~
+### `cpmdc.lammps.unit_factors`
 
 | Item | Description |
 |--------+--------|
@@ -9912,7 +9912,7 @@ All method knobs for the OpenCPMD backend are fields of `CPMDParams` in
 Geometry is never part of `CPMDParams`; it is always a `ForceInput` step message
 (or the raw C array entry points that take positions and atomic numbers).
 
-# Top-level ~CPMDParams~ fields
+# Top-level `CPMDParams` fields
 
 | Feature ID | Field | Role |
 |------------+-------+------|
@@ -10055,7 +10055,7 @@ page.
 carriers to stay covered by schema, fixtures, render tests, and this reference
 page.
 
-# ~CPMDInputSection~ kinds
+# `CPMDInputSection` kinds
 
 | Kind | Cap'n Proto type | Deck effect |
 |------+------------------+-------------|
@@ -10403,7 +10403,7 @@ The vector qualifier also requires nine values and excludes `ABSOLUTE` and
 | `params.inputSections.set.value` | `set.value` | Optional value emitted under the dotted key |
 | `params.inputSections.raw` | `raw` | Full section text inserted as-is |
 
-# Typed ~&CPMD~ controls
+# Typed `&CPMD` controls
 `CPMDCpmdSection` exposes these driver controls directly; parser-accepted
 escape-hatch rows use `directives`.
 The feature IDs are the stable discovery keys returned by
@@ -10954,7 +10954,7 @@ message and the check.
 | `STORE` | no effect, with no `RESTART` file from a library call |
 | `CSTEPS` | no effect, with converged orbitals on every call |
 
-# Typed ~&DFT~ controls
+# Typed `&DFT` controls
 `CPMDDftSection` exposes common DFT scalars directly.
 Parser-accepted escape-hatch rows use `directives` so callers can still discover
 the catalog ID without a dedicated scalar field.
@@ -11067,7 +11067,7 @@ the catalog ID without a dedicated scalar field.
 | `catalog.dft.FUNCTIONAL_LB94` | `LB94` |
 | `catalog.dft.FUNCTIONAL_GLLB` | `GLLB` |
 
-# ~PotentialConfig~
+# `PotentialConfig`
 For rgpot / multi-backend configure RPCs, `PotentialConfig` is a tagged union
 with `cpmd @2 :CPMDParams` (ordinal aligned with the shared schema; `nwchem @1`
 is reserved void in this package).
@@ -11081,7 +11081,7 @@ This page lists the fields that decide what CPMD computes.
 The option mapping (file:cpmd-options.org) lists every typed field with its
 feature ID and deck spelling.
 
-# ~CPMDParams~
+# `CPMDParams`
 
 | Field | Type, default | Role |
 |-------+---------------+------|
@@ -11109,7 +11109,7 @@ unequal orthogonal edges, or `CELL VECTORS` with no symmetry line when the box
 is tilted.
 A zero box stays `SYMMETRY 0` and adds `POISSON SOLVER HOCKNEY`.
 
-# ~CPMDInputSection~
+# `CPMDInputSection`
 A union; each list entry sets exactly one arm.
 
 | Arm | Payload | Renders |
@@ -11124,7 +11124,7 @@ A union; each list entry sets exactly one arm.
 | `generic` | `CPMDGenericSection`: `name`, `directives` | a section by name |
 | `raw` | `Text` | a full `&SECTION ... &END` block, verbatim |
 
-# ~CPMDDirective~
+# `CPMDDirective`
 
 | Field | Meaning |
 |-------+---------|
@@ -11133,7 +11133,7 @@ A union; each list entry sets exactly one arm.
 
 Every typed section has a `directives` list for keywords without a typed field.
 
-# ~CPMDCpmdSection~, the fields a force call uses
+# `CPMDCpmdSection`, the fields a force call uses
 
 | Field | Default | Deck |
 |-------+---------+------|
@@ -11151,7 +11151,7 @@ Every typed section has a `directives` list for keywords without a typed field.
 The OpenCPMD path ignores restarted coordinates, velocities, and geometry: the
 host owns them.
 
-# ~CPMDSystemSection~, the fields that set the cell
+# `CPMDSystemSection`, the fields that set the cell
 
 | Field | Default | Deck |
 |-------+---------+------|
@@ -11164,7 +11164,7 @@ host owns them.
 | `charge`, `hasCharge`, `multiplicity` | 0, `false`, 1 | `CHARGE`, `MULTIPLICITY`; `hasCharge` marks zero `charge` explicit |
 | `kpointsMonkhorstPack` | empty | `KPOINTS MONKHORST-PACK` |
 
-# ~CPMDDftSection~
+# `CPMDDftSection`
 
 | Field | Default | Deck |
 |-------+---------+------|
@@ -11174,7 +11174,7 @@ host owns them.
 | `oldCode`, `newCode` | off | `OLDCODE` / `NEWCODE` |
 | `hfx`, `hfxScreening` | off | hybrid exchange controls |
 
-# ~CPMDAtomsSection~ and ~CPMDAtomsPseudopotential~
+# `CPMDAtomsSection` and `CPMDAtomsPseudopotential`
 
 | Field | Default | Deck |
 |-------+---------+------|
@@ -11195,7 +11195,7 @@ Entries in `pseudopotentials` supply the file, `LMAX`, `LOC`, and
 Elements left out of that list use a built-in table for H, C, N, O, Si, and Ge;
 see writing a CPMDParams message (file:../howto/write-cpmdparams.org).
 
-# ~ForceInput~
+# `ForceInput`
 
 | Field | Default | Meaning |
 |-------+---------+---------|
@@ -11205,7 +11205,7 @@ see writing a CPMDParams message (file:../howto/write-cpmdparams.org).
 | `lengthUnit` | `"angstrom"` | unit of `pos` and `box` |
 | `energyUnit` | `"eV"` | unit of the `PotentialResult` energy |
 
-# ~PotentialConfig~
+# `PotentialConfig`
 A union of backend arms plus a `common` overlay (`CommonMethodSpec`).
 `cpmdc` accepts the `cpmd` arm, which holds a `CPMDParams`, the overlay alone,
 or both together.
@@ -11450,10 +11450,10 @@ drift apart.
 # Feature IDs
 
 The inventory describes the cpmdc engine boundary, not transport protocols.
-i-PI is an optional rgpot frontend over =CPMDPot= and other potentials; protocol
-frontends are not =cpmdc_feature_*= rows.
+i-PI is an optional rgpot frontend over `CPMDPot` and other potentials; protocol
+frontends are not `cpmdc_feature_*` rows.
 The audited rgpot develop snapshot provides the audited generic i-PI route (file:../howto/socket-drivers.org)
-through =CPMDPot=.
+through `CPMDPot`.
 The cpmdc-specific i-PI drivers remain compatibility fallbacks, not engine
 capabilities.
 
@@ -12085,16 +12085,16 @@ takes one lattice vector per row of a row-major 3 by 3 cell, so the cell sent is
 
 | Row | LAMMPS | `domain->h` |
 |-----+--------+-------------|
-| `a` |  |  |
-| `b` |  |  |
-| `c` |  |  |
+| `a` | `(lx, 0, 0)` | `(h[0], 0, 0)` |
+| `b` | `(xy, ly, 0)` | `(h[5], h[1], 0)` |
+| `c` | `(xz, yz, lz)` | `(h[4], h[3], h[2])` |
 
 with `lx = xhi - xlo` and the tilt factors `xy`, `xz`, `yz`.
 An orthogonal box is the case with zero tilts.
 The positions are LAMMPS' Cartesian coordinates unwrapped with the image flags,
 `x + ix a + iy b + iz c`, so each atom follows a continuous path across the
 boundaries and wavefunction extrapolation sees smooth steps.
-The box origin  is not subtracted.
+The box origin `(xlo, ylo, zlo)` is not subtracted.
 A box with all three axes periodic sends the cell; a box with none sends no
 cell, and the `CPMDParams` deck sets the box.
 A box with some axes periodic and others not is refused; `FixExternal` raises
@@ -12229,7 +12229,7 @@ a `metal` energy from this route is not bit-identical to `FixExternal`.
 |---------+------+----------|
 | `>NATOMS` | a new system, including the first step | one int, the atom count. Drops the previous cell, origin, species, and coordinates |
 | `>CELL_DISPL` | fully periodic, and the engine registers the command | box origin, Bohr, three doubles |
-| `>CELL` | fully periodic | nine Bohr components, one lattice vector per row: , ,  |
+| `>CELL` | fully periodic | nine Bohr components, one lattice vector per row: `(lx, 0, 0)`, `(xy, ly, 0)`, `(xz, yz, lz)` |
 | `>ELEMENTS` | the `elements` keyword | one atomic number per atom, ascending LAMMPS atom ID |
 | `>TYPES` | no `elements` keyword | accepted as atomic numbers, so the LAMMPS types must already be atomic numbers |
 | `>COORDS` | every evaluation | `3N` Bohr coordinates, Cartesian, each atom remapped into the box |
@@ -12260,8 +12260,8 @@ One evaluation serves `<PE`, `<ENERGY`, `<FORCES`, and `<STRESS` until the next
 
 `<STRESS` is `cpmdc_session_last_stress()`, `-dE/d(strain) / V`, positive under
 compression.
-LAMMPS reads indexes 0, 4, and 8 as `xx yy zz` and the pairs , ,
-and  as the symmetrized `xy xz yz`, multiplies by the box volume in its
+LAMMPS reads indexes 0, 4, and 8 as `xx yy zz` and the pairs `(1, 3)`, `(2, 6)`,
+and `(5, 7)` as the symmetrized `xy xz yz`, multiplies by the box volume in its
 length unit, and stores that extensive virial.
 When the session computed no stress, including an isolated deck and
 `CPMDC_STRESS=0`, the nine components are zero.
@@ -12394,7 +12394,7 @@ Codes are negative so that one rank's failure can be taken as the minimum over
 ranks.
 
 # Types
-## ~cpmdc_pwscale_problem~
+## `cpmdc_pwscale_problem`
 One problem.
 `cpmdc_pwscale_eval` and the MPI calls reject it with `CPMDC_PWSCALE_ERR_ARG`
 unless every limit below holds; a `NaN` fails the three positive tests.
@@ -12410,7 +12410,7 @@ after the call.
 | `alpha` | `double` | inverse Bohr squared | greater than 0 |
 | `sigma` | `double` | inverse Bohr | greater than 0 |
 
-## ~cpmdc_pwscale_stats~
+## `cpmdc_pwscale_stats`
 Timers and counts of one evaluation.
 Every field is zero after an error.
 The CPU calls set the fields below; the CUDA call differs where noted.
@@ -12427,7 +12427,7 @@ The CPU calls set the fields below; the CUDA call differs where noted.
 | `workers` | `int` | threads | the OpenMP team that ran, from `omp_get_num_threads`, which can be smaller than `nthreads`; 1 on CUDA |
 | `mpi_ranks` | `int` | ranks | the communicator size, 1 for `cpmdc_pwscale_eval`; the CUDA call leaves it at 0 |
 
-## ~cpmdc_pwscale_mpi_bind~
+## `cpmdc_pwscale_mpi_bind`
 An opaque handle declared as
 `typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind`.
 It exists only in a build with MPI; without MPI a pointer of this type is always
@@ -12449,7 +12449,7 @@ See Binding (*Binding) for what it holds.
 | `int cpmdc_pwscale_cuda_device(char *name, int namelen)` | 1 when a CUDA device exists, and its name |
 | `int cpmdc_pwscale_eval_cuda(const cpmdc_pwscale_problem *prob, const double *positions_bohr, const int *atomic_numbers, double *forces_h_bohr, cpmdc_pwscale_stats *stats)` | a status code, forces and stats |
 
-## ~cpmdc_pwscale_fill_geometry~
+## `cpmdc_pwscale_fill_geometry`
 Fills `positions_bohr` and `atomic_numbers` for atoms `i = 0 .. natoms - 1`,
 with `s = i + 1`: the position is
 `(fmod(0.11 s, 0.73), fmod(0.17 s, 0.71), fmod(0.23 s, 0.69))` times `cell_bohr`
@@ -12466,12 +12466,12 @@ The arrays depend only on `natoms` and `cell_bohr` of `prob`.
 If any pointer is `NULL`, or `natoms` is below 1, nothing is written.
 There is no return value.
 
-## ~cpmdc_pwscale_within~
+## `cpmdc_pwscale_within`
 Returns 1 when `|got - ref| <= CPMDC_PWSCALE_RTOL * max(1, |got|, |ref|)`, else 0.
 The scale is the larger magnitude of the two values and never below 1.
 A `NaN` in either argument returns 0.
 
-## ~cpmdc_pwscale_sample_check~
+## `cpmdc_pwscale_sample_check`
 Compares one finished sample with the serial reference.
 `got_forces` and `ref_forces` each hold `n3 = 3 * natoms` doubles in Hartree per
 Bohr.
@@ -12491,7 +12491,7 @@ It returns 0 and writes nothing when `got_forces`, `ref_forces`, `max_abs_dE`,
 `max_abs_dF`, or `counts_match` is `NULL`, or `n3` is below 1.
 The three outputs are written on every other call, including a failing one.
 
-## ~cpmdc_pwscale_eval~
+## `cpmdc_pwscale_eval`
 Evaluates the sum on one rank with `nthreads` OpenMP threads.
 No MPI is involved, so this works in every build.
 
@@ -12513,7 +12513,7 @@ and is zero when the team fails.
 On success `stats->seconds` covers scratch allocation, the arithmetic, and the
 ordered sum, and `stats->mpi_ranks` is 1.
 
-## ~cpmdc_pwscale_eval_mpi~
+## `cpmdc_pwscale_eval_mpi`
 Evaluates the sum on every rank of one communicator and gives every rank the
 whole result.
 It binds a problem, runs one bound call, and frees the binding, on every call.
@@ -12559,7 +12559,7 @@ The communicator is not copied, only its handle, so it must outlive the binding.
 The bound calls overwrite the buffers of the binding, so one binding serves one
 call at a time.
 
-## ~cpmdc_pwscale_mpi_bind_create~
+## `cpmdc_pwscale_mpi_bind_create`
 Binds a problem to a communicator.
 
 | Argument | Direction | Contract |
@@ -12581,7 +12581,7 @@ or size query of the communicator fails.
 A build without MPI returns `CPMDC_PWSCALE_ERR_NOMPI` and sets `*out` to `NULL`
 when `out` is not `NULL`.
 
-## ~cpmdc_pwscale_eval_mpi_bound~
+## `cpmdc_pwscale_eval_mpi_bound`
 One force call on a binding.
 It has the arguments and the result of
 `cpmdc_pwscale_eval_mpi` for the problem and `dist` of the binding, without `prob`, `dist`, `comm`, and `comm_bytes`.
@@ -12599,18 +12599,18 @@ A build without MPI returns `CPMDC_PWSCALE_ERR_NOMPI` and zeroes `stats`.
 over ranks, `stats->workers` is this rank's team, and `stats->mpi_ranks` is the
 communicator size.
 
-## ~cpmdc_pwscale_mpi_bind_free~
+## `cpmdc_pwscale_mpi_bind_free`
 Releases a binding and its buffers.
 The call is local and not collective, and it leaves the communicator alone.
 A `NULL` pointer is accepted and does nothing.
 The pointer is invalid afterwards.
 Without MPI the function does nothing.
 
-## ~cpmdc_pwscale_cuda_compiled~
+## `cpmdc_pwscale_cuda_compiled`
 Returns 1 when the build compiled `src/cpmdc_pwscale_cuda.cu`, else 0.
 It does not look for a device.
 
-## ~cpmdc_pwscale_cuda_device~
+## `cpmdc_pwscale_cuda_device`
 Reports whether a CUDA device exists and names device 0.
 
 | Argument | Direction | Contract |
@@ -12622,7 +12622,7 @@ Returns 1 when at least one device exists, else 0.
 A build without CUDA always returns 0 and writes an empty string.
 `cpmdc_pwscale_eval_cuda` uses device 0.
 
-## ~cpmdc_pwscale_eval_cuda~
+## `cpmdc_pwscale_eval_cuda`
 Evaluates the sum on CUDA device 0, with one thread per plane wave.
 The arguments are those of `cpmdc_pwscale_eval` without `nthreads` and `dist`,
 and the result is the same sum in the same units; `forces_h_bohr` holds
@@ -12719,7 +12719,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `ConstantCutoff.todict` | `todict()`: return `dict[str, float]` of the non-`None` fields in Rydberg as JSON data |
 | `Session` | `Session(params, *, library=None, schema=None, constant_cutoff=None)`: one `CPMDCSession` handle and context manager; `params` is serialized `CPMDParams` `bytes` or a file path (required); `library=None` is a `libcpmdc` path or `None` for `find_library`; `constant_cutoff=None` takes what `ConstantCutoff.coerce` takes (in Rydberg) and calls `cpmdc_session_set_constant_cutoff()`; `schema=None` is deprecated and ignored (`DeprecationWarning` when not `None`); raises `CPMDCError`, `FileNotFoundError`, `TypeError`, or `ValueError` |
 | `Session.energy_forces` | `energy_forces(positions, atomic_numbers, cell=None)`: evaluate one geometry from Angstrom `positions` of shape (N, 3), N integer `atomic_numbers` in 1..118, and optional Angstrom `cell=None` (3x3 or nine row-major floats, encoded as `ForceInput` in process, or `None` for an isolated system); returns `Evaluation` in Hartree, Hartree/Bohr, and Hartree/Bohr^3; raises `CPMDCError`, `TypeError`, or `ValueError` |
-| `Session.calculate_au` | `calculate_au(positions_bohr, atomic_numbers, cell_bohr=None, *, forces=None, virial=None)`: one step through `cpmdc_session_calculate_au()` from `3 * N` Bohr coordinates in `positions_bohr` (flat or N rows), N integer `atomic_numbers` in 1..118, and optional `cell_bohr=None` (nine Bohr values or three rows with one vector per row, or `None`); returns  with `energy_h` in Hartree, `3 * N` forces in Hartree/Bohr, and the nine-component row-major virial `-dE/d(strain)` in Hartree (zero without a cell or stress tensor); C-contiguous `float64` and `int32` inputs pass without a copy, and writable `forces=None` and `virial=None` `float64` buffers are filled in place when given (otherwise new `array('d')` buffers are returned); raises `CPMDCError`, `TypeError`, or `ValueError` |
+| `Session.calculate_au` | `calculate_au(positions_bohr, atomic_numbers, cell_bohr=None, *, forces=None, virial=None)`: one step through `cpmdc_session_calculate_au()` from `3 * N` Bohr coordinates in `positions_bohr` (flat or N rows), N integer `atomic_numbers` in 1..118, and optional `cell_bohr=None` (nine Bohr values or three rows with one vector per row, or `None`); returns `(energy_h, forces, virial)` with `energy_h` in Hartree, `3 * N` forces in Hartree/Bohr, and the nine-component row-major virial `-dE/d(strain)` in Hartree (zero without a cell or stress tensor); C-contiguous `float64` and `int32` inputs pass without a copy, and writable `forces=None` and `virial=None` `float64` buffers are filled in place when given (otherwise new `array('d')` buffers are returned); raises `CPMDCError`, `TypeError`, or `ValueError` |
 | `Session.set_external_charges` | `set_external_charges(positions_angstrom, charges_e, widths_angstrom=None)`: replace the Gaussian MM point charges used by later evaluations; `positions_angstrom` holds `3 * M` Angstrom coordinates, `charges_e` `M` charges in units of the elementary charge, and `widths_angstrom=None` `M` Gaussian standard deviations in Angstrom (the library default, 0.30 Angstrom, when `None`); empty arrays clear the charges; a width below `1e-12` Angstrom raises `CPMDCInvalidArgument` and keeps the previous charges; a non-finite value raises `ValueError`; a library without `cpmdc_session_set_external_charges` raises `CPMDCError` |
 | `Session.external_charge_forces_au` | `external_charge_forces_au(n_charges)`: `3 * n_charges` forces on the MM charges of the last successful evaluation when active charges exist, in Hartree/Bohr, or an empty array when `n_charges` is 0; a repeat answered from the session cache counts as that evaluation; raises `CPMDCInvalidArgument` before a successful step, after a failed step, or on a wrong count, `CPMDCError` on a library without `cpmdc_session_last_external_charge_forces`, and `ValueError` for a negative count |
 | `Session.select_orbitals` | `select_orbitals(key)`: call `cpmdc_session_select_orbitals()` with signed 64-bit integer `key` (dimensionless); raises `TypeError`, `ValueError`, or `CPMDCError` |
@@ -12774,7 +12774,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.lammps.UNIT_STYLES` | LAMMPS unit style to (length per Bohr, energy per Hartree) for `metal`, `real`, `electron` |
 | `cpmdc.lammps.unit_factors` | `unit_factors(style)`: that pair for one style; `ValueError` for any other |
 | `cpmdc.lammps.box_rows` | `box_rows(boxlo, boxhi, xy, yz, xz)`: `boxlo`, `boxhi`, `xy`, `yz`, `xz` to the 3x3 cell with one lattice vector per row |
-| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`embedding` is `"ELECTROSTATIC"`, `"MECHANICAL"`, or `"NONE"`; `mm_width` is the Gaussian width in nm of `"ELECTROSTATIC"` and is refused for any other embedding, below `1e-13` nm, or when not finite; `epsilon_r` divides the mechanical Coulomb terms or scales the electrostatic MM charges by `1/epsilon_r` and is refused with `"NONE"` or unset embedding; `ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`, `links` a sequence of 1-based  pairs written as `&LINK` sections, and `link_alpha` the `ALPHA_IMOMM` factor for those links); `ValueError` or `TypeError` for a value the library would refuse |
+| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`embedding` is `"ELECTROSTATIC"`, `"MECHANICAL"`, or `"NONE"`; `mm_width` is the Gaussian width in nm of `"ELECTROSTATIC"` and is refused for any other embedding, below `1e-13` nm, or when not finite; `epsilon_r` divides the mechanical Coulomb terms or scales the electrostatic MM charges by `1/epsilon_r` and is refused with `"NONE"` or unset embedding; `ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`, `links` a sequence of 1-based `(qm_index, mm_index)` pairs written as `&LINK` sections, and `link_alpha` the `ALPHA_IMOMM` factor for those links); `ValueError` or `TypeError` for a value the library would refuse |
 | `cpmdc.gromacs.write_qmi` | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: write that text to `path` and return it |
 | `cpmdc.gromacs.BOHR_TO_NM`, `HARTREE_TO_KJ_PER_MOL`, `HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM` | GROMACS' QM/MM conversion factors, built as `src/gromacs/math/units.h` builds them |
 | `cpmdc.lammps.type_numbers` | `type_numbers(elements, n_types)`: atomic numbers per atom type from `"O H"`, `"8 1"`, or a sequence; `ValueError` unless there are `n_types` |
@@ -12827,16 +12827,16 @@ The `cpmd-public-abi-inventory`, `stub-abi-symbol-coverage`,
 `shared-dlopen-symbol-coverage`, and `c-abi-inventory` tests keep it true.
 
 Protocol adapters are deliberately outside this surface.
-Direct callers use =cpmdc_session_calculate_au()= or the Cap'n Proto result
+Direct callers use `cpmdc_session_calculate_au()` or the Cap'n Proto result
 calls; remote callers normally use rgpot's Cap'n Proto RPC.
 An optional i-PI adapter belongs to rgpot as a frontend over every potential.
-In an rgpot build with the RPC stack, =rgpot-ipi-driver= selects =CPMDPot= for
-=--pot "CPMD params FILE"= and for `-m CPMD -o params=FILE`.
-Pass =--preserve-open-cell= for CPMD so a singular cell is passed through
+In an rgpot build with the RPC stack, `rgpot-ipi-driver` selects `CPMDPot` for
+`--pot "CPMD params FILE"` and for `-m CPMD -o params=FILE`.
+Pass `--preserve-open-cell` for CPMD so a singular cell is passed through
 instead of padded.
 The i-PI migration status (file:../howto/socket-drivers.org) records that
 route.
-=cpmdc-ipi= and =cpmdc-ipi-c= remain compatibility fallbacks.
+`cpmdc-ipi` and `cpmdc-ipi-c` remain compatibility fallbacks.
 
 # Sources checked
 
@@ -12953,7 +12953,7 @@ QMMM, PROPERTIES, BICANONICAL, and CDFT are `&CPMD` keywords, not sections.
 
 # Run the example
 This lesson evaluates the same internal water geometry as the first tutorial (file:first-energy.org),
-placed near the origin rather than at , with the ASE calculator.
+placed near the origin rather than at `(5, 5, 5)`, with the ASE calculator.
 The default build's origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.
 
@@ -12985,7 +12985,7 @@ so drop `CPMDC_LIBRARY` and `PYTHONPATH` and keep `CPMDC_PARAMS`.
 `CPMDCCalculator` keeps one session.
 A second `get_potential_energy` on the same atoms does not recompute, and
 neither does `get_forces` after it: one step computes both.
-`get_forces` returns an array of shape .
+`get_forces` returns an array of shape `(natoms, 3)`.
 Change a position and the next call computes again on the same session, which a
 relaxation with `BFGS` and `FixAtoms` relies on.
 `energy` is in eV and `forces` in eV/Angstrom, matching ASE's unit system and
@@ -13176,7 +13176,7 @@ This `awk` command prints the call number, the number of SCF iterations, and the
 converged energy in Hartree of each force call:
 
 awk '/^ NFI/ {ncall++; scf=1}
-     NF==6 && $2 ` /E[-+]/ && $1 ` /^[0-9]+$/ {iters[ncall]=$1}
+     NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/ {iters[ncall]=$1}
      /TOTAL ENERGY/ && scf {e[ncall]=$(NF-1); scf=0}
      END {for (i=1;i<=ncall;i++) printf "%d %d %s\n", i, iters[i], e[i]}' run.log
 

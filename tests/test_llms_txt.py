@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -229,12 +230,95 @@ def test_normalize_joins_only_well_formed_links(root: Path = ROOT) -> None:
                 raise AssertionError(f"normalize changed {sample!r} to {got!r}")
 
 
+_MATH_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]", re.DOTALL)
+
+
+def markup_corruption(text: str) -> list[str]:
+    """Backticks inside math spans, and lines with an odd backtick count."""
+    hits: list[str] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if line.count("`") % 2 == 1:
+            hits.append(f"unbalanced backticks line {lineno}: {line}")
+    for match in _MATH_SPAN.finditer(text):
+        if "`" not in match.group(0):
+            continue
+        lineno = text.count("\n", 0, match.start()) + 1
+        hits.append(f"backtick inside math line {lineno}: {match.group(0)}")
+    return hits
+
+
+def test_markup_corruption_flags_synthetic_input(root: Path = ROOT) -> None:
+    del root
+    math_hits = markup_corruption(r"pre \(\epsilon_{rf}`1\) post")
+    if not any(hit.startswith("backtick inside math") for hit in math_hits):
+        raise AssertionError(f"synthetic math corruption was not flagged: {math_hits}")
+    odd_hits = markup_corruption("one ` tick")
+    if not any(hit.startswith("unbalanced backticks") for hit in odd_hits):
+        raise AssertionError(f"synthetic odd backtick was not flagged: {odd_hits}")
+    clean = r"value \(\epsilon_{rf}=1\) and \(~x~\) plus `code`"
+    clean_hits = markup_corruption(clean)
+    if clean_hits:
+        raise AssertionError(f"clean sample flagged: {clean_hits}")
+
+
+def test_committed_llms_have_no_markup_corruption(root: Path = ROOT) -> None:
+    for name in ("llms.txt", "llms-full.txt"):
+        text = (root / name).read_text(encoding="utf-8")
+        hits = markup_corruption(text)
+        if hits:
+            preview = "\n".join(hits[:20])
+            raise AssertionError(f"{name} markup corruption:\n{preview}")
+
+
+def test_org_plaintext_preserves_math_spans(root: Path = ROOT) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = "\n".join(
+            [
+                r"Keep \(\epsilon_{rf}=1\) next to =one= and \(~x~\).",
+                r"Also $\epsilon_{rf}=1,~x~$ and \[E = 1,~x~\].",
+                r"\begin{equation}\epsilon_{rf}=1,~x~\end{equation}",
+                "Outside ~x~ and shape ~(N, 3)~.",
+                "See ~[[file:../howto/mpi.org][text]]~.",
+                "E0 = 85 and sigma = 4 stays.",
+                "#+begin_src awk",
+                r"NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/",
+                "#+end_src",
+            ]
+        )
+        rendered = generator.org_plaintext(sample)
+        required = [
+            r"\(\epsilon_{rf}=1\)",
+            r"\(~x~\)",
+            r"$\epsilon_{rf}=1,~x~$",
+            r"\[E = 1,~x~\]",
+            r"\begin{equation}\epsilon_{rf}=1,~x~\end{equation}",
+            "`one`",
+            "`x`",
+            "`(N, 3)`",
+            "`[[file:../howto/mpi.org][text]]`",
+            "E0 = 85 and sigma = 4 stays.",
+            r"NF==6 && $2 ~ /E[-+]/ && $1 ~ /^[0-9]+$/",
+        ]
+        for piece in required:
+            if piece not in rendered:
+                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
+        hits = markup_corruption(rendered)
+        if hits:
+            raise AssertionError(f"rendered math was corrupted:\n{hits}\n{rendered}")
+
+
 TESTS = (
     test_deterministic_generation,
     test_stale_failure_is_actionable,
     test_org_plaintext_wrapped_links_and_fix_labels,
     test_org_plaintext_keeps_cog_blocks,
     test_normalize_joins_only_well_formed_links,
+    test_markup_corruption_flags_synthetic_input,
+    test_committed_llms_have_no_markup_corruption,
+    test_org_plaintext_preserves_math_spans,
 )
 
 
