@@ -372,6 +372,8 @@ def assert_embed_charges(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     for needle in (
         "PUBLIC :: embed_get_charges",
+        "SUBROUTINE embed_get_charges(charges, n, valid, capacity)",
+        "IF (capacity.LT.n) THEN",
         "PUBLIC :: embed_set_charges_snapshot",
         "embed_charges_valid = .FALSE.",
         "CALL atomc(rhoe(:,1), rbuff, tau0, achrg)",

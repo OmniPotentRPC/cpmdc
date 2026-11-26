@@ -2746,7 +2746,7 @@ CONTAINS
     ALLOCATE(species_q(n_atoms), seen(n_atoms), STAT=astat)
     IF (astat /= 0) RETURN
     seen = .FALSE.
-    CALL embed_get_charges(species_q, n, charges_valid)
+    CALL embed_get_charges(species_q, n, charges_valid, n_atoms)
     IF (.NOT. charges_valid .OR. n /= n_atoms) THEN
       DEALLOCATE(species_q, seen)
       RETURN

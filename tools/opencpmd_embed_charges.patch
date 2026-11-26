@@ -104,14 +104,19 @@ index 65b21b1..eaea7ab 100644
 +    embed_charges_enabled = flag
 +  END SUBROUTINE embed_set_charges_snapshot
 +
-+  SUBROUTINE embed_get_charges(charges, n, valid)
++  SUBROUTINE embed_get_charges(charges, n, valid, capacity)
 +    REAL(real_8), INTENT(OUT) :: charges(*)
 +    INTEGER, INTENT(OUT) :: n
 +    LOGICAL, INTENT(OUT) :: valid
++    INTEGER, INTENT(IN) :: capacity
 +    INTEGER :: i
 +    n = embed_charge_count
 +    valid = embed_charges_valid
 +    IF (.NOT. valid) RETURN
++    IF (capacity.LT.n) THEN
++       valid = .FALSE.
++       RETURN
++    END IF
 +    DO i = 1, n
 +       charges(i) = embed_charges(i)
 +    END DO
