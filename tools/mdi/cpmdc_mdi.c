@@ -218,12 +218,16 @@ static int invert3(double m[3][3], double inv[3][3]) {
   return 0;
 }
 
-/* Shift x by the lattice vector that brings it nearest to ref. */
+/* Shift x by the lattice vector that brings it nearest to ref.
+ * nearbyint rounds each fractional coordinate on its own. That step
+ * assumes a restricted (lower-triangular) triclinic cell, one lattice
+ * vector per row. */
 static void nearest_image(double rows[3][3], double inv[3][3],
                           const double *ref, double *x) {
   double d[3], s[3];
   for (int k = 0; k < 3; k++)
     d[k] = x[k] - ref[k];
+  /* Minimum image for a restricted (lower-triangular) triclinic cell. */
   for (int a = 0; a < 3; a++)
     s[a] = nearbyint(d[0] * inv[0][a] + d[1] * inv[1][a] + d[2] * inv[2][a]);
   for (int k = 0; k < 3; k++)
