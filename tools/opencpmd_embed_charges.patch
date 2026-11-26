@@ -95,7 +95,7 @@ index 65b21b1..eaea7ab 100644
  
  CONTAINS
  
-@@ -70,6 +87,89 @@ CONTAINS
+@@ -70,6 +87,94 @@ CONTAINS
      valid = embed_dipole_valid
    END SUBROUTINE embed_get_dipole
  
@@ -190,7 +190,7 @@ index 65b21b1..eaea7ab 100644
    ! ==================================================================
    SUBROUTINE wfopts
      ! ==--------------------------------------------------------------==
-@@ -95,6 +195,8 @@ CONTAINS
+@@ -95,6 +200,8 @@ CONTAINS
  
      embed_dipole_valid = .FALSE.
      embed_dipole = 0.0_real_8
@@ -199,7 +199,7 @@ index 65b21b1..eaea7ab 100644
  
      nstate=crge%n
      ! Minimum requirements for all methods
-@@ -246,6 +348,7 @@ CONTAINS
+@@ -246,6 +353,7 @@ CONTAINS
         IF(ierr/=0) CALL stopgm(procedureN,'dipole deallocation problem',&
              __LINE__,__FILE__)
      ENDIF
