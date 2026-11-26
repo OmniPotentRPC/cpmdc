@@ -503,6 +503,38 @@ def test_markup_corruption_flags_dollar_math_and_environments(
             raise AssertionError(f"clean sample flagged: {sample!r} -> {hits}")
 
 
+def test_slash_separated_command_names_stay_separate_spans(
+    root: Path = ROOT,
+) -> None:
+    """Two command names with a slash between them stay two code spans.
+
+    One span around both names keeps the equals sign that used to close
+    the first name. A trailing slash inside one span, as in a directory,
+    stays in that span.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = "pipelined ~POSDATA~/~GETFORCE~; next ~build/~ and ~/path/to/x~."
+        rendered = generator.org_plaintext(sample)
+        required = ("`POSDATA`/`GETFORCE`", "`build/`", "`/path/to/x`")
+        for piece in required:
+            if piece not in rendered:
+                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
+        if "POSDATA=/GETFORCE" in rendered or "~POSDATA" in rendered:
+            raise AssertionError(f"command names kept a marker:\n{rendered}")
+        page = (
+            root / "docs" / "orgmode" / "howto" / "socket-drivers.org"
+        ).read_text(encoding="utf-8")
+        page_text = generator.org_plaintext(page)
+        if "`POSDATA`/`GETFORCE`" not in page_text or "POSDATA=/GETFORCE" in page_text:
+            raise AssertionError(f"socket-drivers page lost the split names:\n{page_text}")
+        full = (root / "llms-full.txt").read_text(encoding="utf-8")
+        if "POSDATA=/GETFORCE" in full or "`POSDATA`/`GETFORCE`" not in full:
+            raise AssertionError("llms-full.txt still joins POSDATA and GETFORCE")
+
+
 TESTS = (
     test_deterministic_generation,
     test_stale_failure_is_actionable,
@@ -516,6 +548,7 @@ TESTS = (
     test_org_plaintext_keeps_multiline_math_blocks,
     test_org_plaintext_keeps_literal_trailing_whitespace,
     test_markup_corruption_flags_dollar_math_and_environments,
+    test_slash_separated_command_names_stay_separate_spans,
 )
 
 

@@ -61,7 +61,8 @@ def page_title(org_path: Path) -> str:
 
 
 # Org emphasis borders, from org-element's default emphasis components:
-# pre is "-", whitespace, or ('"{ and post adds the closing punctuation.
+# pre is "-", "/", whitespace, or ('"{ and post adds "/" and the closing
+# punctuation. A slash can separate two code spans (~POSDATA~/~GETFORCE~).
 _LITERAL_BEGIN = re.compile(r"(?i)^#\+begin_(src|example|verse|export)\b")
 _LITERAL_END = re.compile(r"(?i)^#\+end_(src|example|verse|export)\b")
 # Dollar display math is included here. A line-wise scan leaves the closer
@@ -76,11 +77,11 @@ _MATH_TOKEN = re.compile(r"\x00M(\d+)\x00")
 
 
 def _is_emphasis_pre(char: str) -> bool:
-    return char.isspace() or char in "-('\"{"
+    return char.isspace() or char in "-/('\"{"
 
 
 def _is_emphasis_post(char: str) -> bool:
-    return char.isspace() or char in "-.,:;!?'\")}[]\\"
+    return char.isspace() or char in "-/.,:;!?'\")}[]\\"
 
 
 def _emphasis_end(line: str, start: int, marker: str) -> int | None:

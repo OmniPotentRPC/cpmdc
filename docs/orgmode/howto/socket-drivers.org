@@ -36,7 +36,7 @@ The three protocol and cell differences from the earlier audit are closed:
 
 | Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
 |------------+--------------+----------------------------------|
-| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined ~POSDATA=/GETFORCE~; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
+| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined ~POSDATA~/~GETFORCE~; rejects =batch_size > 1= | the same messages and pipeline; accepts =POSDATA= without =INIT= and rejects =batch_size > 1= |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
 | Cell | transpose i-PI columns to CPMD rows; zero cell preserves the deck cell; nonzero singular cell is rejected; inverse is read and ignored | transpose to rgpot rows; inverse ignored; =--preserve-open-cell= gives the same zero and singular behavior; without it rgpot pads either zero-volume case |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
