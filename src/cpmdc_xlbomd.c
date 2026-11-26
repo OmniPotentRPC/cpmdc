@@ -450,7 +450,8 @@ int xlbomd_store_import(XlStore *store, const void *bytes, size_t nbytes) {
       take_bytes(&p, &left, &version, sizeof(version)) != 0 ||
       take_bytes(&p, &left, &nslots, sizeof(nslots)) != 0)
     return -1;
-  if (magic != k_blob_magic || version != k_blob_version || nslots > (uint32_t)k_max_slots)
+  if (magic != k_blob_magic || version != k_blob_version ||
+      nslots > (uint32_t)k_max_slots)
     return -1;
   tmp = xlbomd_store_new();
   if (!tmp)

@@ -53,7 +53,8 @@ void xlbomd_store_clear_current(XlStore *store, int have_key, long long key,
 
 /* A copy onto the same key keeps the auxiliary samples. Any other
  * destination loses them. The source is left as it was. */
-void xlbomd_store_note_copy(XlStore *store, long long from_key, long long to_key);
+void xlbomd_store_note_copy(XlStore *store, long long from_key,
+                            long long to_key);
 
 /* Host-endian blob. Empty history writes *bytes NULL and *nbytes 0.
  * The caller frees a non-NULL buffer. Import replaces the store, and a

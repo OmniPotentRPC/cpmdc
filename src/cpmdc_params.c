@@ -2201,13 +2201,11 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   if ((sec->extrapolateWfnOptions.str &&
        sec->extrapolateWfnOptions.len > 0) ||
       sec->extrapolateWfnOrder > 0) {
-    int xl_kind =
-        xlbomd_classify(sec->extrapolateWfnOptions.str,
-                        sec->extrapolateWfnOptions.len,
-                        sec->extrapolateWfnOrder, NULL);
+    int xl_kind = xlbomd_classify(sec->extrapolateWfnOptions.str,
+                                  sec->extrapolateWfnOptions.len,
+                                  sec->extrapolateWfnOrder, NULL);
     if (xl_kind < 0) {
-      g_render_reason =
-          "EXTRAPOLATE WFN XLBOMD order must be 0 or 3 through 9";
+      g_render_reason = "EXTRAPOLATE WFN XLBOMD order must be 0 or 3 through 9";
       return -1;
     }
     if (xl_kind != CPMDC_WFN_EXTRAP_XLBOMD) {
@@ -2217,15 +2215,15 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
           sec->extrapolateWfnOptions.len > 0) {
         if (append_text(dst, dst_size, used, " ") != 0)
           return -1;
-        if (append_capn_text(dst, dst_size, used,
-                             sec->extrapolateWfnOptions) != 0)
+        if (append_capn_text(dst, dst_size, used, sec->extrapolateWfnOptions) !=
+            0)
           return -1;
       }
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
       if (sec->extrapolateWfnOrder > 0 &&
-          append_fmt(dst, dst_size, used, "  %d\n",
-                     sec->extrapolateWfnOrder) != 0)
+          append_fmt(dst, dst_size, used, "  %d\n", sec->extrapolateWfnOrder) !=
+              0)
         return -1;
     }
   }

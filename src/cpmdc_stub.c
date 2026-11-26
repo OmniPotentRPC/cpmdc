@@ -459,12 +459,13 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
   return -1;
 }
 
-int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out) {
+int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                          int *order_out) {
   return xlbomd_classify(text, len, order, order_out);
 }
 
-int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c,
-                              int c_len) {
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                              double *c, int c_len) {
   return xlbomd_coefficients(order, kappa, alpha, c, c_len);
 }
 

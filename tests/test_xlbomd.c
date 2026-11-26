@@ -13,10 +13,10 @@
 #include "cpmdc_restart.h"
 
 #include <math.h>
+#include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,9 +31,9 @@ static const char *g_bad_path;
 static const char *g_golden_path;
 
 static const double k_bohr0[9] = {
-    9.44863062391448, 9.44863062391448, 9.44863062391448,
+    9.44863062391448, 9.44863062391448,  9.44863062391448,
     9.44863062391448, 11.05489782997994, 8.40928125528389,
-    9.44863062391448, 7.84236341784902, 8.40928125528389};
+    9.44863062391448, 7.84236341784902,  8.40928125528389};
 
 static const double k_r0 = 1.8088;
 static const double k_theta0 = 104.52 * 3.14159265358979323846 / 180.0;
@@ -56,7 +56,8 @@ static const int k_paper_c[7][10] = {
     {-286, 858, -936, 364, 168, -300, 184, -63, 12, -1},
 };
 
-static const double k_paper_kappa[] = {1.69, 1.75, 1.82, 1.84, 1.86, 1.88, 1.89};
+static const double k_paper_kappa[] = {1.69, 1.75, 1.82, 1.84,
+                                       1.86, 1.88, 1.89};
 static const double k_paper_milli[] = {150.0, 57.0, 18.0, 5.5, 1.6, 0.44, 0.12};
 
 static int read_file(const char *path, unsigned char **buf, size_t *n) {
@@ -117,7 +118,8 @@ static void test_coefficients(void **state) {
     int row = order - 3;
     int k;
     int sum = 0;
-    assert_int_equal(cpmdc_xlbomd_coefficients(order, &kappa, &alpha, c, 10), 0);
+    assert_int_equal(cpmdc_xlbomd_coefficients(order, &kappa, &alpha, c, 10),
+                     0);
     assert_true(kappa == k_paper_kappa[row]);
     assert_true(alpha == k_paper_milli[row] * 1.0e-3);
     for (k = 0; k <= order; ++k) {
@@ -195,7 +197,8 @@ static void test_classify(void **state) {
                    CPMDC_WFN_EXTRAP_DECK);
   assert_int_equal(cpmdc_xlbomd_classify("POLY", 4, 3, &order),
                    CPMDC_WFN_EXTRAP_DECK);
-  assert_int_equal(cpmdc_xlbomd_classify("", 0, 4, &order), CPMDC_WFN_EXTRAP_DECK);
+  assert_int_equal(cpmdc_xlbomd_classify("", 0, 4, &order),
+                   CPMDC_WFN_EXTRAP_DECK);
   assert_int_equal(cpmdc_xlbomd_classify(NULL, 0, 0, &order),
                    CPMDC_WFN_EXTRAP_DECK);
   order = -1;
@@ -476,7 +479,8 @@ static double water_gradient(const double *r, double *grad) {
 static double mass_of(int atom) { return atom == 0 ? k_mass_o : k_mass_h; }
 
 /* Same linear mix the reference session uses for an XL-BOMD step. */
-static int mix_scf(const double *guess, const double *target, int n, double *out) {
+static int mix_scf(const double *guess, const double *target, int n,
+                   double *out) {
   int steps = 0;
   int i;
   memcpy(out, guess, (size_t)n * sizeof(*out));
@@ -695,7 +699,7 @@ static void test_water_scf(void **state) {
     assert_non_null(xl);
     for (step = 0; step < WATER_STEPS; ++step) {
       assert_int_equal(cpmdc_session_calculate_au(xl, 3, geom[step], z, NULL,
-                                                   &energy, forces, NULL),
+                                                  &energy, forces, NULL),
                        0);
       assert_int_equal(
           cpmdc_session_xlbomd_last(xl, &order, &steps, &propagated), 0);
@@ -795,13 +799,11 @@ static void test_session_calculate(void **state) {
   assert_non_null(session);
   for (step = 0; step < 7; ++step) {
     geometry(step, pos);
-    assert_int_equal(
-        cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
-                                   NULL),
-        0);
-    assert_int_equal(cpmdc_session_xlbomd_last(session, &order, &steps,
-                                               &propagated),
+    assert_int_equal(cpmdc_session_calculate_au(session, 3, pos, z, NULL,
+                                                &energy, forces, NULL),
                      0);
+    assert_int_equal(
+        cpmdc_session_xlbomd_last(session, &order, &steps, &propagated), 0);
     assert_int_equal(order, XL_ORDER);
     assert_true(steps > 0 && steps < 400);
     assert_int_equal(propagated, step < 6 ? 0 : 1);
@@ -812,10 +814,9 @@ static void test_session_calculate(void **state) {
   assert_non_null(blob);
   assert_true(blob_n > 0);
   geometry(6, pos);
-  assert_int_equal(
-      cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
-                                 NULL),
-      0);
+  assert_int_equal(cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy,
+                                              forces, NULL),
+                   0);
   assert_int_equal(
       cpmdc_session_xlbomd_last(session, &order, &steps, &propagated), 0);
   assert_int_equal(steps, held_steps);
@@ -827,10 +828,9 @@ static void test_session_calculate(void **state) {
   other = cpmdc_session_create(xl, xl_n);
   assert_non_null(other);
   geometry(7, pos);
-  assert_int_equal(
-      cpmdc_session_calculate_au(other, 3, pos, z, NULL, &cold_energy, forces,
-                                 NULL),
-      0);
+  assert_int_equal(cpmdc_session_calculate_au(other, 3, pos, z, NULL,
+                                              &cold_energy, forces, NULL),
+                   0);
   assert_int_equal(
       cpmdc_session_xlbomd_last(other, &order, &steps, &propagated), 0);
   assert_int_equal(propagated, 0);
@@ -852,20 +852,18 @@ static void test_session_calculate(void **state) {
   assert_non_null(restored);
   assert_int_equal(cpmdc_session_xlbomd_import(restored, got, got_n), 0);
   geometry(7, pos);
-  assert_int_equal(
-      cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy, forces,
-                                 NULL),
-      0);
+  assert_int_equal(cpmdc_session_calculate_au(session, 3, pos, z, NULL, &energy,
+                                              forces, NULL),
+                   0);
   assert_int_equal(
       cpmdc_session_xlbomd_last(session, &order, &steps, &propagated), 0);
   held_steps = steps;
   held_prop = propagated;
   assert_int_equal(propagated, 1);
   assert_true(energy == cold_energy);
-  assert_int_equal(
-      cpmdc_session_calculate_au(restored, 3, pos, z, NULL, &cold_energy,
-                                 forces, NULL),
-      0);
+  assert_int_equal(cpmdc_session_calculate_au(restored, 3, pos, z, NULL,
+                                              &cold_energy, forces, NULL),
+                   0);
   assert_int_equal(
       cpmdc_session_xlbomd_last(restored, &order, &steps, &propagated), 0);
   assert_int_equal(steps, held_steps);
@@ -896,8 +894,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_session_calculate),
   };
   if (argc != 5) {
-    fprintf(stderr,
-            "usage: test_xlbomd ASPC.bin XL.bin BAD.bin GOLDEN\n");
+    fprintf(stderr, "usage: test_xlbomd ASPC.bin XL.bin BAD.bin GOLDEN\n");
     return 2;
   }
   g_aspc_path = argv[1];

@@ -45,8 +45,8 @@ PREFIX = "cpmdc_"
 EXPORT_MACRO = "CPMDC_API"
 
 DECLARATION = re.compile(r"(?m)^(?!typedef\b)[A-Za-z_][\w\s*]*?\b(cpmdc_\w+)\s*\(")
-DOC_BEFORE = re.compile(r"/\*\*((?:(?!\*/).)*)\*/\s*$", re.S)
-SINCE = re.compile(r"[@\\]since\s+(?:ABI\s+)?(\d+)", re.I)
+DOC_BEFORE = re.compile(r"/\*\*((?:(?!\*/).)*)\*/\s*$", re.DOTALL)
+SINCE = re.compile(r"[@\\]since\s+(?:ABI\s+)?(\d+)", re.IGNORECASE)
 ABI_GENERATION = re.compile(r"(?m)^\s*#\s*define\s+CPMDC_ABI_VERSION\s+(\d+)\b")
 # Open MPI's mpif-sentinels.h, then MPICH's mpif.h. Every entry is a
 # wildcard pattern so ld64's -exported_symbols_list exports the blocks
@@ -75,7 +75,7 @@ def blank_comments(text: str) -> str:
     def spaces(match: re.Match[str]) -> str:
         return re.sub(r"[^\n]", " ", match.group(0))
 
-    text = re.sub(r"/\*.*?\*/|//[^\n]*", spaces, text, flags=re.S)
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", spaces, text, flags=re.DOTALL)
     return re.sub(r"(?m)^[ \t]*#(?:[^\n]*\\\n)*[^\n]*", spaces, text)
 
 
@@ -137,7 +137,7 @@ def wfn_enum_rows(root: Path) -> list[list[str]]:
     found: list[list[str]] = []
     pattern = re.compile(
         r"typedef\s+enum\s+CPMDCWfnExtrap\s*\{(.*?)\}\s*CPMDCWfnExtrap\s*;",
-        re.S,
+        re.DOTALL,
     )
     enumerator = re.compile(r"\b(CPMDC_[A-Z0-9_]+)\s*=\s*(-?\d+)")
     for relative in HEADERS:
@@ -148,7 +148,8 @@ def wfn_enum_rows(root: Path) -> list[list[str]]:
         header = Path(relative).name
         found.append(["CPMDCWfnExtrap", "enum", header, "-"])
         found.extend(
-            [name, "constant", header, value] for name, value in enumerator.findall(match.group(1))
+            [name, "constant", header, value]
+            for name, value in enumerator.findall(match.group(1))
         )
     return found
 
@@ -200,10 +201,14 @@ def build(root: Path, exported: set[str]) -> tuple[str, list[str]]:
     seen: set[str] = set()
     for d in declarations:
         if d.symbol in seen:
-            problems.append(f"declared more than once in the public headers: {d.symbol}")
+            problems.append(
+                f"declared more than once in the public headers: {d.symbol}"
+            )
         seen.add(d.symbol)
         if not d.marked:
-            problems.append(f"declared without {EXPORT_MACRO} in {d.header}: {d.symbol}")
+            problems.append(
+                f"declared without {EXPORT_MACRO} in {d.header}: {d.symbol}"
+            )
 
     exported_prefixed = {s for s in exported if s.startswith(PREFIX)}
     foreign = exported - exported_prefixed
@@ -220,7 +225,9 @@ def build(root: Path, exported: set[str]) -> tuple[str, list[str]]:
     mark = {True: "Y", False: "N"}
     public_rows = [
         [f"={d.symbol}=", d.header, d.since or "-", mark[d.symbol in exported]]
-        for d in sorted({d.symbol: d for d in declarations}.values(), key=lambda d: d.symbol)
+        for d in sorted(
+            {d.symbol: d for d in declarations}.values(), key=lambda d: d.symbol
+        )
     ]
 
     out = [
@@ -260,7 +267,10 @@ def main() -> int:
     mode.add_argument("--write", action="store_true", help="rewrite the inventory")
     mode.add_argument("--check", action="store_true", help="fail when it differs")
     mode.add_argument(
-        "--version-script", type=Path, metavar="OUT", help="write the ELF version script"
+        "--version-script",
+        type=Path,
+        metavar="OUT",
+        help="write the ELF version script",
     )
     mode.add_argument(
         "--exported-symbols-list",

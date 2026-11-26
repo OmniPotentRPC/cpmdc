@@ -2,12 +2,12 @@
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
 #include "cpmdc_adopt.h"
-#include "cpmdc_xlbomd.h"
 #include "cpmdc_cell_rank.h"
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
 #include "cpmdc_scf_report.h"
+#include "cpmdc_xlbomd.h"
 
 #ifndef CPMDC_VERSION_STRING
 #define CPMDC_VERSION_STRING "unknown"
@@ -2451,8 +2451,8 @@ static int xlbomd_reference_step(CPMDCSession *session, int n_atoms,
     cpmdc_store_error("EXTRAPOLATE WFN XLBOMD surrogate SCF did not converge");
     return -1;
   }
-  rc = xlbomd_store_observe(session->xl, session->xl_order, key, has_key,
-                            mixed, n, next);
+  rc = xlbomd_store_observe(session->xl, session->xl_order, key, has_key, mixed,
+                            n, next);
   free(target);
   free(mixed);
   free(next);
@@ -2578,8 +2578,9 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
     char why[512];
     if (xlbomd_reference_step(session, n_atoms, positions_ang) != 0) {
       snprintf(why, sizeof(why), "%s",
-               g_last_error[0] ? g_last_error
-                               : "EXTRAPOLATE WFN XLBOMD history update failed");
+               g_last_error[0]
+                   ? g_last_error
+                   : "EXTRAPOLATE WFN XLBOMD history update failed");
       return fail_image(image, why);
     }
   }
@@ -4253,12 +4254,13 @@ int cpmdc_available(void) {
 #endif
 }
 
-int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out) {
+int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                          int *order_out) {
   return xlbomd_classify(text, len, order, order_out);
 }
 
-int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c,
-                              int c_len) {
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                              double *c, int c_len) {
   return xlbomd_coefficients(order, kappa, alpha, c, c_len);
 }
 
