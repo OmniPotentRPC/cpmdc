@@ -44,6 +44,8 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_last_property_snapshot",
     "abi.cpmdc_session_last_gradient",
     "abi.cpmdc_session_last_dipole",
+    "abi.cpmdc_last_charges",
+    "abi.cpmdc_session_last_charges",
     "abi.cpmdc_session_last_stress",
     "abi.cpmdc_session_calculate_forces",
     "abi.cpmdc_session_calculate_result",

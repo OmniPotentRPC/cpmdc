@@ -1,0 +1,204 @@
+diff --git a/src/atomc_utils.mod.F90 b/src/atomc_utils.mod.F90
+index 323fe59..e89ed81 100644
+--- a/src/atomc_utils.mod.F90
++++ b/src/atomc_utils.mod.F90
+@@ -6,6 +6,7 @@ MODULE atomc_utils
+                                              atwr
+   USE cdftmod,                         ONLY: cdftmd
+   USE cnst,                            ONLY: fpi
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fitpack_utils,                   ONLY: curv1,&
+                                              curv2
+@@ -53,6 +54,7 @@ CONTAINS
+ 
+     INTEGER                                  :: ia, iat, ierr, is, ish, isub, &
+                                                 l, mmax
++    INTEGER, SAVE                            :: embed_seen = 0
+     INTEGER, SAVE                            :: ifirst = 0
+     REAL(real_8)                             :: chrg, rcut
+     REAL(real_8), ALLOCATABLE                :: arho(:), work(:)
+@@ -63,6 +65,13 @@ CONTAINS
+ ! ==--------------------------------------------------------------==
+ 
+     CALL tiset('     ATOMC',isub)
++    ! A host that tears the embed down changes the spline length. cpmd.x
++    ! leaves the counter at 0, so this reset does not run there.
++    IF (embed_seen.NE.embed_teardowns) THEN
++       IF (ALLOCATED(datom)) DEALLOCATE(datom)
++       ifirst=0
++       embed_seen=embed_teardowns
++    ENDIF
+     ! ..initialization
+     IF (ifirst.EQ.0) THEN
+        atwp%nattot=0
+diff --git a/src/wfopts_utils.mod.F90 b/src/wfopts_utils.mod.F90
+index 65b21b1..eaea7ab 100644
+--- a/src/wfopts_utils.mod.F90
++++ b/src/wfopts_utils.mod.F90
+@@ -1,5 +1,8 @@
+ MODULE wfopts_utils
+-  USE atwf,                            ONLY: atwp
++  USE atwf,                            ONLY: atwf_mod,&
++                                             atwp,&
++                                             m1shlx
++  USE atomc_utils,                     ONLY: atomc
+   USE bswfo_utils,                     ONLY: bs_wfo
+   USE cl_init_utils,                   ONLY: cl_init
+   USE clas,                            ONLY: tclas
+@@ -11,9 +14,14 @@ MODULE wfopts_utils
+   USE dipomod,                         ONLY: moment
+   USE do_perturbation_p_utils,         ONLY: do_perturbation
+   USE elct,                            ONLY: crge
++  USE ener,                            ONLY: chrg,&
++                                             chrg_t,&
++                                             ener_c,&
++                                             ener_com
+   USE error_handling,                  ONLY: stopgm
+   USE fnlalloc_utils,                  ONLY: fnlalloc,&
+                                              fnldealloc
++  USE forcep_utils,                    ONLY: rhoe_psi_size
+   USE ions,                            ONLY: ions1
+   USE isos,                            ONLY: isos1
+   USE kinds,                           ONLY: real_8
+@@ -28,6 +36,8 @@ MODULE wfopts_utils
+   USE prmem_utils,                     ONLY: prmem
+   USE prop,                            ONLY: prop1
+   USE pslo,                            ONLY: pslo_com
++  USE rhoofr_utils,                    ONLY: rhoofr
++  USE rnlsm_utils,                     ONLY: rnlsm
+   USE ropt,                            ONLY: ropt_mod
+   USE rwfopt_utils,                    ONLY: rwfopt
+   USE sfac,                            ONLY: eigr,&
+@@ -36,6 +46,7 @@ MODULE wfopts_utils
+   USE spin,                            ONLY: lspin2
+   USE system,                          ONLY: cnti,&
+                                              cntl,&
++                                             fpar,&
+                                              ncpw,&
+                                              nkpt
+   USE timer,                           ONLY: tihalt,&
+@@ -51,10 +62,16 @@ MODULE wfopts_utils
+   PUBLIC :: wfopts
+   PUBLIC :: embed_get_dipole
+   PUBLIC :: embed_set_dipole_snapshot
++  PUBLIC :: embed_get_charges
++  PUBLIC :: embed_set_charges_snapshot
+ 
+   LOGICAL, SAVE :: embed_dipole_enabled = .FALSE.
+   LOGICAL, SAVE :: embed_dipole_valid = .FALSE.
+   REAL(real_8), SAVE :: embed_dipole(3) = 0.0_real_8
++  LOGICAL, SAVE :: embed_charges_enabled = .FALSE.
++  LOGICAL, SAVE :: embed_charges_valid = .FALSE.
++  INTEGER, SAVE :: embed_charge_count = 0
++  REAL(real_8), ALLOCATABLE, SAVE :: embed_charges(:)
+ 
+ CONTAINS
+ 
+@@ -70,6 +87,89 @@ CONTAINS
+     valid = embed_dipole_valid
+   END SUBROUTINE embed_get_dipole
+ 
++  SUBROUTINE embed_set_charges_snapshot(flag)
++    LOGICAL, INTENT(IN) :: flag
++    embed_charges_enabled = flag
++  END SUBROUTINE embed_set_charges_snapshot
++
++  SUBROUTINE embed_get_charges(charges, n, valid)
++    REAL(real_8), INTENT(OUT) :: charges(*)
++    INTEGER, INTENT(OUT) :: n
++    LOGICAL, INTENT(OUT) :: valid
++    INTEGER :: i
++    n = embed_charge_count
++    valid = embed_charges_valid
++    IF (.NOT. valid) RETURN
++    DO i = 1, n
++       charges(i) = embed_charges(i)
++    END DO
++  END SUBROUTINE embed_get_charges
++
++  ! Hirshfeld charges q = Z_v - n from atomc, in species order.
++  ! proppt stops on k points before atomc, so that path stays invalid.
++  ! A second density build rewrites chrg and the kinetic terms, which
++  ! are restored. cpmd.x never sets the request.
++  SUBROUTINE embed_collect_charges(c0)
++    COMPLEX(real_8)                          :: c0(:,:,:)
++
++    INTEGER                                  :: ierr, il_psi_1d, il_psi_2d, &
++                                                il_rhoe_1d, il_rhoe_2d, is, n
++    REAL(real_8)                             :: saved_ekin, saved_ekin_a, &
++                                                saved_ekin_2, saved_ekin_ab
++    REAL(real_8), ALLOCATABLE                :: achrg(:), rbuff(:), rhoe(:,:)
++    COMPLEX(real_8), ALLOCATABLE             :: psi(:,:)
++    TYPE(chrg_t)                             :: saved_chrg
++
++    embed_charges_valid = .FALSE.
++    embed_charge_count = 0
++    IF (.NOT. embed_charges_enabled) RETURN
++    IF (.NOT. ropt_mod%convwf) RETURN
++    IF (tkpts%tkpnt) RETURN
++    IF (cntl%bsymm) RETURN
++    n = ions1%nat
++    IF (n.LT.1) RETURN
++    DO is = 1, ions1%nsp
++       IF (atwf_mod%nshell(is).LT.1 .OR. &
++            atwf_mod%nshell(is).GT.m1shlx) RETURN
++    END DO
++    saved_chrg = chrg
++    saved_ekin = ener_com%ekin
++    saved_ekin_a = ener_c%ekin_a
++    saved_ekin_2 = ener_c%ekin_2
++    saved_ekin_ab = ener_c%ekin_ab
++    CALL rhoe_psi_size(il_rhoe_1d=il_rhoe_1d, il_rhoe_2d=il_rhoe_2d, &
++         il_psi_1d=il_psi_1d, il_psi_2d=il_psi_2d)
++    IF (il_rhoe_1d.LT.1 .OR. il_rhoe_2d.LT.1 .OR. &
++         il_psi_1d.LT.1 .OR. il_psi_2d.LT.1 .OR. fpar%nnr1.LT.1) THEN
++       RETURN
++    END IF
++    ALLOCATE(rhoe(il_rhoe_1d,il_rhoe_2d), psi(il_psi_1d,il_psi_2d), &
++         achrg(n), rbuff(fpar%nnr1), STAT=ierr)
++    IF (ierr.NE.0) RETURN
++    IF (pslo_com%tivan) CALL rnlsm(c0(:,1:crge%n,1), crge%n, 1, 1, .FALSE.)
++    CALL rhoofr(c0(:,:,1), rhoe, psi(:,1), crge%n)
++    CALL atomc(rhoe(:,1), rbuff, tau0, achrg)
++    chrg = saved_chrg
++    ener_com%ekin = saved_ekin
++    ener_c%ekin_a = saved_ekin_a
++    ener_c%ekin_2 = saved_ekin_2
++    ener_c%ekin_ab = saved_ekin_ab
++    IF (ALLOCATED(embed_charges)) THEN
++       IF (SIZE(embed_charges).NE.n) DEALLOCATE(embed_charges)
++    END IF
++    IF (.NOT. ALLOCATED(embed_charges)) THEN
++       ALLOCATE(embed_charges(n), STAT=ierr)
++       IF (ierr.NE.0) THEN
++          DEALLOCATE(rhoe, psi, achrg, rbuff)
++          RETURN
++       END IF
++    END IF
++    embed_charges(1:n) = achrg(1:n)
++    embed_charge_count = n
++    embed_charges_valid = .TRUE.
++    DEALLOCATE(rhoe, psi, achrg, rbuff)
++  END SUBROUTINE embed_collect_charges
++
+   ! ==================================================================
+   SUBROUTINE wfopts
+     ! ==--------------------------------------------------------------==
+@@ -95,6 +195,8 @@ CONTAINS
+ 
+     embed_dipole_valid = .FALSE.
+     embed_dipole = 0.0_real_8
++    embed_charges_valid = .FALSE.
++    embed_charge_count = 0
+ 
+     nstate=crge%n
+     ! Minimum requirements for all methods
+@@ -246,6 +348,7 @@ CONTAINS
+        IF(ierr/=0) CALL stopgm(procedureN,'dipole deallocation problem',&
+             __LINE__,__FILE__)
+     ENDIF
++    IF (ALLOCATED(c0)) CALL embed_collect_charges(c0)
+     ! ==--------------------------------------------------------------==
+ 
+     DEALLOCATE(eigv,STAT=ierr)

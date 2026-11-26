@@ -9,7 +9,7 @@ part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 55 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 57 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -258,6 +258,9 @@ a call filled.
 | ~dipole[3]~ | ~CPMDCPropertySnapshot~ | molecular dipole in electron Bohr when OpenCPMD recomputed it for the current geometry; unavailable otherwise |
 | ~polarizability_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~polarizability~ |
 | ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | always zeros, in atomic units (Bohr^3), with ~polarizability_count~ 9: no build computes it |
+| ~charges_valid~ | ~CPMDCPropertySnapshot~ | ~int~, non-zero when this evaluation stored per-atom Hirshfeld charges |
+| ~charge_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~charges~ |
+| ~charges[1365]~ | ~CPMDCPropertySnapshot~ | Hirshfeld charges in the caller's atom order, electrons |
 | ~values[3]~ | ~CPMDCDipole~ | Cartesian molecular dipole, electron Bohr; see the periodic-cell caveat on the struct in ~cpmdc.h~ |
 | ~values[9]~ | ~CPMDCStressTensor~ | row-major ~[xx, xy, xz, yx, yy, yz, zx, zy, zz]~, Hartree/Bohr^3 |
 | ~ranks~ | ~CPMDCRankSpread~ | ~int~, ranks in the calculator communicator |
@@ -660,6 +663,7 @@ session has run.
 | ~int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)~ | ~int cpmdc_session_last_md_trajectory_row(const CPMDCSession *s, CPMDCMDTrajectoryRow *out)~ |
 | ~int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)~ | ~int cpmdc_session_last_property_snapshot(const CPMDCSession *s, CPMDCPropertySnapshot *out)~ |
 | ~int cpmdc_last_dipole(CPMDCDipole *out)~ | ~int cpmdc_session_last_dipole(const CPMDCSession *s, CPMDCDipole *out)~ |
+| ~int cpmdc_last_charges(double *charges, size_t length)~ | ~int cpmdc_session_last_charges(const CPMDCSession *session, double *charges, size_t length)~ |
 | ~int cpmdc_last_stress(CPMDCStressTensor *out)~ | ~int cpmdc_session_last_stress(const CPMDCSession *s, CPMDCStressTensor *out)~ |
 
 The gradient accessors take a caller buffer:
@@ -686,6 +690,24 @@ OpenCPMD's ~ddip%pdipole~ is not this molecular dipole: ~ddipo~ adds the ionic
 term to make ~pdipolt~, then multiplies by the cell volume to set ~moment%dmom~.
 Reading ~pdipole~ after ~wfopts~ without calling ~ddipo~ would return stale
 module state.
+
+The charge accessors copy Hirshfeld charges, ~q = Z_v - n~, in the caller's atom
+order and in units of e.
+OpenCPMD computes them in ~atomc~ after a converged Gamma-point SCF when the
+embed requested the snapshot and every species has a weight function, ~nshell~
+in 1 through 20.
+~proppt~ stops with k points not implemented before ~atomc~, so a k-point
+calculation leaves the charges invalid.
+Broken symmetry leaves them invalid too, as does a species whose ~nshell~ is
+outside that range.
+~CPMDC_CHARGE_SNAPSHOT=0~ skips the snapshot.
+The reference evaluator and the stub leave ~charges_valid~ zero.
+A call returns 0 only when the charges are valid and ~length~ is at least
+~charge_count~.
+Otherwise it returns -1 and does not write the buffer or ~cpmdc_last_error()~.
+The density build ~atomc~ needs rewrites the charge integrals and the kinetic
+energy, and the embed restores both, so the reported energy is the SCF result.
+~cpmd.x~ does not request the snapshot.
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and

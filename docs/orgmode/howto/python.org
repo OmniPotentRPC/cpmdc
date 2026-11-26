@@ -72,7 +72,7 @@ sources.
 ~forces_to_ev_per_angstrom~, ~stress_to_ev_per_angstrom3~, and
 ~dipole_to_e_angstrom~ apply them.
 ~Evaluation~ is the native result:
-~energy_h~, ~forces_h_bohr~, optional ~stress_h_bohr3~, and optional ~dipole_e_bohr~.
+~energy_h~, ~forces_h_bohr~, optional ~stress_h_bohr3~, optional ~dipole_e_bohr~, and optional ~charges_e~.
 A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The ~schema~ argument of ~Session~, ~Potential~, and ~CPMDCCalculator~ is
@@ -91,12 +91,20 @@ in eV/Angstrom, and ~stress~ as nine row-major eV/Angstrom^3 components when the
 library computed a tensor.
 It returns ~dipole~ as three e*Angstrom components only when OpenCPMD recomputed
 the molecular moment for that step.
+It returns ~charges~ as one value per atom, in electrons, only when OpenCPMD
+stored Hirshfeld charges for that step.
 ~Potential.caps~ returns ~stress=True~ and ~energies=False~.
 It returns ~dipole=True~ only when the evaluator can produce a dipole: never for
 the reference evaluator, never for a library without
 ~cpmdc_session_last_dipole~, and for OpenCPMD until an evaluation comes back
 without one, because a deck without ~DIPOLE DYNAMICS~ or
 ~PROP / DIPOLE MOMENT BERRY~ produces none.
+It returns ~charges=True~ only when the evaluator can store charges: never for
+the reference evaluator, never for a library without
+~cpmdc_session_last_charges~, and for OpenCPMD until an evaluation comes back
+without them.
+K points, broken symmetry, a species without a weight function, and
+~CPMDC_CHARGE_SNAPSHOT=0~ produce none.
 The call reads the session, so the dict is not a constant.
 The Berry-phase dipole exists only for a neutral periodic cell and only modulo
 the lattice quantum, so it can jump by a lattice vector between geometries.

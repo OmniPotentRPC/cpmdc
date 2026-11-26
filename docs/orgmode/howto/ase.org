@@ -72,13 +72,23 @@ so ~get_forces~ after ~get_potential_energy~ does not evaluate again:
 | ~forces~ | ~get_forces()~ | eV/Angstrom, shape ~(N, 3)~ | yes | yes |
 | ~stress~ | ~get_stress()~ | eV/Angstrom^3, Voigt ~(xx, yy, zz, yz, xz, xy)~ | raises ~PropertyNotImplementedError~ | yes, unless the deck is isolated or ~CPMDC_STRESS=0~ |
 | ~dipole~ | ~get_dipole_moment()~ | e*Angstrom, shape ~(3,)~ | raises ~PropertyNotImplementedError~ | yes for a supported deck that requests Berry dipole evaluation |
-| ~energies~, ~magmom~, ~magmoms~, ~charges~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
+| ~charges~ | ~get_charges()~ | electrons, shape ~(N,)~ | yes for a supported deck | yes for a supported deck |
+| ~energies~, ~magmom~, ~magmoms~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
 
 ~free_energy~ is the potential energy of the step, because the library does not
 separate an electronic entropy.
-The library returns no atomic energies, charges, or magnetic moments.
-~implemented_properties~ lists ~dipole~ because linked OpenCPMD can deliver it.
+The library returns no atomic energies or magnetic moments.
+~implemented_properties~ lists ~dipole~ and ~charges~ because linked OpenCPMD
+can deliver them.
 It raises ~PropertyNotImplementedError~ when the current step cannot.
+Hirshfeld charges are ~q = Z_v - n~, in the caller's atom order.
+OpenCPMD stores them after a converged Gamma-point SCF that is not broken
+symmetry and whose species have weight functions.
+A neutral molecule sums to the total charge up to the real-space partition
+residual, about 1.2e-3 e on the 50 Ry Hockney water deck.
+K points, broken symmetry, a missing weight function, the reference evaluator,
+and ~CPMDC_CHARGE_SNAPSHOT=0~ leave the charges unset.
+A later request for the same atoms does not evaluate again.
 
 A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
 deck with ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
@@ -433,7 +443,7 @@ says.
 |-----------+--------|
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
 | a keyword other than ~params~, ~library~, ~constant_cutoff~, and ASE's own; no ~params~ | ~TypeError~ |
-| stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
+| stress, dipole, or charges where the step has none; ~energies~ or ~magmoms~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | ~cpmdc.ase.UnsupportedAtoms~ |
 | a cell volume below the normal float64 range | ~cpmdc.ase.UnsupportedAtoms~ |
 | a step on a calculator without atoms | ~ValueError~ |
@@ -500,8 +510,8 @@ The file checks these points:
 
 | Question | ASE tool |
 |----------+----------|
-| ~implemented_properties~ lists energy, free energy, forces, stress, and dipole, and a stored step has ASE's shapes | ~calc.results~, ~ase.io.write~ and ~read~ of extended XYZ |
-| a property outside the list raises, without evaluating a step | ~PropertyNotImplementedError~, ~get_charges()~, ~get_magnetic_moment()~ |
+| ~implemented_properties~ lists energy, free energy, forces, stress, dipole, and charges, and a stored step has ASE's shapes | ~calc.results~, ~ase.io.write~ and ~read~ of extended XYZ |
+| a property outside the list raises, without evaluating a step, and charges raise when the step stored none, without a second evaluation | ~PropertyNotImplementedError~, ~get_magnetic_moment()~, ~get_charges()~ |
 | the stored step is reused and discarded as ASE expects | ~check_state~, ~system_changes~, ~calculation_required~, ~get_property(..., allow_calculation=False)~ |
 | a changed ~params~, ~library~, or ~constant_cutoff~ discards the stored step | ~set~, ~calculation_required~ |
 | later changes to the caller's ~Atoms~ leave the stored structure as it was | ~calc.atoms~, ~get_atoms~ |

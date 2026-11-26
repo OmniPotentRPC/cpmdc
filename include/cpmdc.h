@@ -176,6 +176,9 @@ typedef struct CPMDCMDTrajectoryRow {
  * - dipole[3]: OpenCPMD molecular dipole (electron Bohr) for the current
  *   geometry when `dipole_count == 3`
  * - polarizability[9]: always zeros, with count 9; no build computes it
+ * - charges[1365]: Hirshfeld charges in the caller's atom order, in units
+ *   of e, when `charges_valid` is non-zero. `charge_count` is the atom
+ *   count. The reference evaluator and the stub leave them unset.
  * - hessian[]: deprecated name of the nuclear gradient dE/dR packed as
  *   [n_atoms*3]. Use cpmdc_last_gradient() or
  *   cpmdc_session_last_gradient() instead. A full Hessian needs a dedicated
@@ -199,6 +202,17 @@ typedef struct CPMDCPropertySnapshot {
   size_t polarizability_count;
   /** Always zeros: no build computes the polarizability. */
   double polarizability[9];
+  /**
+   * Non-zero when per-atom Hirshfeld charges were stored for this
+   * evaluation. Zero for the reference evaluator, the stub, an
+   * unconverged SCF, k points, broken symmetry, a species without a
+   * weight function, and when `CPMDC_CHARGE_SNAPSHOT` is 0.
+   */
+  int charges_valid;
+  /** Number of doubles copied into `charges`. */
+  size_t charge_count;
+  /** Hirshfeld charges in the caller's atom order, in units of e. */
+  double charges[1365];
 } CPMDCPropertySnapshot;
 
 /**
@@ -1066,6 +1080,21 @@ CPMDC_API int cpmdc_last_dipole(CPMDCDipole *out);
 /** @brief Copy the last molecular dipole stored on @p session. */
 CPMDC_API int cpmdc_session_last_dipole(const CPMDCSession *session,
                                         CPMDCDipole *out);
+
+/**
+ * @brief Copy the Hirshfeld charges of the last evaluation.
+ *
+ * `length` is the number of doubles available in `charges`. On success
+ * the call writes `charge_count` values, in the caller's atom order, in
+ * units of e. Returns 0 only when the charges are valid and `length` is
+ * at least that count. Returns -1 otherwise, and does not write
+ * `charges` or `cpmdc_last_error()`.
+ */
+CPMDC_API int cpmdc_last_charges(double *charges, size_t length);
+
+/** @brief Copy the Hirshfeld charges stored on @p session. */
+CPMDC_API int cpmdc_session_last_charges(const CPMDCSession *session,
+                                         double *charges, size_t length);
 
 /**
  * @brief Copy the last stress tensor.

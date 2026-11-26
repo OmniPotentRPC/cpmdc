@@ -9,6 +9,7 @@
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
+| ~CPMDC_CHARGE_SNAPSHOT~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the Hirshfeld charge snapshot; any other value, or unset, requests it. ~cpmd.x~ never requests it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF on a matching basis; default 0.15, a negative value takes them at any distance, and beyond the limit the SCF starts from the deck's guess without full setup |
 | ~CPMDC_CELL_IN_PLACE~ | ~src/cpmdc_orbital_limit.c~, before each OpenCPMD evaluation or orbital copy | calculator rank 0's largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |

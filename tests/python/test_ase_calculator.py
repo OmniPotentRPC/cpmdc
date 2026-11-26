@@ -125,7 +125,14 @@ def cluster_variant(tmp_path_factory: pytest.TempPathFactory):
 
 def test_is_an_ase_calculator(calc, params):
     assert isinstance(calc, Calculator)
-    assert calc.implemented_properties == ["energy", "free_energy", "forces", "stress", "dipole"]
+    assert calc.implemented_properties == [
+        "energy",
+        "free_energy",
+        "forces",
+        "stress",
+        "dipole",
+        "charges",
+    ]
     assert calc.default_parameters == {"params": None, "library": None, "constant_cutoff": None}
     assert calc.parameters["params"] == str(params)
     assert calc.todict() == {"params": str(params)}
@@ -273,12 +280,22 @@ def test_caps_report_a_dipole_only_when_the_evaluator_can_make_one(
     # A deck without a dipole request produces none, and caps then says so.
     with Potential(periodic_params) as pot:
         pot.evaluate(WATER, [8, 1, 1], CUBE)
-        assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+        assert pot.caps() == {
+            "stress": True,
+            "dipole": False,
+            "charges": opencpmd,
+            "energies": False,
+        }
     if opencpmd:
         with Potential(dipole_params) as pot:
             assert pot.caps()["dipole"] is True
             assert "dipole" in pot.evaluate(WATER, [8, 1, 1], CUBE)
-            assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
+            assert pot.caps() == {
+                "stress": True,
+                "dipole": True,
+                "charges": True,
+                "energies": False,
+            }
 
 
 @pytest.mark.parametrize("periodic", [False, True])
@@ -492,7 +509,7 @@ def test_reset_clears_the_step_and_keeps_the_session(calc, calls, opencpmd):
     assert len(calls) == 2
 
 
-@pytest.mark.parametrize("name", ["energies", "magmom", "magmoms", "charges"])
+@pytest.mark.parametrize("name", ["energies", "magmom", "magmoms"])
 def test_unsupported_properties_raise(calc, name):
     atoms = water()
     atoms.calc = calc

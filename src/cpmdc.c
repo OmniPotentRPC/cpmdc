@@ -168,6 +168,10 @@ struct CPMDCSession {
   double *cached_positions_ang;
   int *cached_atomic_numbers;
   double *cached_grad_h_bohr;
+  /** Hirshfeld charges of that call, caller order, when valid. Owned. */
+  double *cached_charges_e;
+  int cached_charges_valid;
+  size_t cached_charge_count;
   size_t cached_n_atoms;
   double cached_energy_h;
   int cached_has_cell;
@@ -2592,9 +2596,13 @@ static void session_drop_cache(CPMDCSession *session) {
   free(session->cached_positions_ang);
   free(session->cached_atomic_numbers);
   free(session->cached_grad_h_bohr);
+  free(session->cached_charges_e);
   session->cached_positions_ang = NULL;
   session->cached_atomic_numbers = NULL;
   session->cached_grad_h_bohr = NULL;
+  session->cached_charges_e = NULL;
+  session->cached_charges_valid = 0;
+  session->cached_charge_count = 0;
   session->cached_n_atoms = 0;
   session->result_cached = 0;
 }
@@ -2610,18 +2618,22 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
     double *pos = (double *)malloc(n_atoms * 3u * sizeof(double));
     int *z = (int *)malloc(n_atoms * sizeof(int));
     double *g = (double *)malloc(n_atoms * 3u * sizeof(double));
-    if (!pos || !z || !g) {
+    double *q = (double *)malloc(n_atoms * sizeof(double));
+    if (!pos || !z || !g || !q) {
       free(pos);
       free(z);
       free(g);
+      free(q);
       return -1;
     }
     free(session->cached_positions_ang);
     free(session->cached_atomic_numbers);
     free(session->cached_grad_h_bohr);
+    free(session->cached_charges_e);
     session->cached_positions_ang = pos;
     session->cached_atomic_numbers = z;
     session->cached_grad_h_bohr = g;
+    session->cached_charges_e = q;
     session->cached_n_atoms = n_atoms;
   }
   memcpy(session->cached_positions_ang, positions_ang,
@@ -2629,6 +2641,16 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
   memcpy(session->cached_atomic_numbers, atomic_numbers,
          n_atoms * sizeof(int));
   memcpy(session->cached_grad_h_bohr, grad, n_atoms * 3u * sizeof(double));
+  if (session->image.prop.charges_valid &&
+      session->image.prop.charge_count == n_atoms && session->cached_charges_e) {
+    memcpy(session->cached_charges_e, session->image.prop.charges,
+           n_atoms * sizeof(double));
+    session->cached_charges_valid = 1;
+    session->cached_charge_count = n_atoms;
+  } else {
+    session->cached_charges_valid = 0;
+    session->cached_charge_count = 0;
+  }
   session->cached_energy_h = energy_h;
   session->cached_has_cell = has_cell;
   if (has_cell && cell_ang)
@@ -2641,12 +2663,13 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
 
 /* The stored gradient is copied into the caller's atom order. Two atoms
  * match when the element and the position agree within 1e-8 Angstrom. */
-static int session_copy_cached_gradient(const CPMDCSession *session,
-                                        size_t n_atoms, const double *positions,
+static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
+                                        const double *positions,
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
                                         double *grad) {
   unsigned char *used;
+  size_t *map;
   if (!session || !session->result_cached || !grad || !positions ||
       !atomic_numbers || session->cached_n_atoms != n_atoms)
     return 0;
@@ -2654,8 +2677,12 @@ static int session_copy_cached_gradient(const CPMDCSession *session,
                    cell_ang))
     return 0;
   used = (unsigned char *)calloc(n_atoms, 1);
-  if (!used)
+  map = (size_t *)malloc(n_atoms * sizeof(*map));
+  if (!used || !map) {
+    free(used);
+    free(map);
     return 0;
+  }
   for (size_t i = 0; i < n_atoms; ++i) {
     size_t found = n_atoms;
     for (size_t j = 0; j < n_atoms; ++j) {
@@ -2671,14 +2698,27 @@ static int session_copy_cached_gradient(const CPMDCSession *session,
     }
     if (found == n_atoms) {
       free(used);
+      free(map);
       return 0;
     }
     used[found] = 1;
+    map[i] = found;
     grad[3u * i] = session->cached_grad_h_bohr[3u * found];
     grad[3u * i + 1u] = session->cached_grad_h_bohr[3u * found + 1u];
     grad[3u * i + 2u] = session->cached_grad_h_bohr[3u * found + 2u];
   }
+  if (session->cached_charges_valid &&
+      session->cached_charge_count == n_atoms && session->cached_charges_e) {
+    for (size_t i = 0; i < n_atoms; ++i)
+      session->image.prop.charges[i] = session->cached_charges_e[map[i]];
+    session->image.prop.charges_valid = 1;
+    session->image.prop.charge_count = n_atoms;
+  } else {
+    session->image.prop.charges_valid = 0;
+    session->image.prop.charge_count = 0;
+  }
   free(used);
+  free(map);
   return 1;
 }
 
@@ -3869,6 +3909,29 @@ int cpmdc_last_dipole(CPMDCDipole *out) {
 
 int cpmdc_session_last_dipole(const CPMDCSession *session, CPMDCDipole *out) {
   return copy_dipole(session ? &session->image : NULL, out);
+}
+
+static int copy_charges(const CPMDCEmbedImage *image, double *charges,
+                        size_t length) {
+  size_t n;
+  size_t cap;
+  if (!image || !charges || !image->prop.charges_valid)
+    return -1;
+  n = image->prop.charge_count;
+  cap = sizeof(image->prop.charges) / sizeof(image->prop.charges[0]);
+  if (n == 0 || n > cap || length < n)
+    return -1;
+  memcpy(charges, image->prop.charges, n * sizeof(*charges));
+  return 0;
+}
+
+int cpmdc_last_charges(double *charges, size_t length) {
+  return copy_charges(active_image(), charges, length);
+}
+
+int cpmdc_session_last_charges(const CPMDCSession *session, double *charges,
+                               size_t length) {
+  return copy_charges(session ? &session->image : NULL, charges, length);
 }
 
 int cpmdc_last_stress(CPMDCStressTensor *out) {

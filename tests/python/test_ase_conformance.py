@@ -117,7 +117,10 @@ def test_a_cluster_returns_exactly_energy_free_energy_and_forces(calc):
     atoms = water()
     atoms.calc = calc
     atoms.get_potential_energy()
-    assert set(calc.results) == STEP
+    expected = set(STEP)
+    if "charges" in calc.results:
+        expected.add("charges")
+    assert set(calc.results) == expected
     for name in STEP:
         assert name in calc.implemented_properties
 
@@ -129,7 +132,10 @@ def test_a_periodic_step_returns_exactly_what_it_lists(periodic_calc):
         assert name in periodic_calc.implemented_properties
         assert periodic_calc.get_property(name, atoms) is not None
     assert set(periodic_calc.results) <= set(periodic_calc.implemented_properties)
-    assert set(periodic_calc.results) == STEP | {"stress"}
+    expected = STEP | {"stress"}
+    if "charges" in periodic_calc.results:
+        expected.add("charges")
+    assert set(periodic_calc.results) == expected
 
 
 def test_every_returned_value_has_the_ase_shape(periodic_calc):
@@ -145,7 +151,7 @@ def test_every_returned_value_has_the_ase_shape(periodic_calc):
     assert all(np.all(np.isfinite(value)) for value in results.values())
 
 
-@pytest.mark.parametrize("name", ["energies", "stresses", "charges", "magmom", "magmoms"])
+@pytest.mark.parametrize("name", ["energies", "stresses", "magmom", "magmoms"])
 def test_get_property_refuses_what_the_backend_does_not_return(calc, steps, name):
     atoms = water()
     atoms.calc = calc
@@ -159,14 +165,25 @@ def test_the_atoms_api_refuses_unsupported_properties(calc, steps):
     atoms = water()
     atoms.calc = calc
     with pytest.raises(PropertyNotImplementedError):
-        atoms.get_charges()
-    with pytest.raises(PropertyNotImplementedError):
         atoms.get_magnetic_moment()
     with pytest.raises(PropertyNotImplementedError):
         atoms.get_potential_energies()
     with pytest.raises(PropertyNotImplementedError):
         atoms.get_stresses()
     assert steps == []
+
+
+def test_charges_absent_from_a_step_are_refused_without_a_second_call(calc, steps, opencpmd):
+    if opencpmd:
+        pytest.skip("OpenCPMD stores Hirshfeld charges for this water deck")
+    atoms = water()
+    atoms.calc = calc
+    with pytest.raises(PropertyNotImplementedError, match="per-atom charges"):
+        atoms.get_charges()
+    with pytest.raises(PropertyNotImplementedError, match="per-atom charges"):
+        atoms.get_charges()
+    assert len(steps) == 1
+    assert "charges" not in calc.results
 
 
 def test_stress_on_free_boundaries_is_refused_not_invented(calc):
@@ -185,7 +202,10 @@ def test_extxyz_stores_only_what_the_calculator_returned(
     energy = cluster.get_potential_energy()
     write(tmp_path / "cluster.extxyz", cluster)
     back = read(tmp_path / "cluster.extxyz")
-    assert set(back.calc.results) == STEP
+    expected = set(STEP)
+    if "charges" in cluster.calc.results:
+        expected.add("charges")
+    assert set(back.calc.results) == expected
     assert back.get_potential_energy() == pytest.approx(energy, rel=1e-8)
 
     periodic = water(cell=TRICLINIC, pbc=True)
@@ -193,7 +213,10 @@ def test_extxyz_stores_only_what_the_calculator_returned(
     periodic.get_stress()
     write(tmp_path / "periodic.extxyz", periodic)
     back = read(tmp_path / "periodic.extxyz")
-    assert set(back.calc.results) == STEP | {"stress"}
+    expected = STEP | {"stress"}
+    if "charges" in periodic.calc.results:
+        expected.add("charges")
+    assert set(back.calc.results) == expected
     np.testing.assert_allclose(back.get_stress(), periodic.get_stress(), rtol=1e-6, atol=1e-12)
     np.testing.assert_allclose(back.get_forces(), periodic.get_forces(), rtol=1e-6, atol=1e-8)
 
@@ -336,7 +359,10 @@ def test_a_direct_step_replaces_every_stored_result(periodic_calc):
     assert "stress" in periodic_calc.results
     cluster = water()
     periodic_calc.calculate(cluster, ["energy"], ["cell", "pbc"])
-    assert set(periodic_calc.results) == STEP
+    expected = set(STEP)
+    if "charges" in periodic_calc.results:
+        expected.add("charges")
+    assert set(periodic_calc.results) == expected
     cluster.calc = periodic_calc
     with pytest.raises(PropertyNotImplementedError):
         cluster.get_stress()
@@ -354,7 +380,10 @@ def test_a_stress_returned_for_a_cluster_is_not_stored(calc, monkeypatch):
     atoms = water()
     atoms.calc = calc
     atoms.get_potential_energy()
-    assert set(calc.results) == STEP
+    expected = set(STEP)
+    if "charges" in calc.results:
+        expected.add("charges")
+    assert set(calc.results) == expected
     with pytest.raises(PropertyNotImplementedError, match="fully periodic"):
         atoms.get_stress()
 
@@ -514,7 +543,7 @@ def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd, col
     assert calc.results == {}
 
 
-@pytest.mark.parametrize("name", ["energy", "forces", "stress", "dipole"])
+@pytest.mark.parametrize("name", ["energy", "forces", "stress", "dipole", "charges"])
 def test_a_non_finite_value_from_the_library_is_a_calculation_failure(
     periodic_params, monkeypatch, name
 ):
@@ -523,6 +552,8 @@ def test_a_non_finite_value_from_the_library_is_a_calculation_failure(
         if name == "energy":
             done[name] = float("nan")
         elif name == "dipole":
+            done[name] = [0.1, float("nan"), -0.2]
+        elif name == "charges":
             done[name] = [0.1, float("nan"), -0.2]
         else:
             done[name] = [float("inf")] * 9
@@ -827,14 +858,23 @@ def test_unchanged_atoms_make_no_second_library_call(periodic_calc, steps):
     atoms.get_forces()
     atoms.get_stress()
     atoms.get_potential_energy(force_consistent=True)
-    # Dipole is implemented, and this deck does not produce one. Asking for
-    # it reports that without evaluating the step again.
-    stored = [name for name in periodic_calc.implemented_properties if name != "dipole"]
+    # Dipole is implemented, and this deck does not produce one. Charges
+    # are stored only when the library returned them. Asking for a missing
+    # one reports that without evaluating the step again.
+    missing = [
+        name
+        for name in ("dipole", "charges")
+        if name not in periodic_calc.results
+    ]
+    stored = [
+        name for name in periodic_calc.implemented_properties if name not in missing
+    ]
     for name in stored:
         assert periodic_calc.get_property(name, atoms) is not None
     assert not periodic_calc.calculation_required(atoms, stored)
-    with pytest.raises(PropertyNotImplementedError):
-        periodic_calc.get_property("dipole", atoms)
+    for name in missing:
+        with pytest.raises(PropertyNotImplementedError):
+            periodic_calc.get_property(name, atoms)
     assert len(steps) == 1
 
 
@@ -905,7 +945,7 @@ def test_get_property_without_calculation_returns_none_until_a_step(calc, steps,
     assert len(steps) == 1
 
 
-@pytest.mark.parametrize("name", ["energies", "stresses", "charges", "magmom", "magmoms"])
+@pytest.mark.parametrize("name", ["energies", "stresses", "magmom", "magmoms"])
 def test_an_unimplemented_property_raises_even_without_calculation(calc, steps, name):
     atoms = water()
     atoms.calc = calc
@@ -1254,7 +1294,10 @@ def test_sum_calculator_adds_two_calculators_and_calls_each_once(params, steps, 
         np.testing.assert_allclose(atoms.get_potential_energy(), 2.0 * energy, rtol=0, atol=tolerance)
         np.testing.assert_allclose(atoms.get_forces(), 2.0 * forces, rtol=0, atol=tolerance)
         assert len(steps) == 2
-        assert first.results.keys() == second.results.keys() == STEP
+        expected = set(STEP)
+        if "charges" in first.results:
+            expected.add("charges")
+        assert set(first.results) == set(second.results) == expected
     finally:
         first.close()
         second.close()
