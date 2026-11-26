@@ -173,11 +173,21 @@ def test_the_atoms_api_refuses_unsupported_properties(calc, steps):
     assert steps == []
 
 
-def test_charges_absent_from_a_step_are_refused_without_a_second_call(calc, steps, opencpmd):
-    if opencpmd:
-        pytest.skip("OpenCPMD stores Hirshfeld charges for this water deck")
+def test_charge_requests_do_not_evaluate_twice(calc, steps, opencpmd):
     atoms = water()
     atoms.calc = calc
+    if opencpmd:
+        # This 50 Ry Hockney deck leaves a real-space residual of about 1.2e-3 e.
+        charges = atoms.get_charges()
+        again = atoms.get_charges()
+        assert len(steps) == 1
+        assert charges.dtype == np.float64
+        assert charges.shape == (len(atoms),)
+        assert np.all(np.isfinite(charges))
+        assert abs(float(charges.sum())) < 2.0e-3
+        np.testing.assert_array_equal(again, charges)
+        assert "charges" in calc.results
+        return
     with pytest.raises(PropertyNotImplementedError, match="per-atom charges"):
         atoms.get_charges()
     with pytest.raises(PropertyNotImplementedError, match="per-atom charges"):
