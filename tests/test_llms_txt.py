@@ -529,36 +529,79 @@ def test_markup_corruption_flags_dollar_math_and_environments(
             raise AssertionError(f"clean sample flagged: {sample!r} -> {hits}")
 
 
-def test_slash_separated_command_names_stay_separate_spans(
-    root: Path = ROOT,
-) -> None:
-    """Two command names with a slash between them stay two code spans.
+def test_emphasis_borders_match_org(root: Path = ROOT) -> None:
+    """Prematch and postmatch match Org's emphasis components.
 
-    One span around both names keeps the equals sign that used to close
-    the first name. A trailing slash inside one span, as in a directory,
-    stays in that span.
+    A slash is neither, so a slash beside a marker stays inside that one
+    object. Two command names with a space on each side of the slash are
+    two objects. A closing bracket is not a postmatch.
     """
     with tempfile.TemporaryDirectory() as tmp:
         tree = Path(tmp) / "repo"
         _copy_generator_inputs(root, tree)
         generator = _load_generator_module(tree)
-        sample = "pipelined ~POSDATA~/~GETFORCE~; next ~build/~ and ~/path/to/x~."
-        rendered = generator.org_plaintext(sample)
-        required = ("`POSDATA`/`GETFORCE`", "`build/`", "`/path/to/x`")
-        for piece in required:
-            if piece not in rendered:
-                raise AssertionError(f"missing {piece!r} in:\n{rendered}")
-        if "POSDATA=/GETFORCE" in rendered or "~POSDATA" in rendered:
-            raise AssertionError(f"command names kept a marker:\n{rendered}")
+        pre_ok = ("-", " ", "\t", "(", "'", '"', "{")
+        pre_no = ("/", "]", ")", "}", "[", "\\", ".", ",", "a")
+        post_ok = (
+            "-",
+            " ",
+            "\t",
+            ".",
+            ",",
+            ":",
+            "!",
+            "?",
+            ";",
+            "'",
+            '"',
+            ")",
+            "}",
+            "\\",
+            "[",
+        )
+        post_no = ("/", "]", "(", "{", "a", "1")
+        for char in pre_ok:
+            if not generator._is_emphasis_pre(char):
+                raise AssertionError(f"{char!r} should be a prematch")
+        for char in pre_no:
+            if generator._is_emphasis_pre(char):
+                raise AssertionError(f"{char!r} is not an Org prematch")
+        for char in post_ok:
+            if not generator._is_emphasis_post(char):
+                raise AssertionError(f"{char!r} should be a postmatch")
+        for char in post_no:
+            if generator._is_emphasis_post(char):
+                raise AssertionError(f"{char!r} is not an Org postmatch")
+        one = generator.org_plaintext("next ~build/~ and ~/path/to/x~.")
+        if "`build/`" not in one or "`/path/to/x`" not in one:
+            raise AssertionError(f"slash inside a span was split:\n{one}")
+        glued = generator.org_plaintext("pipelined ~POSDATA~/~GETFORCE~;")
+        if glued != "pipelined `POSDATA~/~GETFORCE`;\n":
+            raise AssertionError(f"slash between markers was not one object:\n{glued}")
+        spaced = generator.org_plaintext("pipelined ~POSDATA~ / ~GETFORCE~;")
+        if "`POSDATA` / `GETFORCE`" not in spaced:
+            raise AssertionError(f"spaced names were not two spans:\n{spaced}")
         page = (
             root / "docs" / "orgmode" / "howto" / "socket-drivers.org"
         ).read_text(encoding="utf-8")
         page_text = generator.org_plaintext(page)
-        if "`POSDATA`/`GETFORCE`" not in page_text or "POSDATA=/GETFORCE" in page_text:
-            raise AssertionError(f"socket-drivers page lost the split names:\n{page_text}")
+        if "`POSDATA` / `GETFORCE`" not in page_text:
+            raise AssertionError(f"socket-drivers page lost the names:\n{page_text}")
+        if "POSDATA=/GETFORCE" in page_text or "`POSDATA`/`GETFORCE`" in page_text:
+            raise AssertionError(f"socket-drivers page still joins the names:\n{page_text}")
         full = (root / "llms-full.txt").read_text(encoding="utf-8")
-        if "POSDATA=/GETFORCE" in full or "`POSDATA`/`GETFORCE`" not in full:
-            raise AssertionError("llms-full.txt still joins POSDATA and GETFORCE")
+        protocol = [
+            line
+            for line in full.splitlines()
+            if "pipelined" in line and "GETFORCE" in line
+        ]
+        if len(protocol) != 1:
+            raise AssertionError(f"expected one protocol line, got {protocol!r}")
+        line = protocol[0]
+        if "`POSDATA` / `GETFORCE`" not in line:
+            raise AssertionError(f"llms-full.txt lost the spaced names:\n{line}")
+        if "~" in line or "POSDATA=/" in line or "`POSDATA`/`GETFORCE`" in line:
+            raise AssertionError(f"stray marker on the protocol line:\n{line}")
 
 
 TESTS = (
@@ -575,7 +618,7 @@ TESTS = (
     test_org_plaintext_keeps_literal_trailing_whitespace,
     test_org_plaintext_keeps_literal_whitespace_when_block_ends_page,
     test_markup_corruption_flags_dollar_math_and_environments,
-    test_slash_separated_command_names_stay_separate_spans,
+    test_emphasis_borders_match_org,
 )
 
 

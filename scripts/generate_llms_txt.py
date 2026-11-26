@@ -60,9 +60,9 @@ def page_title(org_path: Path) -> str:
     return org_path.stem.replace("-", " ").title()
 
 
-# Org emphasis borders, from org-element's default emphasis components:
-# pre is "-", "/", whitespace, or ('"{ and post adds "/" and the closing
-# punctuation. A slash can separate two code spans (~POSDATA~/~GETFORCE~).
+# Org emphasis borders, from Emacs org-emphasis-regexp-components:
+# pre "-[:space:]('\"{" and post "-[:space:].,:!?;'\")}\\[".
+# A slash is not a border. Beginning and end of line count as borders.
 _LITERAL_BEGIN = re.compile(r"(?i)^#\+begin_(src|example|verse|export)\b")
 _LITERAL_END = re.compile(r"(?i)^#\+end_(src|example|verse|export)\b")
 # Dollar display math is included here. A line-wise scan leaves the closer
@@ -77,33 +77,36 @@ _MATH_TOKEN = re.compile(r"\x00M(\d+)\x00")
 
 
 def _is_emphasis_pre(char: str) -> bool:
-    return char.isspace() or char in "-/('\"{"
+    return char.isspace() or char in "-('\"{"
 
 
 def _is_emphasis_post(char: str) -> bool:
-    return char.isspace() or char in "-/.,:;!?'\")}[]\\"
+    return char.isspace() or char in "-.,:;!?'\")}\\["
 
 
 def _emphasis_end(line: str, start: int, marker: str) -> int | None:
     """Closing index of an Org code or verbatim span, or None.
 
-    Only the next marker can close the span. A later marker would pull the
-    first marker into the body, which is how ``=1`` inside math gets spliced
-    into a following verbatim span.
+    The earliest marker with a valid postmatch closes the span. A slash
+    between markers is not a postmatch, so ``~POSDATA~/~GETFORCE~`` is one
+    object. A body that starts or ends with whitespace, or that holds a
+    shielded math token, does not close.
     """
     if start >= len(line) or line[start] != marker:
         return None
     if start > 0 and not _is_emphasis_pre(line[start - 1]):
         return None
-    end = line.find(marker, start + 1)
-    if end < 0:
-        return None
-    body = line[start + 1 : end]
-    if not body or body[0].isspace() or body[-1].isspace() or "\x00" in body:
-        return None
-    if end != len(line) - 1 and not _is_emphasis_post(line[end + 1]):
-        return None
-    return end
+    end = start
+    while True:
+        end = line.find(marker, end + 1)
+        if end < 0:
+            return None
+        body = line[start + 1 : end]
+        if not body or body[0].isspace() or body[-1].isspace() or "\x00" in body:
+            continue
+        if end != len(line) - 1 and not _is_emphasis_post(line[end + 1]):
+            continue
+        return end
 
 
 def _backslash_math_end(line: str, start: int) -> int | None:
