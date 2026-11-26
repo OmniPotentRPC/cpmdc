@@ -2316,6 +2316,8 @@ static int deck_or_cell_is_periodic(const char *deck, const double *cell_ang,
          cpmdc_cell_rank3_state(cell_ang) != CPMDC_CELL_ZERO;
 }
 
+static void session_drop_cache(CPMDCSession *session);
+
 /* Drop energy, gradient, stress, charges, and the other per-evaluation
  * snapshots. A failed attempt must not leave the previous step readable.
  * The warm cell and the method knobs stay. */
@@ -2325,11 +2327,14 @@ static void image_invalidate_results(CPMDCEmbedImage *image) {
   memset(image, 0, offsetof(CPMDCEmbedImage, warm_cell));
 }
 
+/* The cached step is the same result. Leaving it set makes the next
+ * identical call succeed from the cache and restore only the charges. */
 static void session_drop_results(CPMDCSession *session) {
   if (!session)
     return;
   session->external_forces_valid = 0;
   image_invalidate_results(&session->image);
+  session_drop_cache(session);
 }
 
 static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
@@ -2420,14 +2425,23 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
     return fail_image(image, detail);
   }
   /* CPMDC_TEST_FAULT=charge-snapshot records one charge per atom when the
-   * evaluator stored none. OpenCPMD keeps the charges it already wrote. */
-  if (test_fault("charge-snapshot") && !image->charges.valid && n_atoms > 0 &&
+   * evaluator stored none, and a dipole when none was recomputed.
+   * OpenCPMD keeps the charges and dipole it already wrote. */
+  if (test_fault("charge-snapshot") && n_atoms > 0 &&
       n_atoms <= CPMDC_EMBED_CHARGE_CAP) {
-    int atom;
-    for (atom = 0; atom < n_atoms; ++atom)
-      image->charges.values[atom] = 0.01 * (double)atomic_numbers[atom];
-    image->charges.count = (size_t)n_atoms;
-    image->charges.valid = 1;
+    if (!image->charges.valid) {
+      int atom;
+      for (atom = 0; atom < n_atoms; ++atom)
+        image->charges.values[atom] = 0.01 * (double)atomic_numbers[atom];
+      image->charges.count = (size_t)n_atoms;
+      image->charges.valid = 1;
+    }
+    if (image->prop.valid && image->prop.dipole_count != 3) {
+      image->prop.dipole[0] = 0.11;
+      image->prop.dipole[1] = -0.22;
+      image->prop.dipole[2] = 0.33;
+      image->prop.dipole_count = 3;
+    }
   }
   cpmdc_orbital_note_stored();
   r.ok = 1;
@@ -3326,9 +3340,9 @@ static CPMDCResult session_energy_gradient_cell(
       if (session_store_cache(session, (size_t)n_atoms, positions_ang,
                               atomic_numbers, grad_h_bohr, evaluated.energy_h,
                               cell_ang, has_cell) != 0)
-        session->result_cached = 0;
+        session_drop_cache(session);
     } else {
-      session->result_cached = 0;
+      session_drop_cache(session);
     }
     return evaluated;
   }
