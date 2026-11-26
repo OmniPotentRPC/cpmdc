@@ -796,10 +796,13 @@ def test_ase_accepts_the_dipole_extra() -> None:
             atoms.calc = calc
             assert atoms.get_potential_energy() == pytest.approx(-ase.units.Ha, rel=1e-12)
             assert not atoms.get_forces().any()
+            extra = calc.results["morebytes"].tobytes()
     finally:
         worker.join(TIMEOUT)
     assert not worker.is_alive()
     assert served == [1]
+    assert extra != b""
+    assert json.loads(extra) == {"dipole": DIPOLE_E_BOHR}
 
 
 _POSITIONS_BOHR = [coord / BOHR_TO_ANGSTROM for row in WATER for coord in row]
