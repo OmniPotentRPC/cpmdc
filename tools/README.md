@@ -20,6 +20,7 @@ source tree before recompiling the affected objects into `libcpmd.a` and linking
 | `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
 | `opencpmd_constant_cutoff_precon.patch` | Add the `CONSTANT CUTOFF` penalty `A [1 + erf((G^2 - E0) / sigma)]` to the kinetic diagonal of the ODIIS preconditioner in `hesele`, which `kin_energy` and `vpsi` already apply. Without it ODIIS stops at its step limit on a constant-cutoff deck and the PCG fallback is about six times slower. A deck without `CONSTANT CUTOFF` is unchanged. Optional; rebuild with `rebuild_opencpmd_constant_cutoff.sh` |
 | `opencpmd_atomwf_kpts_ortho.patch` | Fix k-point atomic wavefunction initialization (`atomwf` and `gs_ortho_c`) when `nstate > atwp%nattot`. `gs_ortho_c` passed `2*np*n0` to `mp_sum` on a `COMPLEX(real_8)` array (`MPI_DOUBLE_COMPLEX`), reading and overwriting twice the overlap matrix size. `atomwf` also passed `zmatat(atwp%nattot, atwp%nattot)` instead of sizing the scratch array to `(nleft, MAX(atwp%nattot, nleft))` and passed a rank-1 slice `c0(:, atwp%nattot+1, ikind)` in the `tlsd2` spin-up call |
+| `opencpmd_external_charges.patch` | Add an optional density-force hook to `efld`/`eextern`. cpmdc installs it only while Gaussian external charges are active, so the converged density supplies equal-and-opposite MM forces; `cpmd.x` leaves the hook null |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt`
@@ -59,6 +60,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_constant_cutoff_precon.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_atomwf_kpts_ortho.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_external_charges.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
