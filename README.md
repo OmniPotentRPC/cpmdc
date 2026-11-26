@@ -24,7 +24,7 @@ Use this repository when you need to:
 | Need | Do this first |
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then follow [Embedding cpmdc](docs/orgmode/howto/embedding.org) and read the matching call contract in the [C ABI reference](docs/orgmode/reference/c-abi.org) |
-| Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
+| Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, attach `cpmdc.lammps.FixExternal`, or run `cpmdc-mdi` for `fix mdi/qm`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
 | Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org), or [Call cpmdc from Python](docs/orgmode/howto/python.org) without ASE |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Find the line in the [CPMD option mapping](docs/orgmode/reference/cpmd-options.org), as [Map a CPMD Input Line](#map-a-cpmd-input-line) describes |
@@ -88,6 +88,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `tools/lammps/` | `cpmdcplugin.so`, the LAMMPS plugin with `pair_style cpmdc` |
+| `tools/mdi/` | `cpmdc-mdi`, the MDI engine for LAMMPS `fix mdi/qm` |
 | `python/cpmdc/` | the Python package: `Session`, the ASE calculator, compatibility-fallback i-PI driver, `cpmdc.lammps`, and `cpmdc.gromacs` |
 | `tools/gromacs/` | `libcpmdc_gromacs`, cpmdc behind the libcp2k API of GROMACS' QM/MM interface, and its `libcp2k.pc` |
 | `bench/lammps_routes.py` | per-step overhead of the LAMMPS and i-PI routes |
@@ -113,7 +114,7 @@ Those files are not committed.
 | Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
 | Remote potential call | rgpot's Cap'n Proto RPC over `CPMDPot` |
 | Optional i-PI protocol | `rgpot-ipi-driver` over `CPMDPot` when the rgpot build has the RPC stack (`--pot "CPMD params FILE"` or `-m CPMD -o params=FILE`, with `--preserve-open-cell`); `cpmdc-ipi` and `cpmdc-ipi-c` remain compatibility fallbacks ([i-PI drivers](docs/orgmode/howto/socket-drivers.org)) |
-| LAMMPS integrating on cpmdc forces | `pair_style cpmdc` or `cpmdc.lammps.FixExternal`, both on `cpmdc_session_calculate_au` |
+| LAMMPS integrating on cpmdc forces | `pair_style cpmdc`, `cpmdc.lammps.FixExternal`, or `cpmdc-mdi` for `fix mdi/qm`, all on `cpmdc_session_calculate_au` |
 | GROMACS integrating on cpmdc forces, QM group or whole system | `libcpmdc_gromacs` linked as libcp2k (`-DGMX_CP2K=ON`), on `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
 | Native C compatibility call | `cpmdc_energy_forces` |

@@ -651,6 +651,22 @@ if cc.has_header('sys/un.h')
     install_rpath: install_exe_rpath,
   )
 endif
+# Stand-alone MDI engine for LAMMPS fix mdi/qm. The command state is
+# tools/mdi/cpmdc_mdi.c and is tested without libmdi.
+mdi_dep = dependency('mdi', required: get_option('with_mdi'))
+cpmdc_mdi_exe = disabler()
+if mdi_dep.found()
+  cpmdc_mdi_exe = executable(
+    'cpmdc-mdi',
+    ['tools/mdi/cpmdc_mdi_main.c', 'tools/mdi/cpmdc_mdi.c'],
+    link_with: cpmdc_shared,
+    include_directories: include_directories('include', 'tools/mdi'),
+    dependencies: [mdi_dep, math_dep],
+    c_args: common_c_args,
+    install: not get_option('with_python'),
+    install_rpath: install_exe_rpath,
+  )
+endif
 # pair_style cpmdc, a LAMMPS plugin and another consumer of the public header
 # only. It is compiled against the headers of the LAMMPS that loads it.
 cpmdc_lammps_plugin = disabler()
@@ -1740,6 +1756,20 @@ if get_option('with_tests')
     depends: [water_params_bin, water_periodic_params_bin],
     suite: ['abi', 'e2e', 'cmocka'],
     timeout: has_sanitize or has_cpmd ? 900 : 300,
+  )
+  test(
+    'mdi-qm',
+    executable(
+      'test_mdi_qm',
+      ['tests/test_mdi_qm.c', 'tools/mdi/cpmdc_mdi.c'],
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc, include_directories('tools/mdi')],
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path(), water_periodic_params_bin.full_path()],
+    depends: [water_params_bin, water_periodic_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_sanitize or has_cpmd ? 300 : 60,
   )
 
   fd_check_exe = executable(

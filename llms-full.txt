@@ -1161,6 +1161,10 @@ box (`metal`, NVE) through each route and reports the median wall time per step
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
 the same SCF time to every route.
+`cpmdc-mdi` is not in the table.
+It is a separate process on MDI, so a step also pays for the socket or MPI
+exchange.
+The command sequence and the stress sign are in the LAMMPS interface reference (file:../reference/lammps.org).
 
 python bench/lammps_routes.py --build build --steps 2000 --repeats 7
 
@@ -3940,16 +3944,19 @@ The published site is cpmdc.rgoswami.me (https://cpmdc.rgoswami.me).
 
 ## File: docs/orgmode/howto/lammps.org
 
-LAMMPS can take its energy, forces, and virial from cpmdc in process, so its
-integrators, thermostats, barostats, minimizers, and output run on a cpmdc
-potential energy surface.
-Two routes call `cpmdc_session_calculate_au()` of the C ABI (file:../reference/c-abi.org)
-once per force evaluation; both pass the same numbers to LAMMPS.
+LAMMPS can take its energy, forces, and virial from cpmdc in process, or from a
+separate cpmdc process, so its integrators, thermostats, barostats, minimizers,
+and output run on a cpmdc potential energy surface.
+The in-process routes and `cpmdc-mdi` call `cpmdc_session_calculate_au()` of the C ABI (file:../reference/c-abi.org)
+once per force evaluation.
+The in-process routes pass LAMMPS units.
+`cpmdc-mdi` passes atomic units, and LAMMPS converts those.
 
 | Route | LAMMPS side | Needs |
 |-------+-------------+-------|
 | `cpmdc.lammps.FixExternal` | rgpot's generic `fix external pf/callback` frontend | `rgpot`, the `lammps` Python module (`pip install lammps` works), `mpi4py` for more than one rank |
 | `pair_style cpmdc` | a LAMMPS plugin, `cpmdcplugin.so`, loaded with `plugin load` | LAMMPS with the `PLUGIN` package and the headers it was built from; no Python |
+| `cpmdc-mdi` | `fix mdi/qm` in the MDI package, LAMMPS as the driver | the MDI library when the engine is built; LAMMPS built with `PKG_MDI` |
 | i-PI sockets | `fix ipi`, a client of an i-PI server | i-PI and `cpmdc-ipi`; see the socket drivers (file:socket-drivers.org) |
 
 The plugin suits LAMMPS input scripts run by `lmp` and has the least overhead
@@ -3965,7 +3972,7 @@ The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.
 
 The LAMMPS interface reference (file:../reference/lammps.org) gives the unit
-styles, the cell, and the virial both routes use.
+styles, the cell, and the virial the routes use.
 
 # From Python with fix external
 Define the box, the atoms, and the masses as usual, without a pair style for the
@@ -4052,6 +4059,40 @@ MPICH-compatible `libmpi.so.12`.
 The plugin links only `libcpmdc`'s public C ABI.
 LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary built
 against its headers.
+
+# From a separate process with fix mdi/qm
+`cpmdc-mdi` answers the MDI commands
+`fix mdi/qm` sends (fix mdi/qm (https://docs.lammps.org/fix_mdi_qm.html)).
+Meson builds the executable when pkg-config finds `mdi` (`-Dwith_mdi=auto`).
+`-Dwith_mdi=enabled` refuses to configure when that library is absent.
+The command test `mdi-qm` does not need it.
+The executable takes one `CPMDParams` message.
+Run one engine process.
+LAMMPS may use several ranks: `fix mdi/qm` gathers the atoms before it sends
+them.
+`elements` makes LAMMPS send atomic numbers with `>ELEMENTS`.
+`virial yes` requests `<STRESS`, which an NPT run needs.
+`atom_modify map yes` is required by the fix.
+This engine does not answer `fix mdi/qmmm`.
+GROMACS is unchanged: `libcpmdc_gromacs` still serves the CP2K
+QM/MM interface, and MiMiC stays out for the reasons in cpmdc inside MD engines (file:../explanation/md-engines.org).
+
+# engine, one process
+cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -port 8021"
+
+# in.mdi
+units           metal
+atom_style      atomic
+atom_modify     map yes
+boundary        p p p
+read_data       water.data
+fix             qm all mdi/qm virial yes elements O H
+timestep        0.00025
+fix             nve all nve
+run             100
+
+Launch the driver on the same port:
+`lmp -mdi "-role DRIVER -name LAMMPS -method TCP -port 8021" -in in.mdi`.
 
 # Several MPI ranks
 Under `mpirun` LAMMPS spreads the atoms over its ranks, and cpmdc still
@@ -6010,7 +6051,7 @@ composition requires a new session.
      - Run ``rgpot-ipi-driver`` over ``CPMDPot`` when the rgpot build has the RPC stack (``--pot "CPMD params FILE"`` or ``-m CPMD -o params=FILE``, with ``--preserve-open-cell``); ``cpmdc-ipi`` and ``cpmdc-ipi-c`` remain compatibility fallbacks
      - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
    * - Run LAMMPS on cpmdc forces
-     - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
+     - Attach ``cpmdc.lammps.FixExternal`` from Python, load ``pair_style cpmdc`` from the plugin, or run ``cpmdc-mdi`` under ``fix mdi/qm``
      - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
    * - Run GROMACS on cpmdc forces
      - Link ``libcpmdc_gromacs`` into GROMACS' CP2K QM/MM interface, for a QM group or the whole system
@@ -6199,13 +6240,14 @@ Pass one as `-DNAME=VALUE` to `meson setup`.
 | `with_cpmd` | boolean | `false` | link OpenCPMD instead of the reference evaluator; takes effect only with a non-empty `cpmd_root` |
 | `cpmd_root` | string | empty | OpenCPMD build tree holding `lib/libcpmd.a`, `obj/`, and `src/` |
 | `with_mpi` | feature | `auto` | link MPI into the default library; `disabled` keeps it serial. `with_cpmd` always needs MPI |
-| `with_python` | boolean | `false` | install `python/cpmdc`, its schema, and an unversioned `libcpmdc` for a wheel; `pyproject.toml` sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of `cpmdc-ipi-c` |
+| `with_python` | boolean | `false` | install `python/cpmdc`, its schema, and an unversioned `libcpmdc` for a wheel; `pyproject.toml` sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of `cpmdc-ipi-c` and `cpmdc-mdi` |
 | `with_readcon` | boolean | `false` | link `readcon-core` (Rust) for `cpmdc-restart export-con` and `import-con` |
 | `with_pwscale` | boolean | `false` | build the plane-wave scaling scaffold (reference (file:pwscale.org), rank how-to (file:../howto/pwscale-ranks.org)); it is not on the force path |
 | `with_pwscale_cuda` | boolean | `false` | compile the CUDA backend of that scaffold |
 | `with_lammps_plugin` | feature | `auto` | build `cpmdcplugin.so`, the LAMMPS `pair_style cpmdc`; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see the LAMMPS how-to (file:../howto/lammps.org)) |
 | `lammps_include` | string | empty | directory holding `lammps.h` and `pair.h`; empty takes `include/lammps` of an importable `lammps` Python package |
 | `with_gromacs_shim` | feature | `auto` | build `libcpmdc_gromacs` and `libcp2k.pc` for the GROMACS QM/MM interface (see the GROMACS how-to (file:../howto/gromacs.org)) |
+| `with_mdi` | feature | `auto` | build `cpmdc-mdi`, the MDI engine for LAMMPS `fix mdi/qm`; needs the MDI library. The `mdi-qm` test does not (see the LAMMPS how-to (file:../howto/lammps.org)) |
 
 Meson takes the project version from `version.txt`.
 `pyproject.toml` leaves the Python package version dynamic and takes it from
@@ -6244,6 +6286,7 @@ linked image, but wildcard entries match only symbols that are present.
 | `cpmdc-ipi-c` | `bin/cpmdc-ipi-c` | the platform has `sys/un.h` and `with_python` is off |
 | `cpmdcplugin.so` | `lib/cpmdc/cpmdcplugin.so` | `with_lammps_plugin` is not disabled, `with_python` is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
 | `libcpmdc_gromacs` | `lib/libcpmdc_gromacs.so`, `include/cpmdc/gromacs/libcp2k.h`, `lib/cpmdc/gromacs/pkgconfig/libcp2k.pc` | `with_gromacs_shim` is not disabled and `with_python` is off |
+| `cpmdc-mdi` | `bin/cpmdc-mdi` | `with_mdi` is not disabled, pkg-config finds `mdi`, and `with_python` is off |
 
 `MAJOR` is the soversion, the first field of `version.txt`.
 A `with_python` build sets no soversion, because a wheel stores no symlinks.
@@ -11871,14 +11914,15 @@ reason.
 
 ## File: docs/orgmode/reference/lammps.org
 
-Both routes of Run LAMMPS on cpmdc forces (file:../howto/lammps.org),
+The in-process routes of Run LAMMPS on cpmdc forces (file:../howto/lammps.org),
 `cpmdc.lammps.FixExternal` and `pair_style cpmdc`, pass the same numbers to
 LAMMPS.
 The Python class adapts `cpmdc.Session` to the standard rgpot Python potential
 protocol and delegates its LAMMPS mechanics to `rgpot.lammps.FixExternal`.
 The plugin remains cpmdc's compiled, LAMMPS-specific route.
-This page gives their units, the cell and positions they send, and the virial
-they return.
+`cpmdc-mdi` is the separate MDI engine for `fix mdi/qm`.
+Its wire units and stress are under MDI engine (*MDI engine).
+This page gives the units, the cell and positions, and the virial.
 
 # Units
 cpmdc works in Bohr and Hartree.
@@ -11953,14 +11997,16 @@ every MM atom leaves no stale charge in the session.
 # Virial and pressure
 cpmdc returns the virial `W = -dE/d(strain)` in Hartree.
 LAMMPS' global virial of a pair style or of `fix_modify virial yes` has the same
-sign and units of energy, `W = sum r f` for a pair potential, so both routes
-pass `W` times the energy factor, symmetrized, as `xx yy zz xy xz yz`.
+sign and units of energy, `W = sum r f` for a pair potential, so both in-process
+routes pass `W` times the energy factor, symmetrized, as `xx yy zz xy xz yz`.
 The pressure LAMMPS prints is then `P = (sum m v v + W) / V` in its pressure
 units; a compressed cell has a positive diagonal of `W` and a positive pressure.
 `fix npt` and `fix nph` use it as they use any pair virial.
 `compute ID all pressure NULL virial` reports the virial part alone, `W / V` in
 pressure units.
 LAMMPS accepts only the group `all` for that compute.
+The MDI engine does not send this extensive virial.
+It sends the intensive stress, as MDI engine (*MDI engine) describes.
 
 # The Python session adapter
 `cpmdc.lammps.FixExternal` hands `rgpot.lammps.FixExternal` a small potential
@@ -12018,6 +12064,59 @@ before the first evaluation.
 values, so `compute pe/atom` and `compute stress/atom` take nothing from it.
 Per-atom forces work with every compute, for example
 `compute ID group-ID property/atom fx fy fz`.
+
+# MDI engine
+`cpmdc-mdi` is the engine LAMMPS
+`fix mdi/qm` drives (fix mdi/qm (https://docs.lammps.org/fix_mdi_qm.html), Using LAMMPS with the MDI library (https://docs.lammps.org/Howto_mdi.html)).
+LAMMPS integrates.
+The engine is one separate process, not a plugin, and it does not answer
+`fix mdi/qmmm`.
+Build it with the MDI library, as Run LAMMPS on cpmdc forces (file:../howto/lammps.org)
+shows.
+The `mdi-qm` test checks this contract on the reference evaluator and does not
+link libmdi.
+
+MDI length is the Bohr and MDI energy is the Hartree.
+For `metal` and `real`, LAMMPS converts with `MDI_Conversion_factor` before it
+sends coordinates and after it receives energy, forces, and stress.
+The engine does not apply the CODATA 2018 factors of the in-process routes.
+The MDI library's factors differ from those in the ninth significant figure, so
+a `metal` energy from this route is not bit-identical to `FixExternal`.
+
+`fix mdi/qm` sends, on `@DEFAULT`:
+
+| Command | When | Contents |
+|---------+------+----------|
+| `>NATOMS` | a new system, including the first step | one int, the atom count. Drops the previous cell, origin, species, and coordinates |
+| `>CELL_DISPL` | fully periodic, and the engine registers the command | box origin, Bohr, three doubles |
+| `>CELL` | fully periodic | nine Bohr components, one lattice vector per row: , ,  |
+| `>ELEMENTS` | the `elements` keyword | one atomic number per atom, ascending LAMMPS atom ID |
+| `>TYPES` | no `elements` keyword | accepted as atomic numbers, so the LAMMPS types must already be atomic numbers |
+| `>COORDS` | every evaluation | `3N` Bohr coordinates, absolute Cartesian, unwrapped with the image flags |
+| `<PE`, `<ENERGY` | every evaluation | cpmdc total energy, Hartree |
+| `<KE_ELEC` | every evaluation, because the engine registers it | 0. The electronic kinetic energy is already inside `<PE`. LAMMPS adds `<PE` and `<KE_ELEC` and does not also read `<ENERGY` when both exist |
+| `<FORCES` | every evaluation | Hartree/Bohr, `-dE/dR`, in `>COORDS` order |
+| `<STRESS` | `virial yes` | nine Hartree/Bohr^3 components, row-major `xx xy xz yx yy yz zx zy zz` |
+
+The engine subtracts
+`>CELL_DISPL` from `>COORDS` before `cpmdc_session_calculate_au()`, so the
+positions sit in a cell whose origin is zero.
+A step that never received `>CELL` since the last `>NATOMS` is a cluster: the
+session is called with no cell.
+One evaluation serves `<PE`, `<ENERGY`, `<FORCES`, and `<STRESS` until the next
+`>` command.
+
+`<STRESS` is `cpmdc_session_last_stress()`, `-dE/d(strain) / V`, positive under
+compression.
+LAMMPS reads indexes 0, 4, and 8 as `xx yy zz` and the pairs , ,
+and  as the symmetrized `xy xz yz`, multiplies by the box volume in its
+length unit, and stores that extensive virial.
+When the session computed no stress, including an isolated deck and
+`CPMDC_STRESS=0`, the nine components are zero.
+A change in the count of any element closes the session and opens another on the
+same `CPMDParams` message.
+Forces are per atom.
+The energy and the stress are totals.
 
 
 ## File: docs/orgmode/reference/pwscale.org

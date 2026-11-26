@@ -1,16 +1,19 @@
 #+TITLE: Run LAMMPS on cpmdc forces
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-LAMMPS can take its energy, forces, and virial from cpmdc in process, so its
-integrators, thermostats, barostats, minimizers, and output run on a cpmdc
-potential energy surface.
-Two routes call ~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]]
-once per force evaluation; both pass the same numbers to LAMMPS.
+LAMMPS can take its energy, forces, and virial from cpmdc in process, or from a
+separate cpmdc process, so its integrators, thermostats, barostats, minimizers,
+and output run on a cpmdc potential energy surface.
+The in-process routes and ~cpmdc-mdi~ call ~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]]
+once per force evaluation.
+The in-process routes pass LAMMPS units.
+~cpmdc-mdi~ passes atomic units, and LAMMPS converts those.
 
 | Route | LAMMPS side | Needs |
 |-------+-------------+-------|
 | ~cpmdc.lammps.FixExternal~ | rgpot's generic ~fix external pf/callback~ frontend | ~rgpot~, the ~lammps~ Python module (~pip install lammps~ works), ~mpi4py~ for more than one rank |
 | ~pair_style cpmdc~ | a LAMMPS plugin, ~cpmdcplugin.so~, loaded with ~plugin load~ | LAMMPS with the ~PLUGIN~ package and the headers it was built from; no Python |
+| ~cpmdc-mdi~ | ~fix mdi/qm~ in the MDI package, LAMMPS as the driver | the MDI library when the engine is built; LAMMPS built with ~PKG_MDI~ |
 | i-PI sockets | ~fix ipi~, a client of an i-PI server | i-PI and ~cpmdc-ipi~; see [[file:socket-drivers.org][the socket drivers]] |
 
 The plugin suits LAMMPS input scripts run by ~lmp~ and has the least overhead
@@ -26,7 +29,7 @@ The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.
 
 The [[file:../reference/lammps.org][LAMMPS interface reference]] gives the unit
-styles, the cell, and the virial both routes use.
+styles, the cell, and the virial the routes use.
 
 * From Python with fix external
 Define the box, the atoms, and the masses as usual, without a pair style for the
@@ -119,6 +122,43 @@ MPICH-compatible ~libmpi.so.12~.
 The plugin links only ~libcpmdc~'s public C ABI.
 LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary built
 against its headers.
+
+* From a separate process with fix mdi/qm
+~cpmdc-mdi~ answers the MDI commands
+~fix mdi/qm~ sends ([[https://docs.lammps.org/fix_mdi_qm.html][fix mdi/qm]]).
+Meson builds the executable when pkg-config finds ~mdi~ (~-Dwith_mdi=auto~).
+~-Dwith_mdi=enabled~ refuses to configure when that library is absent.
+The command test ~mdi-qm~ does not need it.
+The executable takes one ~CPMDParams~ message.
+Run one engine process.
+LAMMPS may use several ranks: ~fix mdi/qm~ gathers the atoms before it sends
+them.
+~elements~ makes LAMMPS send atomic numbers with ~>ELEMENTS~.
+~virial yes~ requests ~<STRESS~, which an NPT run needs.
+~atom_modify map yes~ is required by the fix.
+This engine does not answer ~fix mdi/qmmm~.
+GROMACS is unchanged: ~libcpmdc_gromacs~ still serves the CP2K
+QM/MM interface, and MiMiC stays out for the reasons in [[file:../explanation/md-engines.org][cpmdc
+inside MD engines]].
+
+#+begin_src text
+# engine, one process
+cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -port 8021"
+
+# in.mdi
+units           metal
+atom_style      atomic
+atom_modify     map yes
+boundary        p p p
+read_data       water.data
+fix             qm all mdi/qm virial yes elements O H
+timestep        0.00025
+fix             nve all nve
+run             100
+#+end_src
+
+Launch the driver on the same port:
+~lmp -mdi "-role DRIVER -name LAMMPS -method TCP -port 8021" -in in.mdi~.
 
 * Several MPI ranks
 Under ~mpirun~ LAMMPS spreads the atoms over its ranks, and cpmdc still

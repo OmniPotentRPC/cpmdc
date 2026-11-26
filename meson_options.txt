@@ -9,3 +9,4 @@ option('with_pwscale_cuda', type: 'boolean', value: false, description: 'Compile
 option('with_lammps_plugin', type: 'feature', value: 'auto', description: 'Build cpmdcplugin.so, the LAMMPS plugin with pair_style cpmdc. It needs a C++ compiler, MPI for C++, and the headers of the LAMMPS that loads it.')
 option('lammps_include', type: 'string', value: '', description: 'Directory holding the LAMMPS headers (lammps.h, pair.h). Empty: the include/lammps directory of an importable lammps Python package.')
 option('with_gromacs_shim', type: 'feature', value: 'auto', description: 'Build libcpmdc_gromacs and libcp2k.pc, which serve the libcp2k C API of the GROMACS QM/MM interface (GROMACS built with -DGMX_CP2K=ON).')
+option('with_mdi', type: 'feature', value: 'auto', description: 'Build cpmdc-mdi, the MDI engine for LAMMPS fix mdi/qm. Needs the MDI library (pkg-config mdi). The cmocka test of the command state does not.')

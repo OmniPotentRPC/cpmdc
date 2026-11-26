@@ -307,6 +307,10 @@ box (~metal~, NVE) through each route and reports the median wall time per step
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
 the same SCF time to every route.
+~cpmdc-mdi~ is not in the table.
+It is a separate process on MDI, so a step also pays for the socket or MPI
+exchange.
+The command sequence and the stress sign are in [[file:../reference/lammps.org][the LAMMPS interface reference]].
 
 #+begin_src bash
 python bench/lammps_routes.py --build build --steps 2000 --repeats 7
