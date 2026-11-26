@@ -67,6 +67,16 @@ def params(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
+def embedding_params(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Cluster water with SCF controls adequate for external-charge tests."""
+    return _params(
+        "CPMDC_TEST_EMBEDDING_PARAMS",
+        "water_blyp_embedding_params.capnp.txt",
+        tmp_path_factory,
+    )
+
+
+@pytest.fixture(scope="session")
 def periodic_params(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Periodic water: SYMMETRY 1, so a cell gives a stress tensor."""
     return _params(

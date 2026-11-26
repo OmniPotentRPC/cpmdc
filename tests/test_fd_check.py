@@ -22,6 +22,21 @@ def main() -> int:
     cases = [
         ("forces", 0, "PASS", [*tight, isolated, step]),
         ("forces", 0, "PASS", [*tight, periodic, step]),
+        (
+            "mm_forces",
+            0,
+            "PASS",
+            [
+                "--dx",
+                "1e-4",
+                "--max-relative-error",
+                "1e-5",
+                "--external-charge",
+                "3.0,0.2,-0.1,0.7,0.30",
+                isolated,
+                step,
+            ],
+        ),
         ("virial", 0, "PASS", ["--stress", periodic, step]),
         ("stress not computed", 2, "", ["--stress", isolated, step]),
     ]

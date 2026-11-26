@@ -17,6 +17,9 @@
 #include "schema/Potentials.capnp.h"
 #include <capn.h>
 
+#define CPMDC_FD_BOHR_TO_ANG 0.529177210903
+#define CPMDC_FD_DEFAULT_EXT_WIDTH_ANG 0.30
+
 static double g_dx = 1.0e-3, g_max_rel_pct = 0.2, g_eps = 1.0e-5;
 
 struct fd {
@@ -27,6 +30,8 @@ struct fd {
   unsigned char *msg, *out;
   size_t msg_cap, out_cap;
   double *x0, *x, *f0; /* Bohr, Bohr, Hartree/Bohr; 3n each */
+  size_t n_ext;
+  double *ext_pos_ang, *ext_q, *ext_width_ang, *ext_f0;
   double h0[9], s0[9]; /* Bohr; Hartree/Bohr^3 */
   int s_valid;
 };
@@ -100,6 +105,13 @@ static int evaluate(struct fd *st, const double *pos, const double *box,
     st->s_valid = res.stress.p.type != CAPN_NULL && capn_len(res.stress) == 9;
     for (int i = 0; st->s_valid && i < 9; ++i)
       st->s0[i] = capn_to_f64(capn_get64(res.stress, i));
+    if (st->n_ext > 0 &&
+        cpmdc_session_last_external_charge_forces(st->session, st->ext_f0,
+                                                  3 * st->n_ext) != 0) {
+      fprintf(stderr, "cpmdc-fd-check: external charge forces failed: %s\n",
+              cpmdc_last_error());
+      ok = 0;
+    }
   }
   capn_free(&c);
   return ok ? 0 : -1;
@@ -145,10 +157,39 @@ static void strain(const double *e, const double *x, double *y) {
     y[i] = x[i] + e[3 * i] * x[0] + e[3 * i + 1] * x[1] + e[3 * i + 2] * x[2];
 }
 
+static int parse_external_charge(const char *spec, double pos_ang[3],
+                                 double *charge_e, double *width_ang) {
+  const char *p = spec;
+  double vals[5] = {0.0, 0.0, 0.0, 0.0, CPMDC_FD_DEFAULT_EXT_WIDTH_ANG};
+  int count = 0;
+  if (!spec || *spec == '\0')
+    return -1;
+  while (count < 5) {
+    char *end = NULL;
+    vals[count] = strtod(p, &end);
+    if (end == p || !isfinite(vals[count]))
+      return -1;
+    count++;
+    if (*end == '\0')
+      break;
+    if (*end != ',')
+      return -1;
+    p = end + 1;
+  }
+  if (count < 4 || count > 5)
+    return -1;
+  pos_ang[0] = vals[0];
+  pos_ang[1] = vals[1];
+  pos_ang[2] = vals[2];
+  *charge_e = vals[3];
+  *width_ang = vals[4];
+  return 0;
+}
+
 static int check(struct fd *st, int want_stress) {
   size_t n3 = 3 * st->n;
   double e0, ep, em, h[9], vol = volume(st->h0);
-  struct fd_stats fst = {0}, sst = {0};
+  struct fd_stats fst = {0}, mm_fst = {0}, sst = {0};
   if (evaluate(st, st->x0, st->h0, &e0, 1) != 0)
     return 2;
   printf("dx %.3e bohr  max_relative_error %.3g %%  eps_no_error_check %.3e\n",
@@ -169,8 +210,37 @@ static int check(struct fd *st, int want_stress) {
     compare(label, -0.5 * (ep - em) / g_dx, st->f0[i], 1, &fst);
   }
   summary("forces", "ha/bohr", &fst);
+  if (st->n_ext > 0) {
+    double dx_ang = g_dx * CPMDC_FD_BOHR_TO_ANG;
+    printf("%-10s %20s %20s %12s\n", "mm_force", "numerical", "analytical",
+           "abs diff");
+    for (size_t i = 0; i < 3 * st->n_ext; ++i) {
+      char label[32];
+      double orig = st->ext_pos_ang[i];
+      st->ext_pos_ang[i] = orig + dx_ang;
+      if (cpmdc_session_set_external_charges(st->session, st->n_ext,
+                                             st->ext_pos_ang, st->ext_q,
+                                             st->ext_width_ang) != 0 ||
+          evaluate(st, st->x0, st->h0, &ep, 0) != 0)
+        return 2;
+      st->ext_pos_ang[i] = orig - dx_ang;
+      if (cpmdc_session_set_external_charges(st->session, st->n_ext,
+                                             st->ext_pos_ang, st->ext_q,
+                                             st->ext_width_ang) != 0 ||
+          evaluate(st, st->x0, st->h0, &em, 0) != 0)
+        return 2;
+      st->ext_pos_ang[i] = orig;
+      snprintf(label, sizeof(label), "mm%zu%c", i / 3 + 1, (int)("xyz"[i % 3]));
+      compare(label, -0.5 * (ep - em) / g_dx, st->ext_f0[i], 1, &mm_fst);
+    }
+    if (cpmdc_session_set_external_charges(st->session, st->n_ext,
+                                           st->ext_pos_ang, st->ext_q,
+                                           st->ext_width_ang) != 0)
+      return 2;
+    summary("mm_forces", "ha/bohr", &mm_fst);
+  }
   if (!want_stress)
-    return fst.bad ? 1 : 0;
+    return (fst.bad || mm_fst.bad) ? 1 : 0;
   if (!st->s_valid || !st->has_box || vol <= 0.0) {
     printf("stress not computed by this calculator for this cell\n");
     return 2;
@@ -200,11 +270,12 @@ static int check(struct fd *st, int want_stress) {
     }
   }
   summary("virial", "ha", &sst);
-  return fst.bad || sst.bad ? 1 : 0;
+  return (fst.bad || mm_fst.bad || sst.bad) ? 1 : 0;
 }
 
 int main(int argc, char **argv) {
   int argi = 1, want_stress = 0, rc = 2, have_arena = 0;
+  struct fd st = {0};
   for (; argi < argc && strncmp(argv[argi], "--", 2) == 0; ++argi) {
     const char *val = argi + 1 < argc ? argv[argi + 1] : NULL;
     if (strcmp(argv[argi], "--stress") == 0)
@@ -215,20 +286,50 @@ int main(int argc, char **argv) {
       g_max_rel_pct = atof(argv[++argi]);
     else if (val && strcmp(argv[argi], "--eps-no-error-check") == 0)
       g_eps = atof(argv[++argi]);
-    else
+    else if (val && strcmp(argv[argi], "--external-charge") == 0) {
+      double pos_ang[3], charge_e = 0.0, width_ang = 0.0;
+      if (parse_external_charge(argv[++argi], pos_ang, &charge_e, &width_ang) !=
+          0) {
+        fprintf(stderr,
+                "cpmdc-fd-check: invalid --external-charge, expected "
+                "X,Y,Z,Q[,WIDTH_ANG]\n");
+        goto done_early;
+      }
+      size_t n = st.n_ext + 1u;
+      double *np = realloc(st.ext_pos_ang, 3u * n * sizeof(*np));
+      double *nq = realloc(st.ext_q, n * sizeof(*nq));
+      double *nw = realloc(st.ext_width_ang, n * sizeof(*nw));
+      double *nf = realloc(st.ext_f0, 3u * n * sizeof(*nf));
+      if (!np || !nq || !nw || !nf) {
+        if (np) st.ext_pos_ang = np;
+        if (nq) st.ext_q = nq;
+        if (nw) st.ext_width_ang = nw;
+        if (nf) st.ext_f0 = nf;
+        fprintf(stderr, "cpmdc-fd-check: out of memory\n");
+        goto done_early;
+      }
+      st.ext_pos_ang = np;
+      st.ext_q = nq;
+      st.ext_width_ang = nw;
+      st.ext_f0 = nf;
+      memcpy(st.ext_pos_ang + 3u * st.n_ext, pos_ang, sizeof(pos_ang));
+      st.ext_q[st.n_ext] = charge_e;
+      st.ext_width_ang[st.n_ext] = width_ang;
+      st.n_ext = n;
+    } else
       break;
   }
   if (argc - argi != 2 || !(g_dx > 0.0)) {
     fprintf(stderr,
             "usage: cpmdc-fd-check [--dx BOHR] [--max-relative-error PCT]\n"
             "         [--eps-no-error-check A.U.] [--stress]\n"
+            "         [--external-charge X,Y,Z,Q[,WIDTH_ANG]] ...\n"
             "         PARAMS.bin FORCE_INPUT.bin\n");
-    return 2;
+    goto done_early;
   }
   size_t ps = 0, fs = 0;
   unsigned char *params = read_file(argv[argi], &ps);
   unsigned char *step = read_file(argv[argi + 1], &fs);
-  struct fd st = {0};
   struct capn in_arena;
   if (!params || !step || capn_init_mem(&in_arena, step, fs, 0) != 0) {
     fprintf(stderr, "cpmdc-fd-check: cannot read %s or %s\n", argv[argi],
@@ -241,7 +342,7 @@ int main(int argc, char **argv) {
   read_ForceInput(&st.in, fin);
   const char *unit = st.in.lengthUnit.str ? st.in.lengthUnit.str : "angstrom";
   double to_bohr = strcmp(unit, "bohr") == 0       ? 1.0
-                   : strcmp(unit, "angstrom") == 0 ? 1.0 / 0.529177210903
+                   : strcmp(unit, "angstrom") == 0 ? 1.0 / CPMDC_FD_BOHR_TO_ANG
                                                    : 0.0;
   st.n = (size_t)capn_len(st.in.atmnrs);
   st.has_box = st.in.box.p.type != CAPN_NULL && capn_len(st.in.box) == 9;
@@ -257,6 +358,13 @@ int main(int argc, char **argv) {
   st.msg = malloc(st.msg_cap);
   if (!st.x0 || !st.session || !st.out || st.out_cap == 0 || !st.msg) {
     fprintf(stderr, "cpmdc-fd-check: setup failed: %s\n", cpmdc_last_error());
+    goto done;
+  }
+  if (st.n_ext > 0 &&
+      cpmdc_session_set_external_charges(st.session, st.n_ext, st.ext_pos_ang,
+                                         st.ext_q, st.ext_width_ang) != 0) {
+    fprintf(stderr, "cpmdc-fd-check: external charge setup failed: %s\n",
+            cpmdc_last_error());
     goto done;
   }
   st.x = st.x0 + 3 * st.n;
@@ -275,5 +383,10 @@ done:
   free(st.msg);
   free(params);
   free(step);
+done_early:
+  free(st.ext_pos_ang);
+  free(st.ext_q);
+  free(st.ext_width_ang);
+  free(st.ext_f0);
   return rc;
 }
