@@ -231,6 +231,10 @@ static const double kSkew[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h, double *grad_h_bohr,
+                            int n_external, const double *external_positions_ang,
+                            const double *external_charges_e,
+                            const double *external_widths_ang,
+                            double *external_forces_h_bohr,
                             CPMDCEmbedImage *image);
 #endif
 
@@ -245,9 +249,9 @@ static void assert_reference_periodic(const char *deck_in, int periodic) {
   assert_non_null(image);
   assert_int_equal(cpmdc_embed_set_deck(deck_in, (int)strlen(deck_in), image),
                    1);
-  assert_int_equal(
-      cpmdc_embed_energy_grad(2, kPos, kZ, kOrtho, 1, &energy, grad, image),
-      1);
+  assert_int_equal(cpmdc_embed_energy_grad(2, kPos, kZ, kOrtho, 1, &energy, grad,
+                                          0, NULL, NULL, NULL, NULL, image),
+                   1);
   assert_int_equal(image->stress.valid, periodic);
   free(image->input_deck);
   free(image);
