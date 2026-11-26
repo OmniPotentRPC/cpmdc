@@ -69,7 +69,7 @@ lists every one of them with its feature ID.
 | ~FUNCTIONAL BLYP~ | ~dft~ | ~functional = "BLYP"~ |
 | ~NEWCODE~ | ~dft~ | ~newCode = true~ |
 | ~GC-CUTOFF~ / ~1.0d-7~ | ~dft~ | ~gcCutoff = 1.0e-7~ |
-| ~*Si_MT_BLYP.psp KLEINMAN-BYLANDER~ / ~LMAX=D LOC=D~ | ~atoms~ | ~( element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true )~ |
+| ~*Si_MT_BLYP.psp KLEINMAN-BYLANDER~ / ~LMAX=D LOC=D~ | ~atoms~ | ~(element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true)~ |
 
 ~lmax~, ~loc~, and ~skip~ take the channel as an integer: 0 renders ~S~, 1 ~P~,
 2 ~D~, 3 ~F~.
