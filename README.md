@@ -344,10 +344,12 @@ The Citation File Format record lists the Zenodo concept DOI for all versions.
 This release has no version DOI.
 [`codemeta.json`](codemeta.json) is the CodeMeta 2.0 record, and
 [`.zenodo.json`](.zenodo.json) is the Zenodo deposit metadata.
-`version-sync` writes the version in `CITATION.cff` and `codemeta.json` from
-`version.txt`.
-`.zenodo.json` has no version field, because the Zenodo legacy deposit schema
-rejects it.
+`version-sync` writes the version in `CITATION.cff`, `codemeta.json`, and
+`.zenodo.json` from `version.txt`.
+`.zenodo.json` carries a `version` field.
+Zenodo lists `version` as optional deposit metadata.
+`release-assert` checks the cog copies and the version fields in `codemeta.json`
+and `.zenodo.json`, and fails when one differs from `version.txt`.
 The Citation File Format record references CPMD.
 Its reference uses the citation in the CPMD manual and the version, license, and
 repository of [CPMD-code/CPMD](https://github.com/CPMD-code/CPMD).
