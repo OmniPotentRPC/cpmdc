@@ -7085,8 +7085,8 @@ outside that range.
 `CPMDC_CHARGE_SNAPSHOT=0` skips the snapshot.
 The charges are not fields of `CPMDCPropertySnapshot`.
 The reference evaluator and the stub store none.
-A call returns 0 only when charges were stored and `length` is at least the
-atom count.
+A call returns 0 only when charges were stored and `length` is at least the atom
+count.
 Otherwise it returns -1 and does not write the buffer or `cpmdc_last_error()`.
 The density build `atomc` needs rewrites the charge integrals and the kinetic
 energy, and the embed restores both, so the reported energy is the SCF result.
