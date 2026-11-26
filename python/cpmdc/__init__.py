@@ -926,6 +926,7 @@ class Session:
         num_buf = (ctypes.c_int * n_atoms).from_buffer(numbers)
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
+        self._clear_cached_charges()
         if box is None:
             result = self._lib.cpmdc_session_energy_forces(
                 self._handle, n_atoms, pos_buf, num_buf, force_buf
@@ -1021,6 +1022,15 @@ class Session:
             )
         return None
 
+    def _clear_cached_charges(self) -> None:
+        """Drop Hirshfeld charges cached from an earlier successful step.
+
+        The library clears its charge snapshot for the step it is about
+        to run. A failed step must not leave the previous values visible.
+        """
+        self._charges_e = None
+        self._charges_seen = False
+
     def _last_charges(self) -> list[float] | None:
         """Hirshfeld charges of the last evaluation, in e, or ``None``.
 
@@ -1052,8 +1062,9 @@ class Session:
         """Per-atom Hirshfeld charges of the last evaluation, in e.
 
         ``None`` when the session is closed, before the first evaluation,
-        and when that evaluation stored no charges. The reference evaluator
-        and a library without ``cpmdc_session_last_charges`` store none.
+        when that evaluation stored no charges, and after an evaluation
+        that failed. The reference evaluator and a library without
+        ``cpmdc_session_last_charges`` store none.
         """
         if not getattr(self, "_handle", None):
             return None
@@ -1117,6 +1128,7 @@ class Session:
         energy = ctypes.c_double()
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
+        self._clear_cached_charges()
         status = self._lib.cpmdc_session_calculate_au(
             self._handle, n_atoms, positions, numbers, cell, ctypes.byref(energy),
             force_buf, virial_buf,

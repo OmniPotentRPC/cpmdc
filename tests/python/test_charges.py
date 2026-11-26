@@ -14,7 +14,7 @@ from ase import Atoms
 from ase.calculators.calculator import PropertyNotImplementedError
 
 from conftest import WATER
-from cpmdc import Potential, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Potential, Session
 from cpmdc.ase import CPMDCCalculator
 
 # This 50 Ry Hockney deck leaves a real-space residual of about 1.2e-3 e.
@@ -128,3 +128,42 @@ def test_charge_snapshot_can_be_turned_off(params, opencpmd, monkeypatch):
             atoms.get_charges()
         with pytest.raises(PropertyNotImplementedError, match="per-atom charges"):
             atoms.get_charges()
+
+
+def _report_fixed_charges(session: Session, values: tuple[float, ...]) -> None:
+    """Stand in for a library that stored one Hirshfeld charge per atom."""
+
+    def reader(_handle, buf, length):
+        if int(length) < len(values):
+            return -1
+        for index, value in enumerate(values):
+            buf[index] = value
+        return 0
+
+    session._lib.cpmdc_session_last_charges = reader
+
+
+def test_failed_evaluation_does_not_keep_stale_charges(params):
+    """A later failed step must not return the previous Hirshfeld charges.
+
+    The library clears the charge snapshot when an evaluation fails.
+    Both ``energy_forces`` and ``calculate_au`` have to drop the cache
+    they would otherwise keep from the last successful step.
+    """
+    stored = (0.5, -0.25, -0.25)
+    bohr = [coord / BOHR_TO_ANGSTROM for row in WATER for coord in row]
+    with Session(params) as session:
+        _report_fixed_charges(session, stored)
+        done = session.energy_forces(WATER, [8, 1, 1])
+        assert done.charges_e == list(stored)
+        assert session.charges() == list(stored)
+        with pytest.raises(CPMDCError, match="topology change"):
+            session.energy_forces([[0.0, 0.0, 0.0]], [1])
+        assert session.charges() is None
+    with Session(params) as session:
+        _report_fixed_charges(session, stored)
+        session.calculate_au(bohr, [8, 1, 1])
+        assert session.charges() == list(stored)
+        with pytest.raises(CPMDCError, match="topology change"):
+            session.calculate_au([0.0, 0.0, 0.0], [1])
+        assert session.charges() is None
