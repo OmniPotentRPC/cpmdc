@@ -2636,7 +2636,6 @@ CONTAINS
       reference_deck_isolated = (periodic_symmetry_code(cell, has_cell) == 0)
     END IF
   END FUNCTION
-  END FUNCTION
 
   INTEGER FUNCTION reference_pef_fill_stress(image, n_atoms, pos, z, cell, k)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
