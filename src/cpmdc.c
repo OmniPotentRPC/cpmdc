@@ -18,6 +18,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* LP64 layout callers already allocate. Charges are the next image field,
+ * not bytes inside this struct. */
+_Static_assert(sizeof(CPMDCPropertySnapshot) == 32896,
+               "CPMDCPropertySnapshot stays the historical size");
+_Static_assert(offsetof(CPMDCEmbedImage, charges) ==
+                   offsetof(CPMDCEmbedImage, prop) + sizeof(CPMDCPropertySnapshot),
+               "charges follow the public snapshot");
+_Static_assert(offsetof(CPMDCEmbedImage, stress) ==
+                   offsetof(CPMDCEmbedImage, charges) + sizeof(CPMDCEmbedCharges),
+               "stress follows the charge record");
 #if defined(CPMDC_HAVE_MPI)
 #include <mpi.h>
 #endif
@@ -2641,9 +2652,9 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
   memcpy(session->cached_atomic_numbers, atomic_numbers,
          n_atoms * sizeof(int));
   memcpy(session->cached_grad_h_bohr, grad, n_atoms * 3u * sizeof(double));
-  if (session->image.prop.charges_valid &&
-      session->image.prop.charge_count == n_atoms && session->cached_charges_e) {
-    memcpy(session->cached_charges_e, session->image.prop.charges,
+  if (session->image.charges.valid &&
+      session->image.charges.count == n_atoms && session->cached_charges_e) {
+    memcpy(session->cached_charges_e, session->image.charges.values,
            n_atoms * sizeof(double));
     session->cached_charges_valid = 1;
     session->cached_charge_count = n_atoms;
@@ -2710,12 +2721,12 @@ static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
   if (session->cached_charges_valid &&
       session->cached_charge_count == n_atoms && session->cached_charges_e) {
     for (size_t i = 0; i < n_atoms; ++i)
-      session->image.prop.charges[i] = session->cached_charges_e[map[i]];
-    session->image.prop.charges_valid = 1;
-    session->image.prop.charge_count = n_atoms;
+      session->image.charges.values[i] = session->cached_charges_e[map[i]];
+    session->image.charges.valid = 1;
+    session->image.charges.count = n_atoms;
   } else {
-    session->image.prop.charges_valid = 0;
-    session->image.prop.charge_count = 0;
+    session->image.charges.valid = 0;
+    session->image.charges.count = 0;
   }
   free(used);
   free(map);
@@ -3914,14 +3925,12 @@ int cpmdc_session_last_dipole(const CPMDCSession *session, CPMDCDipole *out) {
 static int copy_charges(const CPMDCEmbedImage *image, double *charges,
                         size_t length) {
   size_t n;
-  size_t cap;
-  if (!image || !charges || !image->prop.charges_valid)
+  if (!image || !charges || !image->charges.valid)
     return -1;
-  n = image->prop.charge_count;
-  cap = sizeof(image->prop.charges) / sizeof(image->prop.charges[0]);
-  if (n == 0 || n > cap || length < n)
+  n = image->charges.count;
+  if (n == 0 || n > CPMDC_EMBED_CHARGE_CAP || length < n)
     return -1;
-  memcpy(charges, image->prop.charges, n * sizeof(*charges));
+  memcpy(charges, image->charges.values, n * sizeof(*charges));
   return 0;
 }
 

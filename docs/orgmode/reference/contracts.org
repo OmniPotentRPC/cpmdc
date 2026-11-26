@@ -735,10 +735,10 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Item | Description |
 |--------+--------|
 | Units | ~charges~ receives Hirshfeld charges in electrons; ~length~ counts doubles. |
-| Layout | ~charges~ points at ~length~ doubles. On success the first ~charge_count~ entries are the caller's atoms, in that order. |
+| Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are the caller's atoms, in that order. The values are not fields of ~CPMDCPropertySnapshot~. |
 | Ownership | The caller owns ~charges~. The copy does not alias library memory. A failing call does not write ~charges~. |
 | Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
-| Returns and errors | Returns 0 only when the charges are valid and ~length~ is at least ~charge_count~. Returns -1 for a NULL ~charges~, an invalid snapshot, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 only when this evaluation stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL ~charges~, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
 | Python | not wrapped directly; ~cpmdc.Session.charges~ uses the session form. |
 | Defaults | none |
 
@@ -747,10 +747,10 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Item | Description |
 |--------+--------|
 | Units | ~charges~ receives Hirshfeld charges in electrons; ~length~ counts doubles. |
-| Layout | ~charges~ points at ~length~ doubles. On success the first ~charge_count~ entries are that session's atoms, in the caller's order. |
+| Layout | ~charges~ points at ~length~ doubles. On success the first entries, one per atom, are that session's atoms, in the caller's order. The values are not fields of ~CPMDCPropertySnapshot~. |
 | Ownership | ~session~ is borrowed and stays owned by the caller. The caller owns ~charges~, and the copy does not alias library memory. A failing call does not write ~charges~. |
 | Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
-| Returns and errors | Returns 0 only when that session's charges are valid and ~length~ is at least ~charge_count~. Returns -1 for a NULL argument, an invalid snapshot, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 only when that session stored one charge per atom and ~length~ is at least that count. Returns -1 for a NULL argument, no stored charges, a zero count, or a short buffer. Does not write ~cpmdc_last_error()~. |
 | Python | ~cpmdc.Session.charges~ reads this value; -1 gives ~None~. |
 | Defaults | none |
 
@@ -1307,8 +1307,8 @@ Python.
 
 | Item | Description |
 |--------+--------|
-| Layout | An ~int valid~, then ~size_t hessian_count~ and ~double hessian[4096]~, ~size_t dipole_count~ and ~double dipole[3]~, ~size_t polarizability_count~ and ~double polarizability[9]~, then ~int charges_valid~, ~size_t charge_count~ and ~double charges[1365]~. |
-| Units | Atomic units: ~hessian~ holds the nuclear gradient in Hartree/Bohr, ~dipole~ is the molecular dipole in electron Bohr, ~polarizability~ is always zeros, and ~charges~ are Hirshfeld charges in electrons. Evaluations above the 4096-component gradient capacity fail instead of truncating. |
+| Layout | An ~int valid~, then ~size_t hessian_count~ and ~double hessian[4096]~, ~size_t dipole_count~ and ~double dipole[3]~, ~size_t polarizability_count~ and ~double polarizability[9]~. |
+| Units | Atomic units: ~hessian~ holds the nuclear gradient in Hartree/Bohr, ~dipole~ is the molecular dipole in electron Bohr, and ~polarizability~ is always zeros. Evaluations above the 4096-component gradient capacity fail instead of truncating. |
 | Ownership | Filled by ~cpmdc_last_property_snapshot()~ into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 

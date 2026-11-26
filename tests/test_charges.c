@@ -3,7 +3,7 @@
 /**
  * Hirshfeld charges through the C ABI.
  *
- * The reference evaluator leaves the snapshot unset. A linked OpenCPMD
+ * The reference evaluator leaves charges unset. A linked OpenCPMD
  * stores q = Z_v - n from atomc, in the caller's atom order. Neutral
  * water sums to the total charge, 0, within 2e-3 e. This 50 Ry Hockney
  * deck leaves a real-space partition residual of about 1.2e-3 e, so the
@@ -19,6 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
 #include <cmocka.h>
 
 static const char *g_params = NULL;
@@ -108,8 +111,7 @@ static void test_unset_charges_do_not_write_the_buffer(void **state) {
   result = cpmdc_session_energy_forces(session, 3, k_pos, k_z, forces);
   assert_int_equal(result.ok, 1);
   assert_int_equal(cpmdc_last_property_snapshot(&prop), 0);
-  assert_int_equal(prop.charges_valid, 0);
-  assert_int_equal(prop.charge_count, 0);
+  assert_int_equal(prop.valid, 1);
   assert_int_equal(cpmdc_last_charges(held, 4), -1);
   assert_int_equal(cpmdc_session_last_charges(session, held, 3), -1);
   assert_true(buffer_untouched(held, 4));
@@ -155,8 +157,7 @@ static void test_opencpmd_water_charges_sum_and_follow_atoms(void **state) {
   assert_int_equal(result.ok, 1);
   energy = result.energy_h;
   assert_int_equal(cpmdc_session_last_property_snapshot(session, &prop), 0);
-  assert_int_equal(prop.charges_valid, 1);
-  assert_int_equal(prop.charge_count, 3);
+  assert_int_equal(prop.valid, 1);
   memset(charges, 0x5a, sizeof(charges));
   assert_int_equal(cpmdc_session_last_charges(session, charges, 2), -1);
   assert_true(buffer_untouched(charges, 4));
@@ -187,7 +188,7 @@ static void test_opencpmd_water_charges_sum_and_follow_atoms(void **state) {
   assert_int_equal(result.ok, 1);
   assert_true(fabs(result.energy_h - energy) < 1.0e-8);
   assert_int_equal(cpmdc_session_last_property_snapshot(session, &prop), 0);
-  assert_int_equal(prop.charges_valid, 0);
+  assert_int_equal(prop.valid, 1);
   memset(off, 0x5a, sizeof(off));
   assert_int_equal(cpmdc_session_last_charges(session, off, 3), -1);
   assert_true(buffer_untouched(off, 3));

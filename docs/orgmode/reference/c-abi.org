@@ -258,9 +258,6 @@ a call filled.
 | ~dipole[3]~ | ~CPMDCPropertySnapshot~ | molecular dipole in electron Bohr when OpenCPMD recomputed it for the current geometry; unavailable otherwise |
 | ~polarizability_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~polarizability~ |
 | ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | always zeros, in atomic units (Bohr^3), with ~polarizability_count~ 9: no build computes it |
-| ~charges_valid~ | ~CPMDCPropertySnapshot~ | ~int~, non-zero when this evaluation stored per-atom Hirshfeld charges |
-| ~charge_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~charges~ |
-| ~charges[1365]~ | ~CPMDCPropertySnapshot~ | Hirshfeld charges in the caller's atom order, electrons |
 | ~values[3]~ | ~CPMDCDipole~ | Cartesian molecular dipole, electron Bohr; see the periodic-cell caveat on the struct in ~cpmdc.h~ |
 | ~values[9]~ | ~CPMDCStressTensor~ | row-major ~[xx, xy, xz, yx, yy, yz, zx, zy, zz]~, Hartree/Bohr^3 |
 | ~ranks~ | ~CPMDCRankSpread~ | ~int~, ranks in the calculator communicator |
@@ -701,9 +698,10 @@ calculation leaves the charges invalid.
 Broken symmetry leaves them invalid too, as does a species whose ~nshell~ is
 outside that range.
 ~CPMDC_CHARGE_SNAPSHOT=0~ skips the snapshot.
-The reference evaluator and the stub leave ~charges_valid~ zero.
-A call returns 0 only when the charges are valid and ~length~ is at least
-~charge_count~.
+The charges are not fields of ~CPMDCPropertySnapshot~.
+The reference evaluator and the stub store none.
+A call returns 0 only when charges were stored and ~length~ is at least the
+atom count.
 Otherwise it returns -1 and does not write the buffer or ~cpmdc_last_error()~.
 The density build ~atomc~ needs rewrites the charge integrals and the kinetic
 energy, and the embed restores both, so the reported energy is the SCF result.

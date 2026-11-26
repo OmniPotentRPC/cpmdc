@@ -1024,9 +1024,10 @@ class Session:
     def _last_charges(self) -> list[float] | None:
         """Hirshfeld charges of the last evaluation, in e, or ``None``.
 
-        A 0 return writes ``charge_count`` values. The snapshot stores one
-        charge per atom of that evaluation, so a buffer one shorter than
-        the atom count must fail and the full buffer must succeed.
+        A 0 return writes one value per atom. The library stores one
+        charge per atom of that evaluation, outside
+        ``CPMDCPropertySnapshot``, so a buffer one shorter than the atom
+        count must fail and the full buffer must succeed.
         """
         reader = self._charges_reader()
         n = self._n_atoms

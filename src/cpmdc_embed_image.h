@@ -4,12 +4,24 @@
 
 #include "cpmdc.h"
 
+/* Hirshfeld charges sit beside the public snapshot. Callers of
+ * cpmdc_last_property_snapshot() still receive the historical
+ * CPMDCPropertySnapshot and nothing past it. */
+#define CPMDC_EMBED_CHARGE_CAP 1365
+
+typedef struct CPMDCEmbedCharges {
+  int valid;
+  size_t count;
+  double values[CPMDC_EMBED_CHARGE_CAP];
+} CPMDCEmbedCharges;
+
 typedef struct CPMDCEmbedImage {
   CPMDCEnergyComponents energy;
   CPMDCChargeIntegrals charge;
   CPMDCMultiStateEnergies multi;
   CPMDCMDTrajectoryRow md;
   CPMDCPropertySnapshot prop;
+  CPMDCEmbedCharges charges;
   CPMDCStressTensor stress;
   double warm_cell[9];
   int warm_cell_set;

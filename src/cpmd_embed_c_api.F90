@@ -146,9 +146,12 @@ MODULE cpmd_embed_c_api
     REAL(c_double) :: dipole(3)
     INTEGER(c_size_t) :: polarizability_count
     REAL(c_double) :: polarizability(9)
-    INTEGER(c_int) :: charges_valid
-    INTEGER(c_size_t) :: charge_count
-    REAL(c_double) :: charges(1365)
+  END TYPE
+  ! Beside the public snapshot, same layout as CPMDCEmbedCharges.
+  TYPE, BIND(C) :: cpmdc_embed_charges
+    INTEGER(c_int) :: valid
+    INTEGER(c_size_t) :: count
+    REAL(c_double) :: values(1365)
   END TYPE
   TYPE, BIND(C) :: cpmdc_stress_tensor
     INTEGER(c_int) :: valid
@@ -160,6 +163,7 @@ MODULE cpmd_embed_c_api
     TYPE(cpmdc_multi_state) :: multi
     TYPE(cpmdc_md_row) :: md
     TYPE(cpmdc_property_snapshot) :: prop
+    TYPE(cpmdc_embed_charges) :: charges
     TYPE(cpmdc_stress_tensor) :: stress
     REAL(c_double) :: warm_cell(9)
     INTEGER(c_int) :: warm_cell_set
@@ -467,9 +471,9 @@ CONTAINS
     image%prop%dipole = 0.0_c_double
     image%prop%polarizability_count = 0_c_size_t
     image%prop%polarizability = 0.0_c_double
-    image%prop%charges_valid = 0_c_int
-    image%prop%charge_count = 0_c_size_t
-    image%prop%charges = 0.0_c_double
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
+    image%charges%values = 0.0_c_double
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
   END SUBROUTINE
@@ -508,8 +512,8 @@ CONTAINS
     image%prop%valid = 1_c_int
     image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
-    image%prop%charges_valid = 0_c_int
-    image%prop%charge_count = 0_c_size_t
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
     image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
@@ -2735,10 +2739,10 @@ CONTAINS
       image%prop%hessian(i) = grad(i)
     END DO
     image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
-    image%prop%charges_valid = 0_c_int
-    image%prop%charge_count = 0_c_size_t
-    image%prop%charges = 0.0_c_double
-    IF (n_atoms < 1) RETURN
+    image%charges%valid = 0_c_int
+    image%charges%count = 0_c_size_t
+    image%charges%values = 0.0_c_double
+    IF (n_atoms < 1 .OR. n_atoms > 1365) RETURN
     ALLOCATE(species_q(n_atoms), seen(n_atoms), STAT=astat)
     IF (astat /= 0) RETURN
     seen = .FALSE.
@@ -2750,15 +2754,15 @@ CONTAINS
     DO slot = 1, n_atoms
       j = INT(origin(slot)) + 1
       IF (j < 1 .OR. j > n_atoms .OR. seen(j)) THEN
-        image%prop%charges = 0.0_c_double
+        image%charges%values = 0.0_c_double
         DEALLOCATE(species_q, seen)
         RETURN
       END IF
       seen(j) = .TRUE.
-      image%prop%charges(j) = REAL(species_q(slot), KIND=c_double)
+      image%charges%values(j) = REAL(species_q(slot), KIND=c_double)
     END DO
-    image%prop%charges_valid = 1_c_int
-    image%prop%charge_count = INT(n_atoms, KIND=c_size_t)
+    image%charges%valid = 1_c_int
+    image%charges%count = INT(n_atoms, KIND=c_size_t)
     DEALLOCATE(species_q, seen)
   END SUBROUTINE
 

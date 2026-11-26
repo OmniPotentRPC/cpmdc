@@ -323,7 +323,7 @@ to run first and the files that each kind of change touches.
 ## Version
 
 <!-- [[[cog cog.outl(f'This README describes cpmdc {open("version.txt").read().strip()}.') ]]] -->
-This README describes cpmdc 0.7.0.
+This README describes cpmdc 0.8.0.
 <!-- [[[end]]] -->
 `version.txt` holds the only hand-written copy of the version.
 `pixi run version-sync` regenerates the other copies, and CI fails when one
