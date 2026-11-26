@@ -1867,10 +1867,30 @@ Each session keeps a counter of its own successful calls.
 
 | Call | Condition | What runs |
 |------+-----------+-----------|
-| cold | first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition | the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from `RESTART` when the deck has `RESTART WAVEFUNCTION` |
+| cold | first call of the process, or a changed functional, deck, cell, cutoff, charge, or multiplicity, or a new session or one-shot call whose atom count or elemental composition differs from the stored basis | the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from `RESTART` when the deck has `RESTART WAVEFUNCTION` |
 | warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers, and the geometry is within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) of a stored geometry | new positions into `tau0`, `phfac`, then the SCF from the stored `c0` |
 | deck guess without full setup | the same basis and cell match as a warm call, but every stored geometry lies beyond `CPMDC_WARM_RMSD` | new positions into `tau0`, `phfac`, then the SCF from the deck's guess without re-running CPMD setup |
 | in place | as warm or deck guess without full setup, on a constant-cutoff deck under `CPMDC_CELL_IN_PLACE` whose new periodic cell lies within the strain limit of the setup cell (`has_cell` and `embed_saved_has_cell` are both non-zero) | the new cell on the setup's plane waves, then as warm within `CPMDC_WARM_RMSD` or from the deck's guess beyond it |
+
+A session that has accepted a topology refuses a later change of atom count or
+elemental composition.
+`session_check_topology` fails that call with
+`topology change requires a new session`, and CPMD does not run.
+No orbital store, no density from the previous setup, and no extrapolation
+history carries onto the new system.
+Destroy the session with `cpmdc_session_destroy()`, create a new one, and expect
+a cold SCF.
+A moved geometry that keeps the same atoms reuses earlier work.
+A repeated geometry returns the stored forces and energy when each atom matches
+the stored element, lies within 1e-8 Angstrom, and the cell matches within 1e-8
+Angstrom.
+A geometry within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) starts the SCF from
+the stored orbitals.
+`EXTRAPOLATE WFN` with `ASPC` or `POLY` builds that prediction when the OpenCPMD
+archive carries `tools/opencpmd_embed_extrapolate.patch`.
+`libcpmdc` links `embed_extrapolation_used` from that patch.
+A cold SCF on those same atoms seeds `c0` from `RESTART WAVEFUNCTION` when the
+deck asks for it.
 
 A cell counts as unchanged when every component of `ForceInput.box` matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
@@ -1922,6 +1942,8 @@ A different shape calls `stopgm` and names `embed_reset_warm_orbitals`.
 `cpmdc` makes that call when the functional, the deck, the cutoff, the cell, the
 charge, the multiplicity, the atom count, or the elemental composition changes,
 before `rwfopt` runs; a cell that moves in place keeps the orbitals.
+A session that has already accepted a topology does not take this path for a new
+atom count or elemental composition: the call is refused first.
 The SCF then runs to the orbital convergence threshold with the full `MAXITER`
 budget of the deck; a warm call is a complete SCF from a better start, not a
 shortened one.
@@ -2150,19 +2172,31 @@ whose derivative is the stress, which the `python-pytest` case
 |-------+-----|
 | a cell change, unless it moves in place | the plane-wave basis depends on the cell, so the stored coefficients no longer fit |
 | a cutoff change | the plane-wave basis changes, so the stored coefficients no longer fit |
-| a change of atom count or elemental composition, or of charge or multiplicity | those inputs set the number of states, and a restored `c0` of another shape calls `stopgm` |
+| a change of charge or multiplicity | those inputs set the number of states, and a restored `c0` of another shape calls `stopgm` |
+| a change of atom count or elemental composition | the session refuses the call (`topology change requires a new session`) before CPMD runs, so no orbital store, density, or extrapolation history continues |
 | `cpmdc_session_set_params()` or `cpmdc_session_configure()` when the functional, cutoff, charge, multiplicity, or deck differs | the next evaluation drops the orbitals; the call itself keeps them |
 | a new session with the same functional, deck, cutoff, cell, charge, multiplicity, and elemental composition | reuses the stored orbitals and skips setup |
-| a new session whose functional, deck, cutoff, cell, charge, multiplicity, or elemental composition differs | the next evaluation drops the stored orbitals and runs setup |
+| a new session whose functional, deck, cutoff, cell, charge, multiplicity, or elemental composition differs | the next evaluation drops the stored orbitals, the previous setup's density, and the extrapolation history, then runs a cold SCF |
 | a one-shot or global call (`cpmdc_set_params()`, `cpmdc_energy*()`, `cpmdc_calculate_result()`) whose basis differs from the stored one | that call runs setup; a matching basis reuses the orbitals |
 | `stopgm` returns through `cpmd_stopgm_hook` | the call continued past a failed check, so the stored orbitals are not a result |
 
-A topology change is refused outright rather than treated as cold: the atom
-count and the elemental composition belong to the session.
-A reordering of those atomic numbers stays on the session.
-A new session with that composition keeps the stored orbitals.
-An evaluation whose positions match the previous successful call on that
-session, including that reordering, returns the stored energy and forces.
+A change of atom count or elemental composition is refused.
+`session_check_topology` fails the call before CPMD runs, with
+`topology change requires a new session`.
+The orbitals, the density of the previous setup, and the extrapolation history
+do not carry onto that system.
+Destroy the session with `cpmdc_session_destroy()`, create a new one, and expect
+a cold SCF.
+A reordering of the same atomic numbers stays on the session.
+A new session with that same composition keeps the stored orbitals.
+A moved geometry that keeps the atoms returns the stored forces when every atom
+matches the stored element and lies within 1e-8 Angstrom and the cell matches
+within 1e-8 Angstrom.
+It starts the SCF from the stored orbitals within `CPMDC_WARM_RMSD`, and it uses
+the `ASPC` or `POLY` ring when `tools/opencpmd_embed_extrapolate.patch` is in
+the archive.
+A cold SCF on those atoms seeds `c0` from `RESTART WAVEFUNCTION` when the deck
+asks for it.
 
 An evaluation that needs a second setup, for a basis that differs from the first
 or after a `stopgm`, tears the first one down in the same process.
@@ -3537,8 +3571,14 @@ Each of these events empties the affected key's history:
   clears
 - destroying the session that evaluated last, keyed or not
 
-Anything that clears the stored orbitals, such as a cell, cutoff, or composition
-change, clears every key's history.
+Anything that clears the stored orbitals, such as a cell or cutoff change,
+clears every key's history.
+A change of atom count or elemental composition does not continue on the session
+that holds the history.
+The session refuses that call.
+Destroy the session, create a new one, and expect a cold SCF.
+That setup drops the orbital store, the previous setup's density, and every
+extrapolation ring.
 A constant-cutoff cell that moves in place under `CPMDC_CELL_IN_PLACE` keeps
 every history.
 On an OpenCPMD build `CPMDC_ORBITAL_SLOT_LIMIT` counts every parked orbital set
@@ -5599,12 +5639,25 @@ otherwise stay blocked in the call `stopgm` returned from.
 ## `topology change requires a new session`
 *Cause:* `session_accept_topology` fixes the topology after an evaluation call
 passes its argument checks and collective orbital preflight.
-A later step with a different count or composition is refused before CPMD runs.
+`session_check_topology` then refuses a later step whose atom count or elemental
+composition differs, before CPMD runs.
+No orbital store, no density from the previous setup, and no extrapolation
+history survives that change.
 A reordering of the same elements stays on the session.
 
-*Fix:* create a new `CPMDCSession` for a different composition.
-A reordering of the same elements keeps the stored orbitals.
-A different elemental composition runs setup.
+*Fix:* destroy the session with `cpmdc_session_destroy()`, create a new
+`CPMDCSession`, and expect a cold SCF.
+A moved geometry that keeps the same atoms can reuse what the session stored.
+A repeated geometry returns the stored forces when each atom matches the stored
+element, lies within 1e-8 Angstrom, and the cell matches within 1e-8 Angstrom.
+A geometry within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) warm-starts the SCF
+from the stored orbitals.
+`EXTRAPOLATE WFN` with `ASPC` or `POLY` uses the extrapolation ring when the
+OpenCPMD archive carries `tools/opencpmd_embed_extrapolate.patch`.
+`libcpmdc` links `embed_extrapolation_used` from that patch.
+A cold SCF on those atoms seeds `c0` from `RESTART WAVEFUNCTION` when the deck
+asks for it.
+See wavefunction state between calls (file:../explanation/wavefunction-state.org).
 
 ## `PotentialResult buffer too small`
 *Cause:* the output buffer is smaller than the serialized result.
