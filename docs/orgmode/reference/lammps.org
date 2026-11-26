@@ -181,17 +181,29 @@ a ~metal~ energy from this route is not bit-identical to ~FixExternal~.
 | ~>CELL~ | fully periodic | nine Bohr components, one lattice vector per row: ~(lx, 0, 0)~, ~(xy, ly, 0)~, ~(xz, yz, lz)~ |
 | ~>ELEMENTS~ | the ~elements~ keyword | one atomic number per atom, ascending LAMMPS atom ID |
 | ~>TYPES~ | no ~elements~ keyword | accepted as atomic numbers, so the LAMMPS types must already be atomic numbers |
-| ~>COORDS~ | every evaluation | ~3N~ Bohr coordinates, absolute Cartesian, unwrapped with the image flags |
+| ~>COORDS~ | every evaluation | ~3N~ Bohr coordinates, Cartesian, each atom remapped into the box |
 | ~<PE~, ~<ENERGY~ | every evaluation | cpmdc total energy, Hartree |
 | ~<KE_ELEC~ | every evaluation, because the engine registers it | 0. The electronic kinetic energy is already inside ~<PE~. LAMMPS adds ~<PE~ and ~<KE_ELEC~ and does not also read ~<ENERGY~ when both exist |
 | ~<FORCES~ | every evaluation | Hartree/Bohr, ~-dE/dR~, in ~>COORDS~ order |
 | ~<STRESS~ | ~virial yes~ | nine Hartree/Bohr^3 components, row-major ~xx xy xz yx yy yz zx zy zz~ |
 
+~fix mdi/qm~ copies ~atom->x~ and calls ~domain->remap~ before it sends
+~>COORDS~, so each atom lies inside the box.
+The image flags are not applied.
 The engine subtracts
-~>CELL_DISPL~ from ~>COORDS~ before ~cpmdc_session_calculate_au()~, so the
-positions sit in a cell whose origin is zero.
+~>CELL_DISPL~ from those coordinates before ~cpmdc_session_calculate_au()~, so
+the positions sit in a cell whose origin is zero.
+When this step has a cell and a previous step, it then shifts each atom by the
+lattice vector that brings it nearest to its previous position.
+A cached geometry, a reused neighbor list, and wavefunction extrapolation
+therefore see one continuous path, and the energy and forces match the unwrapped
+trajectory.
+A displacement of more than half a box edge is that lattice image.
+A singular cell on a later step fails the evaluation.
+A new ~>NATOMS~ drops that path with the previous cell, origin, species, and
+coordinates.
 A step that never received ~>CELL~ since the last ~>NATOMS~ is a cluster: the
-session is called with no cell.
+session is called with no cell, and no lattice shift is applied.
 One evaluation serves ~<PE~, ~<ENERGY~, ~<FORCES~, and ~<STRESS~ until the next
 ~>~ command.
 

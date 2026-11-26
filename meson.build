@@ -653,9 +653,57 @@ if cc.has_header('sys/un.h')
 endif
 # Stand-alone MDI engine for LAMMPS fix mdi/qm. The command state is
 # tools/mdi/cpmdc_mdi.c and is tested without libmdi.
-mdi_dep = dependency('mdi', required: get_option('with_mdi'))
+# MDI 1.4.40's CMake package exports the library and sets mdi_INCLUDE_DIR,
+# but mdi_INCLUDE_DIRS is the empty INTERFACE_INCLUDE_DIRECTORIES.
+# Meson follows that empty variable, so mdi.h is not on the compile line.
+# has_header uses the dependency's include directories. When the header is
+# missing, add mdi_INCLUDE_DIR (or the pkg-config includedir).
+mdi_opt = get_option('with_mdi')
+mdi_dep = dependency('mdi', required: mdi_opt)
 cpmdc_mdi_exe = disabler()
+mdi_header_ok = false
 if mdi_dep.found()
+  mdi_header_ok = cc.has_header('mdi.h', dependencies: mdi_dep)
+  if not mdi_header_ok
+    mdi_inc_list = mdi_dep.get_variable(
+      cmake: 'mdi_INCLUDE_DIR',
+      pkgconfig: 'includedir',
+      default_value: '',
+    )
+    if mdi_inc_list == ''
+      mdi_inc_list = mdi_dep.get_variable(
+        cmake: 'mdi_INCLUDE_DIRS',
+        default_value: '',
+      )
+    endif
+    foreach mdi_one : mdi_inc_list.split(';')
+      if not mdi_header_ok and mdi_one != '' and fs.is_dir(mdi_one)
+        mdi_header_dep = declare_dependency(
+          include_directories: include_directories(mdi_one),
+        )
+        if cc.has_header('mdi.h', dependencies: mdi_header_dep)
+          mdi_dep = declare_dependency(
+            dependencies: [mdi_dep, mdi_header_dep],
+          )
+          mdi_header_ok = true
+          message(
+            'mdi.h was missing from the mdi dependency; added ' + mdi_one,
+          )
+        endif
+      endif
+    endforeach
+  endif
+  if not mdi_header_ok and mdi_opt.enabled()
+    error(
+      'with_mdi was requested but mdi.h cannot be included from the found mdi library. Install the MDI headers, or set PKG_CONFIG_PATH to an mdi.pc whose includedir contains mdi.h.',
+    )
+  elif not mdi_header_ok
+    warning(
+      'mdi was found but mdi.h cannot be included, so cpmdc-mdi is not built',
+    )
+  endif
+endif
+if mdi_header_ok
   cpmdc_mdi_exe = executable(
     'cpmdc-mdi',
     ['tools/mdi/cpmdc_mdi_main.c', 'tools/mdi/cpmdc_mdi.c'],

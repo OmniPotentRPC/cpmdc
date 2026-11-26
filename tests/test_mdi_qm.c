@@ -239,6 +239,100 @@ static void test_composition_change_reopens_the_session(void **state) {
   cpmdc_mdi_destroy(eng);
 }
 
+/* Dyadic triclinic cell, one vector per row, so a lattice shift is exact. */
+static const double k_wrap_cell[9] = {16.0, 0.0, 0.0, 2.0, 16.0, 0.0,
+                                     -2.0, 2.0, 16.0};
+static const double k_wrap_pos[3 * N] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+                                        7.0, 8.0, 9.0};
+
+static void open_wrap(cpmdc_mdi *eng, const double *pos) {
+  int n = N;
+  double sent[3 * N];
+  require_ok(eng, ">NATOMS", &n, NULL);
+  require_ok(eng, ">CELL_DISPL", k_displ, NULL);
+  require_ok(eng, ">CELL", k_wrap_cell, NULL);
+  require_ok(eng, ">ELEMENTS", k_z, NULL);
+  add_displ(sent, pos, N, k_displ);
+  require_ok(eng, ">COORDS", sent, NULL);
+}
+
+static void read_energy_forces(cpmdc_mdi *eng, double *energy, double *forces) {
+  require_ok(eng, "<ENERGY", NULL, energy);
+  require_ok(eng, "<FORCES", NULL, forces);
+}
+
+static void send_coords(cpmdc_mdi *eng, const double *pos) {
+  double sent[3 * N];
+  add_displ(sent, pos, N, k_displ);
+  require_ok(eng, ">COORDS", sent, NULL);
+}
+
+/* fix mdi/qm remaps atom->x into the box. A frame that crosses a face is
+ * one lattice vector away from the continuous path. The engine must recover
+ * that path, so the energy and forces match an unwrapped run. */
+static void test_wrapped_crossing_matches_unwrapped_run(void **state) {
+  (void)state;
+  setenv("CPMDC_STRESS", "0", 1);
+  double step1[3 * N], step2[3 * N], wrapped[3 * N];
+  double bare_e = 0.0, bare_f[3 * N], jump_e = 0.0, jump_f[3 * N];
+  double plain_e = 0.0, plain_f[3 * N], wrap_e = 0.0, wrap_f[3 * N];
+  double plain2 = 0.0, plain2_f[3 * N], wrap2 = 0.0, wrap2_f[3 * N];
+  CPMDCStressTensor stress;
+  memset(&stress, 0, sizeof stress);
+  memcpy(step1, k_wrap_pos, sizeof step1);
+  step1[0] += 0.5;
+  memcpy(step2, step1, sizeof step2);
+  step2[0] += 0.5;
+  memcpy(wrapped, step1, sizeof wrapped);
+  wrapped[0] += k_wrap_cell[6];
+  wrapped[1] += k_wrap_cell[7];
+  wrapped[2] += k_wrap_cell[8];
+
+  assert_int_equal(direct(g_periodic, step1, k_z, N, k_wrap_cell, &bare_e,
+                          bare_f, &stress),
+                   0);
+  assert_int_equal(direct(g_periodic, wrapped, k_z, N, k_wrap_cell, &jump_e,
+                          jump_f, &stress),
+                   0);
+  assert_true(memcmp(&bare_e, &jump_e, sizeof bare_e) != 0);
+
+  cpmdc_mdi *plain = open_engine(g_periodic);
+  cpmdc_mdi *crossed = open_engine(g_periodic);
+  assert_non_null(plain);
+  assert_non_null(crossed);
+  open_wrap(plain, k_wrap_pos);
+  open_wrap(crossed, k_wrap_pos);
+  read_energy_forces(plain, &plain_e, plain_f);
+  read_energy_forces(crossed, &wrap_e, wrap_f);
+  assert_memory_equal(&plain_e, &wrap_e, sizeof plain_e);
+  assert_memory_equal(plain_f, wrap_f, sizeof plain_f);
+
+  send_coords(plain, step1);
+  send_coords(crossed, wrapped);
+  read_energy_forces(plain, &plain_e, plain_f);
+  read_energy_forces(crossed, &wrap_e, wrap_f);
+  assert_memory_equal(&plain_e, &bare_e, sizeof bare_e);
+  assert_memory_equal(plain_f, bare_f, sizeof bare_f);
+  assert_memory_equal(&wrap_e, &bare_e, sizeof bare_e);
+  assert_memory_equal(wrap_f, bare_f, sizeof bare_f);
+  assert_int_equal(cpmdc_mdi_evaluations(plain), 2);
+  assert_int_equal(cpmdc_mdi_evaluations(crossed), 2);
+
+  assert_int_equal(direct(g_periodic, step2, k_z, N, k_wrap_cell, &bare_e,
+                          bare_f, &stress),
+                   0);
+  send_coords(plain, step2);
+  send_coords(crossed, step2);
+  read_energy_forces(plain, &plain2, plain2_f);
+  read_energy_forces(crossed, &wrap2, wrap2_f);
+  assert_memory_equal(&plain2, &bare_e, sizeof bare_e);
+  assert_memory_equal(plain2_f, bare_f, sizeof bare_f);
+  assert_memory_equal(&wrap2, &bare_e, sizeof bare_e);
+  assert_memory_equal(wrap2_f, bare_f, sizeof bare_f);
+  cpmdc_mdi_destroy(plain);
+  cpmdc_mdi_destroy(crossed);
+}
+
 static void test_missing_inputs_and_unknown_commands_fail(void **state) {
   (void)state;
   cpmdc_mdi *eng = open_engine(g_isolated);
@@ -285,6 +379,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_isolated_stress_on_the_wire_is_zero),
       cmocka_unit_test(test_cluster_has_no_cell),
       cmocka_unit_test(test_composition_change_reopens_the_session),
+      cmocka_unit_test(test_wrapped_crossing_matches_unwrapped_run),
       cmocka_unit_test(test_missing_inputs_and_unknown_commands_fail),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

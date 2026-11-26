@@ -126,8 +126,14 @@ against its headers.
 * From a separate process with fix mdi/qm
 ~cpmdc-mdi~ answers the MDI commands
 ~fix mdi/qm~ sends ([[https://docs.lammps.org/fix_mdi_qm.html][fix mdi/qm]]).
-Meson builds the executable when pkg-config finds ~mdi~ (~-Dwith_mdi=auto~).
-~-Dwith_mdi=enabled~ refuses to configure when that library is absent.
+Meson builds the executable when it finds the MDI library (~-Dwith_mdi=auto~),
+by pkg-config or by the CMake package.
+MDI 1.4.40's CMake package exports the library and ~mdi_INCLUDE_DIR~ but does
+not put ~mdi.h~ on the imported target.
+The build adds that include directory when the header is missing from the
+dependency.
+~-Dwith_mdi=enabled~ refuses to configure when the library is absent or when
+~mdi.h~ still cannot be included.
 The command test ~mdi-qm~ does not need it.
 The executable takes one ~CPMDParams~ message.
 Run one engine process.
@@ -143,7 +149,7 @@ inside MD engines]].
 
 #+begin_src text
 # engine, one process
-cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -port 8021"
+cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -hostname localhost -port 8021"
 
 # in.mdi
 units           metal
@@ -157,8 +163,9 @@ fix             nve all nve
 run             100
 #+end_src
 
-Launch the driver on the same port:
-~lmp -mdi "-role DRIVER -name LAMMPS -method TCP -port 8021" -in in.mdi~.
+Launch the driver on the same port.
+MDI requires ~-hostname~ for a TCP engine and accepts it for the driver:
+~lmp -mdi "-role DRIVER -name LAMMPS -method TCP -hostname localhost -port 8021" -in in.mdi~.
 
 * Several MPI ranks
 Under ~mpirun~ LAMMPS spreads the atoms over its ranks, and cpmdc still

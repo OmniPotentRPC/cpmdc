@@ -4063,8 +4063,14 @@ against its headers.
 # From a separate process with fix mdi/qm
 `cpmdc-mdi` answers the MDI commands
 `fix mdi/qm` sends (fix mdi/qm (https://docs.lammps.org/fix_mdi_qm.html)).
-Meson builds the executable when pkg-config finds `mdi` (`-Dwith_mdi=auto`).
-`-Dwith_mdi=enabled` refuses to configure when that library is absent.
+Meson builds the executable when it finds the MDI library (`-Dwith_mdi=auto`),
+by pkg-config or by the CMake package.
+MDI 1.4.40's CMake package exports the library and `mdi_INCLUDE_DIR` but does
+not put `mdi.h` on the imported target.
+The build adds that include directory when the header is missing from the
+dependency.
+`-Dwith_mdi=enabled` refuses to configure when the library is absent or when
+`mdi.h` still cannot be included.
 The command test `mdi-qm` does not need it.
 The executable takes one `CPMDParams` message.
 Run one engine process.
@@ -4078,7 +4084,7 @@ GROMACS is unchanged: `libcpmdc_gromacs` still serves the CP2K
 QM/MM interface, and MiMiC stays out for the reasons in cpmdc inside MD engines (file:../explanation/md-engines.org).
 
 # engine, one process
-cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -port 8021"
+cpmdc-mdi water.params.bin -mdi "-role ENGINE -name cpmdc -method TCP -hostname localhost -port 8021"
 
 # in.mdi
 units           metal
@@ -4091,8 +4097,9 @@ timestep        0.00025
 fix             nve all nve
 run             100
 
-Launch the driver on the same port:
-`lmp -mdi "-role DRIVER -name LAMMPS -method TCP -port 8021" -in in.mdi`.
+Launch the driver on the same port.
+MDI requires `-hostname` for a TCP engine and accepts it for the driver:
+`lmp -mdi "-role DRIVER -name LAMMPS -method TCP -hostname localhost -port 8021" -in in.mdi`.
 
 # Several MPI ranks
 Under `mpirun` LAMMPS spreads the atoms over its ranks, and cpmdc still
@@ -6247,7 +6254,7 @@ Pass one as `-DNAME=VALUE` to `meson setup`.
 | `with_lammps_plugin` | feature | `auto` | build `cpmdcplugin.so`, the LAMMPS `pair_style cpmdc`; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see the LAMMPS how-to (file:../howto/lammps.org)) |
 | `lammps_include` | string | empty | directory holding `lammps.h` and `pair.h`; empty takes `include/lammps` of an importable `lammps` Python package |
 | `with_gromacs_shim` | feature | `auto` | build `libcpmdc_gromacs` and `libcp2k.pc` for the GROMACS QM/MM interface (see the GROMACS how-to (file:../howto/gromacs.org)) |
-| `with_mdi` | feature | `auto` | build `cpmdc-mdi`, the MDI engine for LAMMPS `fix mdi/qm`; needs the MDI library. The `mdi-qm` test does not (see the LAMMPS how-to (file:../howto/lammps.org)) |
+| `with_mdi` | feature | `auto` | build `cpmdc-mdi`, the MDI engine for LAMMPS `fix mdi/qm`; needs the MDI library and a usable `mdi.h`. The `mdi-qm` test does not (see the LAMMPS how-to (file:../howto/lammps.org)) |
 
 Meson takes the project version from `version.txt`.
 `pyproject.toml` leaves the Python package version dynamic and takes it from
@@ -6286,7 +6293,7 @@ linked image, but wildcard entries match only symbols that are present.
 | `cpmdc-ipi-c` | `bin/cpmdc-ipi-c` | the platform has `sys/un.h` and `with_python` is off |
 | `cpmdcplugin.so` | `lib/cpmdc/cpmdcplugin.so` | `with_lammps_plugin` is not disabled, `with_python` is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
 | `libcpmdc_gromacs` | `lib/libcpmdc_gromacs.so`, `include/cpmdc/gromacs/libcp2k.h`, `lib/cpmdc/gromacs/pkgconfig/libcp2k.pc` | `with_gromacs_shim` is not disabled and `with_python` is off |
-| `cpmdc-mdi` | `bin/cpmdc-mdi` | `with_mdi` is not disabled, pkg-config finds `mdi`, and `with_python` is off |
+| `cpmdc-mdi` | `bin/cpmdc-mdi` | `with_mdi` is not disabled, the MDI library is found, `mdi.h` can be included, and `with_python` is off |
 
 `MAJOR` is the soversion, the first field of `version.txt`.
 A `with_python` build sets no soversion, because a wheel stores no symlinks.
@@ -12092,17 +12099,29 @@ a `metal` energy from this route is not bit-identical to `FixExternal`.
 | `>CELL` | fully periodic | nine Bohr components, one lattice vector per row: , ,  |
 | `>ELEMENTS` | the `elements` keyword | one atomic number per atom, ascending LAMMPS atom ID |
 | `>TYPES` | no `elements` keyword | accepted as atomic numbers, so the LAMMPS types must already be atomic numbers |
-| `>COORDS` | every evaluation | `3N` Bohr coordinates, absolute Cartesian, unwrapped with the image flags |
+| `>COORDS` | every evaluation | `3N` Bohr coordinates, Cartesian, each atom remapped into the box |
 | `<PE`, `<ENERGY` | every evaluation | cpmdc total energy, Hartree |
 | `<KE_ELEC` | every evaluation, because the engine registers it | 0. The electronic kinetic energy is already inside `<PE`. LAMMPS adds `<PE` and `<KE_ELEC` and does not also read `<ENERGY` when both exist |
 | `<FORCES` | every evaluation | Hartree/Bohr, `-dE/dR`, in `>COORDS` order |
 | `<STRESS` | `virial yes` | nine Hartree/Bohr^3 components, row-major `xx xy xz yx yy yz zx zy zz` |
 
+`fix mdi/qm` copies `atom->x` and calls `domain->remap` before it sends
+`>COORDS`, so each atom lies inside the box.
+The image flags are not applied.
 The engine subtracts
-`>CELL_DISPL` from `>COORDS` before `cpmdc_session_calculate_au()`, so the
-positions sit in a cell whose origin is zero.
+`>CELL_DISPL` from those coordinates before `cpmdc_session_calculate_au()`, so
+the positions sit in a cell whose origin is zero.
+When this step has a cell and a previous step, it then shifts each atom by the
+lattice vector that brings it nearest to its previous position.
+A cached geometry, a reused neighbor list, and wavefunction extrapolation
+therefore see one continuous path, and the energy and forces match the unwrapped
+trajectory.
+A displacement of more than half a box edge is that lattice image.
+A singular cell on a later step fails the evaluation.
+A new `>NATOMS` drops that path with the previous cell, origin, species, and
+coordinates.
 A step that never received `>CELL` since the last `>NATOMS` is a cluster: the
-session is called with no cell.
+session is called with no cell, and no lattice shift is applied.
 One evaluation serves `<PE`, `<ENERGY`, `<FORCES`, and `<STRESS` until the next
 `>` command.
 
