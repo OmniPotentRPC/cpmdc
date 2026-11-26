@@ -468,6 +468,32 @@ def test_org_plaintext_keeps_literal_trailing_whitespace(root: Path = ROOT) -> N
             raise AssertionError(f"block marker leaked:\n{rendered}")
 
 
+def test_org_plaintext_keeps_literal_whitespace_when_block_ends_page(
+    root: Path = ROOT,
+) -> None:
+    """A literal block that ends the page keeps spaces and a tab.
+
+    Blank lines after the block are dropped. The last literal line stays
+    byte for byte, including when nothing follows it.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "repo"
+        _copy_generator_inputs(root, tree)
+        generator = _load_generator_module(tree)
+        sample = (
+            "intro\n"
+            "#+begin_src text\n"
+            "last  \t\n"
+            "#+end_src\n"
+            "\n"
+            "\n"
+        )
+        rendered = generator.org_plaintext(sample)
+        expected = "intro\nlast  \t\n"
+        if rendered != expected:
+            raise AssertionError(f"page end changed: {rendered!r}")
+
+
 def test_markup_corruption_flags_dollar_math_and_environments(
     root: Path = ROOT,
 ) -> None:
@@ -547,6 +573,7 @@ TESTS = (
     test_org_plaintext_keeps_parenthesized_code,
     test_org_plaintext_keeps_multiline_math_blocks,
     test_org_plaintext_keeps_literal_trailing_whitespace,
+    test_org_plaintext_keeps_literal_whitespace_when_block_ends_page,
     test_markup_corruption_flags_dollar_math_and_environments,
     test_slash_separated_command_names_stay_separate_spans,
 )

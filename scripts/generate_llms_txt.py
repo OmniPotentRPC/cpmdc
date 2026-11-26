@@ -216,7 +216,9 @@ def org_plaintext(text: str) -> str:
     Backslash math, display math, dollar math, and LaTeX environments are
     copied unchanged, so ``=1`` and ``~x~`` inside them are not inline markup.
     Org code and verbatim become backtick spans. Source, example, verse, and
-    export blocks are copied as written, including trailing spaces.
+    export blocks are copied as written, including trailing spaces. Blank
+    lines at the edges of the page are dropped. Spaces and tabs on a
+    literal line stay, including when that line ends the page.
     """
     text = normalize_wrapped_org_links(text)
     math_vault: list[str] = []
@@ -244,7 +246,13 @@ def org_plaintext(text: str) -> str:
             lines.append("#" * min(level, 6) + " " + heading)
             continue
         lines.append(_restore_math(_convert_inline(line), math_vault))
-    return "\n".join(lines).strip() + "\n"
+    start = 0
+    end = len(lines)
+    while start < end and lines[start] == "":
+        start += 1
+    while end > start and lines[end - 1] == "":
+        end -= 1
+    return "\n".join(lines[start:end]) + "\n"
 
 
 def discover_sections(org_root: Path = ORG_ROOT) -> list[tuple[str, list[Path]]]:
