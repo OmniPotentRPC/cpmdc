@@ -24,7 +24,8 @@
  *
  *   PARAMS path           CPMDParams message (required)
  *   CELL PERIODIC|NONE    send the GROMACS box to cpmdc, or the deck's cell
- *   EMBEDDING MECHANICAL|NONE   QM-MM Coulomb from fixed charges, or none
+ *   EMBEDDING ELECTROSTATIC|MECHANICAL|NONE
+ *   MM_WIDTH w            Gaussian MM-charge width in nm (default 0.03)
  *   QM_CHARGES q ...      classical charge of each QM atom, in index order
  *   EWALD_RCUT r          real-space cutoff of that Coulomb sum, nm
  *   EWALD_PRECISION p     erfc(alpha rcut) and the reciprocal-space cutoff
@@ -47,8 +48,9 @@
  * it generates; on the explicit path they sit beside &CPMDC. The force on
  * each hydrogen goes to the two atoms of its bond by the chain rule, 1 - a
  * to the QM atom and a to the MM atom, a = 1 / ALPHA_IMOMM. With EMBEDDING
- * MECHANICAL the MM atom of each bond leaves the QM-MM Coulomb sum (its
- * charge is deleted), since it sits one bond from a QM charge.
+ * MECHANICAL or EMBEDDING ELECTROSTATIC the MM atom of each bond leaves the
+ * QM-MM interaction (its charge is deleted), since it sits one bond from a
+ * QM atom.
  *
  * Virial: cp2k_get_stress_tensor gives the strain derivative of the energy
  * returned, for a symmetric strain that moves every atom and the box:
@@ -104,6 +106,9 @@
 #define PI 3.14159265358979323846
 /* CP2K's default ALPHA_IMOMM: the ratio of a C-C to a C-H bond length. */
 #define LINK_ALPHA_DEFAULT 1.38
+#define MM_WIDTH_DEFAULT_ANG 0.30
+#define MM_WIDTH_MIN_NM 1.0e-13
+#define EWALD_PRECISION_DEFAULT 1.0e-8
 
 static const char *const k_symbols[MAX_Z] = {
     "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg",
@@ -118,7 +123,12 @@ static const char *const k_symbols[MAX_Z] = {
     "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"};
 
 enum { CELL_DEFAULT = -1, CELL_NONE = 0, CELL_PERIODIC = 1 };
-enum { EMBED_UNSET = -1, EMBED_NONE = 0, EMBED_MECHANICAL = 1 };
+enum {
+  EMBED_UNSET = -1,
+  EMBED_NONE = 0,
+  EMBED_MECHANICAL = 1,
+  EMBED_ELECTROSTATIC = 2
+};
 enum { QM_RANKS_ALL = 0, QM_RANKS_ONE = 1 };
 
 typedef struct {
@@ -151,6 +161,8 @@ typedef struct {
   int have_prev;
   /* rank 0 */
   int embedding, saw_epsilon_r;
+  double mm_width_ang;
+  int mm_width_set;
   double ewald_rcut_nm, ewald_precision, epsilon_r;
   int nmm, qm_charges_listed;
   int *mm_index;
@@ -339,8 +351,10 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   pdb_path[0] = '\0';
   env->cell_mode = CELL_DEFAULT;
   env->embedding = EMBED_UNSET;
+  env->mm_width_ang = MM_WIDTH_DEFAULT_ANG;
+  env->mm_width_set = 0;
   env->ewald_rcut_nm = 0.0;
-  env->ewald_precision = 1e-8;
+  env->ewald_precision = EWALD_PRECISION_DEFAULT;
   env->epsilon_r = 1.0;
   env->saw_epsilon_r = 0;
   env->qm_ranks = QM_RANKS_ALL;
@@ -509,13 +523,20 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
     } else if (strcasecmp(w[0], "EMBEDDING") == 0) {
       if (strcasecmp(w[1], "MECHANICAL") == 0)
         env->embedding = EMBED_MECHANICAL;
+      else if (strcasecmp(w[1], "ELECTROSTATIC") == 0)
+        env->embedding = EMBED_ELECTROSTATIC;
       else if (strcasecmp(w[1], "NONE") == 0)
         env->embedding = EMBED_NONE;
-      else if (strcasecmp(w[1], "ELECTROSTATIC") == 0)
-        die(env, "&CPMDC EMBEDDING ELECTROSTATIC is not implemented: cpmdc takes no "
-                 "external point charges; use MECHANICAL or NONE");
       else
-        die(env, "&CPMDC EMBEDDING is MECHANICAL or NONE, not %s", w[1]);
+        die(env, "&CPMDC EMBEDDING is ELECTROSTATIC, MECHANICAL or NONE, not %s",
+            w[1]);
+    } else if (strcasecmp(w[0], "MM_WIDTH") == 0) {
+      char *end = NULL;
+      double width_nm = strtod(w[1], &end);
+      if (!end || *end != '\0' || !isfinite(width_nm) || width_nm < MM_WIDTH_MIN_NM)
+        die(env, "&CPMDC MM_WIDTH must be a finite width of at least 1e-13 nm");
+      env->mm_width_ang = 10.0 * width_nm;
+      env->mm_width_set = 1;
     } else if (strcasecmp(w[0], "QM_RANKS") == 0) {
       if (strcasecmp(w[1], "ALL") == 0)
         env->qm_ranks = QM_RANKS_ALL;
@@ -722,25 +743,31 @@ static void parse_pdb(Env *env, const char *path) {
           "explicit &CPMDC section with EMBEDDING MECHANICAL and QM_CHARGES, "
           "or select EMBEDDING NONE");
     if (charged_mm)
-      die(env, "the MM atoms carry charges: set &CPMDC EMBEDDING MECHANICAL (with "
-               "QM_CHARGES) or EMBEDDING NONE");
+      die(env, "the MM atoms carry charges: set &CPMDC EMBEDDING ELECTROSTATIC, "
+               "EMBEDDING MECHANICAL (with QM_CHARGES), or EMBEDDING NONE");
     env->embedding = EMBED_NONE;
   }
   if (env->embedding == EMBED_MECHANICAL) {
     if (nq != nqm)
       die(env, "&CPMDC QM_CHARGES lists %d charges for %d QM atoms", nq, nqm);
+  } else {
+    if (nq != 0)
+      die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
+    if (env->saw_epsilon_r && env->embedding != EMBED_ELECTROSTATIC)
+      die(env, "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL or EMBEDDING ELECTROSTATIC");
+  }
+  if (env->embedding == EMBED_MECHANICAL || env->embedding == EMBED_ELECTROSTATIC) {
     /* The MM atom of a cut bond is one bond from a QM charge, where a point
      * charge model is not meaningful: delete its charge, as the Z1 scheme. */
     for (int k = 0; k < env->nlink; ++k)
       for (int j = 0; j < nmm; ++j)
         if (env->mm_index[j] == env->link_mm[k])
           env->mm_charge[j] = 0.0;
-  } else {
-    if (nq != 0)
-      die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
-    if (env->saw_epsilon_r)
-      die(env, "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL");
   }
+  if (env->mm_width_set && env->embedding != EMBED_ELECTROSTATIC)
+    die(env, "&CPMDC MM_WIDTH needs EMBEDDING ELECTROSTATIC");
+  if (env->embedding == EMBED_ELECTROSTATIC && env->cell_mode == CELL_PERIODIC)
+    die(env, "periodic electrostatic embedding is unsupported; use CELL NONE");
 }
 
 /* --- geometry ------------------------------------------------------------ */
@@ -1072,18 +1099,72 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   }
   if (!env->session)
     open_session(env);
+  double *electrostatic_xm = NULL;
+  double *electrostatic_fm = NULL;
+  double *electrostatic_q = NULL;
+  double *electrostatic_width = NULL;
+  if (env->embedding == EMBED_ELECTROSTATIC && env->nmm > 0) {
+    const int nm = env->nmm;
+    electrostatic_xm = alloc(env, 3 * (size_t)nm, sizeof(double));
+    electrostatic_fm = alloc(env, 3 * (size_t)nm, sizeof(double));
+    electrostatic_q = alloc(env, (size_t)nm, sizeof(double));
+    electrostatic_width = alloc(env, (size_t)nm, sizeof(double));
+    for (int j = 0; j < nm; ++j) {
+      double point[3];
+      memcpy(point, &env->pos[3 * (size_t)env->mm_index[j]], sizeof(point));
+      if (periodic && env->cell_mode == CELL_NONE)
+        nearest_image(env->rows, inv, &env->qm_x[0], point);
+      for (int k = 0; k < 3; ++k)
+        electrostatic_xm[3 * j + k] = point[k] * BOHR_TO_NM * 10.0;
+      electrostatic_q[j] = env->epsilon_r == 1.0 ? env->mm_charge[j]
+                                               : env->mm_charge[j] / env->epsilon_r;
+      electrostatic_width[j] = env->mm_width_ang;
+    }
+    if (cpmdc_session_set_external_charges(
+            env->session, (size_t)nm, electrostatic_xm, electrostatic_q,
+            electrostatic_width) != 0) {
+      const char *text = cpmdc_last_error();
+      snprintf(why, why_cap, "%s",
+               text && *text ? text : "cpmdc_session_set_external_charges failed");
+      free(electrostatic_xm);
+      free(electrostatic_fm);
+      free(electrostatic_q);
+      free(electrostatic_width);
+      return -1;
+    }
+  }
   double qm_energy = 0.0, qm_virial[9] = {0.0};
   if (cpmdc_session_calculate_au(env->session, nc, env->qm_x, env->qm_z,
                                  env->cell_mode == CELL_PERIODIC ? &env->rows[0][0] : NULL,
                                  &qm_energy, env->qm_f, qm_virial) != 0) {
     const char *text = cpmdc_last_error();
     snprintf(why, why_cap, "%s", text && *text ? text : "cpmdc_session_calculate_au failed");
+    free(electrostatic_xm);
+    free(electrostatic_fm);
+    free(electrostatic_q);
+    free(electrostatic_width);
+    return -1;
+  }
+  if (env->embedding == EMBED_ELECTROSTATIC && env->nmm > 0 &&
+      cpmdc_session_last_external_charge_forces(
+          env->session, electrostatic_fm, 3u * (size_t)env->nmm) != 0) {
+    const char *text = cpmdc_last_error();
+    snprintf(why, why_cap, "%s",
+             text && *text ? text : "external-charge forces are unavailable");
+    free(electrostatic_xm);
+    free(electrostatic_fm);
+    free(electrostatic_q);
+    free(electrostatic_width);
     return -1;
   }
   memcpy(env->qm_prev, env->qm_x, 3 * (size_t)nq * sizeof(double));
   env->have_prev = 1;
   if (env->rank != 0) {
     env->energy = qm_energy;
+    free(electrostatic_xm);
+    free(electrostatic_fm);
+    free(electrostatic_q);
+    free(electrostatic_width);
     return 0;
   }
 
@@ -1163,6 +1244,20 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
     free(xm);
     free(fm);
     free(fq);
+  } else if (env->embedding == EMBED_ELECTROSTATIC && env->nmm > 0) {
+    for (int j = 0; j < env->nmm; ++j) {
+      for (int k = 0; k < 3; ++k)
+        env->forces[3 * (size_t)env->mm_index[j] + k] = electrostatic_fm[3 * j + k];
+      if (env->cell_mode == CELL_NONE)
+        for (int a = 0; a < 3; ++a)
+          for (int b = 0; b < 3; ++b) {
+            const double xa = electrostatic_xm[3 * j + a] / (BOHR_TO_NM * 10.0);
+            const double xb = electrostatic_xm[3 * j + b] / (BOHR_TO_NM * 10.0);
+            env->virial[a][b] +=
+                0.5 * (xa * electrostatic_fm[3 * j + b] +
+                       xb * electrostatic_fm[3 * j + a]);
+          }
+    }
   }
   for (int i = 0; i < nq; ++i)
     for (int k = 0; k < 3; ++k)
@@ -1179,6 +1274,10 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
     }
   }
   env->energy = qm_energy + coulomb;
+  free(electrostatic_xm);
+  free(electrostatic_fm);
+  free(electrostatic_q);
+  free(electrostatic_width);
   if (env->log && env->evaluated == 0) {
     fprintf(env->log,
             "first step: backend %s qm_energy_hartree %.17g coulomb_qm_mm_hartree %.17g\n",
@@ -1213,23 +1312,32 @@ static void bcast(Env *env, void *buf, int count, MPI_Datatype type) {
  * calculation needs. GROMACS writes both files on its main rank just before
  * this call, so only rank 0 may read them. */
 static void share_config(Env *env) {
-  long head[6] = {env->natoms, env->nqm, env->cell_mode, env->qm_ranks,
-                  (long)env->params_len, env->nlink};
-  bcast(env, head, 6, MPI_LONG);
+  long head[8] = {env->natoms, env->nqm, env->nmm, env->cell_mode,
+                  env->embedding, env->qm_ranks, (long)env->params_len,
+                  env->nlink};
+  double scalars[2] = {env->mm_width_ang, env->epsilon_r};
+  bcast(env, head, 8, MPI_LONG);
+  bcast(env, scalars, 2, MPI_DOUBLE);
   if (env->rank != 0) {
     env->natoms = (int)head[0];
     env->nqm = (int)head[1];
-    env->cell_mode = (int)head[2];
-    env->qm_ranks = (int)head[3];
-    env->params_len = (size_t)head[4];
-    env->nlink = (int)head[5];
+    env->nmm = (int)head[2];
+    env->cell_mode = (int)head[3];
+    env->embedding = (int)head[4];
+    env->qm_ranks = (int)head[5];
+    env->params_len = (size_t)head[6];
+    env->nlink = (int)head[7];
     env->ncalc = env->nqm + env->nlink;
+    env->mm_width_ang = scalars[0];
+    env->epsilon_r = scalars[1];
   }
   if (env->qm_ranks != QM_RANKS_ALL)
     return;
   if (env->rank != 0) {
     env->qm_index = alloc(env, (size_t)env->nqm, sizeof(int));
     env->qm_z = alloc(env, (size_t)env->ncalc, sizeof(int));
+    env->mm_index = alloc(env, (size_t)env->nmm, sizeof(int));
+    env->mm_charge = alloc(env, (size_t)env->nmm, sizeof(double));
     env->link_mm = alloc(env, (size_t)env->nlink, sizeof(int));
     env->link_slot = alloc(env, (size_t)env->nlink, sizeof(int));
     env->link_scale = alloc(env, (size_t)env->nlink, sizeof(double));
@@ -1237,6 +1345,8 @@ static void share_config(Env *env) {
   }
   bcast(env, env->qm_index, env->nqm, MPI_INT);
   bcast(env, env->qm_z, env->ncalc, MPI_INT);
+  bcast(env, env->mm_index, env->nmm, MPI_INT);
+  bcast(env, env->mm_charge, env->nmm, MPI_DOUBLE);
   bcast(env, env->link_mm, env->nlink, MPI_INT);
   bcast(env, env->link_slot, env->nlink, MPI_INT);
   bcast(env, env->link_scale, env->nlink, MPI_DOUBLE);
@@ -1272,7 +1382,9 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
               "qm_ranks %d epsilon_r %.17g links %d\n",
               env->natoms, env->nqm, env->nmm,
               env->cell_mode == CELL_PERIODIC ? "PERIODIC" : "NONE",
-              env->embedding == EMBED_MECHANICAL ? "MECHANICAL" : "NONE",
+              env->embedding == EMBED_MECHANICAL
+                  ? "MECHANICAL"
+                  : (env->embedding == EMBED_ELECTROSTATIC ? "ELECTROSTATIC" : "NONE"),
               env->ewald_precision, env->size,
               env->qm_ranks == QM_RANKS_ALL ? env->size : 1,
               env->epsilon_r, env->nlink);

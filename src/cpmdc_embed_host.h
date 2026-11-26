@@ -23,6 +23,14 @@ void cpmdc_scatter_species_gradient(int n_atoms, const int *map,
 /* Record an embed failure for the C result path. msg is a C string. */
 void cpmdc_note_embed_failure(const char *msg);
 
+/* Same channel, with CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL. A deck that already
+ * owns the external field and a session charge set are mutually exclusive. */
+void cpmdc_note_deck_external_potential(void);
+
+/* Same channel, with CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING. The deck
+ * is not an isolated system, so the Gaussian charges have no image sum. */
+void cpmdc_note_periodic_embedding(void);
+
 int cpmdc_prepare_pp_cwd(const char *pseudo_dir);
 
 /* After pseudopotentials are read: chdir to output_dir when it is non-empty,

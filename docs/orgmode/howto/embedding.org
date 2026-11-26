@@ -35,7 +35,7 @@ virial out.
 on it, with unit conversion, the triclinic cell, and the MPI gather to one rank; [[file:lammps.org][Run LAMMPS on cpmdc forces]]
 documents it beside the Python ~fix external~ route.
 ~tools/gromacs/cpmdc_gromacs.c~ is a host on the same call behind another
-program's C API, libcp2k, with mechanical QM-MM embedding; see [[file:gromacs.org][Run GROMACS on cpmdc forces]].
+program's C API, libcp2k, with electrostatic and mechanical QM-MM embedding; see [[file:gromacs.org][Run GROMACS on cpmdc forces]].
 
 Arguments, units, and return conventions of each row are in [[file:../reference/c-abi.org::*Conventions][the C ABI conventions]]
 and the section for its call family

@@ -100,7 +100,7 @@ jobs:
           export CPMDC_LIBRARY="$PWD/build-lammps/libcpmdc.so"
           export CPMDC_TEST_PARAMS="$PWD/build-lammps/water_blyp_params.bin"
           export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-lammps/water_blyp_periodic_params.bin"
-          pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py tests/python/test_lammps_rgpot_adapter.py -k 'not plugin' | tee lammps-pytest.log
+          pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py tests/python/test_lammps_rgpot_adapter.py tests/python/test_lammps_embedding_unit.py -k 'not plugin' | tee lammps-pytest.log
           grep -E '[1-9][0-9]* passed' lammps-pytest.log
           if grep -E '^SKIPPED' lammps-pytest.log; then
             echo "LAMMPS tests skipped"
@@ -169,7 +169,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       # mpifort reads OMPI_FC, not FC. The three wrappers then use the
       # same GCC 13 compilers as CC, CXX, and FC.
@@ -220,7 +220,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Full meson suite
         run: |
@@ -295,6 +295,21 @@ jobs:
           grep -E '[0-9]+ passed' session-pytest.log
           if grep -E '^SKIPPED' session-pytest.log | grep -v "uses the reference evaluator's stress formula"; then
             echo "session tests skipped for a reason other than the reference stress formula"
+            exit 1
+          fi
+      - name: Electrostatic embedding against OpenCPMD
+        run: |
+          set -o pipefail
+          pixi run meson test -C build-cpmd external-charge-errors --print-errorlogs
+          pixi run meson compile -C build-cpmd water_embedding_params_bin
+          export CPMDC_LIBRARY="$PWD/build-cpmd/libcpmdc.so"
+          export CPMDC_TEST_PARAMS="$PWD/build-cpmd/water_blyp_params.bin"
+          export CPMDC_TEST_EMBEDDING_PARAMS="$PWD/build-cpmd/water_blyp_embedding_params.bin"
+          export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-cpmd/water_blyp_periodic_params.bin"
+          pixi run python -m pytest -q -rs tests/python/test_external_charges.py | tee embedding-pytest.log
+          grep -E '[1-9][0-9]* passed' embedding-pytest.log
+          if grep -E '^SKIPPED' embedding-pytest.log; then
+            echo "electrostatic embedding tests skipped"
             exit 1
           fi
 
@@ -418,7 +433,7 @@ jobs:
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
           "${RUNNER_TEMP}/meson-venv/bin/pip" install \
-            'meson>=1.5.2,<2' "${{ matrix.ase_spec }}" 'pytest>=7' 'ipi>=3.3'
+            'meson>=1.5.2,<2' "${{ matrix.ase_spec }}" 'pytest>=7' 'ipi>=3.3' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Rust for minimage
         run: |

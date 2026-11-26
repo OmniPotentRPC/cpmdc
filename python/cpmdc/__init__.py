@@ -49,6 +49,11 @@ __all__ = [
     "HARTREE_TO_EV",
     "HARTREE_TO_KCAL_PER_MOL",
     "CPMDCError",
+    "CPMDCInvalidArgument",
+    "CPMDCUnavailable",
+    "CPMDCUnsupportedPeriodicEmbedding",
+    "CPMDCEvaluationFailed",
+    "CPMDCDeckExternalPotential",
     "ConstantCutoff",
     "Evaluation",
     "MethodInfo",
@@ -64,7 +69,70 @@ __all__ = [
 
 
 class CPMDCError(RuntimeError):
-    """The C library rejected a call, or the host could not load it."""
+    """The C library rejected a call, or the host could not load it.
+
+    ``code`` is the ``CPMDCErrorCode`` of a library failure. It is 0 when the
+    failure happened in Python, before the library ran.
+    """
+
+    code = 0
+
+    def __init__(self, message: str = "", code: int | None = None) -> None:
+        super().__init__(message)
+        self.code = type(self).code if code is None else int(code)
+
+
+class CPMDCInvalidArgument(CPMDCError):
+    """The call passed a null handle, a bad buffer, or a value the library refuses."""
+
+    code = 1
+
+
+class CPMDCUnavailable(CPMDCError):
+    """The CPMD backend is not linked, not ready, or this build is the link stub."""
+
+    code = 2
+
+
+class CPMDCUnsupportedPeriodicEmbedding(CPMDCError):
+    """External charges were combined with a periodic cell."""
+
+    code = 3
+
+
+class CPMDCEvaluationFailed(CPMDCError):
+    """The evaluation ran and did not produce a result."""
+
+    code = 4
+
+
+class CPMDCDeckExternalPotential(CPMDCError):
+    """Session charges were combined with a deck-defined EXTERNAL POTENTIAL."""
+
+    code = 5
+
+
+_ERRORS_BY_CODE = {
+    CPMDCInvalidArgument.code: CPMDCInvalidArgument,
+    CPMDCUnavailable.code: CPMDCUnavailable,
+    CPMDCUnsupportedPeriodicEmbedding.code: CPMDCUnsupportedPeriodicEmbedding,
+    CPMDCEvaluationFailed.code: CPMDCEvaluationFailed,
+    CPMDCDeckExternalPotential.code: CPMDCDeckExternalPotential,
+}
+
+
+def _library_failure(lib: ctypes.CDLL, fallback: str, message: str = "") -> CPMDCError:
+    """Typed exception for the library failure still stored on this thread.
+
+    A library without ``cpmdc_last_error_code`` keeps the plain error and
+    code 0. An empty stored message uses ``fallback``.
+    """
+    code_fn = getattr(lib, "cpmdc_last_error_code", None)
+    code = 0 if code_fn is None else int(code_fn())
+    if not message:
+        raw = lib.cpmdc_last_error()
+        message = raw.decode("utf-8", "replace") if raw else ""
+    return _ERRORS_BY_CODE.get(code, CPMDCError)(message or fallback, code)
 
 
 def __getattr__(name: str) -> Any:
@@ -650,6 +718,22 @@ def _load(path: Path) -> ctypes.CDLL:
             ctypes.c_longlong,
         ]
         lib.cpmdc_session_copy_orbitals.restype = ctypes.c_int
+    if hasattr(lib, "cpmdc_session_set_external_charges"):
+        lib.cpmdc_session_set_external_charges.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.cpmdc_session_set_external_charges.restype = ctypes.c_int
+    if hasattr(lib, "cpmdc_session_last_external_charge_forces"):
+        lib.cpmdc_session_last_external_charge_forces.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+        ]
+        lib.cpmdc_session_last_external_charge_forces.restype = ctypes.c_int
     lib.cpmdc_adopt_calculator_comm.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
     lib.cpmdc_adopt_calculator_comm.restype = ctypes.c_int
     lib.cpmdc_session_last_stress.argtypes = [
@@ -667,6 +751,9 @@ def _load(path: Path) -> ctypes.CDLL:
         lib.cpmdc_session_last_dipole.restype = ctypes.c_int
     lib.cpmdc_last_error.argtypes = []
     lib.cpmdc_last_error.restype = ctypes.c_char_p
+    if hasattr(lib, "cpmdc_last_error_code"):
+        lib.cpmdc_last_error_code.argtypes = []
+        lib.cpmdc_last_error_code.restype = ctypes.c_int
     lib.cpmdc_version.argtypes = []
     lib.cpmdc_version.restype = ctypes.c_char_p
     lib.cpmdc_abi_version.argtypes = []
@@ -699,10 +786,9 @@ def params_method(
     buffer = ctypes.create_string_buffer(blob)
     method = _CMethodInfo()
     if method_fn(buffer, len(blob), ctypes.byref(method)) != 0:
-        raw = lib.cpmdc_last_error()
-        if raw is None or not raw:
-            raise CPMDCError("cpmdc_params_method failed without an error message")
-        raise CPMDCError(raw.decode("utf-8", "replace"))
+        raise _library_failure(
+            lib, "cpmdc_params_method failed without an error message"
+        )
     functional = bytes(method.functional).split(b"\0", 1)[0].decode(
         "utf-8", "replace"
     )
@@ -765,7 +851,7 @@ class Session:
         buffer = ctypes.create_string_buffer(blob)
         handle = self._lib.cpmdc_session_create(buffer, len(blob))
         if not handle:
-            raise CPMDCError(self._error() or "cpmdc_session_create failed")
+            raise self._fail("cpmdc_session_create failed")
         self._handle = handle
         if cutoff is not None:
             # src/cpmdc_params.c treats a non-positive height or width as unset
@@ -776,13 +862,17 @@ class Session:
                 handle, cutoff.cutoff_ry, height, width
             )
             if status != 0:
-                message = self._error() or "cpmdc_session_set_constant_cutoff failed"
+                exc = self._fail("cpmdc_session_set_constant_cutoff failed")
                 self.close()
-                raise CPMDCError(message)
+                raise exc
 
     def _error(self) -> str:
         text = self._lib.cpmdc_last_error()
         return text.decode("utf-8", "replace") if text else ""
+
+    def _fail(self, fallback: str, message: str = "") -> CPMDCError:
+        """Typed exception for the library failure still stored on this thread."""
+        return _library_failure(self._lib, fallback, message)
 
     def version(self) -> str:
         """Compiled library version string."""
@@ -832,7 +922,9 @@ class Session:
                 self._handle, payload, len(encoded), force_buf, n_atoms * 3
             )
         if not result.ok:
-            raise CPMDCError(_message(result) or self._error() or "evaluation failed")
+            raise self._fail(
+                "evaluation failed", _message(result) or self._error() or "evaluation failed"
+            )
         stress = _CStress()
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
@@ -937,9 +1029,65 @@ class Session:
             force_buf, virial_buf,
         )
         if status != 0:
-            raise CPMDCError(self._error() or "evaluation failed")
+            raise self._fail("evaluation failed")
         self._last_dipole()
         return float(energy.value), forces, virial
+
+    def set_external_charges(
+        self,
+        positions_angstrom: Any,
+        charges_e: Any,
+        widths_angstrom: Any = None,
+    ) -> None:
+        """Set Gaussian MM point charges for subsequent evaluations.
+
+        Positions and optional widths are in Angstrom and charges are in units
+        of the elementary charge. Passing empty positions and charges clears
+        the environment. When widths are omitted, the library default is used.
+        A width below 1e-12 Angstrom, or a value that is not finite, raises
+        :class:`CPMDCInvalidArgument` and keeps the previous charges. Periodic
+        evaluations with external charges are rejected. A library without
+        ``cpmdc_session_set_external_charges`` raises :class:`CPMDCError`.
+        """
+        n_charges = len(charges_e)
+        positions = _in_array(
+            positions_angstrom, ctypes.c_double, 3 * n_charges, "positions_angstrom"
+        )
+        charges = _in_array(charges_e, ctypes.c_double, n_charges, "charges_e")
+        widths = (
+            None
+            if widths_angstrom is None
+            else _in_array(widths_angstrom, ctypes.c_double, n_charges, "widths_angstrom")
+        )
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        set_fn = getattr(self._lib, "cpmdc_session_set_external_charges", None)
+        if set_fn is None:
+            raise CPMDCError(
+                "this libcpmdc has no cpmdc_session_set_external_charges; "
+                "use a library built from cpmdc with electrostatic embedding support"
+            )
+        status = set_fn(self._handle, n_charges, positions, charges, widths)
+        if status != 0:
+            raise self._fail("setting external charges failed")
+
+    def external_charge_forces_au(self, n_charges: int) -> Any:
+        """Return forces on the last evaluation's MM charges, Hartree/Bohr."""
+        if n_charges < 0:
+            raise ValueError("n_charges must be non-negative")
+        values, buffer = _out_array(None, 3 * n_charges, "external_charge_forces")
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        forces_fn = getattr(self._lib, "cpmdc_session_last_external_charge_forces", None)
+        if forces_fn is None:
+            raise CPMDCError(
+                "this libcpmdc has no cpmdc_session_last_external_charge_forces; "
+                "use a library built from cpmdc with electrostatic embedding support"
+            )
+        status = forces_fn(self._handle, buffer, 3 * n_charges)
+        if status != 0:
+            raise self._fail("external charge forces are unavailable")
+        return values
 
     def select_orbitals(self, key: int) -> None:
         """Select the signed 64-bit integer orbital ``key`` this session evaluates under."""

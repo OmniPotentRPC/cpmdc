@@ -2,6 +2,8 @@
  * Every public call that can fail leaves a non-empty cpmdc_last_error().
  * A successful configuration call clears it. Snapshot readers and the
  * capabilities size query do not write it.
+ * cpmdc_session_last_external_charge_forces is the exception and is covered
+ * by test_external_charge_errors.
  */
 #include "cpmdc.h"
 
@@ -14,6 +16,7 @@
 #include <cmocka.h>
 
 static const char *g_params = NULL;
+static const char *g_force_input = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -127,13 +130,19 @@ static void expect_result_error(CPMDCResult r, const char *fragment) {
   assert_string_equal(cpmdc_last_error(), r.message);
 }
 
+static void expect_result_code(CPMDCResult r, const char *fragment,
+                               CPMDCErrorCode code) {
+  expect_result_error(r, fragment);
+  assert_int_equal(cpmdc_last_error_code(), code);
+}
+
 static void test_energy_failures(void **state) {
   (void)state;
   prime_config_error();
   expect_result_error(cpmdc_energy(0, NULL, NULL, NULL, 0), "invalid arguments");
   prime_config_error();
-  expect_result_error(
-      cpmdc_energy_gradient(0, NULL, NULL, NULL, 0, NULL), "invalid arguments");
+  expect_result_code(cpmdc_energy_gradient(0, NULL, NULL, NULL, 0, NULL),
+                     "invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);
   prime_config_error();
   expect_result_error(cpmdc_energy_forces(0, NULL, NULL, NULL, 0, NULL),
                       "invalid arguments");
@@ -162,6 +171,17 @@ static void test_session_energy_failures(void **state) {
 
 static void test_one_shot_failures(void **state) {
   (void)state;
+  unsigned char garbage[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  size_t force_size = 0;
+  unsigned char *force = read_file(g_force_input, &force_size);
+  assert_non_null(force);
+  size_t result_size =
+      cpmdc_potential_result_size_for_force_input(force, force_size);
+  assert_true(result_size > 0);
+  unsigned char *result = malloc(result_size);
+  assert_non_null(result);
+  size_t written = 0;
+
   prime_config_error();
   expect_result_error(cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL),
                       "invalid arguments");
@@ -169,6 +189,27 @@ static void test_one_shot_failures(void **state) {
   expect_result_error(
       cpmdc_calculate_result_from_config(NULL, 0, NULL, 0, NULL, 0, NULL),
       "invalid arguments");
+
+  expect_result_code(
+      cpmdc_calculate_result(garbage, sizeof(garbage), garbage,
+                             sizeof(garbage), NULL, 0, &written),
+      "ForceInput", CPMDC_ERROR_INVALID_ARGUMENT);
+  expect_result_code(
+      cpmdc_calculate_result_from_config(
+          garbage, sizeof(garbage), garbage, sizeof(garbage), NULL, 0, &written),
+      "ForceInput", CPMDC_ERROR_INVALID_ARGUMENT);
+  expect_result_code(
+      cpmdc_calculate_result(garbage, sizeof(garbage), force, force_size, result,
+                             result_size, &written),
+      "CPMDParams parse failed", CPMDC_ERROR_INVALID_ARGUMENT);
+  expect_result_code(
+      cpmdc_calculate_result_from_config(garbage, sizeof(garbage), force,
+                                         force_size, result, result_size,
+                                         &written),
+      "PotentialConfig parse failed", CPMDC_ERROR_INVALID_ARGUMENT);
+
+  free(result);
+  free(force);
 }
 
 static void test_force_input_size_failure(void **state) {
@@ -214,11 +255,12 @@ static void test_readers_do_not_write_last_error(void **state) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "usage: %s PARAMS_BIN\n", argv[0]);
+  if (argc != 3) {
+    fprintf(stderr, "usage: %s PARAMS_BIN FORCE_INPUT_BIN\n", argv[0]);
     return 2;
   }
   g_params = argv[1];
+  g_force_input = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_set_params_failure),
       cmocka_unit_test(test_session_create_failure),

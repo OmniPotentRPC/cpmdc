@@ -1,0 +1,20 @@
+A session can apply Gaussian-smeared MM point charges to the CPMD density and
+returns the forces on both the QM atoms and the MM charges, through
+`cpmdc_session_set_external_charges()` and
+`cpmdc_session_last_external_charge_forces()`.
+The energy includes the electron and ion coupling to the charges, and both force
+sets are `-dE/dR`.
+The potential uses a Taylor series near a charge centre, so the energy and
+forces stay finite where a charge sits on an ion.
+A Gaussian width must be finite and at least 1e-12 Angstrom, and a narrower one
+is refused with `CPMDC_ERROR_INVALID_ARGUMENT` before it can overflow.
+The system must be isolated: a periodic cell, or a deck with a symmetry above 0,
+a surface, a polymer, or cell vectors without an isolated keyword, is refused
+with `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` on every evaluation path.
+GROMACS takes `EMBEDDING ELECTROSTATIC` with `MM_WIDTH` in nm and `EPSILON_R` to
+pass each MM charge as
+`q / EPSILON_R`, `cpmdc.lammps.FixExternal` takes `qm_types` and
+`mm_width_angstrom`, and the LAMMPS pair style takes `NULL` entries in
+`pair_coeff` and a `width` setting.
+The LAMMPS routes clear the charges on the first step that has no MM atom.
+The OpenCPMD patch set gains `opencpmd_external_charges.patch`.
