@@ -18,7 +18,7 @@ Pass one as ~-DNAME=VALUE~ to ~meson setup~.
 | ~with_lammps_plugin~ | feature | ~auto~ | build ~cpmdcplugin.so~, the LAMMPS ~pair_style cpmdc~; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
 | ~lammps_include~ | string | empty | directory holding ~lammps.h~ and ~pair.h~; empty takes ~include/lammps~ of an importable ~lammps~ Python package |
 | ~with_gromacs_shim~ | feature | ~auto~ | build ~libcpmdc_gromacs~ and ~libcp2k.pc~ for the GROMACS QM/MM interface (see [[file:../howto/gromacs.org][the GROMACS how-to]]) |
-| ~with_mdi~ | feature | ~auto~ | build ~cpmdc-mdi~, the MDI engine for LAMMPS ~fix mdi/qm~; needs the MDI library. The ~mdi-qm~ test does not (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
+| ~with_mdi~ | feature | ~auto~ | build ~cpmdc-mdi~, the MDI engine for LAMMPS ~fix mdi/qm~; needs the MDI library and a usable ~mdi.h~. The ~mdi-qm~ test does not (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
 
 Meson takes the project version from ~version.txt~.
 ~pyproject.toml~ leaves the Python package version dynamic and takes it from
@@ -57,7 +57,7 @@ linked image, but wildcard entries match only symbols that are present.
 | ~cpmdc-ipi-c~ | ~bin/cpmdc-ipi-c~ | the platform has ~sys/un.h~ and ~with_python~ is off |
 | ~cpmdcplugin.so~ | ~lib/cpmdc/cpmdcplugin.so~ | ~with_lammps_plugin~ is not disabled, ~with_python~ is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
 | ~libcpmdc_gromacs~ | ~lib/libcpmdc_gromacs.so~, ~include/cpmdc/gromacs/libcp2k.h~, ~lib/cpmdc/gromacs/pkgconfig/libcp2k.pc~ | ~with_gromacs_shim~ is not disabled and ~with_python~ is off |
-| ~cpmdc-mdi~ | ~bin/cpmdc-mdi~ | ~with_mdi~ is not disabled, pkg-config finds ~mdi~, and ~with_python~ is off |
+| ~cpmdc-mdi~ | ~bin/cpmdc-mdi~ | ~with_mdi~ is not disabled, the MDI library is found, ~mdi.h~ can be included, and ~with_python~ is off |
 
 ~MAJOR~ is the soversion, the first field of ~version.txt~.
 A ~with_python~ build sets no soversion, because a wheel stores no symlinks.

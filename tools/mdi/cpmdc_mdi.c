@@ -3,9 +3,15 @@
  *
  * LAMMPS sends, in Bohr: >NATOMS, then >CELL_DISPL and >CELL when the box is
  * fully periodic, then >ELEMENTS (atomic numbers, from the elements keyword)
- * or >TYPES, then >COORDS on every step. Coordinates are absolute Cartesian
- * values, unwrapped, and >CELL_DISPL is the box origin. This engine subtracts
- * that origin so the session sees a cell whose origin is zero.
+ * or >TYPES, then >COORDS on every step. fix mdi/qm copies atom->x and calls
+ * domain->remap before >COORDS, so each coordinate lies inside the box. The
+ * image flags are not applied. >CELL_DISPL is the box origin. This engine
+ * subtracts that origin. When a previous step and a cell are known, it then
+ * shifts each atom by the lattice vector that brings it nearest to its
+ * previous position. The session sees a continuous path, so a cached
+ * geometry, a reused neighbor list, and wavefunction extrapolation follow
+ * the atoms across a face. A singular cell on a later step cannot be
+ * unwrapped and fails the evaluation.
  *
  * LAMMPS then reads <PE and <KE_ELEC when both exist, otherwise <ENERGY, then
  * <FORCES, then <STRESS when virial is requested. It adds <PE and <KE_ELEC.
@@ -15,8 +21,9 @@
  * cpmdc_session_last_stress(). LAMMPS symmetrizes that layout, multiplies by
  * the box volume, and stores the extensive virial. A step with no stress
  * sends zeros. One session call serves every read until the next '>' command.
- * >NATOMS starts a system: the previous cell, origin, species, and coordinates
- * are dropped, and LAMMPS sends the new ones before it reads.
+ * >NATOMS starts a system: the previous cell, origin, species, coordinates,
+ * and unwrapped path are dropped, and LAMMPS sends the new ones before it
+ * reads.
  */
 #include "cpmdc_mdi.h"
 
@@ -41,6 +48,7 @@ struct cpmdc_mdi {
   double *coords;
   double *forces;
   double *shifted;
+  double *prev;
   double cell[9];
   double displ[3];
   double stress[9];
@@ -48,6 +56,7 @@ struct cpmdc_mdi {
   int have_species;
   int have_coords;
   int have_cell;
+  int have_prev;
   int fresh;
   int evaluations;
   int exited;
@@ -108,6 +117,7 @@ void cpmdc_mdi_destroy(cpmdc_mdi *eng) {
   free(eng->coords);
   free(eng->forces);
   free(eng->shifted);
+  free(eng->prev);
   free(eng);
 }
 
@@ -133,13 +143,15 @@ static int set_count(cpmdc_mdi *eng, int n) {
     double *coords = malloc((size_t)n * 3 * sizeof(double));
     double *forces = malloc((size_t)n * 3 * sizeof(double));
     double *shifted = malloc((size_t)n * 3 * sizeof(double));
-    if (!z || !sorted || !latched || !coords || !forces || !shifted) {
+    double *prev = malloc((size_t)n * 3 * sizeof(double));
+    if (!z || !sorted || !latched || !coords || !forces || !shifted || !prev) {
       free(z);
       free(sorted);
       free(latched);
       free(coords);
       free(forces);
       free(shifted);
+      free(prev);
       return fail(eng, "out of memory");
     }
     free(eng->z);
@@ -148,21 +160,25 @@ static int set_count(cpmdc_mdi *eng, int n) {
     free(eng->coords);
     free(eng->forces);
     free(eng->shifted);
+    free(eng->prev);
     eng->z = z;
     eng->sorted = sorted;
     eng->latched = latched;
     eng->coords = coords;
     eng->forces = forces;
     eng->shifted = shifted;
+    eng->prev = prev;
     eng->n = n;
     eng->latched_n = 0;
   }
   /* >NATOMS is a new system. LAMMPS sends the cell, species, and coordinates
    * again before it reads. Dropping them here is what makes a following
-   * nonperiodic system stop using the previous cell. */
+   * nonperiodic system stop using the previous cell. The unwrapped path is
+   * dropped with them, so the next frame is not shifted toward the old one. */
   eng->have_species = 0;
   eng->have_coords = 0;
   eng->have_cell = 0;
+  eng->have_prev = 0;
   eng->displ[0] = eng->displ[1] = eng->displ[2] = 0.0;
   eng->fresh = 0;
   return 0;
@@ -176,6 +192,61 @@ static int take_species(cpmdc_mdi *eng, const int *z) {
   memcpy(eng->z, z, (size_t)eng->n * sizeof(int));
   eng->have_species = 1;
   eng->fresh = 0;
+  return 0;
+}
+
+static double det3(double m[3][3]) {
+  return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+         m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+         m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+}
+
+/* inv with x = s rows, s = x inv, for row vectors. */
+static int invert3(double m[3][3], double inv[3][3]) {
+  const double d = det3(m);
+  if (d == 0.0 || !isfinite(d))
+    return -1;
+  inv[0][0] = (m[1][1] * m[2][2] - m[1][2] * m[2][1]) / d;
+  inv[0][1] = (m[0][2] * m[2][1] - m[0][1] * m[2][2]) / d;
+  inv[0][2] = (m[0][1] * m[1][2] - m[0][2] * m[1][1]) / d;
+  inv[1][0] = (m[1][2] * m[2][0] - m[1][0] * m[2][2]) / d;
+  inv[1][1] = (m[0][0] * m[2][2] - m[0][2] * m[2][0]) / d;
+  inv[1][2] = (m[0][2] * m[1][0] - m[0][0] * m[1][2]) / d;
+  inv[2][0] = (m[1][0] * m[2][1] - m[1][1] * m[2][0]) / d;
+  inv[2][1] = (m[0][1] * m[2][0] - m[0][0] * m[2][1]) / d;
+  inv[2][2] = (m[0][0] * m[1][1] - m[0][1] * m[1][0]) / d;
+  return 0;
+}
+
+/* Shift x by the lattice vector that brings it nearest to ref.
+ * nearbyint rounds each fractional coordinate on its own. That step
+ * assumes a restricted (lower-triangular) triclinic cell, one lattice
+ * vector per row. */
+static void nearest_image(double rows[3][3], double inv[3][3],
+                          const double *ref, double *x) {
+  double d[3], s[3];
+  for (int k = 0; k < 3; k++)
+    d[k] = x[k] - ref[k];
+  /* Minimum image for a restricted (lower-triangular) triclinic cell. */
+  for (int a = 0; a < 3; a++)
+    s[a] = nearbyint(d[0] * inv[0][a] + d[1] * inv[1][a] + d[2] * inv[2][a]);
+  for (int k = 0; k < 3; k++)
+    x[k] -= s[0] * rows[0][k] + s[1] * rows[1][k] + s[2] * rows[2][k];
+}
+
+/* >CELL is one lattice vector per row. A later step is folded onto the
+ * previous origin-subtracted positions so a face crossing stays continuous. */
+static int unwrap_coords(cpmdc_mdi *eng) {
+  double rows[3][3], inv[3][3];
+  if (!eng->have_cell || !eng->have_prev)
+    return 0;
+  for (int a = 0; a < 3; a++)
+    for (int k = 0; k < 3; k++)
+      rows[a][k] = eng->cell[3 * a + k];
+  if (invert3(rows, inv) != 0)
+    return fail(eng, "MDI >CELL is singular");
+  for (int i = 0; i < eng->n; i++)
+    nearest_image(rows, inv, &eng->prev[3 * i], &eng->shifted[3 * i]);
   return 0;
 }
 
@@ -211,6 +282,8 @@ static int ensure(cpmdc_mdi *eng) {
     eng->shifted[3 * i + 1] = eng->coords[3 * i + 1] - eng->displ[1];
     eng->shifted[3 * i + 2] = eng->coords[3 * i + 2] - eng->displ[2];
   }
+  if (unwrap_coords(eng) != 0)
+    return -1;
   if (cpmdc_session_calculate_au(
           eng->session, eng->n, eng->shifted, eng->z,
           eng->have_cell ? eng->cell : NULL, &eng->energy, eng->forces,
@@ -235,6 +308,8 @@ static int ensure(cpmdc_mdi *eng) {
   }
   memcpy(eng->latched, eng->sorted, (size_t)eng->n * sizeof(int));
   eng->latched_n = eng->n;
+  memcpy(eng->prev, eng->shifted, (size_t)eng->n * 3 * sizeof(double));
+  eng->have_prev = 1;
   eng->fresh = 1;
   eng->evaluations++;
   return 0;

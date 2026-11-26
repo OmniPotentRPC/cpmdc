@@ -3,8 +3,11 @@
  *
  * Launch beside LAMMPS, one engine process:
  *
- *   cpmdc-mdi params.bin -mdi "-role ENGINE -name cpmdc -method TCP -port 8021"
- *   lmp -mdi "-role DRIVER -name LAMMPS -method TCP -port 8021" -in in.mdi
+ *   cpmdc-mdi params.bin -mdi
+ *       "-role ENGINE -name cpmdc -method TCP -hostname localhost -port 8021"
+ *   lmp -mdi
+ *       "-role DRIVER -name LAMMPS -method TCP -hostname localhost -port 8021"
+ *       -in in.mdi
  *
  * MDI_Init removes the -mdi argument. The remaining argument is the
  * CPMDParams message. The command meanings are in cpmdc_mdi.c.
