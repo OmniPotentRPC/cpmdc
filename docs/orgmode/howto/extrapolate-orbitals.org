@@ -47,17 +47,14 @@ An ~extrapolateWfnOrder~ with an empty ~extrapolateWfnOptions~ renders
 The order is the number of earlier converged orbital sets that the prediction
 combines.
 OpenCPMD still prints its warning, because
-~control_test~ keeps ~cntl%textrap~ off for a wavefunction optimisation; the
-patch reads the request from ~embed_extrap_wfn~
+~control_test~ keeps ~cntl%textrap~ off for a wavefunction optimisation; the patch reads the request from ~embed_extrap_wfn~
 instead.
 
 * Check that it runs
 Run the host with ~CPMDC_SCF_STEPS=1~.
 A call that starts from a prediction writes ~cpmdc_wfn_extrapolated K~ before
 its ~cpmdc_scf_steps N~ line, with ~K~ the number of orbital sets combined.
-~tests/test_extrapolate_wfn.c~ captures these first lines from the error stream
-while it steps through the water trajectory of
-~tests/golden/water_aspc_bomd.txt~:
+~tests/test_extrapolate_wfn.c~ captures these first lines from the error stream while it steps through the water trajectory of ~tests/golden/water_aspc_bomd.txt~:
 
 #+begin_src text
 cpmdc_warm_start -2 periodic=F
@@ -88,8 +85,8 @@ Each of these events empties the affected key's history:
   converged copy, or an orbital direct inversion in the iterative subspace
   (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG)
   ~MINIMIZE~ continuation.
-  ~tools/opencpmd_embed_rwfopt.patch~ marks that donor stale, and
-  ~tools/opencpmd_embed_extrapolate.patch~ empties the ring on the same branch
+  ~tools/opencpmd_embed_rwfopt.patch~ marks that donor stale, and ~tools/opencpmd_embed_extrapolate.patch~
+  empties the ring on the same branch
 - stored orbitals farther than ~CPMDC_WARM_RMSD~ from the new geometry
 - adopting another key's nearer parked orbitals as a distance donor
 - ~cpmdc_session_copy_orbitals()~ from another key onto the key, which empties
@@ -158,8 +155,8 @@ Replacing a session's parameters clears that session's samples.
 ~cpmdc_finalize()~ leaves a live session's samples in place.
 ~cpmdc_session_xlbomd_export()~ and ~cpmdc_session_xlbomd_import()~ copy the
 history.
-~cpmdc_restart_set_xlbomd()~ stores those bytes after the CPMD sections, and
-~cpmdc_restart_xlbomd()~ reads them back.
+~cpmdc_restart_set_xlbomd()~ stores those bytes after the CPMD sections, and ~cpmdc_restart_xlbomd()~
+reads them back.
 A file with no trailer is unchanged, and the trailer is not a CPMD section.
 ~tests/test_xlbomd.c~ checks the coefficient table, the time reversal of the
 reversible step, and a session trajectory on the reference evaluator.
