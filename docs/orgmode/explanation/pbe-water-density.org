@@ -42,6 +42,29 @@ That build also carried a change to OpenCPMD that this series leaves out, which 
 ~bench/results/pbe_water_cost.org~ gives those four runs wall times from 5.552 to 5.826 s a step and an energy difference of 2.5e-04 eV from ~base30~, and it records no volume or pressure.
 Every run takes 8.81 to 8.85 SCF iterations a step.
 
+With ~CPMDC_TIPRI_EVERY=10~ CPMD prints its timing table after every 10th evaluation, and ~bench/cpmd_timing.py~ takes the cost of each routine per evaluation between the tables after the 10th and the 20th evaluation of runs of 20 steps with the same settings.
+~base~ and ~keep~ ran on the commit of this series that adds ~CPMDC_TIPRI_EVERY~, on the shipped FFT, without and with ~--rs-wfn-keep~, and ~fftw~ on this series with OpenCPMD on FFTW 3, with it; ~bench/results/pbe_water_profile.org~ gives the calls of each routine and its seconds, with those of the routines that it calls:
+
+| Routine | base calls | base, s | keep calls | keep, s | fftw calls | fftw, s |
+|---------+------------+---------+------------+---------+------------+---------|
+| embed_scf | 1.0 | 7.585 | 1.0 | 6.501 | 1.0 | 5.796 |
+| wfopts | 1.0 | 7.581 | 1.0 | 6.496 | 1.0 | 5.792 |
+| rwfopt | 1.0 | 7.558 | 1.0 | 6.477 | 1.0 | 5.773 |
+| updwf | 9.9 | 7.459 | 9.9 | 6.379 | 9.8 | 5.675 |
+| forcedr | 9.9 | 6.972 | 9.9 | 5.891 | 9.8 | 5.192 |
+| forces | 9.9 | 6.972 | 9.9 | 5.891 | 9.8 | 5.193 |
+| forces_a | 9.9 | 3.272 | 9.9 | 3.500 | 9.8 | 3.154 |
+| invfftn | 1306.8 | 3.124 | 673.2 | 1.662 | 666.4 | 1.385 |
+| vpsi | 9.9 | 2.958 | 9.9 | 1.638 | 9.8 | 1.295 |
+| rscpot | 9.9 | 2.906 | 9.9 | 3.135 | 9.8 | 2.792 |
+| rhoofr | 9.9 | 1.794 | 9.9 | 2.032 | 9.8 | 1.764 |
+| fwfftn | 683.1 | 1.364 | 683.1 | 1.332 | 676.2 | 0.946 |
+| vofrho | 9.9 | 0.900 | 9.9 | 0.894 | 9.8 | 0.817 |
+
+The SCF of an evaluation (~embed_scf~) takes 7.585, 6.501, and 5.796 s, and the forces on the orbitals (~forcedr~) take 6.972, 5.891, and 5.192 s of it.
+Keeping the orbitals in real space halves the inverse FFTs, from 1306.8 to 673.2 an evaluation: applying the local potential (~vpsi~) reuses the orbitals in real space instead of transforming them again, which takes it from 2.958 to 1.638 s, while building the density (~rhoofr~) takes 0.238 s longer.
+FFTW takes the inverse FFTs from 1.662 to 1.385 s and the forward ones from 1.332 to 0.946 s an evaluation, with about as many calls.
+
 64 waters, from ~box64.xyz~ on the FFTW build with that change, take 26.1 s a step, the mean from step 5 through the last of the 12-step run, 4.5 to 4.7 times as long as 32:
 
 | Run | Steps | Wall per step, s | SCF iterations per step | Largest energy difference from the run above, eV |
@@ -262,7 +285,7 @@ That rests on an error of ~long32~ that is still a lower bound, since its blocki
 * Tests
 - ~test_plateau_of_ar1_lies_past_its_correlation_time~ and the other ~plateau~ tests in ~tests/python/test_npt_block_average.py~ check the level that the criterion of Lee et al. finds on series whose correlation is known: an AR(1) process, white noise, and a drift.
 - ~test_the_plateau_table_gives_the_level_or_the_coarsest_level_tried~, ~test_cost_compares_each_run_with_the_run_above_it~, and ~test_pressures_takes_the_differences_configuration_by_configuration~ in ~tests/python/test_constant_cutoff_npt_table.py~ check the tables of ~table~, ~cost~, and ~pressures~.
-- ~test_the_pbe_water_page_carries_the_generated_tables~ in the same file requires this page to carry the tables of ~bench/results/pbe_water_npt.org~, ~pbe_water_cost.org~, ~pbe_water_pressure.org~, and ~pbe_water_states.org~ that it quotes.
+- ~test_the_pbe_water_page_carries_the_generated_tables~ in the same file requires this page to carry the tables of ~bench/results/pbe_water_npt.org~, ~pbe_water_cost.org~, ~pbe_water_profile.org~, ~pbe_water_pressure.org~, and ~pbe_water_states.org~ that it quotes.
 
 * Run it
 The CPMD files O_MT_PBE.psp and H_MT_PBE.psp come from the OpenCPMD extended pseudopotential library, and the FHI files from the Quantum ESPRESSO table.
@@ -291,15 +314,15 @@ meson setup build-fftw -Dwith_cpmd=true -Dcpmd_root="$PWD/opencpmd-fftw"
 meson compile -C build-fftw
 #+end_src
 
-The runs, with ~capnp~ on ~PATH~, on the 8 ranks of one node; ~build-base~ is the ~libcpmdc~ of the commit this series starts from, on the shipped FFT of OpenCPMD:
+The runs, with ~capnp~ on ~PATH~, on the 8 ranks of one node; ~build-base~ is the ~libcpmdc~ of the commit this series starts from, on the shipped FFT of OpenCPMD, and ~build-timer~ that of the commit that adds ~CPMDC_TIPRI_EVERY~, on the same FFT:
 
 #+begin_src bash
-export CPMDC_PSEUDO_DIR=$PWD/pp CPMDC_CELL_IN_PLACE=0.01 CPMDC_RANK_CONSENSUS=1
+export CPMDC_PSEUDO_DIR=$PWD/pp CPMDC_CELL_IN_PLACE=0.01 CPMDC_RANK_CONSENSUS=1 CPMDC_TIPRI_EVERY=0
 npt() {
   lib=$1
   shift
-  mpirun -np 8 -x CPMDC_RANK_CONSENSUS -x CPMDC_PSEUDO_DIR -x CPMDC_CELL_IN_PLACE -x LD_LIBRARY_PATH \
-    python bench/constant_cutoff_npt.py "$@" --library $lib/libcpmdc.so
+  mpirun -np 8 -x CPMDC_RANK_CONSENSUS -x CPMDC_PSEUDO_DIR -x CPMDC_CELL_IN_PLACE -x CPMDC_TIPRI_EVERY \
+    -x LD_LIBRARY_PATH python bench/constant_cutoff_npt.py "$@" --library $lib/libcpmdc.so
 }
 python bench/constant_cutoff_npt.py start --out box32.xyz
 python bench/constant_cutoff_npt.py start --waters 64 --out box64.xyz
@@ -310,11 +333,15 @@ for name in off on off2 on2; do
   npt build-fftw run --start box32.xyz $cc --p-tau 500 --steps 30 --rs-wfn-keep --out runs/$name.json
 done
 npt build-fftw run --start box64.xyz $cc --p-tau 500 --steps 12 --rs-wfn-keep --out runs/w64.json
+prof="run --start box32.xyz $cc --p-tau 500 --steps 20"
+CPMDC_TIPRI_EVERY=10 npt build-timer $prof --out runs/prof-base.json > runs/prof-base.out
+CPMDC_TIPRI_EVERY=10 npt build-timer $prof --rs-wfn-keep --out runs/prof-keep.json > runs/prof-keep.out
+CPMDC_TIPRI_EVERY=10 npt build-fftw $prof --rs-wfn-keep --out runs/prof-fftw.json > runs/prof-fftw.out
 npt build-fftw run --start box32.xyz $cc --p-tau 100 --rs-wfn-keep --keep-every 500 \
   --steps 11000 --out runs/long32.json
 #+end_src
 
-The FFTW runs and the single points below used builds that carried the change to OpenCPMD described above, ~off~ and ~off2~ with it switched off and the others with it on.
+The FFTW runs other than ~prof-fftw~, and the single points below, used builds that carried the change to OpenCPMD described above, ~off~ and ~off2~ with it switched off and the others with it on.
 ~bench/results/pbe_water_cost.org~ gives ~off~, ~off2~, ~on~ and ~on2~ wall times from 5.552 to 5.826 s a step and an energy difference of 2.5e-04 eV from ~base30~, and it records no volume or pressure.
 Every run checkpoints every 10 steps and continues with ~run --resume~.
 The single points:
@@ -345,6 +372,7 @@ The records and state files stay out of the repository; the tables come from the
 python bench/constant_cutoff_npt.py cost runs/base30.json runs/keep30.json runs/off.json runs/off2.json \
   runs/on.json runs/on2.json --from-step 5 --against first
 python bench/constant_cutoff_npt.py cost runs/w64.json --from-step 5
+python bench/cpmd_timing.py base=runs/prof-base.out keep=runs/prof-keep.out fftw=runs/prof-fftw.out
 for b in 8 4; do
   python bench/constant_cutoff_npt.py table runs/long32.json --curve-step 1 --min-blocks $b --window-ps 1.0
 done

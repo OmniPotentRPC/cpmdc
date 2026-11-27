@@ -198,10 +198,11 @@ def test_the_pbe_water_page_carries_the_generated_tables():
     quoted = [rows for _, rows in tables(long_run["At least 8 blocks"]) if rows[0].startswith(eight)]
     quoted += [rows for _, rows in tables(long_run["At least 4 blocks"]) if rows[0].startswith(four)]
     quoted += [rows for _, rows in tables(RESULTS / "pbe_water_cost.org")]
+    quoted += [rows for _, rows in tables(RESULTS / "pbe_water_profile.org")]
     quoted += [rows for name, text in sections(RESULTS / "pbe_water_pressure.org").items()
                if name and not name.startswith("mesh-") for _, rows in tables(text)]
     quoted += [rows for _, rows in tables(sections(RESULTS / "pbe_water_states.org")[""])]
-    assert len(quoted) == 20
+    assert len(quoted) == 21
     page = PBE_WATER.read_text()
     missing = [row for rows in quoted for row in rows if row not in page]
     assert not missing, missing
