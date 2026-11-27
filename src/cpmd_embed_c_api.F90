@@ -3818,7 +3818,14 @@ CONTAINS
     CHARACTER(KIND=c_char) :: pp_c(1024)
     ok = 0_c_int
     energy_h = 0.0_c_double
-    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
+    ! Close ignores a descriptor that was never opened.
+    mfd = -1
+    ! The count is checked before any collective. A rank that rejects it
+    ! still agrees, or the others enter the warm evaluation or startpa.
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) THEN
+      CALL cpmdc_note_embed_failure('invalid arguments'//c_null_char)
+    END IF
+    IF (ranks_agree_failure()) RETURN
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
@@ -3839,10 +3846,11 @@ CONTAINS
       END IF
     END IF
     IF (warm) THEN
-      IF (.NOT. embed_use_output_dir(image)) THEN
-        ierr = cpmdc_restore_host_cwd()
-        RETURN
-      END IF
+      ! embed_use_output_dir notes the directory failure on this rank.
+      ! Agree before embed_eval_energy_grad, then return to the host
+      ! directory. The setup stays; a warm failure does not tear it down.
+      IF (.NOT. embed_use_output_dir(image)) ierr = 1
+      IF (ranks_agree_failure()) RETURN
       ! The latched cell is the one metr_com%ht holds, even when the SCF
       ! that follows fails.
       IF (in_place) THEN
@@ -3875,46 +3883,64 @@ CONTAINS
     ! A basis change or a call after a CPMD stop: free the first setup
     ! before this one allocates the same module arrays again.
     IF (cpmd_set_up .OR. cpmd_setup_started) THEN
-      IF (cpmdc_embed_teardown() == 0_c_int) RETURN
-    END IF
-    CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
-         ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
-    IF (nlen > HUGE(0_c_int)) RETURN
-    IF (n_external > 0 .AND. &
-        cpmdc_deck_defines_external_potential(deck, INT(nlen, KIND=c_size_t)) /= 0_c_int) THEN
-      CALL cpmdc_note_deck_external_potential()
-      RETURN
-    END IF
-    mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
-         INT(LEN(mempath), KIND=c_int)))
-    IF (mfd < 0) RETURN
-    paral%io_parent = .TRUE.
-    ! (compose path above honors method-only Cap'n decks.)
-    ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
-    DO idx = 1, LEN(mempath)
-      IF (IACHAR(mempath(idx:idx)) == 0) THEN
-        cnts%inputfile = mempath(1:idx-1)
-        EXIT
+      IF (cpmdc_embed_teardown() == 0_c_int) THEN
+        CALL cpmdc_note_embed_failure( &
+             'cannot tear down the previous setup'//c_null_char)
       END IF
-    END DO
-    ! OpenCPMD get_pplib uses argv[2] as the PP library whenever argc>1,
-    ! ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn always pass filters
-    ! so argc>1; relative *PP basenames then only resolve via recpnew's
-    ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
-    ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
-    ! The process leaves that directory again once the files are read.
-    IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure(pp_c)
-      ierr = close_cold_deck()
-      RETURN
     END IF
-    IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure( &
-           'cannot enter the pseudopotential directory'//c_null_char)
-      ierr = close_cold_deck()
-      RETURN
+    ! Compose, the memfd, and the pseudopotential directory are local.
+    ! A rank that fails one of them skips the later local steps and
+    ! meets the others at the agreement below. None of those steps is
+    ! a collective, so the ranks still enter that agreement together.
+    ! The deck is closed and the host directory restored only then.
+    IF (cpmdc_embed_failure_pending() == 0_c_int) THEN
+      CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, &
+           nlen, ierr, knobs)
+      IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck) .OR. &
+          nlen > HUGE(0_c_int)) THEN
+        IF (cpmdc_embed_failure_pending() == 0_c_int) THEN
+          CALL cpmdc_note_embed_failure( &
+               'cold deck composition failed'//c_null_char)
+        END IF
+      ELSE IF (n_external > 0 .AND. &
+          cpmdc_deck_defines_external_potential(deck, &
+          INT(nlen, KIND=c_size_t)) /= 0_c_int) THEN
+        CALL cpmdc_note_deck_external_potential()
+      ELSE
+        mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
+             INT(LEN(mempath), KIND=c_int)))
+        IF (mfd < 0) THEN
+          CALL cpmdc_note_embed_failure( &
+               'cannot create the cold deck'//c_null_char)
+        ELSE
+          paral%io_parent = .TRUE.
+          ! (compose path above honors method-only Cap'n decks.)
+          ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
+          DO idx = 1, LEN(mempath)
+            IF (IACHAR(mempath(idx:idx)) == 0) THEN
+              cnts%inputfile = mempath(1:idx-1)
+              EXIT
+            END IF
+          END DO
+          ! OpenCPMD get_pplib uses argv[2] as the PP library whenever
+          ! argc>1, ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn
+          ! always pass filters so argc>1; relative *PP basenames then
+          ! only resolve via recpnew's second-chance CWD lookup.
+          ! cpmdc_prepare_pp_cwd chdirs to the library and also exports
+          ! CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
+          ! The process leaves that directory again once the files are
+          ! read. A failed getcwd and a failed chdir both fail that call.
+          IF (cpmdc_pseudopotential_directory(pp_c, &
+              INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
+            CALL cpmdc_note_embed_failure(pp_c)
+          ELSE IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
+            CALL cpmdc_note_embed_failure( &
+                 'cannot enter the pseudopotential directory'//c_null_char)
+          END IF
+        END IF
+      END IF
     END IF
+    IF (cold_setup_stopped()) RETURN
     ! A stopgm returns to the caller the hook is armed for. The next
     ! init in this list would run on undefined module state and can
     ! fault, and that fault never reaches the C handler. Check after
@@ -4050,6 +4076,25 @@ CONTAINS
       CALL cpmdc_note_embed_failure( &
            'cannot close the cold deck'//c_null_char)
     END FUNCTION close_cold_deck
+
+    ! A noted failure with no partial setup to free. Every rank calls
+    ! this, the text is copied, and only then does this rank return to
+    ! the host directory. The cold setup list is not torn down.
+    LOGICAL FUNCTION ranks_agree_failure()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTERFACE
+        FUNCTION cpmdc_agree_cold_stop() BIND(C, NAME='cpmdc_agree_cold_stop') &
+            RESULT(flag)
+          IMPORT :: c_int
+          INTEGER(c_int) :: flag
+        END FUNCTION cpmdc_agree_cold_stop
+      END INTERFACE
+      INTEGER(c_int) :: agreed, rc
+      agreed = cpmdc_agree_cold_stop()
+      ranks_agree_failure = agreed /= 0_c_int
+      IF (.NOT. ranks_agree_failure) RETURN
+      rc = cpmdc_restore_host_cwd()
+    END FUNCTION ranks_agree_failure
 
     LOGICAL FUNCTION cold_setup_stopped()
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int

@@ -182,6 +182,111 @@ def memfd_problems(source: str) -> list[str]:
     return problems
 
 
+FAULTS = (
+    "cold-deck-compose",
+    "cold-deck-external",
+    "cold-memfd",
+    "cold-pp-dir",
+    "cold-pp-chdir",
+    "cold-pp-cwd",
+    "warm-output-dir",
+)
+
+PRELUDE_TEXT = (
+    "cold deck composition failed",
+    "cannot create the cold deck",
+    "cannot enter the pseudopotential directory",
+    "cpmdc_note_deck_external_potential",
+    "invalid arguments",
+)
+
+
+def returns_before(lines: list[str], marker: str) -> bool:
+    agree_at = None
+    for i, line in enumerate(lines):
+        lowered = line.lower()
+        if marker in lowered or "cpmdc_agree_cold_stop" in lowered:
+            agree_at = i
+            break
+    if agree_at is None:
+        return True
+    for line in lines[:agree_at]:
+        if re.search(r"\bRETURN\b", line) or "close_cold_deck" in line.lower():
+            return True
+    return False
+
+
+def prelude_problems(source: str, library: str, lines: list[str]) -> list[str]:
+    problems = []
+    body = "\n".join(lines)
+    for text in PRELUDE_TEXT:
+        if text not in body:
+            problems.append(f"setup failure is not noted: {text}")
+    compose = find_line(lines, r"embed_compose_cold_deck")
+    startpa = find_line(lines, r"^CALL startpa$", compose)
+    if returns_before(lines[compose:startpa], "cold_setup_stopped"):
+        problems.append(
+            "a cold deck, memfd, or pseudopotential failure returns "
+            "before every rank agrees"
+        )
+    warm = find_line(lines, r"^IF \(warm\) THEN$")
+    evaluation = find_line(lines, r"embed_eval_energy_grad", warm)
+    warm_lines = lines[warm:evaluation]
+    if returns_before(warm_lines, "ranks_agree_failure"):
+        problems.append(
+            "a warm output directory failure returns before every rank agrees"
+        )
+    if any("cold_setup_stopped" in line.lower() for line in warm_lines):
+        problems.append("a warm output directory failure tears the setup down")
+    try:
+        noted = find_line(lines, r"invalid arguments")
+        counted = find_line(lines, r"nmax = n_atoms", noted)
+    except SystemExit:
+        problems.append("an invalid atom count returns before every rank agrees")
+    else:
+        if returns_before(lines[noted:counted], "ranks_agree_failure"):
+            problems.append("an invalid atom count returns before every rank agrees")
+    agree_fn = re.search(
+        r"LOGICAL FUNCTION ranks_agree_failure\(\).*?END FUNCTION ranks_agree_failure",
+        source,
+        re.I | re.S,
+    )
+    if not agree_fn:
+        problems.append("ranks_agree_failure is missing")
+    else:
+        agree_body = code_lines(agree_fn.group(0))
+        try:
+            agreed = next(
+                i
+                for i, line in enumerate(agree_body)
+                if "cpmdc_agree_cold_stop" in line.lower()
+            )
+        except StopIteration:
+            problems.append("ranks_agree_failure does not agree the failure")
+            agreed = None
+        if agreed is not None:
+            later = [
+                i
+                for i, line in enumerate(agree_body)
+                if re.search(r"\bRETURN\b|cpmdc_restore_host_cwd\s*\(", line, re.I)
+            ]
+            if not later or agreed > min(later):
+                problems.append(
+                    "ranks_agree_failure restores the directory before the failure is agreed"
+                )
+            if any("cpmdc_embed_teardown" in line.lower() for line in agree_body):
+                problems.append("ranks_agree_failure tears a live setup down")
+    drill = c_function(library, "int cpmdc_cold_setup_stop_drill")
+    for fault in FAULTS:
+        if fault not in drill:
+            problems.append(f"cold setup drill does not inject {fault}")
+        if f'expect_fault("{fault}"' not in source and fault not in Path(
+            __file__
+        ).with_name("test_cold_setup_stop_mpi.c").read_text(encoding="utf-8"):
+            problems.append(f"MPI setup stop test does not inject {fault}")
+    return problems
+
+
 def agreement_problems(fortran: str, library: str, lines: list[str]) -> list[str]:
     problems = []
     ratom = find_line(lines, r"^CALL ratom$")
@@ -260,6 +365,7 @@ def main() -> int:
     memfd = (root / "src" / "cpmdc_memfd.c").read_text(encoding="utf-8")
     problems = (
         agreement_problems(source, library, lines)
+        + prelude_problems(source, library, lines)
         + descriptor_problems(source)
         + memfd_problems(memfd)
     )

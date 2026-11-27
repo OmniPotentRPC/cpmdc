@@ -453,9 +453,15 @@ Keeping them apart is what lets a warm step skip CPMD's setup.
    `/proc/self/fd/N`, and runs OpenCPMD's own setup on it (`control`, `dftin`,
    `sysin`, `ratom`, `setsys`, `rinit`, and the rest), then the SCF through
    `wfopts`.
+   A failure in that composition, the memfd, or the pseudopotential directory is
+   agreed by every rank before setup begins, and every rank reports the same
+   text.
+   A deck that already defines an external potential is one of those failures.
 4. On a warm step, the bridge writes the new positions into `coor%tau0`
    (Angstrom to Bohr), recomputes the structure factors with `phfac`, restores
    the saved orbitals, and runs `wfopts` again.
+   An output directory that is not a directory is agreed before that evaluation,
+   and the setup stays in place.
 5. After the SCF, the bridge reads `ener_com%etot` and `coor%fion`, copies the
    energy components, charges, dipole, and stress into the session, and reports
    failure when the orbitals did not converge.
@@ -1440,8 +1446,10 @@ The caller then continues past the failed check.
 The wavefunction, `fion`, and module state of that call are undefined, so
 `cpmdc` discards the result and sets CPMD up again before the next call.
 `stopgm` runs only on the ranks that hit the error.
-A host with more than one rank aborts the others, because a rank that returns
-while the rest wait in an MPI call leaves them waiting.
+A stop that has returned to the setup list is agreed by every calculator rank
+before the next collective, and every rank reports that stop.
+A rank already waiting in a different collective is not reached by that
+agreement.
 A standalone `cpmd.x` leaves the pointer null and links without `libcpmdc`.
 While an evaluation is armed, `libcpmdc` stores a catch in the pointer.
 The catch records the code and returns 1, and `cpmdc` reports the stop as a
@@ -1748,7 +1756,7 @@ by side, and ODIIS instead of `PCG MINIMIZE` halves the cost of a warm SCF step
 | reading a stale `GEOMETRY` as this call's forces | real: remove it before each run | none: forces come from `coor%fion` |
 | an unconverged SCF that still prints `TOTAL ENERGY` | real: check for `NO CONVERGENCE` | reported as a failed call |
 | a shared restart pool pruned by another client | real: tolerate a vanished entry | none |
-| a CPMD stop | `cpmd.x` ends and the wrapper sees a failed run | `cpmd_stopgm_hook` returns nonzero, the call's wavefunction and forces are undefined, and the next call sets CPMD up again. More than one rank aborts the others |
+| a CPMD stop | `cpmd.x` ends and the wrapper sees a failed run | `cpmd_stopgm_hook` returns nonzero, the call's wavefunction and forces are undefined, and the next call sets CPMD up again. A stop that has returned to the setup list is agreed before the next collective. A rank already waiting in a different collective is not reached by that agreement |
 | rank consistency under `mpirun` | none: the host runs as one process | the host must take the parent rank's result and finalize MPI |
 | the method deck | written by the host, whole | rendered from `CPMDParams`; defaults apply to what the message leaves out |
 
@@ -1921,7 +1929,10 @@ shows these fields unchanged.
 A `stopgm` during the call is not that failure: the wavefunction, forces, and
 module state of the call are undefined, `cpmdc` drops the stored orbitals and
 the warm cell, and the next call runs setup again.
-With more than one MPI rank, `cpmdc` aborts the other ranks.
+With more than one MPI rank, a stop that has returned to the setup list is
+agreed before the next collective, and every rank reports it.
+A rank already waiting in a different collective is not reached by that
+agreement.
 
 # Where the orbitals are kept
 `opencpmd_embed_rwfopt.patch` adds a module-level copy of `c0` to
@@ -3442,6 +3453,12 @@ OpenCPMD path adds before CPMD parses it.
 On a cold OpenCPMD evaluation the Fortran bridge in
 `src/cpmd_embed_c_api.F90` composes the full deck, and `src/cpmdc_memfd.c` puts it in an anonymous Linux `memfd_create`
 file that CPMD reads as `/proc/self/fd/N`, so no `INPUT` file reaches the disk.
+A failure while composing that deck, creating the memfd, or entering the
+pseudopotential directory is agreed by every calculator rank before OpenCPMD
+setup begins, and every rank reports the same text.
+A deck that already defines an external potential is one of those failures.
+A warm step whose output directory is not a directory is agreed before the
+energy evaluation, and that setup stays in place.
 `src/cpmdc_embed_host.c` resolves the pseudopotential directory and maps
 species-block gradients back to atom order.
 Architecture (file:../explanation/architecture.org) walks the layer list.
@@ -5633,8 +5650,11 @@ the host working directory.
 The wavefunction, forces, and module state of that call are undefined.
 `cpmdc` drops the stored orbitals and the warm cell, and the next call on the
 same session sets CPMD up again.
-With more than one MPI rank, `cpmdc` aborts the other ranks, which would
-otherwise stay blocked in the call `stopgm` returned from.
+With more than one MPI rank, a stop that has returned to the setup list is
+agreed before the next setup collective.
+Every rank then drops the partial setup and reports the stop.
+A rank that is already waiting in a different collective is not reached by that
+agreement.
 
 ## `topology change requires a new session`
 *Cause:* `session_accept_topology` fixes the topology after an evaluation call

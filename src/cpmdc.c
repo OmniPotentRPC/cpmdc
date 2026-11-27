@@ -2347,11 +2347,13 @@ static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
   return fail_msg(msg);
 }
 
-/* Every rank of the calculator calls this after each cold-setup step.
- * stopgm can return on one rank only, and a close or directory failure
- * is noted on one rank only. The flag is agreed before that rank frees
- * the group or the others enter the next setup collective. A pending
- * embed failure is copied to every rank so each reports the same text. */
+/* Every rank of the calculator calls this after each cold-setup step
+ * and after a failure noticed before that list. stopgm can return on
+ * one rank only, and a compose, memfd, directory, chdir, or warm output
+ * failure is noted on one rank only. The flag is agreed before that
+ * rank frees the group or the others enter the next collective. A
+ * pending embed failure is copied to every rank so each reports the
+ * same text. */
 int cpmdc_agree_cold_stop(void) {
   int flags[2];
   flags[0] = cpmdc_stop_code() != 0 ? 1 : 0;
@@ -2406,10 +2408,25 @@ int cpmdc_agree_cold_stop(void) {
 }
 
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
+static int cold_setup_fault(const char *fault) {
+  return fault &&
+         (strcmp(fault, "cold-setup-stop") == 0 ||
+          strcmp(fault, "cold-deck-close") == 0 ||
+          strcmp(fault, "cold-output-dir") == 0 ||
+          strcmp(fault, "cold-deck-compose") == 0 ||
+          strcmp(fault, "cold-deck-external") == 0 ||
+          strcmp(fault, "cold-memfd") == 0 ||
+          strcmp(fault, "cold-pp-dir") == 0 ||
+          strcmp(fault, "cold-pp-chdir") == 0 ||
+          strcmp(fault, "cold-pp-cwd") == 0 ||
+          strcmp(fault, "warm-output-dir") == 0);
+}
+
 /* The reference build has no setup list. One collective stands in for
- * the step that just returned. Rank 1 notes a stop, a cold deck close
- * failure, or an output directory failure. Every rank then either frees
- * the stand-in group or enters the next collective. */
+ * the step that just returned. Rank 1 notes a stop or one setup
+ * failure. Every rank agrees, then either frees the stand-in group or
+ * enters the next collective. Leaving before that agreement is what
+ * makes the other rank wait. */
 static int cpmdc_cold_setup_stop_drill(void) {
 #if defined(CPMDC_HAVE_MPI)
   MPI_Comm world = MPI_COMM_WORLD;
@@ -2435,6 +2452,28 @@ static int cpmdc_cold_setup_stop_drill(void) {
     cpmdc_note_embed_failure("cannot close the cold deck");
     local_failure = 1;
   } else if (rank == 1 && fault && strcmp(fault, "cold-output-dir") == 0) {
+    cpmdc_note_embed_failure("CPMD output directory is not a directory");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-deck-compose") == 0) {
+    cpmdc_note_embed_failure("cold deck composition failed");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-deck-external") == 0) {
+    cpmdc_note_deck_external_potential();
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-memfd") == 0) {
+    cpmdc_note_embed_failure("cannot create the cold deck");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-pp-dir") == 0) {
+    cpmdc_note_embed_failure(
+        "pseudopotential directory is not set: set CPMDC_PSEUDO_DIR or "
+        "CPMD_PP_LIBRARY_PATH");
+    local_failure = 1;
+  } else if (rank == 1 && fault &&
+             (strcmp(fault, "cold-pp-chdir") == 0 ||
+              strcmp(fault, "cold-pp-cwd") == 0)) {
+    cpmdc_note_embed_failure("cannot enter the pseudopotential directory");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "warm-output-dir") == 0) {
     cpmdc_note_embed_failure("CPMD output directory is not a directory");
     local_failure = 1;
   } else if (rank == 1) {
@@ -2506,8 +2545,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)overrides;
   cpmdc_stop_arm();
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
-  if (test_fault("cold-setup-stop") || test_fault("cold-deck-close") ||
-      test_fault("cold-output-dir")) {
+  if (cold_setup_fault(getenv("CPMDC_TEST_FAULT"))) {
     int drill = cpmdc_cold_setup_stop_drill();
     if (drill < 0) {
       cpmdc_stop_disarm();
