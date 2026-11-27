@@ -6789,7 +6789,7 @@ a call filled.
 | `CPMDC_ERROR_NONE` | 0 | no failure recorded on the calling thread |
 | `CPMDC_ERROR_INVALID_ARGUMENT` | 1 | a null handle, a bad buffer, or a value the call refuses, such as a Gaussian width below 1e-12 Angstrom |
 | `CPMDC_ERROR_UNAVAILABLE` | 2 | the backend is not linked, not ready, or this build is the link stub |
-| `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` | 3 | session charges with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build; an OpenCPMD build always returns this |
+| `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` | 3 | session charges with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build and the call passes a cell; a periodic deck with no cell still returns this; an OpenCPMD build always returns this |
 | `CPMDC_ERROR_EVALUATION_FAILED` | 4 | the evaluation ran and produced no result |
 | `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` | 5 | session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` |
 
@@ -7000,22 +7000,42 @@ a deck that is not an isolated system (a `SYMMETRY` above 0, a `SURFACE` or
 including `cpmdc_session_energy_gradient()`.
 An OpenCPMD build ignores the variable and still fails, because the
 real-space grid kernel sums no lattice images.
-On a reference build, `1` keeps the call and adds the conducting-boundary
-Ewald field of the same Gaussians.
+On a reference build, `1` keeps the call when that call passes a cell and
+adds the conducting-boundary Ewald field of the same Gaussians.
+A periodic deck on a call that passes no cell still fails with
+`CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`, because the sum has no
+lattice vectors.
 The cell is the row-major evaluation argument, in Angstrom, converted to
 Bohr.
 Reciprocal vectors satisfy \(a_i \cdot b_j = 2\pi \delta_{ij}\), and the
 Coulomb factor uses the absolute cell volume.
 The \(G = 0\) term is omitted.
-A reciprocal vector is kept when \(\sigma_{\min}^2 |G|^2 / 2\) is at most 36
-and every Miller index is in \(-48\) through \(48\).
-\(\sigma_{\min}\) is the narrowest Gaussian, in Bohr.
-The shell count is \(\min(48, \max(1, \lceil |G|_{\mathrm{cut}} / b_{\min}
-\rceil + 1))\), where \(|G|_{\mathrm{cut}} = \sqrt{72} / \sigma_{\min}\) and
-\(b_{\min}\) is the shortest reciprocal vector.
-The field at a QM centre is the sum over those vectors and over the MM
-charges of \((4\pi q / V) \exp(-\sigma^2 |G|^2 / 2) \, G \sin(G \cdot d) /
-|G|^2\), with \(d\) the Bohr vector from the charge to the centre.
+A reciprocal vector is kept when \(\sigma_{\min}^2 |G|^2 / 2\) is at most 36.
+\(\sigma_{\min}\) is the narrowest Gaussian, in Bohr, and
+\(|G|_{\mathrm{cut}} = \sqrt{72} / \sigma_{\min}\).
+Each Miller index is bounded on its own axis by
+\(|h_i| \le \lceil |G|_{\mathrm{cut}} \, |a_i| / (2\pi) \rceil\).
+That is the largest index that can still meet the decay test, including on
+a sheared cell.
+The ratio is clamped in double precision to 48 before it is converted to
+an index, so a narrow width cannot overflow the conversion.
+When an axis bound would exceed 48, the same field is split.
+The screening parameter \(\beta\) is the largest value whose reciprocal
+shell still lies inside that cap, and no larger than
+\(1/(\sigma \sqrt{2})\) for each charge.
+The reciprocal piece is the sum above with \(\sigma\) replaced by
+\(1/(\beta \sqrt{2})\).
+The real-space piece adds the field of
+\([\mathrm{erf}(\alpha r) - \mathrm{erf}(\beta r)] / r\) over every lattice
+image inside the same decay of 36, with \(\alpha = 1/(\sigma \sqrt{2})\).
+Images past that decay are left out.
+If those images do not fit in Miller indices \(-48\) through \(48\), the
+evaluation fails with `CPMDC_ERROR_EVALUATION_FAILED` and
+`periodic embedding did not converge`, and it does not drop the tail.
+The field at a QM centre is that sum over the MM charges.
+Inside the cap, with no split, it is
+\((4\pi q / V) \exp(-\sigma^2 |G|^2 / 2) \, G \sin(G \cdot d) / |G|^2\),
+with \(d\) the Bohr vector from the charge to the centre.
 The induction energy is \(-\frac{1}{2} \alpha |E|^2\) with \(\alpha = 0.20
 Z\).
 The QM forces and the MM forces from that energy are both `-dE/dR`.
@@ -7651,7 +7671,7 @@ A session is created by one of two functions and released by
 | Layout | `positions_ang` is `3 * n_charges` doubles, atom-major, C order; `charges_e` is `n_charges` doubles; `widths_ang` is NULL or `n_charges` doubles. |
 | Ownership | `session` stays owned by the caller; all input arrays stay owned by the caller and are copied by the session, so the caller may free them on return. |
 | Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
-| Returns and errors | Returns 0 on success and clears `cpmdc_last_error()`; returns -1, writes `cpmdc_last_error()`, and sets `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session, negative `n_charges`, NULL arrays when `n_charges` is positive, non-finite inputs, or a width below `1e-12` Angstrom; a failed call leaves the previous charges intact. Setting `n_charges = 0` clears external charges. Periodic evaluations with active charges fail with `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build, which uses the Ewald field in the C ABI reference; an OpenCPMD build still fails. Decks with an explicit `EXTERNAL POTENTIAL` block fail with `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
+| Returns and errors | Returns 0 on success and clears `cpmdc_last_error()`; returns -1, writes `cpmdc_last_error()`, and sets `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session, negative `n_charges`, NULL arrays when `n_charges` is positive, non-finite inputs, or a width below `1e-12` Angstrom; a failed call leaves the previous charges intact. Setting `n_charges = 0` clears external charges. Periodic evaluations with active charges fail with `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build and the call passes a cell, which uses the Ewald field in the C ABI reference; a periodic deck with no cell still fails. An OpenCPMD build still fails. Decks with an explicit `EXTERNAL POTENTIAL` block fail with `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
 | Python | `cpmdc.Session.set_external_charges` raises `cpmdc.CPMDCError` (or `cpmdc.CPMDCInvalidArgument`). |
 | Defaults | `widths_ang` is NULL: each charge uses the default Gaussian width of 0.30 Angstrom. |
 
@@ -8733,7 +8753,7 @@ Every macro and enum constant of the installed headers.
 | CPMDC_ERROR_NONE | 0 | `CPMDCErrorCode`: no failure recorded on the calling thread. | `cpmdc.CPMDCError.code` |
 | CPMDC_ERROR_INVALID_ARGUMENT | 1 | `CPMDCErrorCode`: NULL handle, invalid geometry or charge input, or non-finite values. | `cpmdc.CPMDCInvalidArgument` |
 | CPMDC_ERROR_UNAVAILABLE | 2 | `CPMDCErrorCode`: OpenCPMD embed not linked, finalized, or stub library. | `cpmdc.CPMDCUnavailable` |
-| CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | `CPMDCErrorCode`: external charges paired with a periodic cell, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build. An OpenCPMD build always returns it. | `cpmdc.CPMDCUnsupportedPeriodicEmbedding` |
+| CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | `CPMDCErrorCode`: external charges paired with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build and the call passes a cell. A periodic deck with no cell still returns it. An OpenCPMD build always returns it. | `cpmdc.CPMDCUnsupportedPeriodicEmbedding` |
 | CPMDC_ERROR_EVALUATION_FAILED | 4 | `CPMDCErrorCode`: SCF or backend evaluation did not produce a valid result. | `cpmdc.CPMDCEvaluationFailed` |
 | CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | `CPMDCErrorCode`: session external charges paired with a deck `EXTERNAL POTENTIAL` block. | `cpmdc.CPMDCDeckExternalPotential` |
 | CPMDC_FEATURE_SECTION | 1 | `CPMDCFeatureKind`: a CPMD input section, such as `catalog.section.PIMD`. | none |
@@ -11386,6 +11406,8 @@ charges.
 On a reference build it selects the conducting-boundary Ewald field described
 in the C ABI reference, instead of refusing a periodic cell.
 Any other value, or an unset variable, keeps that refusal.
+A periodic deck on a call that passes no cell keeps the refusal as well,
+because the field has no lattice vectors.
 An OpenCPMD build ignores the variable.
 The reference stress snapshot stays invalid on a step that takes this field.
 
@@ -12794,7 +12816,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails; `CPMDCError.code` is the `CPMDCErrorCode` of a library failure and `0` when Python rejected the call or the library predates `cpmdc_last_error_code()` |
 | `CPMDCInvalidArgument` | `CPMDCError` subclass for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below `1e-12` Angstrom; `CPMDCInvalidArgument.code` is `1` |
 | `CPMDCUnavailable` | `CPMDCError` subclass for a backend that is not linked or a link stub; `CPMDCUnavailable.code` is `2` |
-| `CPMDCUnsupportedPeriodicEmbedding` | `CPMDCError` subclass for external charges with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build; an OpenCPMD build still raises it; `CPMDCUnsupportedPeriodicEmbedding.code` is `3` |
+| `CPMDCUnsupportedPeriodicEmbedding` | `CPMDCError` subclass for external charges with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build and the call passes a cell; a periodic deck with no cell still raises it; an OpenCPMD build still raises it; `CPMDCUnsupportedPeriodicEmbedding.code` is `3` |
 | `CPMDCEvaluationFailed` | `CPMDCError` subclass for an evaluation that ran and produced no result; `CPMDCEvaluationFailed.code` is `4` |
 | `CPMDCDeckExternalPotential` | `CPMDCError` subclass for session charges combined with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD`; `CPMDCDeckExternalPotential.code` is `5` |
 | `CpmdcError` | deprecated alias of `CPMDCError`, the same class; reading it warns with `DeprecationWarning` |
@@ -12886,7 +12908,7 @@ covers `cpmdc.lammps`.
 | a `constant_cutoff` whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw `&SYSTEM` block or with `system.constantCutoff`, or on a library without `cpmdc_session_set_constant_cutoff` | `CPMDCError` |
 | `Session.copy_orbitals` on a library without `cpmdc_session_copy_orbitals`, before any evaluation, or from a key without converged orbitals | `CPMDCError` |
 | `Session.set_external_charges` with a width below `1e-12` Angstrom, a null buffer, or a failed charge copy; `Session.external_charge_forces_au` before a successful step, after a failed step, or with the wrong count | `CPMDCInvalidArgument` |
-| session charges with a periodic cell, or with a periodic deck on a call that passes no cell, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build | `CPMDCUnsupportedPeriodicEmbedding` |
+| session charges with a periodic cell or a periodic deck, unless `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build and the call passes a cell; a periodic deck with no cell still raises this | `CPMDCUnsupportedPeriodicEmbedding` |
 | session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` | `CPMDCDeckExternalPotential` |
 | `Session.set_external_charges` or `Session.external_charge_forces_au` on a library without `cpmdc_session_set_external_charges` or `cpmdc_session_last_external_charge_forces` | `CPMDCError` with code `0` |
 | a `CPMDCCalculator` step that the library rejects | `cpmdc.ase.CalculationFailed`, which is a `CPMDCError` and ASE's `CalculationFailed` |

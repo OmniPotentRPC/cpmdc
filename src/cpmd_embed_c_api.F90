@@ -2452,7 +2452,7 @@ CONTAINS
     REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
     REAL(real64) :: d(3), field(3), jac(3,3), force(3)
     REAL(real64) :: sigma, q, rr, potential, a, aprime, alpha
-    INTEGER :: i, j, idx, m, u, v, stress_rc
+    INTEGER :: i, j, idx, m, u, v, stress_rc, induction_rc
     LOGICAL :: periodic_induction
     INTERFACE
       FUNCTION cpmdc_reference_periodic_induction(n_atoms, pos, znum, n_ext, &
@@ -2499,13 +2499,19 @@ CONTAINS
     periodic_induction = .FALSE.
     IF (n_external > 0 .AND. &
         .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
-      IF (.NOT. reference_periodic_embedding()) THEN
+      IF (.NOT. reference_periodic_embedding() .OR. has_cell == 0) THEN
         CALL cpmdc_note_periodic_embedding()
         RETURN
       END IF
-      IF (cpmdc_reference_periodic_induction(INT(n_atoms, c_int), pos, z, &
-           INT(n_external, c_int), external_pos, external_q, external_width, &
-           cell, energy_h, grad, external_force) /= 0_c_int) THEN
+      induction_rc = cpmdc_reference_periodic_induction(INT(n_atoms, c_int), &
+           pos, z, INT(n_external, c_int), external_pos, external_q, &
+           external_width, cell, energy_h, grad, external_force)
+      IF (induction_rc == 2_c_int) THEN
+        CALL cpmdc_note_embed_failure( &
+            'periodic embedding did not converge'//c_null_char)
+        RETURN
+      END IF
+      IF (induction_rc /= 0_c_int) THEN
         CALL cpmdc_note_embed_failure( &
             'periodic embedding cell is not usable'//c_null_char)
         RETURN

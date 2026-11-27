@@ -589,8 +589,10 @@ CPMDC_API int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cu
  * `CPMDC_PERIODIC_EMBEDDING` is `1` on a reference build, only an isolated
  * system is supported. A periodic cell, or a deck that is not an isolated
  * system, then fails with `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` on
- * every evaluation path. An OpenCPMD build ignores the variable and still
- * fails. The reference value is the conducting-boundary Ewald field.
+ * every evaluation path. With the variable set to `1`, a reference build
+ * evaluates the conducting-boundary Ewald field when the call passes a cell.
+ * A periodic deck on a call that passes no cell still fails with that code.
+ * An OpenCPMD build ignores the variable and still fails.
  */
 CPMDC_API int cpmdc_session_set_external_charges(
     CPMDCSession *session, size_t n_charges, const double *positions_ang,
