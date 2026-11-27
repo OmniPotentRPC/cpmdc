@@ -2453,6 +2453,20 @@ CONTAINS
     REAL(real64) :: d(3), field(3), jac(3,3), force(3)
     REAL(real64) :: sigma, q, rr, potential, a, aprime, alpha
     INTEGER :: i, j, idx, m, u, v, stress_rc
+    LOGICAL :: periodic_induction
+    INTERFACE
+      FUNCTION cpmdc_reference_periodic_induction(n_atoms, pos, znum, n_ext, &
+          ext_pos, ext_q, ext_width, cell_in, energy, grad_out, ext_force) &
+          BIND(C, NAME='cpmdc_reference_periodic_induction') RESULT(rc)
+        IMPORT :: c_int, c_double
+        INTEGER(c_int), VALUE :: n_atoms, n_ext
+        REAL(c_double), INTENT(IN) :: pos(*), ext_pos(*), ext_q(*), ext_width(*)
+        REAL(c_double), INTENT(IN) :: cell_in(*)
+        INTEGER(c_int), INTENT(IN) :: znum(*)
+        REAL(c_double), INTENT(INOUT) :: energy, grad_out(*), ext_force(*)
+        INTEGER(c_int) :: rc
+      END FUNCTION
+    END INTERFACE
     knobs = knobs_of(image)
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -2482,11 +2496,23 @@ CONTAINS
     ! The reference evaluator carries a small isotropic polarizable density
     ! at each QM centre. It is not a chemical method; it gives the public
     ! electrostatic-embedding ABI an energy-conserving analytic oracle.
+    periodic_induction = .FALSE.
     IF (n_external > 0 .AND. &
         .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
-      CALL cpmdc_note_periodic_embedding()
-      RETURN
+      IF (.NOT. reference_periodic_embedding()) THEN
+        CALL cpmdc_note_periodic_embedding()
+        RETURN
+      END IF
+      IF (cpmdc_reference_periodic_induction(INT(n_atoms, c_int), pos, z, &
+           INT(n_external, c_int), external_pos, external_q, external_width, &
+           cell, energy_h, grad, external_force) /= 0_c_int) THEN
+        CALL cpmdc_note_embed_failure( &
+            'periodic embedding cell is not usable'//c_null_char)
+        RETURN
+      END IF
+      periodic_induction = .TRUE.
     END IF
+    IF (.NOT. periodic_induction) THEN
     DO i = 1, n_atoms
       field = 0.0_real64
       alpha = 0.20_real64 * REAL(MAX(1, INT(z(i))), KIND=real64)
@@ -2522,6 +2548,7 @@ CONTAINS
              REAL(force, KIND=c_double)
       END DO
     END DO
+    END IF
     ok = 1_c_int
     ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
     CALL snapshot_total_only(image, energy_h)
@@ -2533,9 +2560,12 @@ CONTAINS
     ! Strain derivative of this reference energy, Hartree/Bohr^3, with the
     ! OpenCPMD sign: volume * stress = -dE/d(eps). An isolated deck has a
     ! box volume and no tensor. CPMDC_STRESS=0 skips the tensor too.
+    ! A periodic induction step leaves it invalid: this fill is the harmonic
+    ! reference, not the Ewald field.
     image%stress%values = 0.0_c_double
     image%stress%valid = 0_c_int
-    IF (reference_stress_wanted() .AND. has_cell /= 0) THEN
+    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
+        .NOT. periodic_induction) THEN
       IF (ANY(ABS(cell(1:9)) > 0.0_c_double) .AND. &
            .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
         stress_rc = reference_pef_fill_stress(image, n_atoms, pos, z, cell, k)
@@ -2564,6 +2594,14 @@ CONTAINS
     reference_stress_wanted = .TRUE.
     CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
     IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
+  END FUNCTION
+
+  LOGICAL FUNCTION reference_periodic_embedding()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st
+    reference_periodic_embedding = .FALSE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PERIODIC_EMBEDDING', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '1') reference_periodic_embedding = .TRUE.
   END FUNCTION
 
   ! Symmetry 0 or ISOLATED, a Poisson solver, CLUSTER in &SYSTEM, or an

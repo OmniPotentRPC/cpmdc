@@ -2238,6 +2238,18 @@ static int token_is_isolated_symmetry_ci(const char *tok, size_t len) {
   return 0;
 }
 
+/* Reference builds read CPMDC_PERIODIC_EMBEDDING at each evaluation.
+ * OpenCPMD has no lattice sum in the real-space Gaussian kernel, so the
+ * variable does not enable that path. */
+static int periodic_embedding_enabled(void) {
+#if defined(CPMDC_HAS_CPMD)
+  return 0;
+#else
+  const char *value = getenv("CPMDC_PERIODIC_EMBEDDING");
+  return value != NULL && strcmp(value, "1") == 0;
+#endif
+}
+
 static int deck_or_cell_is_periodic(const char *deck, const double *cell_ang,
                                     int has_cell) {
   int in_sys = 0;
@@ -3210,7 +3222,8 @@ static CPMDCResult session_energy_gradient_cell(
     err = "property gradient snapshot supports at most 1365 atoms";
   /* Decided before the collective gates, from state every rank holds. */
   if (!err && session->external_count > 0) {
-    if (deck_or_cell_is_periodic(session->input_deck, cell_ang, has_cell))
+    if (deck_or_cell_is_periodic(session->input_deck, cell_ang, has_cell) &&
+        !periodic_embedding_enabled())
       err = k_periodic_embedding_msg;
 #if !defined(CPMDC_HAS_CPMD)
     if (!err &&

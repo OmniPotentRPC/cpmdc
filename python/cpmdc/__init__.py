@@ -1153,7 +1153,10 @@ class Session:
         the environment. When widths are omitted, the library default is used.
         A width below 1e-12 Angstrom, or a value that is not finite, raises
         :class:`CPMDCInvalidArgument` and keeps the previous charges. Periodic
-        evaluations with external charges are rejected. A library without
+        evaluations with external charges are rejected unless
+        ``CPMDC_PERIODIC_EMBEDDING`` is ``1`` on a reference build, which uses
+        the Ewald field described in the C ABI reference. An OpenCPMD build
+        still rejects them. A library without
         ``cpmdc_session_set_external_charges`` raises :class:`CPMDCError`.
         """
         n_charges = len(charges_e)

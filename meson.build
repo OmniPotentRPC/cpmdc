@@ -362,6 +362,7 @@ endif
 
 cpmd_embed_sources = [
   'src/cpmdc.c',
+  'src/cpmdc_periodic_embed.c',
   'src/cpmdc_adopt.c',
   'src/cpmdc_orbital_limit.c',
   'src/cpmd_embed_c_api.F90',
