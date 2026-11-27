@@ -180,13 +180,13 @@ def _after_mdrun(text: str, pdb: str) -> str:
 
 @pytest.mark.parametrize("path", ["calc%d.bin", "100%s.bin", "half%.bin"])
 def test_a_percent_in_the_params_path_survives_mdrun(path: str):
-    rewritten = _after_mdrun(qmi_input(path), "/tmp/sys.pdb")
+    rewritten = _after_mdrun(qmi_input(path), "sys.pdb")
     assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
 
 
 @pytest.mark.parametrize("path", ["gromacs.pdb", "dir/gromacs.pdb", "pre.gromacs.pdb"])
 def test_coord_file_name_does_not_rewrite_the_params_path(path: str):
-    rewritten = _after_mdrun(qmi_input(path), "/tmp/sys.pdb")
+    rewritten = _after_mdrun(qmi_input(path), "sys.pdb")
     assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
 
 
@@ -263,7 +263,7 @@ def _parsed_params(text: str) -> str:
     ],
 )
 def test_params_path_round_trips_through_mdrun(path: str):
-    assert _parsed_params(_after_mdrun(qmi_input(path), "/tmp/sys.pdb")) == path
+    assert _parsed_params(_after_mdrun(qmi_input(path), "sys.pdb")) == path
 
 
 def test_a_newline_in_the_params_path_is_refused():
