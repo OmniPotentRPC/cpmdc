@@ -2348,17 +2348,61 @@ static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
 }
 
 /* Every rank of the calculator calls this after each cold-setup step.
- * stopgm can return on one rank only. The flag is agreed before that
- * rank frees the group or the others enter the next setup collective. */
+ * stopgm can return on one rank only, and a close or directory failure
+ * is noted on one rank only. The flag is agreed before that rank frees
+ * the group or the others enter the next setup collective. A pending
+ * embed failure is copied to every rank so each reports the same text. */
 int cpmdc_agree_cold_stop(void) {
-  int stopped = cpmdc_stop_code() != 0 ? 1 : 0;
-  if (cpmdc_orbital_allreduce(&stopped, 1) != 0) {
+  int flags[2];
+  flags[0] = cpmdc_stop_code() != 0 ? 1 : 0;
+  flags[1] = g_embed_detail[0] != '\0' ? 1 : 0;
+  if (cpmdc_orbital_allreduce(flags, 2) != 0) {
     cpmdc_note_stop(1);
     return 1;
   }
-  if (stopped && cpmdc_stop_code() == 0)
+  if (flags[0] && cpmdc_stop_code() == 0)
     cpmdc_note_stop(1);
-  return stopped;
+#if defined(CPMDC_HAVE_MPI)
+  if (flags[1]) {
+    int inited = 0;
+    int finalized = 0;
+    int rank = 0;
+    int owner;
+    int code;
+    char detail[sizeof(g_embed_detail)];
+    MPI_Comm comm;
+    if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+      return 1;
+    if (MPI_Finalized(&finalized) != MPI_SUCCESS || finalized)
+      return 1;
+    if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+      comm = MPI_COMM_WORLD;
+    if (MPI_Comm_rank(comm, &rank) != MPI_SUCCESS) {
+      cpmdc_note_stop(1);
+      return 1;
+    }
+    owner = g_embed_detail[0] != '\0' ? rank : INT_MAX;
+    if (MPI_Allreduce(MPI_IN_PLACE, &owner, 1, MPI_INT, MPI_MIN, comm) !=
+        MPI_SUCCESS) {
+      cpmdc_note_stop(1);
+      return 1;
+    }
+    memcpy(detail, g_embed_detail, sizeof(detail));
+    code = (int)g_embed_code;
+    if (owner != INT_MAX) {
+      if (MPI_Bcast(&code, 1, MPI_INT, owner, comm) != MPI_SUCCESS ||
+          MPI_Bcast(detail, (int)sizeof(detail), MPI_CHAR, owner, comm) !=
+              MPI_SUCCESS) {
+        cpmdc_note_stop(1);
+        return 1;
+      }
+      detail[sizeof(detail) - 1] = '\0';
+      memcpy(g_embed_detail, detail, sizeof(g_embed_detail));
+      g_embed_code = (CPMDCErrorCode)code;
+    }
+  }
+#endif
+  return flags[0] || flags[1];
 }
 
 #if defined(CPMDC_ENABLE_TEST_FAULTS)

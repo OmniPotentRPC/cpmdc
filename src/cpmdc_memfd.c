@@ -40,13 +40,26 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
 #endif
 }
 
-/* Close the fd from cpmdc_memfd_write. 0 when it closes, -1 otherwise. */
+/* Close the fd from cpmdc_memfd_write.
+ * 0 when the descriptor is closed.
+ * -2 when close reported an error and the descriptor is no longer open.
+ * The caller drops the number and does not close it again.
+ * -1 when fd is negative, or when the descriptor is still open.
+ * The caller keeps the number. */
 int cpmdc_memfd_close(int fd) {
   if (fd < 0)
     return -1;
-  if (close(fd) != 0)
+  if (close(fd) == 0)
+    return 0;
+#ifdef __linux__
+  /* Linux releases the descriptor before it reports the error.
+   * Closing the same number again would close a reused descriptor. */
+  return -2;
+#else
+  if (errno == EINTR)
     return -1;
-  return 0;
+  return -2;
+#endif
 }
 
 /* Host CWD saved before leaving it for the pseudopotential library.

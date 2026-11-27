@@ -3958,11 +3958,10 @@ CONTAINS
     IF (cold_setup_stopped()) RETURN
     ! Pseudopotential files are in memory. Leave that directory before the
     ! SCF so a stray write cannot land on the library.
+    ! A directory failure is already noted. Agree it before this rank
+    ! frees the group and the others enter the next setup call.
     IF (.NOT. embed_use_output_dir(image)) THEN
-      ierr = cpmdc_restore_host_cwd()
-      ierr = cpmdc_embed_teardown()
-      ierr = close_cold_deck()
-      RETURN
+      ierr = 1
     END IF
     IF (cold_setup_stopped()) RETURN
     CALL vdwin
@@ -4004,11 +4003,12 @@ CONTAINS
     CALL vdw_wf_alloc
     IF (cold_setup_stopped()) RETURN
     ! The parsers have read the deck. Drop the anonymous fd before the SCF.
-    ! A failed close leaves the descriptor open, so setup stops here.
+    ! A failed close is already noted. Agree it before any rank treats
+    ! the setup as finished and enters the SCF.
     IF (close_cold_deck() /= 0) THEN
-      ierr = cpmdc_embed_teardown()
-      RETURN
+      ierr = 1
     END IF
+    IF (cold_setup_stopped()) RETURN
     cpmd_set_up = .TRUE.
     cpmd_setup_started = .FALSE.
     embed_setup_ht = metr_com%ht
@@ -4036,7 +4036,12 @@ CONTAINS
       close_cold_deck = 0
       IF (mfd < 0) RETURN
       rc = cpmdc_memfd_close(INT(mfd, KIND=c_int))
-      mfd = -1
+      ! 0 closed. -2 released after an error: drop the number so a
+      ! later close does not hit a reused descriptor. -1 still open:
+      ! keep the number. mfd is local and the next run_embed_scf
+      ! resets it, so only the same-call retry in cold_setup_stopped
+      ! can close it.
+      IF (rc == 0_c_int .OR. rc == -2_c_int) mfd = -1
       IF (rc == 0_c_int) RETURN
       close_cold_deck = 1
       ! Keep a failure that was already noted. This one is the reason
