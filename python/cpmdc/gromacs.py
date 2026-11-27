@@ -89,6 +89,15 @@ def _number(value: Any, what: str, *, positive: bool = False) -> str:
     return repr(number)
 
 
+def _params_file_token(path: str) -> str:
+    """PARAMS text stored for grompp.
+
+    mdrun prints that file as a printf format after it substitutes the PDB
+    path, so each ``%`` is written as ``%%`` and printf restores the path.
+    """
+    return path.replace("%", "%%")
+
+
 def qmi_input(
     params: str | os.PathLike[str],
     *,
@@ -111,7 +120,9 @@ def qmi_input(
     ----------
     params:
         Path of the serialized ``CPMDParams`` message, as mdrun will open it
-        (relative paths are relative to mdrun's working directory).
+        (relative paths are relative to mdrun's working directory). A ``%``
+        in the path is written as ``%%`` so mdrun's printf of the input
+        restores it.
     cell:
         ``"PERIODIC"`` sends the GROMACS box to cpmdc as the cell;
         ``"NONE"`` sends none, so the deck's cell applies. The library
@@ -169,7 +180,8 @@ def qmi_input(
     multiplicity_value = _integer(multiplicity, "multiplicity")
     if multiplicity_value < 1:
         raise ValueError(f"multiplicity must be 1 or more, got {multiplicity!r}")
-    lines = ["&CPMDC", f"  PARAMS {_path_text(params, 'params')}"]
+    params_token = _params_file_token(_path_text(params, "params"))
+    lines = ["&CPMDC", f"  PARAMS {params_token}"]
     if cell is not None:
         cell = cell.upper()
         if cell not in _CELLS:

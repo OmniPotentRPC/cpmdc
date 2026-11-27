@@ -137,6 +137,53 @@ def test_qmi_input_has_the_keys_grompp_checks(tmp_path):
             qmi_input("w.bin", embedding="ELECTROSTATIC", cell="none", mm_width=bad)
 
 
+def _gromacs_word_char(ch: str) -> bool:
+    """Word characters of GROMACS replaceAllWords: alnum, '-' and '_'."""
+    return ch.isalnum() or ch in "-_"
+
+
+def _replace_gromacs_words(text: str, old: str, new: str) -> str:
+    """Replace whole words the way GROMACS replaceAllWords does."""
+    parts: list[str] = []
+    start = 0
+    cursor = 0
+    while True:
+        found = text.find(old, cursor)
+        if found < 0:
+            parts.append(text[start:])
+            return "".join(parts)
+        end = found + len(old)
+        before_ok = found == 0 or not _gromacs_word_char(text[found - 1])
+        after_ok = end == len(text) or not _gromacs_word_char(text[end])
+        if before_ok and after_ok:
+            parts.append(text[start:found])
+            parts.append(new)
+            start = end
+            cursor = end
+        else:
+            cursor = found + 1
+
+
+def _coord_name(text: str) -> str:
+    for line in text.splitlines():
+        words = line.split()
+        if words and words[0] == "COORD_FILE_NAME":
+            return words[1]
+    raise AssertionError("COORD_FILE_NAME missing")
+
+
+def _after_mdrun(text: str, pdb: str) -> str:
+    """Text mdrun writes: replace the coord-file word, then printf `%s`."""
+    name = _coord_name(text)
+    return _replace_gromacs_words(text, name, "%s") % (pdb,)
+
+
+@pytest.mark.parametrize("path", ["calc%d.bin", "100%s.bin", "half%.bin"])
+def test_a_percent_in_the_params_path_survives_mdrun(path: str):
+    rewritten = _after_mdrun(qmi_input(path), "/tmp/sys.pdb")
+    assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
+
+
 def test_write_qmi_passes_the_mm_width_through(tmp_path):
     target = cpmdc_gromacs.write_qmi(
         tmp_path / "sys.qmi",
