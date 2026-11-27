@@ -158,6 +158,13 @@ def test_pressures_takes_the_differences_configuration_by_configuration(tmp_path
         npt.pressures(argparse.Namespace(tables=[RESULTS / "constant_cutoff_npt.org"], against=1, output=None))
 
 
+def test_a_short_pressure_row_exits(tmp_path):
+    path = tmp_path / "short.org"
+    path.write_text(pressure_table("a.state.npz", "O.upf", ["| 100 | 85 |"]))
+    with pytest.raises(SystemExit, match="shorter than the energy and the two pressures"):
+        npt.parse_pressure_table(path)
+
+
 def tables(source: Path | str) -> list[tuple[str, list[str]]]:
     """Each Org table of a file or of text, with the last line of text before it."""
     text = source.read_text() if isinstance(source, Path) else source
@@ -208,3 +215,135 @@ def test_the_pbe_water_page_carries_the_generated_tables():
     page = PBE_WATER.read_text()
     missing = [row for rows in quoted for row in rows if row not in page]
     assert not missing, missing
+
+
+def test_pulay_and_pv_fit_equilibrium_density_shifts(tmp_path, capsys):
+    f1 = tmp_path / "f1.org"
+    f1.write_text(pressure_table("a.state.npz", "O.upf", [
+        "| 85 |  |  |  | -1.0 | 2.00 | -2.00 | 1.0 |",
+        "| 160 |  |  |  | -1.0 | 2.90 | -1.00 | 1.0 |",
+        "| 160 | 136 | 8000 | 6.8 | -1.0 | 3.00 | -0.90 | 1.0 |",
+    ]))
+    f2 = tmp_path / "f2.org"
+    f2.write_text(pressure_table("b.state.npz", "O.upf", [
+        "| 85 |  |  |  | -1.0 | 0.00 | -4.20 | 1.0 |",
+        "| 160 |  |  |  | -1.0 | 0.90 | -3.00 | 1.0 |",
+        "| 160 | 136 | 8000 | 6.8 | -1.0 | 1.00 | -2.90 | 1.0 |",
+    ]))
+    assert npt.pulay(argparse.Namespace(tables=[f1, f2], reference=None, output=None)) == 0
+    pulay_lines = capsys.readouterr().out.splitlines()
+    assert "| 85 | -3.10 | +1.200 | 0.100 |  |  | +1.000 | 0.000 |  |" in pulay_lines
+    assert "| 160 | -2.00 | +0.100 | 0.000 | -1.100 | 1.20 | +0.100 | 0.000 | 0.90 |" in pulay_lines
+
+    pv_tables = []
+    for start, offset in (("a.state.npz", 0.0), ("b.state.npz", 0.5)):
+        for rho, p_mt, p_fhi in ((800.0, -4.0, -5.0), (850.0, 0.0, -1.0), (900.0, 4.0, 3.0)):
+            mt = tmp_path / f"{start}_{rho}_mt.org"
+            mt.write_text(pressure_table(start, "O.psp", [
+                f"| 100 | 85 | 5000 | 4.25 | -1.0 | 0.0 | {p_mt + offset:.2f} | 1.0 |",
+            ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+            fhi = tmp_path / f"{start}_{rho}_fhi.org"
+            fhi.write_text(pressure_table(start, "O.upf", [
+                f"| 160 |  |  |  | -1.0 | 0.0 | {p_fhi + offset:.2f} | 1.0 |",
+            ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+            pv_tables += [mt, fhi]
+    assert npt.pv(argparse.Namespace(
+        tables=pv_tables, against="O.psp, H.upf, 100/85/4.25", temperature=350.0,
+        pressure=1.0, degree=1, no_kinetic=True, output=None,
+    )) == 0
+    pv_lines = capsys.readouterr().out.splitlines()
+    assert any(line.startswith("| O.upf, H.upf, 160 | 859.39 |") and "| +12.50 | 0.00 |" in line for line in pv_lines), pv_lines
+
+
+def test_prefix_check_stops_when_the_prefix_has_too_few_blocks(tmp_path):
+    n = 12
+    rec = {
+        "args": {"waters": 32, "conv": 1e-5, "dt": 1.0, "temperature": 350.0, "pressure": 1.0,
+                 "t_tau": 100.0, "p_tau": 100.0, "hydrogen_mass": 2.014, "cutoff": 160.0, "e0": 50.0,
+                 "height": 1e-6, "start": "s.xyz", "start_ps": 0.0, "ranks": 8, "cpu": "cpu",
+                 "ase": "3.29.0", "oxygen": "O.psp", "hydrogen": "H.psp", "cell_in_place": ""},
+        "time_ps": [k * 0.01 for k in range(n)],
+        "Volume": [1.0] * n, "Density": [860.0] * n, "Pressure": [0.0] * n,
+        "Temperature": [350.0] * n, "Energy": [-1.0] * n, "step_wall_s": [1.0] * n,
+        "scf_steps": [8] * n, "setups": [0] * n, "stopped": None,
+    }
+    path = tmp_path / "short.json"
+    path.write_text(json.dumps(rec))
+    with pytest.raises(SystemExit, match="prefix check has no blocking level"):
+        npt.table(argparse.Namespace(
+            runs=[path], discard_ps=None, min_discard_ps=0.0, branch_discard_ps=0.0,
+            min_production_ps=0.0, window_ps=0.01, plot_window_ps=0.01, branch_step_ps=0.01,
+            min_blocks=8, curve_step=2, prefix_check=True, output=None, json=None,
+        ))
+
+
+def test_table_prefix_check_reports_settled_start(tmp_path, capsys):
+    n = 400
+    t = [k * 0.001 for k in range(n)]
+    rho = [860.0 + (k % 5) - 2.0 for k in range(n)]
+    vol = [32.0 * 18.015 / 6.022e23 / (r * 1e-3) * 1e21 for r in rho]
+    rec = {
+        "args": {"waters": 32, "conv": 1e-5, "dt": 1.0, "temperature": 350.0, "pressure": 1.0,
+                 "t_tau": 100.0, "p_tau": 100.0, "hydrogen_mass": 2.014, "cutoff": 160.0, "e0": 50.0,
+                 "height": 1e-6, "start": "s.state.npz", "start_ps": 0.3, "ranks": 8, "cpu": "cpu",
+                 "ase": "3.29.0", "oxygen": "O.pbe-mt_fhi.UPF", "hydrogen": "H.pbe-mt_fhi.UPF",
+                 "cell_in_place": "0.25"},
+        "time_ps": t, "Volume": vol, "Density": rho, "Pressure": [0.0] * n,
+        "Temperature": [350.0] * n, "Energy": [-1.0] * n, "step_wall_s": [1.0] * n,
+        "scf_steps": [8] * n, "setups": [0] * n, "stopped": None,
+    }
+    p = tmp_path / "run.json"
+    p.write_text(json.dumps(rec))
+    assert npt.table(argparse.Namespace(
+        runs=[p], discard_ps=None, min_discard_ps=0.5, branch_discard_ps=0.05,
+        min_production_ps=0.1, window_ps=0.1, plot_window_ps=0.02, branch_step_ps=0.01,
+        min_blocks=8, curve_step=2, prefix_check=True, output=None, json=None,
+    )) == 0
+    out = capsys.readouterr().out
+    assert "| run | 0.05 | 0.05 | 0.05 |" in out and "| yes |" in out
+
+
+def _pv(tables, degree):
+    return npt.pv(argparse.Namespace(
+        tables=tables, against=None, temperature=350.0, pressure=0.0, degree=degree,
+        no_kinetic=True, output=None,
+    ))
+
+
+def test_degree_two_fits_share_the_root_inside_the_sampled_densities(tmp_path, capsys):
+    """p = (rho - 1000)(rho - 860) on 980, 1000 and 1020 kg/m^3.
+
+    Both roots are real. The mean sampled density is 1000, and 860 lies outside
+    the samples, so a guess of 0 selects the other root.
+    """
+    tables = []
+    for rho in (980.0, 1000.0, 1020.0):
+        path = tmp_path / f"{rho:.0f}.org"
+        pressure = (rho - 1000.0) * (rho - 860.0)
+        path.write_text(pressure_table("frame.state.npz", "O.upf", [
+            f"| 160 |  |  |  | -1.0 | 0.0 | {pressure:.2f} | 1.0 |",
+        ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+        tables.append(path)
+    assert _pv(tables, 2) == 0
+    out = capsys.readouterr().out
+    assert out.count("1000.00") >= 2, out
+    assert "860.00" not in out, out
+
+
+def test_degree_two_refuses_a_root_outside_the_sampled_densities(tmp_path):
+    """(rho + 5.97e9)(rho - 1e12) on 1e8, 5e8 and 1e9 kg/m^3.
+
+    The real root nearest the mean density is -5.97e9 kg/m^3, outside the samples.
+    """
+    far = -5.97e9
+    other = 1.0e12
+    tables = []
+    for rho in (1.0e8, 5.0e8, 1.0e9):
+        path = tmp_path / f"{rho:.0f}.org"
+        pressure = (rho - far) * (rho - other)
+        path.write_text(pressure_table("frame.state.npz", "O.upf", [
+            f"| 160 |  |  |  | -1.0 | 0.0 | {pressure:.16e} | 1.0 |",
+        ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+        tables.append(path)
+    with pytest.raises(SystemExit, match=r"no p\(V\) root lies in the sampled density range"):
+        _pv(tables, 2)
