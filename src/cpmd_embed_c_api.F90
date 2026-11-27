@@ -122,6 +122,9 @@ MODULE cpmd_embed_c_api
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
+  ! 1 when a deck line or token does not fit the buffer it is copied into.
+  ! The deck then fails instead of keeping the truncated text.
+  INTEGER, SAVE :: embed_text_overflow = 0
   ! True after a cold setup list finishes without a stopgm, until
   ! cpmdc_embed_teardown frees what that setup allocated. A second cold
   ! setup tears the first down.
@@ -1294,6 +1297,38 @@ CONTAINS
     END DO
   END SUBROUTINE
 
+  SUBROUTINE embed_note_fit(what, need, have)
+    CHARACTER(LEN=*), INTENT(IN) :: what
+    INTEGER, INTENT(IN) :: need, have
+    IF (need <= have) RETURN
+    embed_text_overflow = 1
+    WRITE(error_unit, '(A,A,A,I0,A,I0,A)') 'cpmdc: ', what, &
+         ' needs ', need, ' characters and the buffer holds ', have, &
+         '; the text is not truncated'
+    FLUSH(error_unit)
+  END SUBROUTINE
+
+  SUBROUTINE embed_append_token(dst, tok)
+    CHARACTER(LEN=*), INTENT(INOUT) :: dst
+    CHARACTER(LEN=*), INTENT(IN) :: tok
+    INTEGER :: need
+    IF (LEN_TRIM(tok) == 0) RETURN
+    IF (LEN_TRIM(dst) == 0) THEN
+      need = LEN_TRIM(tok)
+    ELSE
+      need = LEN_TRIM(dst) + 1 + LEN_TRIM(tok)
+    END IF
+    IF (need > LEN(dst)) THEN
+      CALL embed_note_fit('pseudopotential options', need, LEN(dst))
+      RETURN
+    END IF
+    IF (LEN_TRIM(dst) == 0) THEN
+      dst = TRIM(tok)
+    ELSE
+      dst = TRIM(dst) // ' ' // TRIM(tok)
+    END IF
+  END SUBROUTINE
+
   SUBROUTINE embed_next_tok(line, pos, tok)
     CHARACTER(LEN=*), INTENT(IN) :: line
     INTEGER, INTENT(INOUT) :: pos
@@ -1311,6 +1346,7 @@ CONTAINS
       IF (line(i:i) == ' ' .OR. line(i:i) == ACHAR(9)) EXIT
       i = i + 1
     END DO
+    CALL embed_note_fit('a deck token', i - pos, LEN(tok))
     k = MIN(i - pos, LEN(tok))
     IF (k > 0) tok(1:k) = line(pos:pos + k - 1)
     pos = i
@@ -1330,6 +1366,7 @@ CONTAINS
       IF (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ACHAR(13)) EXIT
       i = i + 1
     END DO
+    CALL embed_note_fit('a deck line', i - pos, LEN(line))
     k = MIN(i - pos, LEN(line))
     IF (k > 0) line(1:k) = src(pos:pos + k - 1)
     IF (i <= zend) THEN
@@ -1403,32 +1440,53 @@ CONTAINS
       ELSE IF (LEN_TRIM(up) >= 5 .AND. up(1:4) == 'LOC=') THEN
         locc = up(5:5)
       ELSE IF (TRIM(up) /= 'KLEINMAN-BYLANDER') THEN
-        IF (LEN_TRIM(extra) == 0) THEN
-          extra = TRIM(tok)
-        ELSE
-          extra = TRIM(extra) // ' ' // TRIM(tok)
-        END IF
+        CALL embed_append_token(extra, tok)
       END IF
     END DO
   END SUBROUTINE
 
-  SUBROUTINE embed_parse_star(work, path, kb)
+  ! CPMD reads RAGGIO, NLCC, UPF and the projector form from the *file line
+  ! only, so the options there after the path stay on the rebuilt line.
+  ! A path ending in .upf, in any case, gains UPF when the line has no UPF
+  ! token, as the deck renderer does for a pseudopotential path.
+  LOGICAL FUNCTION embed_path_is_upf(path)
+    CHARACTER(LEN=*), INTENT(IN) :: path
+    INTEGER :: n
+    CHARACTER(LEN=8) :: tail
+    embed_path_is_upf = .FALSE.
+    n = LEN_TRIM(path)
+    IF (n < 4) RETURN
+    CALL embed_upper_copy(path(n - 3:n), tail)
+    embed_path_is_upf = tail(1:4) == '.UPF'
+  END FUNCTION
+
+  SUBROUTINE embed_parse_star(work, path, kb, opts)
     CHARACTER(LEN=*), INTENT(IN) :: work
-    CHARACTER(LEN=*), INTENT(OUT) :: path
+    CHARACTER(LEN=*), INTENT(OUT) :: path, opts
     LOGICAL, INTENT(OUT) :: kb
     INTEGER :: tpos
     CHARACTER(LEN=512) :: tok
     CHARACTER(LEN=512) :: up
+    LOGICAL :: saw_upf
     path = ' '
+    opts = ' '
     kb = .FALSE.
+    saw_upf = .FALSE.
     tpos = 2
     CALL embed_next_tok(work, tpos, path)
     DO
       CALL embed_next_tok(work, tpos, tok)
       IF (LEN_TRIM(tok) == 0) EXIT
       CALL embed_upper_copy(tok, up)
-      IF (TRIM(up) == 'KLEINMAN-BYLANDER') kb = .TRUE.
+      IF (TRIM(up) == 'KLEINMAN-BYLANDER') THEN
+        kb = .TRUE.
+      ELSE
+        IF (TRIM(up) == 'UPF') saw_upf = .TRUE.
+        CALL embed_append_token(opts, tok)
+      END IF
     END DO
+    IF (.NOT. saw_upf .AND. embed_path_is_upf(path)) &
+        CALL embed_append_token(opts, 'UPF')
   END SUBROUTINE
 
   SUBROUTINE embed_parse_following_options(src, zend, pos, lmaxc, locc, extra)
@@ -1457,21 +1515,23 @@ CONTAINS
     END DO
   END SUBROUTINE
 
-  SUBROUTINE embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+  SUBROUTINE embed_collect_message_pp(src, have, kbflag, paths, stars, lmaxs, locs, extras)
     CHARACTER(LEN=*), INTENT(IN) :: src
     LOGICAL, INTENT(OUT) :: have(0:120), kbflag(0:120)
     CHARACTER(LEN=512), INTENT(OUT) :: paths(0:120)
+    CHARACTER(LEN=192), INTENT(OUT) :: stars(0:120)
     CHARACTER(LEN=8), INTENT(OUT) :: lmaxs(0:120), locs(0:120)
     CHARACTER(LEN=192), INTENT(OUT) :: extras(0:120)
     INTEGER :: nsrc, pos, rel, ia, iend, zend, pending, tpos
     CHARACTER(LEN=512) :: line, work, up, path
     CHARACTER(LEN=64) :: sym
     CHARACTER(LEN=8) :: lmaxc, locc
-    CHARACTER(LEN=192) :: extra
+    CHARACTER(LEN=192) :: extra, staropt
     LOGICAL :: kb
     have = .FALSE.
     kbflag = .FALSE.
     paths = ' '
+    stars = ' '
     lmaxs = ' '
     locs = ' '
     extras = ' '
@@ -1498,7 +1558,7 @@ CONTAINS
           CALL embed_next_tok(work, tpos, sym)
           pending = embed_z_of_symbol(sym)
         ELSE IF (work(1:1) == '*') THEN
-          CALL embed_parse_star(work, path, kb)
+          CALL embed_parse_star(work, path, kb, staropt)
           lmaxc = 'S'
           locc = ' '
           extra = ' '
@@ -1507,6 +1567,7 @@ CONTAINS
             have(pending) = .TRUE.
             kbflag(pending) = kb
             paths(pending) = path
+            stars(pending) = staropt
             lmaxs(pending) = lmaxc
             locs(pending) = locc
             extras(pending) = extra
@@ -1560,29 +1621,51 @@ CONTAINS
     LOGICAL, ALLOCATABLE :: have(:), kbflag(:)
     CHARACTER(LEN=512), ALLOCATABLE :: paths(:)
     CHARACTER(LEN=8), ALLOCATABLE :: lmaxs(:), locs(:)
-    CHARACTER(LEN=192), ALLOCATABLE :: extras(:)
+    CHARACTER(LEN=192), ALLOCATABLE :: extras(:), stars(:)
     CHARACTER(LEN=64) :: tpath
     CHARACTER(LEN=1) :: lc
-    INTEGER :: astat, lmax_val, pok
+    INTEGER :: astat, lmax_val, pok, need
     ok = 0
     star = ' '
     opt = ' '
+    embed_text_overflow = 0
     IF (zz < 1 .OR. zz > 120) THEN
       WRITE(error_unit, '(A,I0,A)') 'cpmdc: atomic number ', zz, ' is outside 1..120'
       FLUSH(error_unit)
       RETURN
     END IF
-    ALLOCATE(have(0:120), kbflag(0:120), paths(0:120), lmaxs(0:120), locs(0:120), &
+    ALLOCATE(have(0:120), kbflag(0:120), paths(0:120), stars(0:120), lmaxs(0:120), locs(0:120), &
          extras(0:120), STAT=astat)
     IF (astat /= 0) THEN
       WRITE(error_unit, '(A)') 'cpmdc: failed to allocate pseudopotential table'
       FLUSH(error_unit)
       RETURN
     END IF
-    CALL embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+    CALL embed_collect_message_pp(src, have, kbflag, paths, stars, lmaxs, locs, extras)
+    IF (embed_text_overflow /= 0) THEN
+      ok = 0
+      RETURN
+    END IF
     IF (have(zz)) THEN
+      need = 1 + LEN_TRIM(paths(zz))
+      IF (kbflag(zz)) need = need + LEN(' KLEINMAN-BYLANDER')
+      IF (LEN_TRIM(stars(zz)) > 0) need = need + 1 + LEN_TRIM(stars(zz))
+      IF (need > LEN(star)) THEN
+        CALL embed_note_fit('the pseudopotential line', need, LEN(star))
+        ok = 0
+        RETURN
+      END IF
+      need = LEN(' LMAX=') + LEN_TRIM(lmaxs(zz))
+      IF (LEN_TRIM(locs(zz)) > 0) need = need + LEN(' LOC=') + LEN_TRIM(locs(zz))
+      IF (LEN_TRIM(extras(zz)) > 0) need = need + 1 + LEN_TRIM(extras(zz))
+      IF (need > LEN(opt)) THEN
+        CALL embed_note_fit('the pseudopotential option line', need, LEN(opt))
+        ok = 0
+        RETURN
+      END IF
       star = '*' // TRIM(paths(zz))
       IF (kbflag(zz)) star = TRIM(star) // ' KLEINMAN-BYLANDER'
+      IF (LEN_TRIM(stars(zz)) > 0) star = TRIM(star) // ' ' // TRIM(stars(zz))
       opt = ' LMAX=' // TRIM(lmaxs(zz))
       IF (LEN_TRIM(locs(zz)) > 0) opt = TRIM(opt) // ' LOC=' // TRIM(locs(zz))
       IF (LEN_TRIM(extras(zz)) > 0) opt = TRIM(opt) // ' ' // TRIM(extras(zz))
@@ -3919,8 +4002,10 @@ CONTAINS
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.
     ! 2) Method sections keep their text. &ATOMS is rebuilt from the step.
-    !    A '!SPECIES' entry supplies that element's file, LMAX, LOC, and
-    !    KLEINMAN-BYLANDER. Other elements use the built-in table.
+    !    A '!SPECIES' entry supplies that element's file, LMAX, LOC,
+    !    KLEINMAN-BYLANDER, RAGGIO, NLCC and UPF. A path ending in .upf
+    !    gains UPF when that token is absent. Other elements use the
+    !    built-in table.
     ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
     !    multiplicity.
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
