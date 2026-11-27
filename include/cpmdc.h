@@ -406,8 +406,11 @@ CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size
  * `message` is `positions contain a non-finite component`, and
  * `cpmdc_last_error_code()` is `CPMDC_ERROR_INVALID_ARGUMENT`.
  * `cpmdc_energy()` and `cpmdc_energy_forces()` apply the same check.
- * A rejected call does not install `params_capnp`. The active session,
- * the selected orbitals, and the previous result stay as they were.
+ * A call rejected before `cpmdc_set_params()` does not install
+ * `params_capnp`. The active session, the selected orbitals, and the
+ * previous result stay as they were. Once parameters are installed, a
+ * failed SCF or a stopgm clears the stored result, as a failed cold
+ * call does.
  */
 CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                             const int *atomic_numbers,
@@ -846,8 +849,10 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * @return 0 on success; -1 on a `NULL` `session`, `positions_bohr`,
  *         `atomic_numbers`, `energy_h`, or `forces_h_bohr`; `n_atoms`
  *         outside 1..`INT_MAX / 3`; an atomic number outside 1..118; a
- *         change of the atom count or of the element counts after the
- *         topology is fixed; an allocation failure; or a failed evaluation.
+ *         position that is not finite (`positions contain a non-finite
+ *         component`); a change of the atom count or of the element
+ *         counts after the topology is fixed; an allocation failure; or
+ *         a failed evaluation.
  *         Failure text is `cpmdc_last_error()`, empty after a success.
  *         On -1 `energy_h` and `virial_h` are not written, and the contents
  *         of `forces_h_bohr` are unspecified.

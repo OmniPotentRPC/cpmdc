@@ -447,9 +447,12 @@ A coordinate that is not finite is rejected before the evaluation.
 ~ok~ is 0, ~energy_h~ is 0, and ~cpmdc_last_error_code()~ is
 ~CPMDC_ERROR_INVALID_ARGUMENT~.
 The message is ~positions contain a non-finite component~.
-A call that is rejected does not install the parameter message.
+A call rejected before ~cpmdc_set_params()~ does not install the parameter
+message.
 The active session, the selected orbitals, and the previous result stay as they
 were.
+Once parameters are installed, a failed SCF or a ~stopgm~ clears the stored
+result, as a failed cold call does.
 
 * Sessions
 
@@ -614,7 +617,9 @@ The topology and repeat-step rules of the session apply.
 
 It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session
 (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a ~NULL~ required
-pointer (~invalid arguments~), a topology change, and a failed evaluation.
+pointer (~invalid arguments~), a position that is not finite
+(~positions contain a non-finite component~), a topology change, and a failed
+evaluation.
 For a non-zero
 ~cell_bohr~, it fails before fixing the session topology with ~cell contains a non-finite component~, ~cell does not have three independent vectors~, or ~cell volume is too small for binary64~ judged on the converted Angstrom cell; when ~virial_h~
 is not ~NULL~ and ~cell_bohr~ is finite, a Bohr volume above ~DBL_MAX~ fails
