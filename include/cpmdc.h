@@ -774,6 +774,10 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_forces(
  * fails with `ok == 0`. It is set to 0 when the `ForceInput` does not parse
  * or its geometry is invalid.
  * Size the buffer with `cpmdc_potential_result_size_for_force_input()`.
+ * A position that is not finite fails before evaluation. `energy_h` is 0,
+ * `message` is `positions contain a non-finite component`, and
+ * `cpmdc_last_error_code()` is `CPMDC_ERROR_INVALID_ARGUMENT`.
+ * That failure is reported before the property gradient snapshot limit.
  */
 CPMDC_API CPMDCResult cpmdc_session_calculate_result(
     CPMDCSession *session, const void *force_input_capnp,

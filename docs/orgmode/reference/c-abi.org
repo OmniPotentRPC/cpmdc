@@ -205,6 +205,8 @@ check and before the topology is fixed.
 A first call that is too large leaves the session without a topology.
 A session that already holds another system reports
 ~topology change requires a new session~ instead of the atom limit.
+A position that is not finite fails before that atom limit, with
+~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~.
 
 Fields of ~CPMDCEnergyComponents~; ~valid~ is an ~int~, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -557,6 +559,10 @@ non-zero box fails with ~cell contains a non-finite component~,
 reference evaluator when a non-zero periodic cell cannot represent a finite
 positive stress volume (~cell volume is too large for binary64~ or
 ~cell volume is not representable for stress~).
+A position that is not finite fails before evaluation with
+~positions contain a non-finite component~ and
+~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0.
+That failure is reported before the property gradient snapshot limit.
 ~cpmdc_session_calculate_result()~ writes the required byte count to ~*out_size~
 before it checks ~capacity~.
 When ~capacity~ is too small, or ~out~ is ~NULL~, it returns ~ok == 0~ with
