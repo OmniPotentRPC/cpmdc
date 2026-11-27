@@ -29,6 +29,11 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_char
       CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
     END SUBROUTINE
+    FUNCTION cpmdc_embed_failure_pending() &
+        BIND(C, NAME='cpmdc_embed_failure_pending') RESULT(pending)
+      IMPORT :: c_int
+      INTEGER(c_int) :: pending
+    END FUNCTION
     SUBROUTINE cpmdc_note_scf_unconverged(minimizer, iterations, maxiter, gemax, &
         tolog, first_minimizer, first_iterations) &
         BIND(C, NAME='cpmdc_note_scf_unconverged')
@@ -3757,6 +3762,7 @@ CONTAINS
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, cpmdc_memfd_close, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure, &
+        cpmdc_embed_failure_pending, &
         cpmdc_note_deck_external_potential, &
         cpmdc_deck_defines_external_potential
     USE fileopen_utils, ONLY: init_fileopen
@@ -3900,13 +3906,13 @@ CONTAINS
     ! The process leaves that directory again once the files are read.
     IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure(pp_c)
-      CALL close_cold_deck()
+      ierr = close_cold_deck()
       RETURN
     END IF
     IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure( &
            'cannot enter the pseudopotential directory'//c_null_char)
-      CALL close_cold_deck()
+      ierr = close_cold_deck()
       RETURN
     END IF
     ! A stopgm returns to the caller the hook is armed for. The next
@@ -3955,7 +3961,7 @@ CONTAINS
     IF (.NOT. embed_use_output_dir(image)) THEN
       ierr = cpmdc_restore_host_cwd()
       ierr = cpmdc_embed_teardown()
-      CALL close_cold_deck()
+      ierr = close_cold_deck()
       RETURN
     END IF
     IF (cold_setup_stopped()) RETURN
@@ -3998,7 +4004,11 @@ CONTAINS
     CALL vdw_wf_alloc
     IF (cold_setup_stopped()) RETURN
     ! The parsers have read the deck. Drop the anonymous fd before the SCF.
-    CALL close_cold_deck()
+    ! A failed close leaves the descriptor open, so setup stops here.
+    IF (close_cold_deck() /= 0) THEN
+      ierr = cpmdc_embed_teardown()
+      RETURN
+    END IF
     cpmd_set_up = .TRUE.
     cpmd_setup_started = .FALSE.
     embed_setup_ht = metr_com%ht
@@ -4020,30 +4030,44 @@ CONTAINS
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
   CONTAINS
-    SUBROUTINE close_cold_deck()
+    INTEGER FUNCTION close_cold_deck()
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int
       INTEGER(c_int) :: rc
+      close_cold_deck = 0
       IF (mfd < 0) RETURN
       rc = cpmdc_memfd_close(INT(mfd, KIND=c_int))
       mfd = -1
-    END SUBROUTINE close_cold_deck
+      IF (rc == 0_c_int) RETURN
+      close_cold_deck = 1
+      ! Keep a failure that was already noted. This one is the reason
+      ! only when the setup had not failed yet.
+      IF (cpmdc_embed_failure_pending() /= 0_c_int) RETURN
+      CALL cpmdc_note_embed_failure( &
+           'cannot close the cold deck'//c_null_char)
+    END FUNCTION close_cold_deck
 
     LOGICAL FUNCTION cold_setup_stopped()
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int
       INTERFACE
-        FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
+        FUNCTION cpmdc_agree_cold_stop() BIND(C, NAME='cpmdc_agree_cold_stop') &
+            RESULT(flag)
           IMPORT :: c_int
-          INTEGER(c_int) :: code
-        END FUNCTION cpmdc_stop_code
+          INTEGER(c_int) :: flag
+        END FUNCTION cpmdc_agree_cold_stop
       END INTERFACE
-      INTEGER(c_int) :: rc
-      cold_setup_stopped = cpmdc_stop_code() /= 0_c_int
+      INTEGER(c_int) :: agreed, rc
+      ! stopgm may return on one rank only. Agree before this rank
+      ! leaves the list or frees the group, or the others enter the
+      ! next setup collective and the job waits.
+      agreed = cpmdc_agree_cold_stop()
+      cold_setup_stopped = agreed /= 0_c_int
       IF (.NOT. cold_setup_stopped) RETURN
       ! Partial module state is undefined. Free it and leave cpmd_set_up
       ! false so the C handler reports the stop. The deck fd goes too.
+      ! Every rank takes this path once the stop has been agreed.
       rc = cpmdc_restore_host_cwd()
       ierr = cpmdc_embed_teardown()
-      CALL close_cold_deck()
+      ierr = close_cold_deck()
     END FUNCTION cold_setup_stopped
   END SUBROUTINE
 

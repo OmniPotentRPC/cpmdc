@@ -90,7 +90,7 @@ static void test_deck_is_closed_and_fds_stay_flat(void **state) {
   assert_non_null(vdw);
   eval = strstr(vdw, "CALL embed_eval_energy_grad");
   assert_non_null(eval);
-  closed = strstr(vdw, "close_cold_deck");
+  closed = strstr(vdw, "IF (close_cold_deck()");
   assert_non_null(closed);
   assert_true(closed < eval);
   free(source);

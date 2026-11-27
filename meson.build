@@ -1285,6 +1285,29 @@ if get_option('with_tests')
         timeout: 180,
         is_parallel: false,
       )
+      cold_setup_stop = executable(
+        'test_cold_setup_stop_mpi',
+        'tests/test_cold_setup_stop_mpi.c',
+        dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+        include_directories: inc,
+        c_args: common_c_args,
+      )
+      test(
+        'cold-setup-stop-mpi',
+        python,
+        args: [
+          run_mpi_test,
+          '--timeout',
+          '20',
+          '2',
+          cold_setup_stop.full_path(),
+          cpmd_parser_params_bin.full_path(),
+        ],
+        depends: [cold_setup_stop, cpmd_parser_params_bin],
+        suite: ['mpi', 'embed'],
+        timeout: 60,
+        is_parallel: false,
+      )
     endif
   endif
   test(

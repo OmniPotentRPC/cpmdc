@@ -116,6 +116,31 @@ def main() -> int:
             )
     if not stop_checked(lines[indexes[-1] + 1 : assigned[0]]):
         raise SystemExit("no stop test after CALL vdw_wf_alloc before cpmd_set_up")
+    stop_fn = re.search(
+        r"LOGICAL FUNCTION cold_setup_stopped\(\).*?END FUNCTION cold_setup_stopped",
+        source,
+        re.I | re.S,
+    )
+    if not stop_fn:
+        raise SystemExit("cold_setup_stopped is missing")
+    stop_body = code_lines(stop_fn.group(0))
+    try:
+        agree = next(
+            i
+            for i, line in enumerate(stop_body)
+            if "cpmdc_agree_cold_stop" in line.lower()
+        )
+    except StopIteration:
+        raise SystemExit("cold setup does not agree the stop across ranks") from None
+    leave = [
+        i
+        for i, line in enumerate(stop_body)
+        if re.search(r"\bRETURN\b|cpmdc_embed_teardown\s*\(", line, re.I)
+    ]
+    if not leave or agree > min(leave):
+        raise SystemExit(
+            "cold setup leaves the list or frees the group before the stop is agreed"
+        )
     print("cold setup reports stopgm before the next init")
     return 0
 

@@ -39,6 +39,8 @@ static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code);
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
 int cpmdc_stop_code(void);
+void cpmdc_note_stop(int code);
+int cpmdc_agree_cold_stop(void);
 
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
@@ -589,6 +591,8 @@ void cpmdc_note_embed_failure(const char *msg) {
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
   g_embed_code = CPMDC_ERROR_EVALUATION_FAILED;
 }
+
+int cpmdc_embed_failure_pending(void) { return g_embed_detail[0] != '\0'; }
 
 void cpmdc_note_deck_external_potential(void) {
   cpmdc_note_embed_failure(k_deck_external_potential_msg);
@@ -2343,6 +2347,64 @@ static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
   return fail_msg(msg);
 }
 
+/* Every rank of the calculator calls this after each cold-setup step.
+ * stopgm can return on one rank only. The flag is agreed before that
+ * rank frees the group or the others enter the next setup collective. */
+int cpmdc_agree_cold_stop(void) {
+  int stopped = cpmdc_stop_code() != 0 ? 1 : 0;
+  if (cpmdc_orbital_allreduce(&stopped, 1) != 0) {
+    cpmdc_note_stop(1);
+    return 1;
+  }
+  if (stopped && cpmdc_stop_code() == 0)
+    cpmdc_note_stop(1);
+  return stopped;
+}
+
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+/* The reference build has no setup list. One collective stands in for
+ * the step that just returned, rank 1 notes a stop, and then every rank
+ * either frees the stand-in group or enters the next collective. */
+static int cpmdc_cold_setup_stop_drill(void) {
+#if defined(CPMDC_HAVE_MPI)
+  MPI_Comm world = MPI_COMM_WORLD;
+  MPI_Comm setup = MPI_COMM_NULL;
+  int rank = 0;
+  int inited = 0;
+  int agreed;
+  if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+    return -1;
+  if (cpmdc_adopted_comm(&world, sizeof(world)) != 0)
+    world = MPI_COMM_WORLD;
+  if (MPI_Comm_rank(world, &rank) != MPI_SUCCESS)
+    return -1;
+  if (MPI_Comm_dup(world, &setup) != MPI_SUCCESS)
+    return -1;
+  if (MPI_Barrier(setup) != MPI_SUCCESS) {
+    MPI_Comm_free(&setup);
+    return -1;
+  }
+  if (rank == 1)
+    cpmdc_note_stop(1);
+  agreed = cpmdc_agree_cold_stop();
+  if (agreed != 0) {
+    if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+      return -1;
+    return 1;
+  }
+  if (MPI_Barrier(setup) != MPI_SUCCESS) {
+    MPI_Comm_free(&setup);
+    return -1;
+  }
+  if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+    return -1;
+  return 0;
+#else
+  return 0;
+#endif
+}
+#endif
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -2382,6 +2444,24 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+  if (test_fault("cold-setup-stop")) {
+    int drill = cpmdc_cold_setup_stop_drill();
+    if (drill < 0) {
+      cpmdc_stop_disarm();
+      return fail_image(image, "CPMDC_RANK_CONSENSUS: an MPI collective failed");
+    }
+    if (drill > 0) {
+      int stop = cpmdc_stop_code();
+      cpmdc_stop_disarm();
+      if (stop == 0)
+        cpmdc_note_stop(1);
+      (void)cpmdc_embed_reset_state(image);
+      image_invalidate_results(image);
+      return fail_msg("CPMD stopgm during embed SCF");
+    }
+  }
+#endif
   int n_external =
       session && session->external_count <= (size_t)INT_MAX
           ? (int)session->external_count
@@ -2661,7 +2741,12 @@ static int cell_differs(int left_has, const double *left, int right_has,
   if (!left || !right)
     return 1;
   for (int i = 0; i < 9; ++i) {
-    double delta = left[i] - right[i];
+    double delta;
+    /* NaN minus anything is not ordered, so a magnitude test would
+     * treat a non-finite component as equal. */
+    if (!isfinite(left[i]) || !isfinite(right[i]))
+      return 1;
+    delta = left[i] - right[i];
     if (delta < 0.0)
       delta = -delta;
     if (delta > 1.0e-8)
