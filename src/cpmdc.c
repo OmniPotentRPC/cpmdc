@@ -2723,7 +2723,8 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
-/* The stored gradient is copied into the caller's atom order. Two atoms
+/* The stored gradient is copied into the caller's atom order, including
+ * the property snapshot read by cpmdc_session_last_gradient. Two atoms
  * match when the element and the position agree within 1e-8 Angstrom. */
 static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
                                         const double *positions,
@@ -2778,6 +2779,21 @@ static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
   } else {
     session->image.charges.valid = 0;
     session->image.charges.count = 0;
+  }
+  /* The snapshot is the gradient in the order of the call that stored
+   * it. Rewrite it from that stored gradient so a later hit, which
+   * still matches against the stored order, does not permute twice. */
+  if (session->image.prop.valid &&
+      session->image.prop.hessian_count == n_atoms * 3u) {
+    for (size_t i = 0; i < n_atoms; ++i) {
+      size_t src = map[i];
+      session->image.prop.hessian[3u * i] =
+          session->cached_grad_h_bohr[3u * src];
+      session->image.prop.hessian[3u * i + 1u] =
+          session->cached_grad_h_bohr[3u * src + 1u];
+      session->image.prop.hessian[3u * i + 2u] =
+          session->cached_grad_h_bohr[3u * src + 2u];
+    }
   }
   free(used);
   free(map);
