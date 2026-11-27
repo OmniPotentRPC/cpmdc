@@ -3047,6 +3047,20 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
     timeout: has_cpmd ? 300 : 30,
   )
+  test(
+    'oneshot-refusal-keeps-state',
+    executable(
+      'test_oneshot_refusal_keeps_state',
+      'tests/test_oneshot_refusal_keeps_state.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
 
   meson_prog = find_program('meson', required: false)
   pkg_config_prog = find_program('pkgconf', 'pkg-config', required: false)

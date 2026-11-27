@@ -2483,50 +2483,32 @@ static const char *orbital_limit_gate(const char *local_err) {
   return limit_err ? limit_err : "CPMDC_ORBITAL_SLOT_LIMIT could not be agreed";
 }
 
-static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
+/* Geometry the array one-shots can reject before cpmdc_set_params().
+ * Nothing here installs parameters, detaches the active session, clears
+ * the orbital key, or drops a stored result. The reference evaluator
+ * folds a non-finite coordinate into the energy and still reports
+ * success, so that input is refused with the session preflight text.
+ * These wrappers do not take a cell. */
+static const char *array_geometry_error(int n_atoms, const double *positions_ang,
                                         const int *atomic_numbers,
-                                        const double *cell_ang, int has_cell,
-                                        double *grad_h_bohr,
-                                        const char *params_err) {
-  const char *err = params_err;
-  if (!err &&
-      (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang)))
-    err = "invalid arguments";
-  else if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
-    err = "atomic numbers must be in 1..118";
-  /* The reference evaluator folds a non-finite coordinate or cell into
-   * the energy and still reports success. Refuse that input here, with
-   * the same text the session preflight uses, before any rank evaluates. */
-  if (!err && has_cell) {
-    int cell_state = cpmdc_cell_rank3_state(cell_ang);
-    if (cell_state == CPMDC_CELL_NONFINITE)
-      err = "cell contains a non-finite component";
-    else if (cell_state == CPMDC_CELL_RANK_DEFICIENT)
-      err = "cell does not have three independent vectors";
-    else if (cell_state == CPMDC_CELL_VOLUME_UNDERFLOW)
-      err = "cell volume is too small for binary64";
-  }
-  if (!err) {
+                                        const double *grad_h_bohr) {
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr)
+    return "invalid arguments";
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return "atomic numbers must be in 1..118";
+  {
     int ncomp = n_atoms * 3;
-    for (int i = 0; i < ncomp; ++i) {
-      if (!isfinite(positions_ang[i])) {
-        err = "positions contain a non-finite component";
-        break;
-      }
+    int i;
+    for (i = 0; i < ncomp; ++i) {
+      if (!isfinite(positions_ang[i]))
+        return "positions contain a non-finite component";
     }
   }
-  err = orbital_limit_gate(err);
-  if (err) {
-    image_invalidate_results(&g_image);
-    return fail_msg(err);
-  }
-  return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
-                                          g_has_overrides ? &g_overrides : NULL,
-                                          n_atoms,
-                                          positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr,
-                                          &g_image, NULL);
+  if (n_atoms > (int)(sizeof(g_image.prop.hessian) /
+                      (3u * sizeof(g_image.prop.hessian[0]))))
+    return "property gradient snapshot supports at most 1365 atoms";
+  return NULL;
 }
 
 CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
@@ -2534,17 +2516,26 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                   const void *params_capnp,
                                   size_t params_capnp_size_bytes,
                                   double *grad_h_bohr) {
-  const char *params_err = NULL;
-  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr)
-    params_err = "invalid arguments";
-  else if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
-    params_err = cpmdc_last_error();
-    if (!params_err || params_err[0] == '\0')
-      params_err = "embed config failed";
+  const char *err = array_geometry_error(n_atoms, positions_ang, atomic_numbers,
+                                         grad_h_bohr);
+  /* Agree the geometry before installing parameters. A rank that rejects
+   * the input must not leave the others inside cpmdc_set_params(), and a
+   * refusal must not detach the session or drop a stored result. */
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
+  if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
+    err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "embed config failed";
   }
-  return energy_gradient_cell(n_atoms, positions_ang, atomic_numbers, NULL, 0,
-                              grad_h_bohr, params_err);
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
+  return energy_gradient_cell_with_params(
+      g_params_bytes, g_params_size, g_has_overrides ? &g_overrides : NULL,
+      n_atoms, positions_ang, atomic_numbers, NULL, 0, grad_h_bohr, &g_image,
+      NULL);
 }
 
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
@@ -2565,7 +2556,7 @@ CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
   err = collective_call_gate(err);
   if (err) {
     free(grad);
-    image_invalidate_results(&g_image);
+    /* The gradient was never evaluated, so the previous result stays. */
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,

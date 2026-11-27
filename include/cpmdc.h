@@ -406,6 +406,8 @@ CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size
  * `message` is `positions contain a non-finite component`, and
  * `cpmdc_last_error_code()` is `CPMDC_ERROR_INVALID_ARGUMENT`.
  * `cpmdc_energy()` and `cpmdc_energy_forces()` apply the same check.
+ * A rejected call does not install `params_capnp`. The active session,
+ * the selected orbitals, and the previous result stay as they were.
  */
 CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                             const int *atomic_numbers,

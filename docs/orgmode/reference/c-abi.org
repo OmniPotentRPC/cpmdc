@@ -447,6 +447,9 @@ A coordinate that is not finite is rejected before the evaluation.
 ~ok~ is 0, ~energy_h~ is 0, and ~cpmdc_last_error_code()~ is
 ~CPMDC_ERROR_INVALID_ARGUMENT~.
 The message is ~positions contain a non-finite component~.
+A call that is rejected does not install the parameter message.
+The active session, the selected orbitals, and the previous result stay as they
+were.
 
 * Sessions
 
