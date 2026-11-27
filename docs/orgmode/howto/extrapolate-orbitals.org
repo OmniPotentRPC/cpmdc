@@ -94,8 +94,14 @@ Each of these events empties the affected key's history:
   clears
 - destroying the session that evaluated last, keyed or not
 
-Anything that clears the stored orbitals, such as a cell, cutoff, or composition
-change, clears every key's history.
+Anything that clears the stored orbitals, such as a cell or cutoff change,
+clears every key's history.
+A change of atom count or elemental composition does not continue on the session
+that holds the history.
+The session refuses that call.
+Destroy the session, create a new one, and expect a cold SCF.
+That setup drops the orbital store, the previous setup's density, and every
+extrapolation ring.
 A constant-cutoff cell that moves in place under ~CPMDC_CELL_IN_PLACE~ keeps
 every history.
 On an OpenCPMD build ~CPMDC_ORBITAL_SLOT_LIMIT~ counts every parked orbital set
