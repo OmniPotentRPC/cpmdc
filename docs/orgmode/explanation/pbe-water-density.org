@@ -76,47 +76,47 @@ At the 0.48 fs step the same 26.130 s a step is about 15.75 to 22.05 days, so th
 
 * The long run
 ~long32~ runs the 32 waters from ~box32.xyz~ with the settings of ~cc100~, the constant cutoff E0 = 85 Ry on the 100 Ry deck, the Langevin thermostat, and the MTK barostat with P_tau 100 fs, and with ~--rs-wfn-keep~, on 8 ranks of the FFTW build with the change above.
-~constant_cutoff_npt.py table~ wrote ~bench/results/pbe_water_npt.org~ from its first 9.0 ps with the first 0.5 ps discarded (~--discard-ps 0.5~), the least that ~table~ discards of a run from a box, once with the error of the coarsest blocking level (reference 3) that has at least 8 blocks and once with at least 4:
+~constant_cutoff_npt.py table~ wrote ~bench/results/pbe_water_npt.org~ from its first 11.0 ps with the first 0.5 ps discarded (~--discard-ps 0.5~), the least that ~table~ discards of a run from a box, once with the error of the coarsest blocking level (reference 3) that has at least 8 blocks and once with at least 4:
 
 | Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
 |-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
-| long32 | 9 | 0.5 | 8501 | 1.1336 +- 0.01632 | 846.7 +- 12.28 | -61 +- 10.5 | 346 +- 4.0 | 70820 |
+| long32 | 11 | 0.5 | 10501 | 1.1299 +- 0.01340 | 849.3 +- 10.06 | -68 +- 8.5 | 345 +- 3.2 | 85664 |
 
 | Run | Observable | Detected start, ps | Std | Blocks | Block, ps | Error | Its uncertainty | Error at half the block |
 |-----+------------+--------------------+-----+--------+-----------+-------+-----------------+-------------------------|
-| long32 | Volume, nm^3 | 3.516 | 0.05844 | 8 | 1.024 | 0.01632 | 0.00436 | 0.01213 |
-| long32 | Density, kg/m^3 | 3.876 | 43.70 | 8 | 1.024 | 12.28 | 3.28 | 9.04 |
-| long32 | Pressure, bar | 0 | 4754.8 | 8 | 1.024 | 10.5 | 2.8 | 34.7 |
+| long32 | Volume, nm^3 | 5.08 | 0.05587 | 10 | 1.024 | 0.01340 | 0.00316 | 0.01000 |
+| long32 | Density, kg/m^3 | 5.08 | 41.82 | 10 | 1.024 | 10.06 | 2.37 | 7.45 |
+| long32 | Pressure, bar | 0 | 4740.8 | 10 | 1.024 | 8.5 | 2.0 | 28.0 |
 
-The density is 846.7 +- 12.28 kg/m^3 over the frames after 0.5 ps.
-The error comes from the 8 blocks of 1.024 ps and carries an uncertainty of 3.28 kg/m^3 of its own.
+The density is 849.3 +- 10.06 kg/m^3 over the frames after 0.5 ps.
+The error comes from the 10 blocks of 1.024 ps and carries an uncertainty of 2.37 kg/m^3 of its own.
 The standard error still grows with the block length, here at every level with at least 4 blocks:
 
 | Run | Observable | 0.001 ps | 0.002 ps | 0.004 ps | 0.008 ps | 0.016 ps | 0.032 ps | 0.064 ps | 0.128 ps | 0.256 ps | 0.512 ps | 1.024 ps | 2.048 ps | 4.096 ps | 8.192 ps | 16.384 ps | 32.768 ps |
 |-----+------------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+-----------+-----------|
-| long32 | Volume, nm^3 | 0.00063 | 0.00090 | 0.00127 | 0.00179 | 0.00252 | 0.00350 | 0.00478 | 0.00653 | 0.00880 | 0.01213 | 0.01632 | 0.02085 |  |  |  |  |
-| long32 | Density, kg/m^3 | 0.47 | 0.67 | 0.95 | 1.34 | 1.88 | 2.62 | 3.58 | 4.91 | 6.61 | 9.04 | 12.28 | 15.47 |  |  |  |  |
-| long32 | Pressure, bar | 51.6 | 71.1 | 91.0 | 86.4 | 78.3 | 87.7 | 76.1 | 65.8 | 46.5 | 34.7 | 10.5 | 10.6 |  |  |  |  |
+| long32 | Volume, nm^3 | 0.00055 | 0.00077 | 0.00109 | 0.00154 | 0.00216 | 0.00299 | 0.00403 | 0.00547 | 0.00735 | 0.01000 | 0.01340 | 0.01676 |  |  |  |  |
+| long32 | Density, kg/m^3 | 0.41 | 0.58 | 0.82 | 1.15 | 1.62 | 2.24 | 3.02 | 4.11 | 5.51 | 7.45 | 10.06 | 12.40 |  |  |  |  |
+| long32 | Pressure, bar | 46.3 | 63.8 | 81.6 | 78.1 | 71.0 | 80.8 | 65.8 | 56.3 | 42.4 | 28.0 | 8.5 | 8.2 |  |  |  |  |
 
-It grows by 37% and 36% at the doublings to 0.512 and 1.024 ps, and by 26% to 2.048 ps, where 4 blocks remain.
+It grows by 35% at each of the doublings to 0.512 and 1.024 ps, and by 23% to 2.048 ps, where 5 blocks remain.
 Blocks of B frames, of n, outlast the correlation when ~B^3 > 2 n (SE_B / SE_1)^4~ (reference 5); no level of the density meets that, with at least 8 blocks or with at least 4:
 
 | Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
 |-----+------------+-----------+--------+-------+-----------------|
 | long32 | Volume, nm^3 | none up to 1.024 |  |  |  |
 | long32 | Density, kg/m^3 | none up to 1.024 |  |  |  |
-| long32 | Pressure, bar | 0.064 | 132 | 76.1 | 4.7 |
+| long32 | Pressure, bar | 0.064 | 164 | 65.8 | 3.6 |
 
 | Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
 |-----+------------+-----------+--------+-------+-----------------|
 | long32 | Volume, nm^3 | none up to 2.048 |  |  |  |
 | long32 | Density, kg/m^3 | none up to 2.048 |  |  |  |
-| long32 | Pressure, bar | 0.064 | 132 | 76.1 | 4.7 |
+| long32 | Pressure, bar | 0.064 | 164 | 65.8 | 3.6 |
 
-The blocking curve of the density has not levelled off in 9.0 ps, and 12.28 kg/m^3 is a lower bound for its error.
-Lee et al. also ask for B < n/50, at least 50 blocks, which gives the error to 10%; with 8 blocks it is known to 27%.
+The blocking curve of the density has not levelled off in 11.0 ps, and 10.06 kg/m^3 is a lower bound for its error.
+Lee et al. also ask for B < n/50, at least 50 blocks, which gives the error to 10%; with 10 blocks it is known to 22%.
 The pressure meets the criterion at 0.064 ps, and its error falls at longer blocks.
-The mean of the frames after the discard is -61 +- 10.5 bar in ~bench/results/pbe_water_npt.org~.
+The mean of the frames after the discard is -68 +- 8.5 bar in ~bench/results/pbe_water_npt.org~.
 
 The mean density over consecutive picoseconds wanders between 787.8 and 896.3 kg/m^3:
 
@@ -131,26 +131,28 @@ The mean density over consecutive picoseconds wanders between 787.8 and 896.3 kg
 | 6-7 | 896.3 |
 | 7-8 | 861.7 |
 | 8-9 | 863.8 |
+| 9-10 | 873.7 |
+| 10-11 | 846.9 |
 
-The equilibration that ~table~ detects (reference 4) starts at 3.876 ps for the density in these 9.0 ps.
+The equilibration that ~table~ detects (reference 4) starts at 5.08 ps for the density in these 11.0 ps.
 With that start discarded, ~table~ gives:
 
 | Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
 |-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
-| long32 | 9 | 3.876 | 5125 | 1.1033 +- 0.01049 | 869.1 +- 8.35 | -43 +- 70.6 | 340 +- 4.4 | 70820 |
+| long32 | 11 | 5.08 | 5921 | 1.1010 +- 0.00802 | 870.8 +- 6.42 | -62 +- 43.1 | 340 +- 3.8 | 85664 |
 
-The window means before 4 ps lie between 787.8 and 835.4 kg/m^3, and those after it between 846.8 and 896.3: 9.0 ps cannot tell a slow wandering of the density from an equilibration that ends near 4 ps.
-The 869.1 +- 8.35 kg/m^3 of the frames after the detected start lie 22.4 kg/m^3 above the 846.7 kg/m^3 of the frames after 0.5 ps; the page keeps the latter, and the difference between the two is a measure of what 9.0 ps leave open.
+The window means before 5 ps lie between 787.8 and 846.8 kg/m^3, and those after it between 846.9 and 896.3: 11.0 ps cannot tell a slow wandering of the density from an equilibration that ends near 5 ps.
+The 870.8 +- 6.42 kg/m^3 of the frames after the detected start lie 21.5 kg/m^3 above the 849.3 kg/m^3 of the frames after 0.5 ps; the page keeps the latter, and the difference between the two is a measure of what 11.0 ps leave open.
 
 The volume fluctuations give the isothermal compressibility:
 
 | Run | kappa_T, 1e-5/bar | Error |
 |-----+-------------------+-------|
-| long32 | 6.23 | 1.33 |
+| long32 | 5.72 | 1.12 |
 
-By linear response a pressure change dP moves the density by ~-rho kappa_T dP~, and 846.7 kg/m^3 times 6.23e-5/bar is 52.7 +- 11.3 kg/m^3 per kbar; the sections below turn differences of pressure into densities with it.
-The compressibility is 6.23 +- 1.33e-5/bar after the 0.5 ps discard and 3.80 +- 0.71e-5/bar after the detected start.
-The 870 kg/m^3 of Miceli et al. lie 23.3 kg/m^3 above the density of ~long32~, 1.9 times its blocking error, which is a lower bound.
+By linear response a pressure change dP moves the density by ~-rho kappa_T dP~, and 849.3 kg/m^3 times 5.72e-5/bar is 48.6 +- 9.5 kg/m^3 per kbar; the sections below turn differences of pressure into densities with it.
+The compressibility is 5.72 +- 1.12e-5/bar after the 0.5 ps discard and 3.49 +- 0.43e-5/bar after the detected start.
+The 870 kg/m^3 of Miceli et al. lie 20.7 kg/m^3 above the density of ~long32~, 2.1 times its blocking error, which is a lower bound.
 
 * Pseudopotentials
 ~O_MT_PBE~ and ~H_MT_PBE~ are Troullier-Martins pseudopotentials.
@@ -276,30 +278,30 @@ At 870 kg/m^3, a fixed 85 Ry setup of the FHI files gives a molecular pressure 1
 On the states of ~long32~, the fixed 85 Ry setup of the FHI files gives a molecular pressure 1.038 +- 0.021 kbar below that of E0 = 136 Ry, from 0.93 to 1.12 kbar below on the eight states.
 
 * Where the gap goes
-A setup whose molecular pressure lies dP above that of another on the same configurations holds the liquid less dense at 1 bar, by dP times the 52.7 +- 11.3 kg/m^3 per kbar of ~long32~.
+A setup whose molecular pressure lies dP above that of another on the same configurations holds the liquid less dense at 1 bar, by dP times the 48.6 +- 9.5 kg/m^3 per kbar of ~long32~.
 On the states of ~long32~, taking the converged FHI files as the middle ground:
 
 | Change, toward the runs of Miceli et al. | Molecular pressure, kbar | Density, kg/m^3 |
 |------------------------------------------+--------------------------+-----------------|
-| CPMD files at E0 = 85 Ry to FHI files at E0 = 136 Ry | -0.583 +- 0.253 | +31 +- 13 |
-| of which CPMD files at E0 = 170 Ry to FHI files at E0 = 136 Ry | -0.482 +- 0.025 | +25 +- 1 |
-| FHI files at E0 = 136 Ry to a fixed 85 Ry | -1.038 +- 0.021 | +55 +- 1 |
-| Both | -1.621 | +86 |
+| CPMD files at E0 = 85 Ry to FHI files at E0 = 136 Ry | -0.583 +- 0.253 | +28.3 +- 12.3 |
+| of which CPMD files at E0 = 170 Ry to FHI files at E0 = 136 Ry | -0.482 +- 0.025 | +23.4 +- 1.2 |
+| FHI files at E0 = 136 Ry to a fixed 85 Ry | -1.038 +- 0.021 | +50.4 +- 1.0 |
+| Both | -1.621 | +78.7 |
 
-The errors in the last column are those of the pressures; the 21% of the compressibility scales the column as a whole.
-The measured changes of setup move the density by +86 kg/m^3, more than the 23.3 kg/m^3 between ~long32~ and Miceli et al.: 23.3 - 86 = -63 kg/m^3 is left, against a blocking error of at least 12.28 kg/m^3, 13 kg/m^3 from the scatter of the basis error of the CPMD files at E0 = 85 Ry, and 18 kg/m^3 from the compressibility, or 26 kg/m^3 together.
+The errors in the last column are those of the pressures; the 20% of the compressibility scales the column as a whole.
+The measured changes of setup move the density by +78.7 kg/m^3, more than the 20.7 kg/m^3 between ~long32~ and Miceli et al.: 20.7 - 78.7 = -58.0 kg/m^3 is left, against a blocking error of at least 10.06 kg/m^3, 12.3 kg/m^3 from the scatter of the basis error of the CPMD files at E0 = 85 Ry, and 15.4 kg/m^3 from the compressibility, or 22.1 kg/m^3 together.
 The largest change is the fixed basis, whose Pulay stress makes the liquid of Miceli et al. denser than a converged basis would, if their pseudopotentials are the FHI files; the paper does not name them.
 
 Not measured here:
 - the thermostat and the barostat, Langevin and MTK against Parrinello-Rahman in NpH;
 - 32 waters against 64;
-- 346 K against 349 K;
+- 345 K against 349 K;
 - the statistical error of Miceli et al., which the paper does not give;
 - whether the linear response holds over the 1.6 kbar of the last row.
 
-The two changes of setup that this page measures move the density by 31 and 55 kg/m^3, each more than the gap, and together they overshoot it by 63 kg/m^3, 2.4 times the 26 kg/m^3 of the combined uncertainty.
-The linear response over the 1.6 kbar of the last row, a change of 10% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
-These numbers do not resolve a physical difference between the two PBE densities: the gap itself is 1.9 times a blocking error that is still a lower bound, since the blocking curve of ~long32~ has not levelled off.
+The two changes of setup that this page measures move the density by 28.3 and 50.4 kg/m^3, each more than the gap, and together they overshoot it by 58.0 kg/m^3, 2.6 times the 22.1 kg/m^3 of the combined uncertainty.
+The linear response over the 1.6 kbar of the last row, a change of 9% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
+These numbers do not resolve a physical difference between the two PBE densities: the gap itself is 2.1 times a blocking error that is still a lower bound, since the blocking curve of ~long32~ has not levelled off.
 
 * Tests
 - ~test_plateau_of_ar1_lies_past_its_correlation_time~ and the other ~plateau~ tests in ~tests/python/test_npt_block_average.py~ check the level that the criterion of Lee et al. finds on series whose correlation is known: an AR(1) process, white noise, and a drift.
@@ -357,7 +359,7 @@ CPMDC_TIPRI_EVERY=10 npt build-timer $prof --out runs/prof-base.json > runs/prof
 CPMDC_TIPRI_EVERY=10 npt build-timer $prof --rs-wfn-keep --out runs/prof-keep.json > runs/prof-keep.out
 CPMDC_TIPRI_EVERY=10 npt build-fftw $prof --rs-wfn-keep --out runs/prof-fftw.json > runs/prof-fftw.out
 npt build-fftw run --start box32.xyz $cc --p-tau 100 --rs-wfn-keep --keep-every 500 \
-  --steps 9000 --out runs/long32.json
+  --steps 11000 --out runs/long32.json
 #+end_src
 
 The FFTW runs other than ~prof-fftw~, and the single points below, used builds that carried the change to OpenCPMD described above, ~off~ and ~off2~ with it switched off and the others with it on.
@@ -397,7 +399,11 @@ for b in 8 4; do
     --discard-ps 0.5
 done
 python bench/constant_cutoff_npt.py table runs/long32.json --curve-step 1 --window-ps 1.0
-python bench/constant_cutoff_npt.py pressures runs/long32.*-mt.org runs/long32.*-fhi.org --against 6
+mt=() fhi=()
+for k in 2000 3000 4000 5000 6000 7000 8000 9000; do
+  mt+=("runs/long32.$k-mt.org") fhi+=("runs/long32.$k-fhi.org")
+done
+python bench/constant_cutoff_npt.py pressures "${mt[@]}" "${fhi[@]}" --against 6
 #+end_src
 
 * References
