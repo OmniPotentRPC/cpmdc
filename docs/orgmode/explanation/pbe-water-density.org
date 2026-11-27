@@ -333,6 +333,82 @@ The 64-water run matches their water count and their 349 K.
 The masses and the timestep do not change the classical configurational distribution, and 1 bar against 0 bar is about 0.05 kg/m^3 at the compressibility of the 11.0 ps.
 The basis and the pseudopotentials are the differences *Where the gap goes* already estimates, and this protocol does not refit that estimate.
 
+* The fresh trajectory at 1.86 ps
+The state file of the 11.0 ps is not in the repository, so the settings of ~long32~ were started again from a box written by ~start~.
+The frames are a new trajectory.
+~constant_cutoff_npt.py table~ wrote the section ~Fresh 32-water trajectory~ of ~bench/results/pbe_water_npt.org~ from the first 1.86 ps, with the 0.5 ps floor, no ~--discard-ps~ override, at least 8 blocks, and windows of 1 ps:
+
+| Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
+|-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
+| long32 | 1.86 | 0.5 | 1361 | 1.0988 +- 0.01745 | 873.5 +- 13.41 | -112 +- 111.1 | 352 +- 3.0 | 13356 |
+
+| Run | Ranks | Wall per step, s | SCF iterations per step | New setups | Wall, h |
+|-----+-------+------------------+-------------------------+------------+---------|
+| long32 | 8 | 7.2 | 8.9 | 34 | 3.71 |
+
+The detected starts of the volume, the density and the pressure are 0, 0 and 0.001 ps, so the discarded time is the 0.5 ps floor.
+Production is 1.36 ps, 1361 frames, and the density of those frames is 873.5 kg/m^3.
+The standard error at the coarsest level with at least 8 blocks is 13.41 kg/m^3, from 10 blocks of 0.128 ps (reference 3).
+The blocking curve of the density is
+
+| Run | Observable | 0.001 ps | 0.002 ps | 0.004 ps | 0.008 ps | 0.016 ps | 0.032 ps | 0.064 ps | 0.128 ps | 0.256 ps | 0.512 ps | 1.024 ps | 2.048 ps | 4.096 ps | 8.192 ps | 16.384 ps | 32.768 ps |
+|-----+------------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+-----------+-----------|
+| long32 | Density, kg/m^3 | 1.19 | 1.68 | 2.37 | 3.36 | 4.75 | 6.72 | 9.43 | 13.41 |  |  |  |  |  |  |  |  |
+
+and the plateau test (reference 5) is
+
+| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
+|-----+------------+-----------+--------+-------+-----------------|
+| long32 | Density, kg/m^3 | none up to 0.128 |  |  |  |
+
+so 13.41 kg/m^3 is a lower bound.
+The state of this 1.86 ps trajectory is not in the repository, so those prefix discards are not generated here.
+Production is 1.36 ps, short of the 40 ps the protocol asks for after the start, and the blocking curve is still rising.
+The mean is an average over a trajectory that has not levelled off.
+The 3.5 kg/m^3 between 873.5 and 870 sits inside a lower bound of 13.41 kg/m^3, which is too wide, and still growing, to decide the comparison.
+The windows of the whole 1.86 ps are 871.9 kg/m^3 over 0-1 ps and 867.8 kg/m^3 over the partial window 1-2 ps.
+A step took 7.2 s, so 40 ps of steps is 80 h on these 8 ranks.
+The numbers above are the checkpoint at 1.86 ps.
+
+The 11.0 ps record is the one in the sections above.
+With the 0.5 ps override its density is 849.3 +- 10.06 kg/m^3, the curve still rising, and 20.7 kg/m^3 separates 849.3 from 870.
+The ratio of that error to the error at 0.001 ps is 10.06/0.41, so the statistical inefficiency of that series is at least (10.06/0.41)^2 = 602 frames, and the curve is still rising, so the true inefficiency is larger.
+The detected start of the density in that 11.0 ps record is 5.08 ps.
+The state of the 11.0 ps series is not in the repository, so the prefix test cannot be repeated on it.
+The frames after 5.08 ps average 870.8 +- 6.42 kg/m^3.
+No blocking level up to 0.512 ps meets the criterion of Lee et al. on those frames, so 6.42 kg/m^3 is a lower bound too, and (6.42/0.45)^2 = 203.5 frames is a lower bound on their inefficiency.
+The locked rule leaves 870.8 aside: the blocking curve had not levelled off.
+
+64 waters at 349 K have a classical box and no production frames.
+The eight ranks were on the 32-water trajectory.
+The recorded cost of 64 waters on this stack is 26.1 s a step, the mean from step 5 through the last of the 12-step run, and 40 ps at that cost is 12.1 days.
+The fresh 32-water step, 7.2 s against 7.8 s on the 11.0 ps, puts a 64-water run on this build in the same range.
+
+The gap to 870 kg/m^3 is open.
+The fresh trajectory has 1.36 ps of production and a density error that is still a lower bound.
+The 11.0 ps trajectory has a density error that is still a lower bound, and 849.3 kg/m^3 lies 20.7 kg/m^3 below 870, 2.1 times that lower bound.
+The setup differences from Miceli et al. stay as *What Miceli et al. ran* and *Protocol for the longer runs* list them.
+The code is cpmdc on OpenCPMD with ASE's LangevinBAOAB, against Quantum ESPRESSO.
+The functional is PBE on both sides.
+The fresh run has 32 waters at a 350 K target (the averaged frames sit at 352 +- 3.0 K); the 11.0 ps averaged 345 +- 3.2 K; Miceli et al. report a mean of 349 K, an equilibration aimed at 350 K, and runs inside 345 +- 4 K.
+The barostat target is 1 bar, against their Parrinello-Rahman cell at zero pressure.
+The fresh frames average -112 bar, and the 11.0 ps average -68 bar.
+Pressure meets the criterion of Lee et al. at 139.7 +- 15.4 bar on the fresh run, 42 blocks of 0.032 ps, and at 65.8 +- 3.6 bar on the 11.0 ps, 164 blocks of 0.064 ps, both in ~bench/results/pbe_water_npt.org~.
+At the 48.6 kg/m^3 per kbar of the 11.0 ps, 1 bar against 0 is about 0.05 kg/m^3, and -68 bar is about 3.3 kg/m^3.
+Production here is NPT with Langevin atoms and a Langevin-MTK piston, time constants 100 fs, against their NpH, where velocity rescaling acts only if the cumulative mean temperature leaves 350 +- 20 K and does not fire in production.
+The step is 1 fs, against their Beeman step of 0.48 fs.
+The hydrogen mass is 2.014 u, against classical protons.
+The masses and the timestep leave the classical configurational distribution unchanged.
+The basis is a constant cutoff E0 = 85 Ry on a 100 Ry deck, penalty 5000 Ry, width 4.25 Ry, with the cell updated in place below a strain of 1%, against a fixed number of plane waves near 85 Ry, a run that expanded being restarted from a larger cell.
+The pseudopotentials are the CPMD-library Troullier-Martins files ~O_MT_PBE~ and ~H_MT_PBE~.
+~bench/results/pbe_pseudopotential_headers.org~ records oxygen at a core radius of 1.12 bohr on s, p and d and hydrogen at 0.50 bohr on s.
+The decks take p local for oxygen and s local for hydrogen, against the Troullier-Martins files the paper cites and does not name.
+The liquid starts from 10 ps of classical flexible TIP3P-like dynamics at 1 g/cm^3 and the target temperature, against their classical NVT at 1 g/cm^3 and 300 K and then about 5 ps of QM equilibration.
+Their production is 25 to 35 ps.
+*Where the gap goes* estimates the change from these pseudopotentials at E0 = 85 Ry to the FHI Troullier-Martins files at a converged constant cutoff, and from that to a fixed 85 Ry basis, at 28.0 and 50.5 kg/m^3, about +78 kg/m^3 together.
+That estimate is not refit on the fresh trajectory.
+A setup difference of that size can carry the 20.7 kg/m^3 between the 11.0 ps and 870, and the fresh 1.86 ps does not measure it.
+
 * Tests
 - ~test_plateau_of_ar1_lies_past_its_correlation_time~ and the other ~plateau~ tests in ~tests/python/test_npt_block_average.py~ check the level that the criterion of Lee et al. finds on series whose correlation is known: an AR(1) process, white noise, and a drift.
 - ~test_the_plateau_table_gives_the_level_or_the_coarsest_level_tried~, ~test_cost_compares_each_run_with_the_run_above_it~, and ~test_pressures_takes_the_differences_configuration_by_configuration~ in ~tests/python/test_constant_cutoff_npt_table.py~ check the tables of ~table~, ~cost~, and ~pressures~.
