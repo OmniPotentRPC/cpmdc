@@ -107,8 +107,11 @@ the host working directory.
 The wavefunction, forces, and module state of that call are undefined.
 ~cpmdc~ drops the stored orbitals and the warm cell, and the next call on the
 same session sets CPMD up again.
-With more than one MPI rank, ~cpmdc~ aborts the other ranks, which would
-otherwise stay blocked in the call ~stopgm~ returned from.
+With more than one MPI rank, a stop that has returned to the setup list is
+agreed before the next setup collective.
+Every rank then drops the partial setup and reports the stop.
+A rank that is already waiting in a different collective is not reached by that
+agreement.
 
 ** ~topology change requires a new session~
 *Cause:* ~session_accept_topology~ fixes the topology after an evaluation call

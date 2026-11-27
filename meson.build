@@ -1286,6 +1286,29 @@ if get_option('with_tests')
         timeout: 180,
         is_parallel: false,
       )
+      cold_setup_stop = executable(
+        'test_cold_setup_stop_mpi',
+        'tests/test_cold_setup_stop_mpi.c',
+        dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+        include_directories: inc,
+        c_args: common_c_args,
+      )
+      test(
+        'cold-setup-stop-mpi',
+        python,
+        args: [
+          run_mpi_test,
+          '--timeout',
+          '20',
+          '2',
+          cold_setup_stop.full_path(),
+          cpmd_parser_params_bin.full_path(),
+        ],
+        depends: [cold_setup_stop, cpmd_parser_params_bin],
+        suite: ['mpi', 'embed'],
+        timeout: 60,
+        is_parallel: false,
+      )
     endif
   endif
   test(
@@ -1802,6 +1825,48 @@ if get_option('with_tests')
     timeout: has_cpmd ? 300 : 30,
   )
   test(
+    'session-reordered-gradient',
+    executable(
+      'test_session_reordered_gradient',
+      'tests/test_session_reordered_gradient.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
+  test(
+    'session-nonfinite-positions',
+    executable(
+      'test_session_nonfinite_positions',
+      'tests/test_session_nonfinite_positions.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
+  test(
+    'cold-deck-fd',
+    executable(
+      'test_cold_deck_fd',
+      'tests/test_cold_deck_fd.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path(), meson.current_source_dir()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
+  test(
     'stress-isolated',
     executable(
       'test_stress_isolated',
@@ -1892,6 +1957,15 @@ if get_option('with_tests')
     python,
     args: [
       meson.current_source_dir() / 'tests/test_embed_energy_guard.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['embed', 'inventory'],
+  )
+  test(
+    'embed-setup-stop-guard',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_setup_stop_guard.py',
       meson.current_source_dir(),
     ],
     suite: ['embed', 'inventory'],
@@ -2979,6 +3053,37 @@ if get_option('with_tests')
     ],
     suite: ['params', 'capnp'],
     timeout: has_cpmd or has_sanitize ? 300 : 30,
+  )
+  test(
+    'oneshot-nonfinite',
+    executable(
+      'test_oneshot_nonfinite',
+      'tests/test_oneshot_nonfinite.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      water_params_bin.full_path(),
+      potential_config_common_cpmd_bin.full_path(),
+    ],
+    depends: [water_params_bin, potential_config_common_cpmd_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
+  test(
+    'oneshot-refusal-keeps-state',
+    executable(
+      'test_oneshot_refusal_keeps_state',
+      'tests/test_oneshot_refusal_keeps_state.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
   )
 
   meson_prog = find_program('meson', required: false)
