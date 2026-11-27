@@ -1,7 +1,7 @@
 `bench/constant_cutoff_npt.py pressures` gathers the tables that `pressure`
 writes for several configurations: the molecular pressure of each configuration
-at each pair of pseudopotential files and basis, and the mean and standard
-error of each over the configurations and of its difference from one column,
-taken configuration by configuration.
+at each pair of pseudopotential files and basis, and the mean and standard error
+of each over the configurations and of its difference from one column, taken
+configuration by configuration.
 `tests/python/test_constant_cutoff_npt_table.py` checks the paired differences
 and their errors.

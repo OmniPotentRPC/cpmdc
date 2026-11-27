@@ -1,7 +1,5 @@
-`bench/npt_block_average.py` finds the first blocking level whose blocks
-outlast the correlation, by the criterion of Lee et al. (Phys. Rev. E 83,
-066706 (2011)), among the levels with at least `--min-blocks` blocks, and
-`bench/constant_cutoff_npt.py table` gives that level, its error and the
-error's uncertainty for each observable, or the coarsest level it tried.
+`bench/npt_block_average.py` finds the first blocking level whose blocks outlast the correlation, by the criterion of Lee et al. (Phys. Rev. E 83, 066706 (2011)), among the levels with at least `--min-blocks` blocks, and `bench/constant_cutoff_npt.py table`
+gives that level, its error and the error's uncertainty for each observable, or
+the coarsest level it tried.
 `tests/python/test_npt_block_average.py` checks the level on series whose
 correlation is known.
