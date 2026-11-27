@@ -51,6 +51,22 @@ An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
+~qmi_input~ writes ~PARAMS~ so the path is the one ~mdrun~ opens after
+GROMACS replaces every whole word equal to the ~COORD_FILE_NAME~ value and
+then prints the stored input as a printf format with the PDB path.
+A ~%~ in the path is written as ~%%~, which that printf turns back into ~%~.
+A path that contains a space, a tab, ~#~, ~!~, or a double quote is one
+double-quoted token.
+Inside the quotes a backslash escapes a backslash or a quote, and the
+library reads the token back as the path.
+Any other path is one bare token.
+A path that contains a newline is refused, because the input is one record
+per line.
+~COORD_FILE_NAME~ is ~gromacs.pdb~ unless that whole word occurs in the
+written ~PARAMS~ token, in which case the name is ~gromacs-1.pdb~, then
+~gromacs-2.pdb~, and so on.
+Word characters are letters, digits, ~-~ and ~_~.
+
 On the explicit path the method is the ~CPMDParams~ deck, not CP2K's ~&DFT~.
 Matching GROMACS' own input reader (~qmmmoptions.cpp~), which scans the external
 input as a stream of tokens and keeps the first ~CHARGE~ and ~MULTIPLICITY~ it

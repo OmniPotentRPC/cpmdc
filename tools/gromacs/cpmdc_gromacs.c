@@ -22,7 +22,9 @@
  * classical charge of each MM atom (QM atoms carry 0: grompp removes their
  * charges). An explicit &CPMDC section takes precedence and contains:
  *
- *   PARAMS path           CPMDParams message (required)
+ *   PARAMS path           CPMDParams message (required). A value in double
+ *                         quotes is one path: space, tab, # and ! are
+ *                         literal, and \\ and \" are the escapes.
  *   CELL PERIODIC|NONE    send the GROMACS box to cpmdc, or the deck's cell
  *   EMBEDDING ELECTROSTATIC|MECHANICAL|NONE
  *   MM_WIDTH w            Gaussian MM-charge width in nm (default 0.03)
@@ -257,7 +259,9 @@ static char *read_file(Env *env, const char *path, size_t *len, const char *what
   return buf;
 }
 
-/* Split a line into at most `max` words; comments start with # or !. */
+/* Split a line into at most `max` words; comments start with # or !.
+   A quoted PARAMS value is taken before this, so a space, #, or ! inside
+   those quotes stays part of the path. */
 static int words(char *line, char **out, int max) {
   int n = 0;
   for (char *p = line; *p; ++p)
@@ -332,6 +336,51 @@ static void pop_section(Env *env, char sections[][32], int *depth, char **w, int
   *depth -= 1;
 }
 
+/* PARAMS "..." is one path. \\ and \" are the only escapes. Returns the
+   unquoted path and sets *quoted when the value is quoted. A line that is
+   not a quoted PARAMS leaves *quoted at 0 and returns NULL. */
+static char *take_quoted_params(Env *env, const char *line, int *quoted) {
+  const char *p = line;
+  *quoted = 0;
+  while (*p == ' ' || *p == '\t' || *p == '\r')
+    p++;
+  if (strncasecmp(p, "PARAMS", 6) != 0 || (p[6] != ' ' && p[6] != '\t'))
+    return NULL;
+  p += 6;
+  while (*p == ' ' || *p == '\t')
+    p++;
+  if (*p != '"')
+    return NULL;
+  *quoted = 1;
+  p++;
+  size_t cap = 64, n = 0;
+  char *buf = malloc(cap);
+  if (!buf)
+    die(env, "out of memory");
+  while (*p && *p != '"') {
+    char c = *p++;
+    if (c == '\\') {
+      if (*p != '\\' && *p != '"')
+        die(env, "&CPMDC PARAMS escape is \\\\ or \\\"");
+      c = *p++;
+    }
+    if (n + 1 >= cap) {
+      cap *= 2;
+      buf = grow(env, buf, cap, 1);
+    }
+    buf[n++] = c;
+  }
+  if (*p != '"')
+    die(env, "&CPMDC PARAMS quotes are not closed");
+  p++;
+  while (*p == ' ' || *p == '\t' || *p == '\r')
+    p++;
+  if (*p != '\0' && *p != '#' && *p != '!')
+    die(env, "&CPMDC PARAMS takes one value");
+  buf[n] = '\0';
+  return buf;
+}
+
 static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_cap) {
   char *text = read_file(env, path, NULL, "the QM/MM input");
   int in_cpmdc = 0, saw_cpmdc = 0, nq = 0, capq = 64;
@@ -361,6 +410,15 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->qm_charge = alloc(env, (size_t)capq, sizeof(double));
   char *save = NULL;
   for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+    int quoted = 0;
+    if (in_cpmdc) {
+      char *qpath = take_quoted_params(env, line, &quoted);
+      if (quoted) {
+        free(params_path);
+        params_path = qpath;
+        continue;
+      }
+    }
     char *w[256];
     int n = words(line, w, 256);
     if (n < 0)

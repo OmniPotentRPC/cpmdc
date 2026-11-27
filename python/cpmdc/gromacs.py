@@ -89,13 +89,29 @@ def _number(value: Any, what: str, *, positive: bool = False) -> str:
     return repr(number)
 
 
+def _params_library_token(path: str) -> str:
+    """The PARAMS value the library reads after mdrun's printf.
+
+    A path with a space, tab, ``#``, ``!``, or double quote is one quoted
+    token. Inside the quotes, ``\\`` and ``\"`` are escapes. Any other path
+    is one bare token. A newline cannot be one line of the input.
+    """
+    if any(ch in path for ch in "\n\r"):
+        raise ValueError(f"params must be a single line, got {path!r}")
+    if any(ch in path for ch in " \t#!\""):
+        escaped = path.replace("\\", "\\\\").replace('"', '\\"')
+        return '"' + escaped + '"'
+    return path
+
+
 def _params_file_token(path: str) -> str:
     """PARAMS text stored for grompp.
 
     mdrun prints that file as a printf format after it substitutes the PDB
-    path, so each ``%`` is written as ``%%`` and printf restores the path.
+    path, so each ``%`` is written as ``%%`` and printf restores the path
+    the library unquotes.
     """
-    return path.replace("%", "%%")
+    return _params_library_token(path).replace("%", "%%")
 
 
 def _gromacs_word_char(ch: str) -> bool:
@@ -161,7 +177,9 @@ def qmi_input(
         restores it. ``COORD_FILE_NAME`` is ``gromacs.pdb`` unless that
         whole word occurs in the written path, and then ``gromacs-1.pdb``,
         ``gromacs-2.pdb``, and so on, because GROMACS replaces every whole
-        word equal to that name.
+        word equal to that name. A path with a space, a tab, ``#``, ``!``,
+        or a double quote is written as one double-quoted token, which the
+        library reads back as the path. A newline is refused.
     cell:
         ``"PERIODIC"`` sends the GROMACS box to cpmdc as the cell;
         ``"NONE"`` sends none, so the deck's cell applies. The library
