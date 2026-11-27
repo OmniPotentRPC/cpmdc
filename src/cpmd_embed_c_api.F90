@@ -1072,7 +1072,7 @@ CONTAINS
     END DO
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
 #if defined(CPMDC_HAS_CPMD)
-    CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+    CALL run_timed_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, INT(n_external), external_positions_ang, &
          external_charges_e, external_widths_ang, external_forces_h_bohr, ok)
 #else
@@ -3882,6 +3882,76 @@ CONTAINS
     END SELECT
     CALL newcell
   END SUBROUTINE
+
+  ! After every CPMDC_TIPRI_EVERY-th evaluation CPMD prints its timer table,
+  ! in which embed_scf times the evaluations after the first. tipri gathers
+  ! over the calculator ranks. Rank 0 reads the variable and broadcasts it
+  ! before the evaluation. A failed agreement returns before the SCF,
+  ! stores no energy, and leaves the warm basis as it was.
+  SUBROUTINE run_timed_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, &
+      grad, n_external, external_pos, external_q, external_width, &
+      external_force, ok)
+    USE timer, ONLY: tiset, tihalt, tipri
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms, has_cell, n_external
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*), external_pos(*), &
+        external_q(*), external_width(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*), external_force(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    INTEGER, SAVE :: evaluations = 0
+    INTEGER :: isub, every, failed_tipri, i
+    LOGICAL :: timed
+    every = embed_tipri_every(failed_tipri)
+    IF (failed_tipri /= 0) THEN
+      ok = 0_c_int
+      energy_h = 0.0_c_double
+      DO i = 1, n_atoms * 3
+        grad(i) = 0.0_c_double
+      END DO
+      DO i = 1, 3 * n_external
+        external_force(i) = 0.0_c_double
+      END DO
+      RETURN
+    END IF
+    timed = timer_started
+    IF (timed) CALL tiset('embed_scf', isub)
+    CALL run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, &
+         n_external, external_pos, external_q, external_width, external_force, ok)
+    IF (timed) CALL tihalt('embed_scf', isub)
+    evaluations = evaluations + 1
+    IF (every > 0 .AND. timer_started) THEN
+      IF (MOD(evaluations, every) == 0) CALL tipri
+    END IF
+  END SUBROUTINE
+
+  ! Rank 0 reads CPMDC_TIPRI_EVERY and every rank receives that value
+  ! before tipri. Unset, 0, a negative value, or a value that does not
+  ! parse prints none. A value longer than 16 characters fails the call.
+  INTEGER FUNCTION embed_tipri_every(failed)
+    INTEGER, INTENT(OUT) :: failed
+    INTERFACE
+      FUNCTION cpmdc_agree_tipri_every(every, err) &
+          BIND(C, NAME='cpmdc_agree_tipri_every')
+        IMPORT :: c_int, c_ptr
+        INTEGER(c_int) :: cpmdc_agree_tipri_every
+        INTEGER(c_int), INTENT(OUT) :: every
+        TYPE(c_ptr), INTENT(OUT) :: err
+      END FUNCTION
+    END INTERFACE
+    INTEGER(c_int) :: every, rc
+    TYPE(c_ptr) :: err
+    failed = 0
+    embed_tipri_every = 0
+    every = 0_c_int
+    rc = cpmdc_agree_tipri_every(every, err)
+    IF (rc /= 0) THEN
+      failed = 1
+      RETURN
+    END IF
+    IF (every > 0) embed_tipri_every = INT(every)
+  END FUNCTION
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, &
       grad, n_external, external_pos, external_q, external_width, &

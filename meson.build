@@ -1217,6 +1217,22 @@ if get_option('with_tests')
       timeout: 120,
       is_parallel: false,
     )
+    tipri_every_agree = executable(
+      'test_tipri_every_agree_mpi',
+      'tests/test_tipri_every_agree_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'tipri-every-agree-mpi',
+      python,
+      args: [run_mpi_test, '2', tipri_every_agree.full_path()],
+      depends: [tipri_every_agree],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 120,
+      is_parallel: false,
+    )
     periodic_cell_mpi = executable(
       'test_periodic_cell_mpi',
       'tests/test_periodic_cell_mpi.c',
@@ -1975,6 +1991,14 @@ if get_option('with_tests')
     python,
     args: [
       meson.current_source_dir() / 'tests/test_embed_bomd_force_export.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
+  test(
+    'embed-tipri-every',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_tipri_every.py',
     ],
     suite: ['embed', 'inventory'],
   )
