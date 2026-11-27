@@ -499,37 +499,36 @@ The total energy includes electron--MM and ion--MM coupling; QM and MM force
 arrays are both ~-dE/dR~.
 External charges use the isolated Gaussian kernel unless
 ~CPMDC_PERIODIC_EMBEDDING~ is ~1~ on a reference build.
-With the variable unset, or set to any other value, a step with a periodic
-cell (a non-zero cell on a deck that leaves periodicity unset), or a step on
-a deck that is not an isolated system (a ~SYMMETRY~ above 0, a ~SURFACE~ or
-~POLYMER~ deck, or ~CELL VECTORS~ without an isolated keyword), fails with
-~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~ on every evaluation path,
-including ~cpmdc_session_energy_gradient()~.
-An OpenCPMD build ignores the variable and still fails, because the
-real-space grid kernel sums no lattice images.
-On a reference build, ~1~ keeps the call when that call passes a cell and
-adds the conducting-boundary Ewald field of the same Gaussians.
+With the variable unset, or set to any other value, a step with a periodic cell
+(a non-zero cell on a deck that leaves periodicity unset), or a step on a deck
+that is not an isolated system (a ~SYMMETRY~ above 0, a ~SURFACE~ or ~POLYMER~
+deck, or ~CELL VECTORS~ without an isolated keyword), fails with
+~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~ on every evaluation path, including
+~cpmdc_session_energy_gradient()~.
+An OpenCPMD build ignores the variable and still fails, because the real-space
+grid kernel sums no lattice images.
+On a reference build, ~1~ keeps the call when that call passes a cell and adds
+the conducting-boundary Ewald field of the same Gaussians.
 A periodic deck on a call that passes no cell still fails with
-~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~, because the sum has no
-lattice vectors.
-The cell is the row-major evaluation argument, in Angstrom, converted to
-Bohr.
-Reciprocal vectors satisfy \(a_i \cdot b_j = 2\pi \delta_{ij}\), and the
-Coulomb factor uses the absolute cell volume.
+~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~, because the sum has no lattice
+vectors.
+The cell is the row-major evaluation argument, in Angstrom, converted to Bohr.
+Reciprocal vectors satisfy \(a_i \cdot b_j = 2\pi \delta_{ij}\), and the Coulomb
+factor uses the absolute cell volume.
 The \(G = 0\) term is omitted.
 A reciprocal vector is kept when \(\sigma_{\min}^2 |G|^2 / 2\) is at most 36.
 \(\sigma_{\min}\) is the narrowest Gaussian, in Bohr, and
 \(|G|_{\mathrm{cut}} = \sqrt{72} / \sigma_{\min}\).
 Each Miller index is bounded on its own axis by
 \(|h_i| \le \lceil |G|_{\mathrm{cut}} \, |a_i| / (2\pi) \rceil\).
-That is the largest index that can still meet the decay test, including on
-a sheared cell.
-The ratio is clamped in double precision to 48 before it is converted to
-an index, so a narrow width cannot overflow the conversion.
+That is the largest index that can still meet the decay test, including on a
+sheared cell.
+The ratio is clamped in double precision to 48 before it is converted to an
+index, so a narrow width cannot overflow the conversion.
 When an axis bound would exceed 48, the same field is split.
-The screening parameter \(\beta\) is the largest value whose reciprocal
-shell still lies inside that cap, and no larger than
-\(1/(\sigma \sqrt{2})\) for each charge.
+The screening parameter \(\beta\) is the largest value whose reciprocal shell
+still lies inside that cap, and no larger than \(1/(\sigma \sqrt{2})\) for each
+charge.
 The reciprocal piece is the sum above with \(\sigma\) replaced by
 \(1/(\beta \sqrt{2})\).
 The real-space piece adds the field of
@@ -541,16 +540,15 @@ evaluation fails with ~CPMDC_ERROR_EVALUATION_FAILED~ and
 ~periodic embedding did not converge~, and it does not drop the tail.
 The field at a QM centre is that sum over the MM charges.
 Inside the cap, with no split, it is
-\((4\pi q / V) \exp(-\sigma^2 |G|^2 / 2) \, G \sin(G \cdot d) / |G|^2\),
-with \(d\) the Bohr vector from the charge to the centre.
-The induction energy is \(-\frac{1}{2} \alpha |E|^2\) with \(\alpha = 0.20
-Z\).
+\((4\pi q / V) \exp(-\sigma^2 |G|^2 / 2) \, G \sin(G \cdot d) / |G|^2\), with
+\(d\) the Bohr vector from the charge to the centre.
+The induction energy is \(-\frac{1}{2} \alpha |E|^2\) with \(\alpha = 0.20 Z\).
 The QM forces and the MM forces from that energy are both ~-dE/dR~.
-The reference stress snapshot stays invalid on these steps, because that
-tensor is the strain derivative of the harmonic reference energy and does
-not include this induction.
-GROMACS and LAMMPS still refuse a periodic electrostatic embedding before
-they reach this path.
+The reference stress snapshot stays invalid on these steps, because that tensor
+is the strain derivative of the harmonic reference energy and does not include
+this induction.
+GROMACS and LAMMPS still refuse a periodic electrostatic embedding before they
+reach this path.
 An isolated or cluster deck (~SYMMETRY 0~, ~SYMMETRY ISOLATED~,
 ~POISSON SOLVER~, ~CLUSTER~, or ~ISOLATED MOLECULE~) with an isolated cell, and
 an all-zero cell, are accepted.

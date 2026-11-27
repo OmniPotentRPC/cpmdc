@@ -44,11 +44,11 @@ snapshot stays invalid for them even when the box volume is positive.
 
 ~CPMDC_PERIODIC_EMBEDDING=1~ is read on each evaluation that has external
 charges.
-On a reference build it selects the conducting-boundary Ewald field described
-in the C ABI reference, instead of refusing a periodic cell.
+On a reference build it selects the conducting-boundary Ewald field described in
+the C ABI reference, instead of refusing a periodic cell.
 Any other value, or an unset variable, keeps that refusal.
-A periodic deck on a call that passes no cell keeps the refusal as well,
-because the field has no lattice vectors.
+A periodic deck on a call that passes no cell keeps the refusal as well, because
+the field has no lattice vectors.
 An OpenCPMD build ignores the variable.
 The reference stress snapshot stays invalid on a step that takes this field.
 
