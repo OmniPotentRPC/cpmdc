@@ -1,0 +1,113 @@
+#+TITLE: Headers of the PBE pseudopotentials
+
+The core radii and the projector cutoffs on the PBE water page are the values in these headers.
+
+* O_MT_PBE.psp and H_MT_PBE.psp
+Source: https://github.com/OpenCPMD/pseudopotentials-extended-library/raw/97f98cb25cbee1cce67302addd2bf06e21a17978/pseudo.tar.gz
+Paths in the archive: ./pseudo/O_MT_PBE.psp and ./pseudo/H_MT_PBE.psp
+
+SHA-256:
+d26bb0bfa19ddaabe95d21169f50fa25915631e84df0d157e93bb32a7a9298ad  O_MT_PBE.psp
+8ff874f26491f2b6e482540342ae0ad85c9c7023936f3b050baa4ddced459988  H_MT_PBE.psp
+
+The oxygen report gives rc 1.1200 bohr on 2S, 2P, and 3D.
+The hydrogen report gives rc 0.5000 bohr on 1S.
+The headers run through the end of &INFO.
+
+#+begin_example
+&ATOM  
+ Z  =    8
+ ZV =    6
+ XC = 1134       0.666667
+ TYPE = NORMCONSERVING NUMERIC
+&END   
+&INFO  
+    ============================================================
+    |    Pseudopotential Report                                |
+    ------------------------------------------------------------
+    |  Atomic Symbol                   :   O                   |
+    |  Atomic Number                   :   8                   |
+    |  Number of core states           :   1                   |
+    |  Number of valence states        :   2                   |
+    |  Exchange-Correlation Functional :                       |
+    |     Slater exchange :  0.6667                            |
+    |     LDA correlation : Ceperley-Alder                     |
+    |     Exchange GC     : Perdew-Burke-Ernzerhof             |
+    |     Correlation GC  : Perdew-Burke-Ernzerhof             |
+    |  Electron Configuration :   N   L  Occupation            |
+    |                             1   S    2.0000              |
+    |                             2   S    2.0000              |
+    |                             2   P    4.0000              |
+    |  Full Potential Total Energy =      -74.943856           |
+    |  Trouiller-Martins normconserving PP                     |
+    |     n    l        rc       energy                        |
+    |     2    S    1.1200     -0.87882                        |
+    |     2    P    1.1200     -0.33215                        |
+    |     3    D    1.1200     -0.33215                        |
+    |  Number of Mesh Points :   631                           |
+    |  Pseudoatom Total Energy =  -15.770807                   |
+    ============================================================
+&END
+#+end_example
+
+#+begin_example
+&ATOM  
+ Z  =    1
+ ZV =    1
+ XC = 1134        .666667
+ TYPE = NORMCONSERVING NUMERIC
+&END   
+&INFO  
+    ============================================================
+    |    Pseudopotential Report     Fri Feb 20 19:18:54 1998   |
+    ------------------------------------------------------------
+    |  Atomic Symbol                   :   H                   |
+    |  Atomic Number                   :   1                   |
+    |  Number of core states           :   0                   |
+    |  Number of valence states        :   1                   |
+    |  Exchange-Correlation Functional :                       |
+    |     Slater exchange :   .6667                            |
+    |     LDA correlation : Ceperley-Alder                     |
+    |     Exchange GC     : Perdew-Burke-Ernzerhof             |
+    |     Correlation GC  : Perdew-Burke-Ernzerhof             |
+    |  Electron Configuration :   N   L  Occupation            |
+    |                             1   S     .7000              |
+    |  Full Potential Total Energy     -.474341                |
+    |  Trouiller-Martins normconserving PP                     |
+    |     n    l        rc       energy                        |
+    |     1    S     .5000      -.37203                        |
+    |     2    P     .3828      -.37203                        |
+    |  Number of Mesh Points :   511                           |
+    |  Pseudoatom Total Energy    -.367794                     |
+    ============================================================
+&END
+#+end_example
+
+* O.pbe-mt_fhi.UPF and H.pbe-mt_fhi.UPF
+Source: https://pseudopotentials.quantum-espresso.org/upf_files/O.pbe-mt_fhi.UPF
+Source: https://pseudopotentials.quantum-espresso.org/upf_files/H.pbe-mt_fhi.UPF
+
+SHA-256:
+747670be5d6f008d921dc74551dc0705f2c4b34132e79590c482b532171f8cd1  O.pbe-mt_fhi.UPF
+b6ed642482602f477eb8c167dce4a2c6d254b89522685b5b9ad8f1e904c50db4  H.pbe-mt_fhi.UPF
+
+Each projector header gives cutoff_radius 1.434117653854000E+000 bohr for oxygen and 1.276346260702400E+000 bohr for hydrogen.
+The page quotes those values as 1.434 bohr and 1.276 bohr.
+
+#+begin_example
+<PP_BETA.1 type="real" size="473" columns="4" index="1" label="2s" angular_momentum="0" cutoff_radius_index="309"
+cutoff_radius="1.434117653854000E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+<PP_BETA.2 type="real" size="473" columns="4" index="2" label="2p" angular_momentum="1" cutoff_radius_index="309"
+cutoff_radius="1.434117653854000E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+<PP_BETA.3 type="real" size="473" columns="4" index="3" label="4f" angular_momentum="3" cutoff_radius_index="309"
+cutoff_radius="1.434117653854000E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+#+end_example
+
+#+begin_example
+<PP_BETA.1 type="real" size="387" columns="4" index="1" label="1s" angular_momentum="0" cutoff_radius_index="219"
+cutoff_radius="1.276346260702400E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+<PP_BETA.2 type="real" size="387" columns="4" index="2" label="2p" angular_momentum="1" cutoff_radius_index="219"
+cutoff_radius="1.276346260702400E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+<PP_BETA.3 type="real" size="387" columns="4" index="3" label="4f" angular_momentum="3" cutoff_radius_index="219"
+cutoff_radius="1.276346260702400E+000" ultrasoft_cutoff_radius="0.000000000000000E+000">
+#+end_example

@@ -285,6 +285,7 @@ Read the docs in this order:
   [atoms in an isolated cell](docs/orgmode/explanation/isolated-cells.org),
   [cpmdc inside MD engines](docs/orgmode/explanation/md-engines.org),
   [density of water at a constant cutoff](docs/orgmode/explanation/constant-cutoff-npt.org),
+  [the PBE density of water against Miceli et al.](docs/orgmode/explanation/pbe-water-density.org),
   [how the OpenCPMD patches work](docs/orgmode/explanation/opencpmd-patches.org),
   [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)
 - [Contributing](docs/orgmode/contributing/index.org): the checks behind each

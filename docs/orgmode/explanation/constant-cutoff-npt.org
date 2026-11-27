@@ -221,6 +221,9 @@ A fixed cutoff, by contrast, sets the density by its Pulay stress: 100 Ry passes
 1100
 kg/m^3 within 40 fs, and the 7% that 120 Ry adds would put it near 880 kg/m^3,
 close to the published density by accident.
+[[file:pbe-water-density.org][The PBE density of water against Miceli et al.]] runs
+the 32 waters for longer and measures what their pseudopotentials and basis
+change.
 
 * Cost
 The records time every step and count its SCF iterations and new setups:
