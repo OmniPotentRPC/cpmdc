@@ -1924,6 +1924,15 @@ if get_option('with_tests')
     suite: ['embed', 'inventory'],
   )
   test(
+    'embed-setup-stop-guard',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_setup_stop_guard.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['embed', 'inventory'],
+  )
+  test(
     'embed-bomd-force-export',
     python,
     args: [

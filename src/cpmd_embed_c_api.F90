@@ -112,9 +112,14 @@ MODULE cpmd_embed_c_api
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
-  ! True from the start of a cold setup until cpmdc_embed_teardown frees
-  ! what that setup allocated. A second cold setup tears the first down.
+  ! True after a cold setup list finishes without a stopgm, until
+  ! cpmdc_embed_teardown frees what that setup allocated. A second cold
+  ! setup tears the first down.
   LOGICAL, SAVE :: cpmd_set_up = .FALSE.
+  ! True from the first call of a cold setup list until that list
+  ! finishes or teardown frees the partial state. cpmd_set_up stays
+  ! false while this is set.
+  LOGICAL, SAVE :: cpmd_setup_started = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
@@ -669,7 +674,7 @@ CONTAINS
       IF (own_potential) textfld = .FALSE.
     END IF
     CALL set_cpmdc_external_force_hook()
-    IF (.NOT. cpmd_set_up) RETURN
+    IF (.NOT. cpmd_set_up .AND. .NOT. cpmd_setup_started) RETURN
     CALL embed_teardown_state()
     ! The pseudopotential readers set a species mass only while it is zero,
     ! so the next deck's species would keep this deck's masses, and the
@@ -683,6 +688,7 @@ CONTAINS
     CALL clear_embed_basis_latch()
     embed_setup_ht_set = .FALSE.
     cpmd_set_up = .FALSE.
+    cpmd_setup_started = .FALSE.
 #endif
   END FUNCTION
 
@@ -3064,10 +3070,6 @@ CONTAINS
     END DO
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
-    ! A stopgm in the deck setup of this call returned here with the CPMD
-    ! state undefined (HF_INIT, for one, leaves the HFX arrays unset), and
-    ! an SCF on that state can fault. The caller reports the stop.
-    IF (cpmdc_stop_code() /= 0_c_int) RETURN
     ALLOCATE(origin(n_atoms), species_grad(nmax), warm_geo(nmax), STAT=astat)
     IF (astat /= 0) THEN
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
@@ -3861,7 +3863,7 @@ CONTAINS
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
     ! A basis change or a call after a CPMD stop: free the first setup
     ! before this one allocates the same module arrays again.
-    IF (cpmd_set_up) THEN
+    IF (cpmd_set_up .OR. cpmd_setup_started) THEN
       IF (cpmdc_embed_teardown() == 0_c_int) RETURN
     END IF
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
@@ -3900,54 +3902,95 @@ CONTAINS
            'cannot enter the pseudopotential directory'//c_null_char)
       RETURN
     END IF
-    cpmd_set_up = .TRUE.
+    ! A stopgm returns to the caller the hook is armed for. The next
+    ! init in this list would run on undefined module state and can
+    ! fault, and that fault never reaches the C handler. Check after
+    ! every call. cpmd_set_up stays false until the list finishes.
+    cpmd_setup_started = .TRUE.
     IF (.NOT. timer_started) THEN
       CALL tistart(tcpu0, twall0)
       timer_started = .TRUE.
     END IF
+    IF (cold_setup_stopped()) RETURN
     CALL init_fileopen
+    IF (cold_setup_stopped()) RETURN
     CALL startpa
+    IF (cold_setup_stopped()) RETURN
     CALL New(bicanonicalCpmdInputConfig)
+    IF (cold_setup_stopped()) RETURN
     tinfo = .TRUE.
     CALL init_pinf_pointers()
+    IF (cold_setup_stopped()) RETURN
     CALL envir
+    IF (cold_setup_stopped()) RETURN
     CALL setcnst
+    IF (cold_setup_stopped()) RETURN
     CALL control
+    IF (cold_setup_stopped()) RETURN
     CALL dftin
+    IF (cold_setup_stopped()) RETURN
     CALL sysin
+    IF (cold_setup_stopped()) RETURN
     ! PEF stress needs cntl%tpres before dqgalloc. Isolated/Hockney (tclust)
     ! must not set tpres: rinitwf→newcell→gf_periodic needs scg, which
     ! initclust only allocates for periodic cells.
     IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
     CALL setsc
+    IF (cold_setup_stopped()) RETURN
     CALL detsp
+    IF (cold_setup_stopped()) RETURN
     CALL mm_init
+    IF (cold_setup_stopped()) RETURN
     CALL ratom
+    IF (cold_setup_stopped()) RETURN
     ! Pseudopotential files are in memory. Leave that directory before the
     ! SCF so a stray write cannot land on the library.
     IF (.NOT. embed_use_output_dir(image)) THEN
       ierr = cpmdc_restore_host_cwd()
+      ierr = cpmdc_embed_teardown()
       RETURN
     END IF
+    IF (cold_setup_stopped()) RETURN
     CALL vdwin
+    IF (cold_setup_stopped()) RETURN
     CALL propin(tinfo)
+    IF (cold_setup_stopped()) RETURN
     CALL setsys
+    IF (cold_setup_stopped()) RETURN
     CALL New(bicanonicalCpmdConfig, bicanonicalCpmdInputConfig)
+    IF (cold_setup_stopped()) RETURN
     CALL genxc
+    IF (cold_setup_stopped()) RETURN
     CALL numpw
+    IF (cold_setup_stopped()) RETURN
     CALL rinit
+    IF (cold_setup_stopped()) RETURN
     CALL rinforce
+    IF (cold_setup_stopped()) RETURN
     CALL fft_init()
+    IF (cold_setup_stopped()) RETURN
     CALL ortho_init()
+    IF (cold_setup_stopped()) RETURN
     CALL initclust
+    IF (cold_setup_stopped()) RETURN
     CALL dg_init
+    IF (cold_setup_stopped()) RETURN
     CALL nosalloc
+    IF (cold_setup_stopped()) RETURN
     CALL exterp
+    IF (cold_setup_stopped()) RETURN
     CALL setbasis
+    IF (cold_setup_stopped()) RETURN
     CALL dqgalloc
+    IF (cold_setup_stopped()) RETURN
     CALL prnginit
+    IF (cold_setup_stopped()) RETURN
     CALL gle_alloc
+    IF (cold_setup_stopped()) RETURN
     CALL vdw_wf_alloc
+    IF (cold_setup_stopped()) RETURN
+    cpmd_set_up = .TRUE.
+    cpmd_setup_started = .FALSE.
     embed_setup_ht = metr_com%ht
     embed_setup_ht_set = .TRUE.
     ! First and later forces: positions only from C arrays (nwchemc geom pattern).
@@ -3966,6 +4009,23 @@ CONTAINS
     IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
+  CONTAINS
+    LOGICAL FUNCTION cold_setup_stopped()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTERFACE
+        FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
+          IMPORT :: c_int
+          INTEGER(c_int) :: code
+        END FUNCTION cpmdc_stop_code
+      END INTERFACE
+      INTEGER(c_int) :: rc
+      cold_setup_stopped = cpmdc_stop_code() /= 0_c_int
+      IF (.NOT. cold_setup_stopped) RETURN
+      ! Partial module state is undefined. Free it and leave cpmd_set_up
+      ! false so the C handler reports the stop.
+      rc = cpmdc_restore_host_cwd()
+      ierr = cpmdc_embed_teardown()
+    END FUNCTION cold_setup_stopped
   END SUBROUTINE
 
 #endif
