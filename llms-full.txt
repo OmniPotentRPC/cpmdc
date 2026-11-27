@@ -7319,7 +7319,7 @@ Its functions are not marked
 | `int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3)` | copy the coordinates, Bohr; `n3` must be `3 * ncoords` |
 | `int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3)` | copy the velocities, Bohr per atomic unit of time; same size rule |
 | `int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz, int n3)` | copy the initial geometry of section 6, Bohr; same size rule |
-| `int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)` | replace the coordinate records, Bohr; another `n3` returns -1 and leaves the image unchanged |
+| `int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)` | replace the coordinate records, Bohr; another `n3`, or a record that is not 24 bytes, returns -1 and leaves the image unchanged |
 | `int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz, int n3)` | replace the velocity records, Bohr per atomic unit of time; same rule |
 | `int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6])` | replace the six lattice parameters; -1 without a cell section |
 | `int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual, int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s)` | the section 7 cutoff, real dual factor `cdual`, logical `dual_flag` (0 or 1), `nel`, and grid sizes; each output may be `NULL`; -1 without the section |
@@ -8297,7 +8297,7 @@ state.
 | Layout | `xyz` is `n3` doubles, `ncoords * 3`, in CPMD species order and then atom order; `n3` must equal `ncoords * 3`. |
 | Ownership | `file` is modified in place; the caller owns `xyz`, which the image copies. |
 | Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
-| Returns and errors | Returns 0 on success and -1 for a NULL argument or another `n3`; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
+| Returns and errors | Returns 0 on success and -1 for a NULL argument, another `n3`, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -8309,7 +8309,7 @@ state.
 | Layout | `xyz` is `n3` doubles, `ncoords * 3`, in CPMD species order and then atom order; `n3` must equal `ncoords * 3`. |
 | Ownership | `file` is modified in place; the caller owns `xyz`, which the image copies. |
 | Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
-| Returns and errors | Returns 0 on success and -1 for a NULL argument or another `n3`; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
+| Returns and errors | Returns 0 on success and -1 for a NULL argument, another `n3`, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
 | Python | not wrapped. |
 | Defaults | none |
 

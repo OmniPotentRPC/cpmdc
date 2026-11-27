@@ -615,12 +615,15 @@ static int store_triples(CPMDCRestart *file, int section, const double *xyz, int
     return -1;
   if (n3 != n * 3)
     return -1;
+  /* Check every record before the first store. A later record of the wrong
+   * length must not leave the earlier atoms of this section replaced. */
   for (int a = 0; a < n; a++) {
-    struct rec *r = &file->recs[start + a];
-    if (r->len != 24)
+    const struct rec *r = &file->recs[start + a];
+    if (!r->data || r->len != 24)
       return -1;
-    memcpy(r->data, xyz + 3 * a, 24);
   }
+  for (int a = 0; a < n; a++)
+    memcpy(file->recs[start + a].data, xyz + 3 * a, 24);
   return 0;
 }
 

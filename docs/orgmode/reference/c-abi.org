@@ -827,7 +827,7 @@ Its functions are not marked
 | ~int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3)~ | copy the coordinates, Bohr; ~n3~ must be ~3 * ncoords~ |
 | ~int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3)~ | copy the velocities, Bohr per atomic unit of time; same size rule |
 | ~int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz, int n3)~ | copy the initial geometry of section 6, Bohr; same size rule |
-| ~int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)~ | replace the coordinate records, Bohr; another ~n3~ returns -1 and leaves the image unchanged |
+| ~int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)~ | replace the coordinate records, Bohr; another ~n3~, or a record that is not 24 bytes, returns -1 and leaves the image unchanged |
 | ~int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz, int n3)~ | replace the velocity records, Bohr per atomic unit of time; same rule |
 | ~int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6])~ | replace the six lattice parameters; -1 without a cell section |
 | ~int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual, int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s)~ | the section 7 cutoff, real dual factor ~cdual~, logical ~dual_flag~ (0 or 1), ~nel~, and grid sizes; each output may be ~NULL~; -1 without the section |
