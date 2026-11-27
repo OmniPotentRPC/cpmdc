@@ -91,8 +91,7 @@ Reversing the key order inside an aligned block does not change the index.
 One group of 4, two groups of 2, and four groups of 1 are the same rule.
 The :doc:`mpirun how-to <../howto/mpi>` shows the call.
 `rgpot <https://rgpot.rgoswami.me>`_ is the host that loads this library and may
-already have split the ranks; its group contract is the
-`rgpot MPI reference <https://rgpot.rgoswami.me/reference/mpi.html>`_.
+already have split the ranks; its group contract is the `rgpot MPI reference <https://rgpot.rgoswami.me/reference/mpi.html>`_.
 
 Open MPI's Fortran handle for ``MPI_COMM_WORLD`` is 0, and ``MPI_COMM_NULL`` is a
 different value.

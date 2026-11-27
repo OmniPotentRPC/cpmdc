@@ -22,7 +22,12 @@ Meson reads it with ``files()``, and ``docs/source/conf.py`` reads it for the Sp
 ``pixi run version-sync`` regenerates the cog copies in ``pixi.toml``,
 ``CITATION.cff``, ``README.md``, ``include/cpmdc.h``, the Doxygen configuration, and
 the first-energy tutorial.
-``pixi run release-assert`` fails when one of them differs from ``version.txt``.
+It also writes the top-level ``version`` and ``softwareVersion`` in ``codemeta.json``,
+and ``version`` in ``.zenodo.json``, from ``version.txt``.
+``.zenodo.json`` carries a ``version`` field.
+Zenodo lists ``version`` as optional deposit metadata.
+``pixi run release-assert`` checks those cog copies and version fields, and fails
+when one differs from ``version.txt``.
 The first cocogitto pre-bump hook writes the new version to ``version.txt`` and
 then regenerates the copies.
 

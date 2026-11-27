@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>How the OpenCPMD patches work - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="SIMD paths and dispatch" href="simd-paths.html" /><link rel="prev" title="Density of water at a constant cutoff" href="constant-cutoff-npt.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>How the OpenCPMD patches work - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="SIMD paths and dispatch" href="simd-paths.html" /><link rel="prev" title="Density of water at a constant cutoff" href="constant-cutoff-npt.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/opencpmd-patches.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -232,6 +233,7 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#what-the-patches-change">What the patches change</a></li>
 <li><a class="reference internal" href="#dipoles-from-repeated-scf-calls">Dipoles from repeated SCF calls</a></li>
+<li><a class="reference internal" href="#hirshfeld-charges-from-a-second-density-build">Hirshfeld charges from a second density build</a></li>
 <li><a class="reference internal" href="#nuclear-forces-from-repeated-scf-calls">Nuclear forces from repeated SCF calls</a></li>
 <li><a class="reference internal" href="#why-the-mpi-sentinels-stay-exported">Why the MPI sentinels stay exported</a></li>
 </ul>
@@ -352,11 +354,12 @@ writes in <code class="docutils literal notranslate"><span class="pre">rwfopt</s
 <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> leaves <code class="docutils literal notranslate"><span class="pre">fion</span></code> allocated only when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true, and
 frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code> before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>.
 It saves <code class="docutils literal notranslate"><span class="pre">c0</span></code> only when <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> is true and the SCF converged.
-An unconverged pass leaves the previous copy and marks it stale, so a
-later copy from that key is refused.
+An unconverged pass leaves the previous copy and marks it stale, so a later copy
+from that key is refused.
 When a converged copy was already stored, that pass also empties the
-extrapolation ring. The rwfopt hunk records the stale donor, and
-<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_extrapolate.patch</span></code> breaks the history on the same branch.
+extrapolation ring.
+The rwfopt hunk records the stale donor, and <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_extrapolate.patch</span></code>
+breaks the history on the same branch.
 A failed store allocation calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>.
 On the next call it copies that <code class="docutils literal notranslate"><span class="pre">c0</span></code> in before <code class="docutils literal notranslate"><span class="pre">initrun</span></code>.
 <code class="docutils literal notranslate"><span class="pre">rinitwf</span></code> then returns after the phase factors when <code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> is
@@ -385,8 +388,8 @@ The catch and the code it records live in <code class="docutils literal notransl
 not exported.
 A serial build, including the default wheel, does not reference
 <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>.
-The reference is compiled only with <code class="docutils literal notranslate"><span class="pre">CPMDC_HAS_CPMD</span></code>, and on that build it
-stays a weak reference, so an archive without the hook leaves the catch unset.
+The reference is compiled only with <code class="docutils literal notranslate"><span class="pre">CPMDC_HAS_CPMD</span></code>, and on that build it stays
+a weak reference, so an archive without the hook leaves the catch unset.
 An undefined weak reference links on ELF.
 ld64 rejects it, which is why the serial object omits the symbol instead of
 marking the declaration weak or <code class="docutils literal notranslate"><span class="pre">weak_import</span></code>.
@@ -417,8 +420,8 @@ setup, the Vanderbilt and core-charge splines, <code class="docutils literal not
 The SCF of a <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> deck calls <code class="docutils literal notranslate"><span class="pre">localize2</span></code>, which keeps its orbital
 maps and dipole matrices in <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> arrays sized by the first basis.
 A second evaluation at another cutoff overran them in <code class="docutils literal notranslate"><span class="pre">opeigr</span></code>.
-Each of these routines compares the count it last saw with <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code>, and on a change
-frees its own <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> arrays and runs as the first call again.
+Each of these routines compares the count it last saw with <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code>,
+and on a change frees its own <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
 <code class="docutils literal notranslate"><span class="pre">tistart</span></code> keeps its state: it executes <code class="docutils literal notranslate"><span class="pre">STOP</span></code> on a second call, so the embed
 calls it once per process.
@@ -428,7 +431,7 @@ turns off for every job other than Born-Oppenheimer molecular dynamics.
 <code class="docutils literal notranslate"><span class="pre">control_test</span></code> copies <code class="docutils literal notranslate"><span class="pre">cntl%textrap</span></code> into <code class="docutils literal notranslate"><span class="pre">embed_extrap_wfn</span></code> in <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>
 before it does so.
 Only the
-I/O rank runs <code class="docutils literal notranslate"><span class="pre">control_test</span></code>, so <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code> and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> passes them to the <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code> that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. <code class="docutils literal notranslate"><span class="pre">embed_extrapolation_used</span></code> returns how many sets the last prediction combined. The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never sets <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> and never takes this path. Its molecular dynamics runs are unchanged. The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation
+I/O rank runs <code class="docutils literal notranslate"><span class="pre">control_test</span></code>, so <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code> and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> passes them to the <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code> that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. <code class="docutils literal notranslate"><span class="pre">embed_extrapolation_used</span></code> returns how many sets the last prediction combined. The ring keeps one trajectory per key: switching keys parks and restores that key’s ring with its stored orbitals, and a call that does not converge, a store beyond the distance limit, or a reset empties the affected key’s ring. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never sets <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> and never takes this path. Its molecular dynamics runs are unchanged. The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation
 how-to</span></a> shows the message and the check.</p>
 <p>The constant-cutoff patch is optional and changes no physics.
 With <code class="docutils literal notranslate"><span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, <code class="docutils literal notranslate"><span class="pre">kin_energy</span></code>, <code class="docutils literal notranslate"><span class="pre">vpsi</span></code>, and the kinetic
@@ -454,24 +457,24 @@ paths, which cpmdc’s direct <code class="docutils literal notranslate"><span c
 Reading either module after an ordinary in-process evaluation would therefore
 return stale state.</p>
 <p>The dipole patch adds an embed-only request to <code class="docutils literal notranslate"><span class="pre">wfopts_utils</span></code>.
-After a converged periodic Gamma-point, non-broken-symmetry evaluation,
-<code class="docutils literal notranslate"><span class="pre">wfopts</span></code> calls <code class="docutils literal notranslate"><span class="pre">ddipo_embed</span></code> when the deck requests <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or
+After a converged periodic Gamma-point, non-broken-symmetry evaluation, <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>
+calls <code class="docutils literal notranslate"><span class="pre">ddipo_embed</span></code> when the deck requests <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or
 <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code>.
 <code class="docutils literal notranslate"><span class="pre">ddipo_embed</span></code> is a new entry point of <code class="docutils literal notranslate"><span class="pre">ddipo_utils</span></code> that sets a module flag and
 calls <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> with its original argument list.
 The flag forces the dipole matrices to be recomputed even when a Wannier
 sampling interval would reuse them.
 <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> itself keeps the argument list that its eleven callers (<code class="docutils literal notranslate"><span class="pre">mdclas</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mdmain</span></code>, <code class="docutils literal notranslate"><span class="pre">mdshop_cp</span></code>, <code class="docutils literal notranslate"><span class="pre">mm_mdmain</span></code>, <code class="docutils literal notranslate"><span class="pre">mm_mdshop_cp</span></code>, <code class="docutils literal notranslate"><span class="pre">pi_md</span></code>, <code class="docutils literal notranslate"><span class="pre">pi_npt_cpmd</span></code>,
-<code class="docutils literal notranslate"><span class="pre">prbomd</span></code>, <code class="docutils literal notranslate"><span class="pre">prcpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">proppt</span></code>, and <code class="docutils literal notranslate"><span class="pre">secder_driver</span></code>, which calls it at two sites
-for the minimum structure and for the displaced ones) were compiled with, so an
-already built tree needs only <code class="docutils literal notranslate"><span class="pre">ddipo_utils</span></code> and <code class="docutils literal notranslate"><span class="pre">wfopts_utils</span></code> recompiled, which
+<code class="docutils literal notranslate"><span class="pre">mdmain</span></code>, <code class="docutils literal notranslate"><span class="pre">mdshop_cp</span></code>, <code class="docutils literal notranslate"><span class="pre">mm_mdmain</span></code>, <code class="docutils literal notranslate"><span class="pre">mm_mdshop_cp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pi_md</span></code>, <code class="docutils literal notranslate"><span class="pre">pi_npt_cpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">prbomd</span></code>, <code class="docutils literal notranslate"><span class="pre">prcpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">proppt</span></code>, and <code class="docutils literal notranslate"><span class="pre">secder_driver</span></code>, which
+calls it at two sites for the minimum structure and for the displaced ones) were
+compiled with, so an already built tree needs only
+<code class="docutils literal notranslate"><span class="pre">ddipo_utils</span></code> and <code class="docutils literal notranslate"><span class="pre">wfopts_utils</span></code> recompiled, which
 <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code> does.
-<code class="docutils literal notranslate"><span class="pre">secder_driver</span></code> needs no patch: it passes the same seven arguments, runs only in
-a frequency calculation, which an embedded evaluation never enters, and
-<code class="docutils literal notranslate"><span class="pre">embed_force_recompute</span></code> stays false there.
-An optional argument on <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> would be read by those callers from a
-register they never set.
+<code class="docutils literal notranslate"><span class="pre">secder_driver</span></code> needs no patch: it passes the same seven arguments, runs only in a frequency calculation, which an embedded evaluation never enters, and <code class="docutils literal notranslate"><span class="pre">embed_force_recompute</span></code>
+stays false there.
+An optional argument on <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> would be read by those callers from a register
+they never set.
 It snapshots <code class="docutils literal notranslate"><span class="pre">moment%dmom</span></code> and marks that evaluation valid.
 All other evaluations clear validity.
 After an embed teardown, <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> frees its saved maps and starts from the new
@@ -479,25 +482,53 @@ basis.
 <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the embed request false and retains its original call paths.</p>
 <p>The electronic part is a Berry-phase quantity.
 The dipole is defined only for a neutral cell, and only modulo the lattice
-quantum: moving one electron through a lattice vector changes it by that
-vector.
-The patch publishes what <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> computes and does not unwrap that jump or
-check the net charge.</p>
-<p>The k-point orthogonalization patch fixes two heap buffer overflows when <code class="docutils literal notranslate"><span class="pre">atomwf</span></code>
-initializes a k-point calculation with more electronic states than atomic
-orbitals (<code class="docutils literal notranslate"><span class="pre">nstate</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code>, or <code class="docutils literal notranslate"><span class="pre">nsup</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code> or <code class="docutils literal notranslate"><span class="pre">nsdown</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code>
-under <code class="docutils literal notranslate"><span class="pre">LSD</span></code>).
-<code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> fills <code class="docutils literal notranslate"><span class="pre">np</span> <span class="pre">*</span> <span class="pre">n0</span></code> complex entries in <code class="docutils literal notranslate"><span class="pre">ovlap2_c</span></code> and then calls
-<code class="docutils literal notranslate"><span class="pre">mp_sum(smat,</span> <span class="pre">2*np*n0,</span> <span class="pre">parai%allgrp)</span></code> on a <code class="docutils literal notranslate"><span class="pre">COMPLEX(real_8)</span></code> matrix, which
-dispatches to <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code> with <code class="docutils literal notranslate"><span class="pre">MPI_DOUBLE_COMPLEX</span></code> and reads and overwrites
-twice the overlap matrix size.
+quantum: moving one electron through a lattice vector changes it by that vector.
+The patch publishes what <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> computes and does not unwrap that jump or check
+the net charge.</p>
+</section>
+<section id="hirshfeld-charges-from-a-second-density-build">
+<h2>Hirshfeld charges from a second density build<a class="headerlink" href="#hirshfeld-charges-from-a-second-density-build" title="Link to this heading">¶</a></h2>
+<p>OpenCPMD computes per-atom Hirshfeld charges in <code class="docutils literal notranslate"><span class="pre">atomc</span></code>: each charge is the
+valence charge minus the density integrated with that atom’s weight function.
+<code class="docutils literal notranslate"><span class="pre">atomc</span></code> sums the result onto every rank.
+The property driver calls <code class="docutils literal notranslate"><span class="pre">atomc</span></code> for <code class="docutils literal notranslate"><span class="pre">INTERFACE</span> <span class="pre">HIRSHFELD</span></code>.
+On a k-point calculation <code class="docutils literal notranslate"><span class="pre">proppt</span></code> stops with k points not implemented before
+that call, so the embed does not treat the k-point path as working.
+Mulliken populations are filled only on the parent rank and then rescaled, and
+the electrostatic-potential fit rejects a bulk cell, so neither is used.</p>
+<p>The charge patch adds an embed-only request to <code class="docutils literal notranslate"><span class="pre">wfopts_utils</span></code>.
+After a converged Gamma-point evaluation that is not broken symmetry, and only
+when every species has a weight function (<code class="docutils literal notranslate"><span class="pre">nshell</span></code> in 1 through 20), <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>
+builds the density and calls <code class="docutils literal notranslate"><span class="pre">atomc</span></code> while <code class="docutils literal notranslate"><span class="pre">c0</span></code> is still allocated.
+The density build rewrites the charge integrals and the kinetic energy.
+The embed saves both and restores them, so the reported energy stays the SCF
+result.
+An allocation failure leaves the charges invalid and does not stop the
+evaluation.
+<code class="docutils literal notranslate"><span class="pre">CPMDC_CHARGE_SNAPSHOT=0</span></code> skips the snapshot.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never sets the request, so its behaviour is unchanged.
+A species without a weight function, broken symmetry, an unconverged SCF, and k
+points leave the snapshot invalid and do not call <code class="docutils literal notranslate"><span class="pre">atomc</span></code>.
+<code class="docutils literal notranslate"><span class="pre">atomc</span></code> keeps its first-call spline tables behind a <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> flag.
+When the embed teardown counter moves, those tables are freed and the next call
+builds them again.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the counter at zero, so that reset does not run.</p>
+<p>The k-point orthogonalization patch fixes two heap buffer overflows when
+<code class="docutils literal notranslate"><span class="pre">atomwf</span></code> initializes a k-point calculation with more electronic states than
+atomic orbitals (<code class="docutils literal notranslate"><span class="pre">nstate</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code>, or <code class="docutils literal notranslate"><span class="pre">nsup</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code> or
+<code class="docutils literal notranslate"><span class="pre">nsdown</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code> under <code class="docutils literal notranslate"><span class="pre">LSD</span></code>).
+<code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> fills <code class="docutils literal notranslate"><span class="pre">np</span> <span class="pre">*</span> <span class="pre">n0</span></code> complex entries in
+<code class="docutils literal notranslate"><span class="pre">ovlap2_c</span></code> and then calls <code class="docutils literal notranslate"><span class="pre">mp_sum(smat,</span> <span class="pre">2*np*n0,</span> <span class="pre">parai%allgrp)</span></code> on a
+<code class="docutils literal notranslate"><span class="pre">COMPLEX(real_8)</span></code> matrix, which dispatches to <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code> with
+<code class="docutils literal notranslate"><span class="pre">MPI_DOUBLE_COMPLEX</span></code> and reads and overwrites twice the overlap matrix size.
 Changing that count to <code class="docutils literal notranslate"><span class="pre">np*n0</span></code> matches <code class="docutils literal notranslate"><span class="pre">rgs_c</span></code>.
 In <code class="docutils literal notranslate"><span class="pre">atomwf</span></code>, passing <code class="docutils literal notranslate"><span class="pre">zmatat(atwp%nattot,</span> <span class="pre">atwp%nattot)</span></code> to <code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> also
-overflows whenever <code class="docutils literal notranslate"><span class="pre">nleft</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code>, and the <code class="docutils literal notranslate"><span class="pre">tlsd2</span></code> spin-up call passes the
-rank-1 slice <code class="docutils literal notranslate"><span class="pre">c0(:,</span> <span class="pre">atwp%nattot+1,</span> <span class="pre">ikind)</span></code> instead of
-<code class="docutils literal notranslate"><span class="pre">c0(:,</span> <span class="pre">atwp%nattot+1:,</span> <span class="pre">ikind)</span></code>.
-The patch allocates a local <code class="docutils literal notranslate"><span class="pre">smat_c(nleft,</span> <span class="pre">MAX(atwp%nattot,</span> <span class="pre">nleft))</span></code> around each
-<code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> call and fixes the spin-up slice.</p>
+overflows whenever <code class="docutils literal notranslate"><span class="pre">nleft</span> <span class="pre">&gt;</span> <span class="pre">atwp%nattot</span></code>, and the <code class="docutils literal notranslate"><span class="pre">tlsd2</span></code> spin-up call passes
+the rank-1 slice
+<code class="docutils literal notranslate"><span class="pre">c0(:,</span> <span class="pre">atwp%nattot+1,</span> <span class="pre">ikind)</span></code> instead of <code class="docutils literal notranslate"><span class="pre">c0(:,</span> <span class="pre">atwp%nattot+1:,</span> <span class="pre">ikind)</span></code>.
+The patch allocates a local
+<code class="docutils literal notranslate"><span class="pre">smat_c(nleft,</span> <span class="pre">MAX(atwp%nattot,</span> <span class="pre">nleft))</span></code> around each <code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> call and fixes
+the spin-up slice.</p>
 </section>
 <section id="nuclear-forces-from-repeated-scf-calls">
 <h2>Nuclear forces from repeated SCF calls<a class="headerlink" href="#nuclear-forces-from-repeated-scf-calls" title="Link to this heading">¶</a></h2>
@@ -664,7 +695,7 @@ OpenCPMD is linked.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

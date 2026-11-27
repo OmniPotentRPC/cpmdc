@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Write a CPMDParams message - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Embedding cpmdc" href="embedding.html" /><link rel="prev" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Write a CPMDParams message - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Embedding cpmdc" href="embedding.html" /><link rel="prev" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/write-cpmdparams.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -375,9 +376,8 @@ inside CPMD.</p>
 <section id="map-deck-lines-to-fields">
 <h2>Map deck lines to fields<a class="headerlink" href="#map-deck-lines-to-fields" title="Link to this heading">¶</a></h2>
 <p>Each deck line has one preferred carrier.
-Look for a typed field first; the
-<a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">option mapping</span></a> lists every one of them
-with its feature ID.</p>
+Look for a typed field first; the <a class="reference internal" href="../reference/cpmd-options.html"><span class="doc">option mapping</span></a>
+lists every one of them with its feature ID.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -441,7 +441,7 @@ with its feature ID.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">\*Si_MT_BLYP.psp</span> <span class="pre">KLEINMAN-BYLANDER</span></code> / <code class="docutils literal notranslate"><span class="pre">LMAX=D</span> <span class="pre">LOC=D</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">(</span> <span class="pre">element</span> <span class="pre">=</span> <span class="pre">&quot;Si&quot;,</span> <span class="pre">path</span> <span class="pre">=</span> <span class="pre">&quot;Si_MT_BLYP.psp&quot;,</span> <span class="pre">lmax</span> <span class="pre">=</span> <span class="pre">2,</span> <span class="pre">loc</span> <span class="pre">=</span> <span class="pre">2,</span> <span class="pre">kleinmanBylander</span> <span class="pre">=</span> <span class="pre">true</span> <span class="pre">)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(element</span> <span class="pre">=</span> <span class="pre">&quot;Si&quot;,</span> <span class="pre">path</span> <span class="pre">=</span> <span class="pre">&quot;Si_MT_BLYP.psp&quot;,</span> <span class="pre">lmax</span> <span class="pre">=</span> <span class="pre">2,</span> <span class="pre">loc</span> <span class="pre">=</span> <span class="pre">2,</span> <span class="pre">kleinmanBylander</span> <span class="pre">=</span> <span class="pre">true)</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -493,8 +493,11 @@ A non-zero <code class="docutils literal notranslate"><span class="pre">ForceInp
 <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>: a cubic deck and a cubic box keep <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>, another orthorhombic
 box gets <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">8</span></code> and <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">a</span> <span class="pre">b/a</span> <span class="pre">c/a</span></code>, and a box with off-diagonal
 components gets <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>, which CPMD refuses beside it.
-An isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, the default deck) keeps <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and takes
-only an orthorhombic box; another box fails the call.
+An isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, the default deck, or a <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> that names
+<code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code>, <code class="docutils literal notranslate"><span class="pre">ISOLATED</span> <span class="pre">MOLECULE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MOLECULE</span> <span class="pre">ISOLATED</span></code>) gets
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> for an orthorhombic box.
+For another box it uses <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code> and <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code>, the CPMD form for an
+isolated non-orthorhombic cell.
 Without <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code> the box goes in as Bohr.
 An all-zero box is a system without a cell: the deck’s <code class="docutils literal notranslate"><span class="pre">CELL</span></code> stays, or a 12
 Angstrom cube when the deck has none.</p>
@@ -678,7 +681,7 @@ the positions.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

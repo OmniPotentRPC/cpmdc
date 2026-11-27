@@ -3,17 +3,16 @@ Plane-wave scaffold reference
 =============================
 
 
-The plane-wave scaffold is declared in ``include/cpmdc_pwscale.h`` and
-implemented in ``src/cpmdc_pwscale.c`` (CPU and MPI),
-``src/cpmdc_pwscale_cuda.cu`` (CUDA), and ``src/cpmdc_pwscale_cuda_stub.c``
+The plane-wave scaffold is declared in
+``include/cpmdc_pwscale.h`` and implemented in ``src/cpmdc_pwscale.c`` (CPU and MPI), ``src/cpmdc_pwscale_cuda.cu`` (CUDA), and ``src/cpmdc_pwscale_cuda_stub.c``
 (the CUDA calls of a build without CUDA).
 It evaluates one structure-factor sum on a synthetic plane-wave grid so that
 threads, ranks, and a GPU can be timed and compared on the same arithmetic.
 It is separate from the embed force call and the reference potential, and sits
 outside the C ABI of ``libcpmdc`` (see the :doc:`C ABI reference <c-abi>`):
 the functions use plain C linkage, the header stays in ``include/`` and is used
-from the source tree, and ``libcpmdc`` exports only the functions of ``cpmdc.h``
-and ``cpmdc_features.h``.
+from the source tree, and ``libcpmdc`` exports only the functions of ``cpmdc.h`` and
+``cpmdc_features.h``.
 The :doc:`rank how-to <../howto/pwscale-ranks>` shows how to time it.
 
 Availability
@@ -58,8 +57,8 @@ None of them writes ``cpmdc_last_error()``; the return code is the whole report.
 "MPI in the build" means that Meson found the MPI C compiler wrapper and passed
 ``-DCPMDC_PWSCALE_HAVE_MPI=1`` to ``src/cpmdc_pwscale.c``.
 "CUDA in the build" means ``-Dwith_pwscale_cuda=true``: Meson then needs ``nvcc``,
-compiles the kernel for ``sm_70``, and links ``src/cpmdc_pwscale_cuda.cu`` in
-place of the stub.
+compiles the kernel for ``sm_70``, and links ``src/cpmdc_pwscale_cuda.cu`` in place
+of the stub.
 A CUDA build on a host without a device still returns
 ``CPMDC_PWSCALE_ERR_NOCUDA`` from ``cpmdc_pwscale_eval_cuda``.
 
@@ -102,10 +101,10 @@ waves.
 Let ``n`` be the smallest odd integer with ``n^3 >= npw``.
 Plane wave ``k``, for ``0 <= k < npw``, has the integer indices
 ``ix = k mod n - n/2``, ``iy = (k / n) mod n - n/2``, and ``iz = k / n^2 - n/2``
-(integer division), and the wave vector
-``G = 2 pi / cell_bohr * (ix, iy, iz)`` in inverse Bohr.
-So the plane waves are the first ``npw`` cells of an ``n`` by ``n`` by ``n`` box,
-x running fastest; the box is cut short when ``npw`` is not a cube.
+(integer division), and the wave vector ``G = 2 pi / cell_bohr * (ix, iy, iz)`` in
+inverse Bohr.
+So the plane waves are the first ``npw`` cells of an ``n`` by ``n`` by ``n`` box, x
+running fastest; the box is cut short when ``npw`` is not a cube.
 With ``G2 = |G|^2`` and the position ``r`` of an atom of atomic number ``Z``:
 
 ::
@@ -122,9 +121,8 @@ inverse Bohr; the code does not check units.
 How work is split
 ~~~~~~~~~~~~~~~~~
 
-``CPMDC_PWSCALE_DIST_PW`` gives each worker a contiguous run of plane waves and
-every atom; ``CPMDC_PWSCALE_DIST_ATOMS`` gives each worker every plane wave and a
-contiguous run of atoms.
+``CPMDC_PWSCALE_DIST_PW`` gives each worker a contiguous run of plane waves and every atom; ``CPMDC_PWSCALE_DIST_ATOMS``
+gives each worker every plane wave and a contiguous run of atoms.
 Piece ``i`` of ``p`` over ``m`` items covers ``[i * m / p, (i + 1) * m / p)``.
 Workers are the OpenMP threads of one call, and in the MPI calls the ranks of
 the communicator, each with its own OpenMP team.
@@ -135,9 +133,9 @@ With the atom split threads write disjoint force entries.
 Agreement
 ~~~~~~~~~
 
-A parallel or MPI result agrees with the serial one when
-``cpmdc_pwscale_within`` accepts the energy and every force component,
-with the tolerance ``CPMDC_PWSCALE_RTOL``, and the visit counts are equal.
+A parallel or MPI result agrees with the serial one when ``cpmdc_pwscale_within``
+accepts the energy and every force component, with the tolerance
+``CPMDC_PWSCALE_RTOL``, and the visit counts are equal.
 Bitwise equality is claimed only in the case below.
 For a fixed rank count and thread count, every rank holds the same bytes and
 repeated runs give the same bytes, because the partial sums are added in rank
@@ -148,8 +146,9 @@ Status codes and constants
 --------------------------
 
 Every function that returns ``int`` status returns one of these, except the
-predicates ``cpmdc_pwscale_within``, ``cpmdc_pwscale_sample_check``,
-``cpmdc_pwscale_cuda_compiled``, and ``cpmdc_pwscale_cuda_device``, which return 1 or 0.
+predicates ``cpmdc_pwscale_within``,
+``cpmdc_pwscale_sample_check``, ``cpmdc_pwscale_cuda_compiled``, and
+``cpmdc_pwscale_cuda_device``, which return 1 or 0.
 
 .. table::
 
@@ -175,8 +174,8 @@ predicates ``cpmdc_pwscale_within``, ``cpmdc_pwscale_sample_check``,
     | ``CPMDC_PWSCALE_RTOL``       | ``1e-8`` | relative tolerance of agreement: a gap passes when it is at most ``RTOL * max(1, fabs(got), fabs(reference))``                                                                                     |
     +------------------------------+----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Codes are negative so that one rank's failure can be taken as the minimum
-over ranks.
+Codes are negative so that one rank's failure can be taken as the minimum over
+ranks.
 
 Types
 -----
@@ -241,7 +240,8 @@ The CPU calls set the fields below; the CUDA call differs where noted.
 ``cpmdc_pwscale_mpi_bind``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An opaque handle declared as ``typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind``.
+An opaque handle declared as
+``typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind``.
 It exists only in a build with MPI; without MPI a pointer of this type is always
 ``NULL``.
 See `Binding`_ for what it holds.
@@ -281,9 +281,9 @@ Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Fills ``positions_bohr`` and ``atomic_numbers`` for atoms ``i = 0 .. natoms - 1``,
-with ``s = i + 1``:
-the position is ``(fmod(0.11 s, 0.73), fmod(0.17 s, 0.71), fmod(0.23 s, 0.69))``
-times ``cell_bohr`` and the atomic number is ``1 + i mod 8``.
+with ``s = i + 1``: the position is
+``(fmod(0.11 s, 0.73), fmod(0.17 s, 0.71), fmod(0.23 s, 0.69))`` times ``cell_bohr``
+and the atomic number is ``1 + i mod 8``.
 Every position is inside the cell.
 The arrays depend only on ``natoms`` and ``cell_bohr`` of ``prob``.
 
@@ -408,8 +408,8 @@ timed.
 ``stats->alloc_bytes`` holds ``(ranks + 1) * (3 * natoms + 4)`` doubles of exchange
 buffers plus the scratch of this rank's team.
 
-Returns ``CPMDC_PWSCALE_OK``, ``CPMDC_PWSCALE_ERR_NOMPI`` in a build without MPI
-(with ``stats`` zeroed), or ``CPMDC_PWSCALE_ERR_ARG``.
+Returns ``CPMDC_PWSCALE_OK``,
+``CPMDC_PWSCALE_ERR_NOMPI`` in a build without MPI (with ``stats`` zeroed), or ``CPMDC_PWSCALE_ERR_ARG``.
 The pointers and the problem are checked on the calling rank before any
 collective, so a rank that fails that check returns at once without joining.
 If every rank passes the same bad argument, every rank returns
@@ -425,8 +425,8 @@ A binding holds a copy of the problem, ``dist``, the rank and size of the
 communicator, the handle of the communicator, and the buffers of the exchange
 (``(ranks + 1) * (3 * natoms + 4)`` doubles).
 It saves the checks and allocation of ``cpmdc_pwscale_eval_mpi`` on every step.
-The caller owns a binding from a successful ``cpmdc_pwscale_mpi_bind_create`` until
-``cpmdc_pwscale_mpi_bind_free``.
+The caller owns a binding from a successful ``cpmdc_pwscale_mpi_bind_create``
+until ``cpmdc_pwscale_mpi_bind_free``.
 The communicator is not copied, only its handle, so it must outlive the binding.
 The bound calls overwrite the buffers of the binding, so one binding serves one
 call at a time.
@@ -456,9 +456,9 @@ across ranks.
 ``cell_bohr``, ``alpha``, and ``sigma`` must match as well, but they are not compared.
 On failure after that collective every rank returns ``CPMDC_PWSCALE_ERR_ARG`` and
 ``\*out`` is ``NULL``.
-Three failures come before the collective and do not join it:
-``out`` is ``NULL``, ``comm_bytes`` differs from ``sizeof(MPI_Comm)`` for a non-``NULL``
-``comm``, and a rank or size query of the communicator fails.
+Three failures come before the collective and do not join it: ``out`` is ``NULL``,
+``comm_bytes`` differs from ``sizeof(MPI_Comm)`` for a non-``NULL`` ``comm``, and a rank
+or size query of the communicator fails.
 A build without MPI returns ``CPMDC_PWSCALE_ERR_NOMPI`` and sets ``\*out`` to ``NULL``
 when ``out`` is not ``NULL``.
 
@@ -466,15 +466,15 @@ when ``out`` is not ``NULL``.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 One force call on a binding.
-It has the arguments and the result of ``cpmdc_pwscale_eval_mpi`` for the problem
-and ``dist`` of the binding, without ``prob``, ``dist``, ``comm``, and ``comm_bytes``.
+It has the arguments and the result of
+``cpmdc_pwscale_eval_mpi`` for the problem and ``dist`` of the binding, without ``prob``, ``dist``, ``comm``, and ``comm_bytes``.
 The geometry arrays are per call.
 
-The call is collective over the bound communicator and runs one
-``MPI_Allgather`` of each rank's return code, visit counts, energy, and forces.
-A failure on one rank, such as a missing array, a team that fails, or
-``nthreads`` above 4096, is seen by every rank, and every rank returns the lowest
-(most negative) code any rank produced; ``forces_h_bohr`` is untouched then.
+The call is collective over the bound communicator and runs one ``MPI_Allgather``
+of each rank's return code, visit counts, energy, and forces.
+A failure on one rank, such as a missing array, a team that fails, or ``nthreads``
+above 4096, is seen by every rank, and every rank returns the lowest (most
+negative) code any rank produced; ``forces_h_bohr`` is untouched then.
 A ``NULL`` ``bind`` returns ``CPMDC_PWSCALE_ERR_ARG`` at once, without the collective.
 A build without MPI returns ``CPMDC_PWSCALE_ERR_NOMPI`` and zeroes ``stats``.
 
@@ -542,8 +542,8 @@ Returns:
 
 A missing build or device writes no timing: ``stats`` stays zeroed.
 On success ``stats->seconds`` is the event time from before the host-to-device
-copies to after the device-to-host copies and the synchronization, so it contains
-the copy times.
+copies to after the device-to-host copies and the synchronization, so it
+contains the copy times.
 ``h2d_seconds`` covers the position and atomic-number copies; ``d2h_seconds`` runs
 from the end of the kernel launch to the end of the call, so it covers the
 copies back and any kernel time that is still running.

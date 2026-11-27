@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Drive cpmdc over the i-PI socket protocol - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run LAMMPS on cpmdc forces" href="lammps.html" /><link rel="prev" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Drive cpmdc over the i-PI socket protocol - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run LAMMPS on cpmdc forces" href="lammps.html" /><link rel="prev" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/socket-drivers.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -334,31 +335,35 @@ data-aria-dark="Switch to auto color mode">
 <h1>Drive cpmdc over the i-PI socket protocol<a class="headerlink" href="#drive-cpmdc-over-the-i-pi-socket-protocol" title="Link to this heading">¶</a></h1>
 <section id="migration-status">
 <h2>Migration status<a class="headerlink" href="#migration-status" title="Link to this heading">¶</a></h2>
-<p>Protocol frontends belong in <a class="reference external" href="https://github.com/OmniPotentRPC/rgpot">rgpot</a>, where they can wrap every potential.
+<p>Protocol frontends belong in <a class="reference external" href="https://github.com/OmniPotentRPC/rgpot">rgpot</a>,
+where they can wrap every potential.
 The primary socket route is rgpot’s <code class="docutils literal notranslate"><span class="pre">IPIDriver</span></code> over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, while direct
-<code class="docutils literal notranslate"><span class="pre">Session.calculate_au()</span></code> calls and rgpot’s Cap’n Proto RPC remain the
-preferred in-process and remote interfaces.</p>
-<p>The audit covered the rgpot develop branch as of this change.  In that
-snapshot,
-<code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:182-218</span></code> reads a flat serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and
-constructs <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>; <code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:223-225</span></code> selects it and
-<code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:325-328</span></code> lists it.  Both
-<code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code> completed a
+<code class="docutils literal notranslate"><span class="pre">Session.calculate_au()</span></code> calls and rgpot’s Cap’n Proto RPC remain the preferred
+in-process and remote interfaces.</p>
+<p>The audit covered the rgpot develop branch as of this change.
+In that snapshot,
+<code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:182-218</span></code> reads a flat serialized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file and constructs <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>; <code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:223-225</span></code> selects it and <code class="docutils literal notranslate"><span class="pre">engines/pot_spec.cpp:325-328</span></code>
+lists it.
+Both <code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code> completed a
 stub-backed CPMD force request in the audit.</p>
 <p>The three protocol and cell differences from the earlier audit are closed:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc:410-417</span></code> still pads a zero-volume cell
-by default.  Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD.  The same branch then
-passes an all-zero cell through so cpmdc keeps the deck cell, and passes a
-nonzero singular cell through so cpmdc rejects it.  The audit exercised
-all four default and preserved cases.  Left-handed full-rank cells still
-have positive absolute volume and follow the periodic path.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc:347-351</span></code> marks a completed direct
-<code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> as initialized.  The audit sent <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> without <code class="docutils literal notranslate"><span class="pre">INIT</span></code> and the
-following <code class="docutils literal notranslate"><span class="pre">STATUS</span></code> returned <code class="docutils literal notranslate"><span class="pre">HAVEDATA</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc:410-417</span></code> still pads a zero-volume cell by
+default.
+Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD.
+The same branch then passes an all-zero cell through so cpmdc keeps the deck
+cell, and passes a nonzero singular cell through so cpmdc rejects it.
+The audit exercised all four default and preserved cases.
+Left-handed full-rank cells still have positive absolute volume and follow the
+periodic path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc:347-351</span></code> marks a completed direct <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code>
+as initialized.
+The audit sent <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> without <code class="docutils literal notranslate"><span class="pre">INIT</span></code> and the following <code class="docutils literal notranslate"><span class="pre">STATUS</span></code> returned
+<code class="docutils literal notranslate"><span class="pre">HAVEDATA</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">CppCore/rgpot/IPIPot/IPIDriver.cc:315-318</span></code> rejects an <code class="docutils literal notranslate"><span class="pre">INIT</span></code> request whose
-<code class="docutils literal notranslate"><span class="pre">batch_size</span></code> is greater than one.  The audit sent <code class="docutils literal notranslate"><span class="pre">batch_size:</span> <span class="pre">2</span></code> and the
-driver exited with the explicit one-structure error.</p></li>
+<code class="docutils literal notranslate"><span class="pre">batch_size</span></code> is greater than one.
+The audit sent <code class="docutils literal notranslate"><span class="pre">batch_size:</span> <span class="pre">2</span></code> and the driver exited with the explicit
+one-structure error.</p></li>
 </ul>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -370,7 +375,7 @@ driver exited with the explicit one-structure error.</p></li>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Protocol messages</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">STATUS</span></code>, <code class="docutils literal notranslate"><span class="pre">INIT</span></code>, <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code>, <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code>, <code class="docutils literal notranslate"><span class="pre">EXIT</span></code>; pipelined <code class="docutils literal notranslate"><span class="pre">POSDATA=/=GETFORCE</span></code>; rejects <code class="docutils literal notranslate"><span class="pre">batch_size</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">STATUS</span></code>, <code class="docutils literal notranslate"><span class="pre">INIT</span></code>, <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code>, <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code>, <code class="docutils literal notranslate"><span class="pre">EXIT</span></code>; pipelined <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> / <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code>; rejects <code class="docutils literal notranslate"><span class="pre">batch_size</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p></td>
 <td><p>the same messages and pipeline; accepts <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> without <code class="docutils literal notranslate"><span class="pre">INIT</span></code> and rejects <code class="docutils literal notranslate"><span class="pre">batch_size</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Wire units</p></td>
@@ -417,40 +422,41 @@ singular cell.</p>
 </div>
 <p>The first command uses the i-PI UNIX socket name <code class="docutils literal notranslate"><span class="pre">water</span></code>; the second uses TCP.
 The audit ran both potential spellings against the cpmdc stub library and
-completed a force request.  The cpmdc documentation harness cannot run this
-block because rgpot is a separate checkout.  rgpot’s <code class="docutils literal notranslate"><span class="pre">IPIDriverTest</span></code> and the
-audit socket probe cover the protocol behavior.</p>
+completed a force request.
+The cpmdc documentation harness cannot run this block because rgpot is a
+separate checkout. rgpot’s <code class="docutils literal notranslate"><span class="pre">IPIDriverTest</span></code> and the audit socket probe cover the
+protocol behavior.</p>
 </section>
 <section id="cpmdc-driver-fallback">
 <h2>cpmdc driver fallback<a class="headerlink" href="#cpmdc-driver-fallback" title="Link to this heading">¶</a></h2>
 <p>The cpmdc-specific drivers remain as compatibility fallbacks for installations
-that do not yet ship the generic rgpot i-PI driver.  No audited protocol
-gap in the audited snapshot requires them.  Do not copy them into a new engine
-frontend.</p>
+that do not yet ship the generic rgpot i-PI driver.
+No audited protocol gap in the audited snapshot requires them.
+Do not copy them into a new engine frontend.</p>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> is a client for the i-PI wire protocol.
-It connects to a server over a UNIX or TCP socket, receives positions and
-cells, and returns energies, forces, and virials from one <code class="docutils literal notranslate"><span class="pre">Session</span></code>.
+It connects to a server over a UNIX or TCP socket, receives positions and cells,
+and returns energies, forces, and virials from one <code class="docutils literal notranslate"><span class="pre">Session</span></code>.
 The servers it works with are i-PI, ASE’s <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, and ASE’s
 <code class="docutils literal notranslate"><span class="pre">SocketServer</span></code>.
 LAMMPS <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code> is a client too, so LAMMPS and cpmdc meet through an i-PI
 server; a later section shows that setup.
-For LAMMPS to integrate on cpmdc forces in one process, with less overhead
-per step, see <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
-GROMACS has no i-PI client; it reaches cpmdc in process through
-<a class="reference internal" href="gromacs.html"><span class="doc">its CP2K QM/MM interface</span></a>.
+For LAMMPS to integrate on cpmdc forces in one process, with less overhead per
+step, see <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
+GROMACS has no i-PI client; it reaches cpmdc in process through <a class="reference internal" href="gromacs.html"><span class="doc">its CP2K QM/MM interface</span></a>.
 <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> is the same fallback client written in C, for hosts without
 Python.</p>
-<p>The protocol is the one in the i-PI documentation,
-<a class="reference external" href="https://docs.ipi-code.org/distributed.html">Distributed execution: communication protocol</a>, with the byte layout of
-i-PI’s <code class="docutils literal notranslate"><span class="pre">ipi/interfaces/sockets.py</span></code> and ASE’s <code class="docutils literal notranslate"><span class="pre">ase/calculators/socketio.py</span></code>.
+<p>The protocol is the one in the i-PI documentation, <a class="reference external" href="https://docs.ipi-code.org/distributed.html">Distributed execution: communication protocol</a>,
+with the byte layout of i-PI’s <code class="docutils literal notranslate"><span class="pre">ipi/interfaces/sockets.py</span></code> and ASE’s
+<code class="docutils literal notranslate"><span class="pre">ase/calculators/socketio.py</span></code>.
 <code class="docutils literal notranslate"><span class="pre">python/cpmdc/ipi.py</span></code> cites both.</p>
 <section id="start-the-fallback-driver">
 <h3>Start the fallback driver<a class="headerlink" href="#start-the-fallback-driver" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">cpmdc</span></code> installs the <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> command; <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">cpmdc.ipi</span></code>
-is the same program.
-It needs a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file (see <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a>) and the
-species in the order the server sends positions, because the protocol
-carries no species.  For a UNIX socket, use
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">cpmdc</span></code> installs the <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> command; <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">cpmdc.ipi</span></code> is
+the same program.
+It needs a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file (see <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a>)
+and the species in the order the server sends positions, because the protocol
+carries no species.
+For a UNIX socket, use
 <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span> <span class="pre">--unix</span> <span class="pre">water</span> <span class="pre">--params</span> <span class="pre">water.params.bin</span> <span class="pre">--species</span> <span class="pre">&quot;O</span> <span class="pre">H</span> <span class="pre">H&quot;</span></code>.
 For TCP, use
 <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span> <span class="pre">--host</span> <span class="pre">localhost</span> <span class="pre">--port</span> <span class="pre">31415</span> <span class="pre">--params</span> <span class="pre">water.params.bin</span> <span class="pre">--species</span> <span class="pre">OH2</span></code>.</p>
@@ -495,26 +501,24 @@ For TCP, use
 </tbody>
 </table>
 </div>
-<p>The driver opens the session before it connects, so a bad <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>
-file fails at once.
-It exits with status 0 after <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or when the server closes the
-connection between messages, with status 1 and a message on standard
-error after an error, and with status 2 for a usage error.</p>
-<p>Each driver evaluates when the server’s <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> message arrives and sends
-the stored result when <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code> asks for it.
+<p>The driver opens the session before it connects, so a bad <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file
+fails at once.
+It exits with status 0 after <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or when the server closes the connection
+between messages, with status 1 and a message on standard error after an error,
+and with status 2 for a usage error.</p>
+<p>Each driver evaluates when the server’s <code class="docutils literal notranslate"><span class="pre">POSDATA</span></code> message arrives and sends the
+stored result when <code class="docutils literal notranslate"><span class="pre">GETFORCE</span></code> asks for it.
 <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> holds one Python <code class="docutils literal notranslate"><span class="pre">Session</span></code> and evaluates through
-<code class="docutils literal notranslate"><span class="pre">Session.energy_forces()</span></code> in <code class="docutils literal notranslate"><span class="pre">python/cpmdc/ipi.py</span></code>, which calls
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces()</span></code> without a cell, or
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> when the step sends a cell that is not all
-zero and <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is not set.</p>
+<code class="docutils literal notranslate"><span class="pre">Session.energy_forces()</span></code> in <code class="docutils literal notranslate"><span class="pre">python/cpmdc/ipi.py</span></code>, which calls <code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces()</span></code>
+without a cell, or <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> when the step sends a cell
+that is not all zero and <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is not set.</p>
 </section>
 <section id="from-ase">
 <h3>From ASE<a class="headerlink" href="#from-ase" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> without <code class="docutils literal notranslate"><span class="pre">calc</span></code> binds the socket and waits for a client.
-Start <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> against the same name, then use the calculator as any
-other.
-This relaxes the isolated water message from the Python how-to through a
-UNIX socket:</p>
+Start <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> against the same name, then use the calculator as any other.
+This relaxes the isolated water message from the Python how-to through a UNIX
+socket:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 </span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 </span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
@@ -538,17 +542,16 @@ UNIX socket:</p>
 </span><span data-line="21"><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;driver exit status&quot;</span><span class="p">,</span> <span class="n">driver</span><span class="o">.</span><span class="n">wait</span><span class="p">())</span>
 </span></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">port=31415</span></code> in place of <code class="docutils literal notranslate"><span class="pre">unixsocket</span></code>, with <code class="docutils literal notranslate"><span class="pre">--port</span> <span class="pre">31415</span></code> on the driver,
-uses TCP.
+<p><code class="docutils literal notranslate"><span class="pre">port=31415</span></code> in place of <code class="docutils literal notranslate"><span class="pre">unixsocket</span></code>, with <code class="docutils literal notranslate"><span class="pre">--port</span> <span class="pre">31415</span></code> on the driver, uses
+TCP.
 A fully periodic structure gives <code class="docutils literal notranslate"><span class="pre">get_stress()</span></code>: ASE turns the virial into
 stress as <code class="docutils literal notranslate"><span class="pre">-virial</span> <span class="pre">/</span> <span class="pre">volume</span></code>.
-A structure without a cell is sent as an all-zero cell, which the driver
-takes as a cluster.
-The calculator accepts changes of <code class="docutils literal notranslate"><span class="pre">positions</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code> only, as ASE’s
-socket calculators do; another composition needs a new calculator and a
-new driver.
-<code class="docutils literal notranslate"><span class="pre">SocketServer</span></code>, the class under <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, works the same way
-for a host that wants the raw <code class="docutils literal notranslate"><span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">forces</span></code>, and <code class="docutils literal notranslate"><span class="pre">virial</span></code>.</p>
+A structure without a cell is sent as an all-zero cell, which the driver takes
+as a cluster.
+The calculator accepts changes of <code class="docutils literal notranslate"><span class="pre">positions</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code> only, as ASE’s socket
+calculators do; another composition needs a new calculator and a new driver.
+<code class="docutils literal notranslate"><span class="pre">SocketServer</span></code>, the class under <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code>, works the same way for a
+host that wants the raw <code class="docutils literal notranslate"><span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">forces</span></code>, and <code class="docutils literal notranslate"><span class="pre">virial</span></code>.</p>
 </section>
 <section id="from-i-pi">
 <h3>From i-PI<a class="headerlink" href="#from-i-pi" title="Link to this heading">¶</a></h3>
@@ -572,26 +575,26 @@ for a host that wants the raw <code class="docutils literal notranslate"><span c
 </span><span data-line="2">cpmdc-ipi<span class="w"> </span>--unix<span class="w"> </span>water<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OHH<span class="w"> </span>--cluster<span class="w"> </span>--wait<span class="w"> </span><span class="m">60</span>
 </span></pre></div>
 </div>
-<p>i-PI always sends a cell. For an isolated molecule, <code class="docutils literal notranslate"><span class="pre">pbc=&quot;false&quot;</span></code> keeps i-PI
-from wrapping positions and <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> keeps the box in the deck.
-For a periodic deck, drop both and the driver sends the virial, so i-PI
-can run constant-pressure ensembles.
+<p>i-PI always sends a cell.
+For an isolated molecule, <code class="docutils literal notranslate"><span class="pre">pbc=&quot;false&quot;</span></code> keeps i-PI from wrapping positions and
+<code class="docutils literal notranslate"><span class="pre">--cluster</span></code> keeps the box in the deck.
+For a periodic deck, drop both and the driver sends the virial, so i-PI can run
+constant-pressure ensembles.
 Leave <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> at 1: the driver refuses a batched <code class="docutils literal notranslate"><span class="pre">INIT</span></code>.
-Wavefunction extrapolation wants each driver to see one continuous
-trajectory; with several beads, start one driver per bead and set
-<code class="docutils literal notranslate"><span class="pre">matching=&quot;lock&quot;</span></code> on the <code class="docutils literal notranslate"><span class="pre">ffsocket</span></code> so i-PI keeps each bead on its driver.
+Wavefunction extrapolation wants each driver to see one continuous trajectory;
+with several beads, start one driver per bead and set <code class="docutils literal notranslate"><span class="pre">matching=&quot;lock&quot;</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">ffsocket</span></code> so i-PI keeps each bead on its driver.
 The pytest suite runs a short NVE trajectory through i-PI 3.3.</p>
 </section>
 <section id="with-lammps-fix-ipi">
 <h3>With LAMMPS fix ipi<a class="headerlink" href="#with-lammps-fix-ipi" title="Link to this heading">¶</a></h3>
 <p>Untested as written: LAMMPS was not run with this input.
 <code class="docutils literal notranslate"><span class="pre">bench/lammps_routes.py</span></code> runs the same arrangement with <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">zero</span></code>.
-In it i-PI integrates; for LAMMPS to integrate, use the in-process routes
-of <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
+In it i-PI integrates; for LAMMPS to integrate, use the in-process routes of <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>.
 <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code> makes LAMMPS an i-PI client, as <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> is, so the two cannot
 connect to each other.
-They meet through an i-PI server that sums their forces, for example a
-classical term from LAMMPS added to the cpmdc energy:</p>
+They meet through an i-PI server that sums their forces, for example a classical
+term from LAMMPS added to the cpmdc energy:</p>
 <div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nt">&lt;ffsocket</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;cpmdc&quot;</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;unix&quot;</span><span class="nt">&gt;</span><span class="w"> </span><span class="nt">&lt;address&gt;</span><span class="w"> </span>cpmdc<span class="w"> </span><span class="nt">&lt;/address&gt;</span><span class="w"> </span><span class="nt">&lt;/ffsocket&gt;</span>
 </span><span data-line="2"><span class="nt">&lt;ffsocket</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;lammps&quot;</span><span class="w"> </span><span class="na">mode=</span><span class="s">&quot;unix&quot;</span><span class="nt">&gt;</span><span class="w"> </span><span class="nt">&lt;address&gt;</span><span class="w"> </span>lammps<span class="w"> </span><span class="nt">&lt;/address&gt;</span><span class="w"> </span><span class="nt">&lt;/ffsocket&gt;</span>
 </span><span data-line="3"><span class="nt">&lt;system&gt;</span>
@@ -602,8 +605,8 @@ classical term from LAMMPS added to the cpmdc energy:</p>
 </span><span data-line="8"><span class="nt">&lt;/system&gt;</span>
 </span></pre></div>
 </div>
-<p>The LAMMPS input defines its force field and ends in <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code>; <code class="docutils literal notranslate"><span class="pre">unix</span></code>
-selects a UNIX socket with the name <code class="docutils literal notranslate"><span class="pre">lammps</span></code>, and the port is ignored:</p>
+<p>The LAMMPS input defines its force field and ends in <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code>; <code class="docutils literal notranslate"><span class="pre">unix</span></code> selects a
+UNIX socket with the name <code class="docutils literal notranslate"><span class="pre">lammps</span></code>, and the port is ignored:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">units           real
 </span><span data-line="2">atom_style      full
 </span><span data-line="3">read_data       water.data
@@ -619,20 +622,21 @@ selects a UNIX socket with the name <code class="docutils literal notranslate"><
 </span><span data-line="3">lmp<span class="w"> </span>-in<span class="w"> </span><span class="k">in</span>.lammps
 </span></pre></div>
 </div>
-<p>The species in i-PI’s structure, in the LAMMPS data file, and in
-<code class="docutils literal notranslate"><span class="pre">--species</span></code> must be in the same order: none of the three clients checks.</p>
+<p>The species in i-PI’s structure, in the LAMMPS data file, and in <code class="docutils literal notranslate"><span class="pre">--species</span></code>
+must be in the same order: none of the three clients checks.</p>
 </section>
 <section id="the-c-driver">
 <h3>The C driver<a class="headerlink" href="#the-c-driver" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> speaks the same protocol from C, through
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>, with no Python
-interpreter.
-It holds one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span> <span class="pre">*</span></code> and calls <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> in
-<code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> directly with Bohr arrays and the virial output.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>,
+with no Python interpreter.
+It holds one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span> <span class="pre">*</span></code> and calls
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> in <code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> directly with Bohr arrays
+and the virial output.
 Meson builds it from <code class="docutils literal notranslate"><span class="pre">tools/cpmdc_ipi.c</span></code> on platforms with UNIX sockets and
 installs it in <code class="docutils literal notranslate"><span class="pre">bin</span></code> beside <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>; the wheel ships <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> instead.
-It links <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> and finds it through its run path, so no
-<code class="docutils literal notranslate"><span class="pre">--library</span></code> option exists.</p>
+It links <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> and finds it through its run path, so no <code class="docutils literal notranslate"><span class="pre">--library</span></code> option
+exists.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc-ipi-c<span class="w"> </span>--unix<span class="w"> </span>water<span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span>OHH<span class="w"> </span>--cluster<span class="w"> </span>--wait<span class="w"> </span><span class="m">60</span>
 </span><span data-line="2">cpmdc-ipi-c<span class="w"> </span>--host<span class="w"> </span>localhost<span class="w"> </span>--port<span class="w"> </span><span class="m">31415</span><span class="w"> </span>--params<span class="w"> </span>water.params.bin<span class="w"> </span>--species<span class="w"> </span><span class="s2">&quot;O H H&quot;</span>
 </span></pre></div>
@@ -640,22 +644,21 @@ It links <code class="docutils literal notranslate"><span class="pre">libcpmdc</
 <p>The options are those of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> without <code class="docutils literal notranslate"><span class="pre">--structure</span></code> and <code class="docutils literal notranslate"><span class="pre">--library</span></code>:
 <code class="docutils literal notranslate"><span class="pre">--unix</span></code> or <code class="docutils literal notranslate"><span class="pre">--host</span></code> and <code class="docutils literal notranslate"><span class="pre">--port</span></code>, <code class="docutils literal notranslate"><span class="pre">--params</span></code>, <code class="docutils literal notranslate"><span class="pre">--species</span></code> in the same
 spellings, <code class="docutils literal notranslate"><span class="pre">--cluster</span></code>, <code class="docutils literal notranslate"><span class="pre">--socket-prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--wait</span></code>, and <code class="docutils literal notranslate"><span class="pre">--verbose</span></code>.
-A bare <code class="docutils literal notranslate"><span class="pre">--unix</span></code> name gets the same default prefix as i-PI, ASE, and
-<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>.
+A bare <code class="docutils literal notranslate"><span class="pre">--unix</span></code> name gets the same default prefix as i-PI, ASE, and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>.
 The wire messages, units, and limits below are shared with <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>.
-For <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, status 0 follows <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or a close between messages,
-status 1 reports a protocol or calculation error, and status 2 reports a
-command-line usage error.
+For <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, status 0 follows <code class="docutils literal notranslate"><span class="pre">EXIT</span></code> or a close between messages, status 1
+reports a protocol or calculation error, and status 2 reports a command-line
+usage error.
 Energies and forces equal those of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> bit for bit, and both drivers
 take the virial volume from the same routine, LU with partial pivoting on the
-cell scaled by a power of two: the pytest suite checks both drivers
-to 1e-10 through ASE’s <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> over UNIX and TCP sockets,
-through a minimal server, and through a short i-PI NVE run.</p>
+cell scaled by a power of two: the pytest suite checks both drivers to 1e-10
+through ASE’s <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> over UNIX and TCP sockets, through a minimal
+server, and through a short i-PI NVE run.</p>
 </section>
 <section id="units">
 <h3>Units<a class="headerlink" href="#units" title="Link to this heading">¶</a></h3>
-<p>Everything on the wire is atomic units, and the driver converts nothing
-it returns.</p>
+<p>Everything on the wire is atomic units, and the driver converts nothing it
+returns.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -689,57 +692,80 @@ it returns.</p>
 <td><p>Hartree, nine reals laid out as the cell</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">-dE/d(strain)</span></code>, the library stress times the volume in Bohr<sup>3</sup></p></td>
 </tr>
+<tr class="row-even"><td><p>extra string</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{&quot;dipole&quot;:[x,y,z]}</span></code> in electron Bohr, or empty</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Evaluation.dipole_e_bohr</span></code> when that step recomputed a finite dipole</p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>The virial is what ASE’s <code class="docutils literal notranslate"><span class="pre">SocketClient</span></code> sends as <code class="docutils literal notranslate"><span class="pre">-volume</span> <span class="pre">*</span> <span class="pre">stress</span></code> and
-what i-PI’s ASE driver sends, so ASE’s <code class="docutils literal notranslate"><span class="pre">stress</span> <span class="pre">=</span> <span class="pre">-virial</span> <span class="pre">/</span> <span class="pre">volume</span></code> comes
-back with ASE’s sign, <code class="docutils literal notranslate"><span class="pre">(1/V)</span> <span class="pre">dE/d(strain)</span></code>.
+<p>The virial is what ASE’s <code class="docutils literal notranslate"><span class="pre">SocketClient</span></code> sends as <code class="docutils literal notranslate"><span class="pre">-volume</span> <span class="pre">*</span> <span class="pre">stress</span></code> and what
+i-PI’s ASE driver sends, so ASE’s <code class="docutils literal notranslate"><span class="pre">stress</span> <span class="pre">=</span> <span class="pre">-virial</span> <span class="pre">/</span> <span class="pre">volume</span></code> comes back with
+ASE’s sign, <code class="docutils literal notranslate"><span class="pre">(1/V)</span> <span class="pre">dE/d(strain)</span></code>.
 cpmdc converts with CODATA 2018 constants and ASE with CODATA 2014 ones.
-Through <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> the energy therefore differs from
-<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> by about one part in 10<sup>8</sup>, from ASE’s conversions on its
-side of the socket.
-With ASE’s <code class="docutils literal notranslate"><span class="pre">Bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">Ha</span></code> set to <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> and <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code>
-the two agree to 1e-10, which the pytest suite checks.</p>
+Through <code class="docutils literal notranslate"><span class="pre">SocketIOCalculator</span></code> the energy therefore differs from <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code>
+by about one part in 10<sup>8</sup>, from ASE’s conversions on its side of the socket.
+With ASE’s <code class="docutils literal notranslate"><span class="pre">Bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">Ha</span></code> set to <code class="docutils literal notranslate"><span class="pre">BOHR_TO_ANGSTROM</span></code> and <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_EV</span></code> the two
+agree to 1e-10, which the pytest suite checks.</p>
 </section>
 <section id="limits">
 <h3>Limits<a class="headerlink" href="#limits" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>The species are fixed at start. A step with another atom count stops the
-driver with a message; a change of composition at the same count cannot
-be seen on the wire, so restart the driver with the new <code class="docutils literal notranslate"><span class="pre">--species</span></code>.</p></li>
+<li><p>The species are fixed at start.
+A step with another atom count stops the driver with a message; a change of
+composition at the same count cannot be seen on the wire, so restart the
+driver with the new <code class="docutils literal notranslate"><span class="pre">--species</span></code>.</p></li>
 <li><p>One structure per request: <code class="docutils literal notranslate"><span class="pre">INIT</span></code> must be UTF-8, and <code class="docutils literal notranslate"><span class="pre">batch_size</span></code>, when
-present, must appear once with the integer value 1. There is no shared-memory
-(<code class="docutils literal notranslate"><span class="pre">mode=&quot;shm&quot;</span></code>) transport.</p></li>
-<li><p>The extra string after the virial is empty.</p></li>
+present, must appear once with the integer value 1.
+There is no shared-memory (<code class="docutils literal notranslate"><span class="pre">mode=&quot;shm&quot;</span></code>) transport.</p></li>
+<li><p>The extra string after the virial is empty when the library did not recompute
+a molecular dipole.
+A missing dipole is not replaced with zeros.
+When every component is finite, the string is UTF-8 JSON <code class="docutils literal notranslate"><span class="pre">{&quot;dipole&quot;:[x,y,z]}</span></code>,
+each value in electron Bohr with 16 digits after the decimal in scientific
+notation and no spaces.
+i-PI <code class="docutils literal notranslate"><span class="pre">parse_extra</span></code> loads that object
+(<a class="reference external" href="https://github.com/i-pi/i-pi/blob/master/ipi/interfaces/utils.py">https://github.com/i-pi/i-pi/blob/master/ipi/interfaces/utils.py</a>), and the
+<code class="docutils literal notranslate"><span class="pre">dipole</span></code> field is the electric dipole in the same atomic units as the rest of
+the wire, as in i-PI’s own dummy driver
+(<a class="reference external" href="https://github.com/i-pi/i-pi/blob/master/ipi/pes/dummy.py">https://github.com/i-pi/i-pi/blob/master/ipi/pes/dummy.py</a>).
+Only an OpenCPMD periodic Gamma-point deck with <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or
+<code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> recomputes a dipole.
+ASE reads the announced extra bytes and does not interpret them
+(<a class="reference external" href="https://gitlab.com/ase/ase/-/blob/master/ase/calculators/socketio.py">https://gitlab.com/ase/ase/-/blob/master/ase/calculators/socketio.py</a>).
+A dipole that is not three finite components stops either driver with “dipole
+must have three components” or “dipole is not finite” before the step is
+counted, and no reply is sent.</p></li>
 <li><p>A cluster, an isolated deck, or <code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code> sends a zero virial; a
 periodic cell without a library stress warns once on standard error.</p></li>
-<li><p>A cell that is neither all zero nor rank 3 stops the driver. Rank 3
-uses the numpy.linalg.matrix<sub>rank</sub>  cutoff: a singular value counts only
+<li><p>A cell that is neither all zero nor rank 3 stops the driver.
+Rank 3 uses the numpy.linalg.matrix<sub>rank</sub>  cutoff: a singular value counts only
 when it exceeds the largest times 3 times the float64 unit roundoff.
 Both drivers and the library compute the singular values with the same
-one-sided Jacobi iteration on the cell scaled by a power of two, so they
-agree on every cell, including those within rounding of the cutoff,
-where two SVD routines can disagree.</p></li>
+one-sided Jacobi iteration on the cell scaled by a power of two, so they agree
+on every cell, including those within rounding of the cutoff, where two SVD
+routines can disagree.</p></li>
 <li><p>Both drivers judge the cell on the wire values, in Bohr, before any
-conversion. A full-rank cell whose volume in Bohr<sup>3</sup>  is below the least
-normal float64 stops the driver with “the server sent a cell whose volume
-is too small for binary64”, so the virial volume cannot underflow. The
-library then checks the Angstrom cell it is given; a cell that passes in
+conversion.
+A full-rank cell whose volume in Bohr<sup>3</sup>  is below the least normal float64
+stops the driver with “the server sent a cell whose volume is too small for
+binary64”, so the virial volume cannot underflow.
+The library then checks the Angstrom cell it is given; a cell that passes in
 Bohr but whose Angstrom volume is below that value, such as a diagonal of
-3.1072325e-103 Bohr, stops either driver with the library’s “cell volume
-is too small for binary64”.</p></li>
-<li><p>A wire position or, unless <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is given, a cell value that is NaN
-or infinite stops either driver with “positions must be finite” or “cell
-must be finite”, before the step is evaluated and with no reply. The
-positions are checked first; a non-finite cell skips the rank checks above.</p></li>
+3.1072325e-103 Bohr, stops either driver with the library’s “cell volume is
+too small for binary64”.</p></li>
+<li><p>A wire position or, unless <code class="docutils literal notranslate"><span class="pre">--cluster</span></code> is given, a cell value that is NaN or
+infinite stops either driver with “positions must be finite” or “cell must be
+finite”, before the step is evaluated and with no reply.
+The positions are checked first; a non-finite cell skips the rank checks
+above.</p></li>
 <li><p>A cell whose volume is above the largest float64 stops either driver with
-“cell volume is too large for binary64” before the step is evaluated, and
-a virial component that is not finite stops it with “virial is not
-finite”. Neither driver sends a non-finite virial.</p></li>
+“cell volume is too large for binary64” before the step is evaluated, and a
+virial component that is not finite stops it with “virial is not finite”.
+Neither driver sends a non-finite virial.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--wait</span></code> must be finite and zero or positive.</p></li>
-<li><p>The driver is one process with one session. It does not run under
-<code class="docutils literal notranslate"><span class="pre">mpirun</span></code>; start several drivers for several beads.</p></li>
+<li><p>The driver is one process with one session.
+It does not run under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>; start several drivers for several beads.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> takes the species from <code class="docutils literal notranslate"><span class="pre">--species</span></code> only.</p></li>
 </ul>
 </section>
@@ -853,7 +879,7 @@ finite”. Neither driver sends a non-finite virial.</p></li>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

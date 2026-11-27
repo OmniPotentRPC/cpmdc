@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>SIMD paths and dispatch - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing/index.html" /><link rel="prev" title="How the OpenCPMD patches work" href="opencpmd-patches.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>SIMD paths and dispatch - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing/index.html" /><link rel="prev" title="How the OpenCPMD patches work" href="opencpmd-patches.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/simd-paths.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -327,9 +328,8 @@ data-aria-dark="Switch to auto color mode">
 <h2>Paths<a class="headerlink" href="#paths" title="Link to this heading">¶</a></h2>
 <p>The force path of <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> has no hot numeric kernel.
 The C sources compile a deck and read Cap’n Proto messages.
-The optional plane-wave scaling scaffold (<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>, see
-<a class="reference internal" href="../howto/pwscale-ranks.html"><span class="doc">the rank how-to</span></a>) has kernels, and it is not
-on the force path.
+The optional plane-wave scaling scaffold (<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>, see <a class="reference internal" href="../howto/pwscale-ranks.html"><span class="doc">the rank how-to</span></a>)
+has kernels, and it is not on the force path.
 The Fortran sources are the embedding bridge into OpenCPMD.
 There is no AVX-512 path, no AVX2 path, and no NEON path in this repository.
 Every translation unit compiles for x86-64 (v1) on x86<sub>64</sub>  and armv8-a on
@@ -376,10 +376,9 @@ The allowlist names OpenBLAS or libgfortran only when a build links that library
 statically into an audited artefact.
 The default link is dynamic, so the allowlist has no vendored path.</p>
 <p>Dispatched kernels elsewhere in this set of libraries follow the cluster-pair
-layout of Páll and Hess, Comput.
-Phys.
-Commun. 184, 2641 (2013),
-<a class="reference external" href="https://doi.org/10.1016/j.cpc.2013.06.003">https://doi.org/10.1016/j.cpc.2013.06.003</a>. One binary per microarchitecture belongs in EESSI (Dröge et al., Softw. Pract. Exp. 53, 176 (2023), <a class="reference external" href="https://doi.org/10.1002/spe.3075">https://doi.org/10.1002/spe.3075</a>).</p>
+layout of Páll and Hess, Comput. Phys. Commun. 184, 2641 (2013), <a class="reference external" href="https://doi.org/10.1016/j.cpc.2013.06.003">doi:10.1016/j.cpc.2013.06.003</a>.
+One binary per microarchitecture belongs in EESSI (Dröge et al., Softw. Pract.
+Exp. 53, 176 (2023), <a class="reference external" href="https://doi.org/10.1002/spe.3075">doi:10.1002/spe.3075</a>).</p>
 </section>
 <section id="bit-identical-results">
 <h2>Bit-identical results<a class="headerlink" href="#bit-identical-results" title="Link to this heading">¶</a></h2>
@@ -515,7 +514,7 @@ have the same kind of runtime choice.
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Time the plane-wave scaffold on ranks - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Troubleshooting" href="troubleshooting.html" /><link rel="prev" title="Check forces and stress by finite differences" href="check-forces.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Time the plane-wave scaffold on ranks - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Troubleshooting" href="troubleshooting.html" /><link rel="prev" title="Check forces and stress by finite differences" href="check-forces.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/pwscale-ranks.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -328,8 +329,8 @@ data-aria-dark="Switch to auto color mode">
 <h1>Time the plane-wave scaffold on ranks<a class="headerlink" href="#time-the-plane-wave-scaffold-on-ranks" title="Link to this heading">¶</a></h1>
 <section id="goal">
 <h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
-<p>Time the rank path of the opt-in plane-wave scaffold,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code>, without measuring the scheduler instead.
+<p>Time the rank path of the opt-in plane-wave scaffold, <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code>,
+without measuring the scheduler instead.
 The scaffold is built by <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">-C</span> <span class="pre">bench</span></code> or by
 <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span> <span class="pre">build</span> <span class="pre">-Dwith_pwscale=true</span></code>.
 It is not on the embed force path.
@@ -338,29 +339,27 @@ units, array layout, ownership, and return codes of every call.</p>
 </section>
 <section id="give-every-rank-its-own-core">
 <h2>Give every rank its own core<a class="headerlink" href="#give-every-rank-its-own-core" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">bench/run_pwscale.sh</span></code> exports <code class="docutils literal notranslate"><span class="pre">OMP_PROC_BIND=close</span></code> and passes
-<code class="docutils literal notranslate"><span class="pre">BIND</span></code> to <code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">--bind-to</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">bench/run_pwscale.sh</span></code> exports <code class="docutils literal notranslate"><span class="pre">OMP_PROC_BIND=close</span></code> and passes <code class="docutils literal notranslate"><span class="pre">BIND</span></code> to
+<code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">--bind-to</span></code>.
 <code class="docutils literal notranslate"><span class="pre">BIND</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">none</span></code>, as before.
-With <code class="docutils literal notranslate"><span class="pre">none</span></code>, each rank’s OpenMP runtime pins its thread to the first
-place it sees, so every rank lands on CPU 0 and the ranks take turns.
+With <code class="docutils literal notranslate"><span class="pre">none</span></code>, each rank’s OpenMP runtime pins its thread to the first place it
+sees, so every rank lands on CPU 0 and the ranks take turns.
 Set <code class="docutils literal notranslate"><span class="pre">BIND=core</span></code> to give each rank one core:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">BIND</span><span class="o">=</span>core<span class="w"> </span><span class="nv">RUNS</span><span class="o">=</span><span class="m">9</span><span class="w"> </span>sh<span class="w"> </span>bench/run_pwscale.sh<span class="w"> </span>out
 </span></pre></div>
 </div>
 <p>Shared-core timings sit on whole scheduler ticks.
-On an 8-core host with <code class="docutils literal notranslate"><span class="pre">CONFIG_HZ=250</span></code>, 80 of the 81 timed samples at
-2, 4, and 8 ranks with <code class="docutils literal notranslate"><span class="pre">BIND=none</span></code> were within 24 us of a multiple of
-4 ms.
+On an 8-core host with <code class="docutils literal notranslate"><span class="pre">CONFIG_HZ=250</span></code>, 80 of the 81 timed samples at 2, 4, and
+8 ranks with <code class="docutils literal notranslate"><span class="pre">BIND=none</span></code> were within 24 us of a multiple of 4 ms.
 With <code class="docutils literal notranslate"><span class="pre">BIND=core</span></code> none of the 81 was within 25 us.
-The library medians of the default strong sweep (96 atoms, 32768 plane
-waves) were 0.0960, 0.180, and 0.416 s, against 0.0747 s for one
-thread without MPI.
+The library medians of the default strong sweep (96 atoms, 32768 plane waves)
+were 0.0960, 0.180, and 0.416 s, against 0.0747 s for one thread without MPI.
 With <code class="docutils literal notranslate"><span class="pre">BIND=core</span></code> the same build gave 0.0380, 0.0211, and 0.0143 s.</p>
 </section>
 <section id="bind-a-problem-once">
 <h2>Bind a problem once<a class="headerlink" href="#bind-a-problem-once" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> checks on every call that the ranks agree on
-the problem.
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> checks on every call that the ranks agree on the
+problem.
 A caller that evaluates one problem many times binds it once:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cpmdc_pwscale_mpi_bind</span> <span class="o">*</span><span class="n">bind</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
 </span><span data-line="2"><span class="kt">int</span> <span class="n">rc</span> <span class="o">=</span> <span class="n">cpmdc_pwscale_mpi_bind_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">prob</span><span class="p">,</span> <span class="n">CPMDC_PWSCALE_DIST_PW</span><span class="p">,</span>
@@ -370,10 +369,10 @@ A caller that evaluates one problem many times binds it once:</p>
 </span><span data-line="6"><span class="n">cpmdc_pwscale_mpi_bind_free</span><span class="p">(</span><span class="n">bind</span><span class="p">);</span>
 </span></pre></div>
 </div>
-<p>Both calls are collective over the communicator, and the
-communicator must outlive the binding.
-A failure on one rank, including a missing array, returns the same
-error on every rank.
+<p>Both calls are collective over the communicator, and the communicator must
+outlive the binding.
+A failure on one rank, including a missing array, returns the same error on
+every rank.
 The harness takes <code class="docutils literal notranslate"><span class="pre">--bound</span></code> to time this path.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -403,58 +402,53 @@ The harness takes <code class="docutils literal notranslate"><span class="pre">-
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">tests/test_pwscale_collectives.c</span></code> counts these through the PMPI shim
-in <code class="docutils literal notranslate"><span class="pre">bench/pmpi_count.c</span></code>.
-The shim also builds as <code class="docutils literal notranslate"><span class="pre">bench/build/libpmpi_count.so</span></code>; preload it and
-set <code class="docutils literal notranslate"><span class="pre">PMPI_COUNT_REPORT=1</span></code> to print each rank’s totals at
-<code class="docutils literal notranslate"><span class="pre">MPI_Finalize</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tests/test_pwscale_collectives.c</span></code> counts these through the PMPI shim in <code class="docutils literal notranslate"><span class="pre">bench/pmpi_count.c</span></code>.
+The shim also builds as
+<code class="docutils literal notranslate"><span class="pre">bench/build/libpmpi_count.so</span></code>; preload it and set <code class="docutils literal notranslate"><span class="pre">PMPI_COUNT_REPORT=1</span></code> to print each rank’s totals at <code class="docutils literal notranslate"><span class="pre">MPI_Finalize</span></code>.</p>
 </section>
 <section id="same-bytes-on-every-run">
 <h2>Same bytes on every run<a class="headerlink" href="#same-bytes-on-every-run" title="Link to this heading">¶</a></h2>
-<p>A bound call runs one <code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code> of each rank’s energy, forces,
-visit counts, and return code.
-Every rank then sums the partials in rank order, the order rank 0 used
-before.
-So every rank holds the same energy and forces, the bytes repeat from
-run to run for a given rank count, and they match the gather and
-broadcast that the call used before.
+<p>A bound call runs one <code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code> of each rank’s energy, forces, visit
+counts, and return code.
+Every rank then sums the partials in rank order, the order rank 0 used before.
+So every rank holds the same energy and forces, the bytes repeat from run to run
+for a given rank count, and they match the gather and broadcast that the call
+used before.
 They do not depend on how MPI moves the data.
-A different rank count sums different partials, so it agrees with the
-serial loop to <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code> and not bitwise.
+A different rank count sums different partials, so it agrees with the serial
+loop to <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code> and not bitwise.
 Each rank holds <code class="docutils literal notranslate"><span class="pre">(ranks</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">(3</span> <span class="pre">*</span> <span class="pre">natoms</span> <span class="pre">+</span> <span class="pre">4)</span></code> doubles for the sum.</p>
-<p>The library timer now runs from the entry of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code>
-to the end of its rank-ordered sum, without the two barriers.
-For <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> it starts after the call has made its binding,
-so the binding is not timed.
+<p>The library timer now runs from the entry of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code> to
+the end of its rank-ordered sum, without the two barriers.
+For <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> it starts after the call has made its binding, so
+the binding is not timed.
 It covers the rank’s own partial, the gather, and the sum.
-The harness column <code class="docutils literal notranslate"><span class="pre">call_s</span></code> times the whole call on rank 0 after the
-ranks leave a barrier together, so it compares builds whose library
-timers differ.</p>
+The harness column <code class="docutils literal notranslate"><span class="pre">call_s</span></code> times the whole call on rank 0 after the ranks leave
+a barrier together, so it compares builds whose library timers differ.</p>
 </section>
 <section id="compare-two-builds">
 <h2>Compare two builds<a class="headerlink" href="#compare-two-builds" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">bench/run_pwscale_abba.sh</span> <span class="pre">A</span> <span class="pre">B</span> <span class="pre">OUT</span></code> runs the rank sweeps of two harness
-builds in ABBA order, one pass after another, with <code class="docutils literal notranslate"><span class="pre">--bind-to</span> <span class="pre">core</span></code> and
-no oversubscription.
+<p><code class="docutils literal notranslate"><span class="pre">bench/run_pwscale_abba.sh</span> <span class="pre">A</span> <span class="pre">B</span> <span class="pre">OUT</span></code> runs the rank sweeps of two harness builds
+in ABBA order, one pass after another, with <code class="docutils literal notranslate"><span class="pre">--bind-to</span> <span class="pre">core</span></code> and no
+oversubscription.
 <code class="docutils literal notranslate"><span class="pre">B_ARGS=--bound</span></code> times the bound path on the B side only.
-<code class="docutils literal notranslate"><span class="pre">bench/pwscale_abba.py</span></code> then prints per configuration the median and
-interquartile range of <code class="docutils literal notranslate"><span class="pre">call_s</span></code>, the rank efficiency, and how many of
-the A and B pass pairs B won.
-Strong efficiency is T(1) / (n T(n)) and weak efficiency is
-T(1) / T(n), with T(1) the one-rank median of the same side.
-Run the script with the same binary as A and B to see how far two equal
-builds drift on the host.</p>
+<code class="docutils literal notranslate"><span class="pre">bench/pwscale_abba.py</span></code> then prints per configuration the median and interquartile range of <code class="docutils literal notranslate"><span class="pre">call_s</span></code>,
+the rank efficiency, and how many of the A and B pass pairs B won.
+Strong efficiency is T(1) / (n T(n)) and weak efficiency is T(1) / T(n), with
+T(1) the one-rank median of the same side.
+Run the script with the same binary as A and B to see how far two equal builds
+drift on the host.</p>
 </section>
 <section id="figures-from-one-host">
 <h2>Figures from one host<a class="headerlink" href="#figures-from-one-host" title="Link to this heading">¶</a></h2>
-<p>These come from an 8-core KVM guest (Intel Xeon, one thread per core,
-Linux 6.12, Open MPI 4.1.6) with 3 ABBA blocks of 9 samples per pass,
-54 samples per side.
+<p>These come from an 8-core KVM guest (Intel Xeon, one thread per core, Linux
+6.12, Open MPI 4.1.6) with 3 ABBA blocks of 9 samples per pass, 54 samples per
+side.
 A is the previous library and B the bound path.</p>
-<p>At the default size the call takes 9.5 to 81 ms, and the collectives
-are too small a part of it to measure here.
-A run of the same binary on both sides moved the medians by 0.95 to
-1.21 times, and B won as many as 6 of 6 pairs by chance.</p>
+<p>At the default size the call takes 9.5 to 81 ms, and the collectives are too
+small a part of it to measure here.
+A run of the same binary on both sides moved the medians by 0.95 to 1.21 times,
+and B won as many as 6 of 6 pairs by chance.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -487,10 +481,10 @@ A run of the same binary on both sides moved the medians by 0.95 to
 </tbody>
 </table>
 </div>
-<p>The small problem of the agreement test, 16 atoms and 64 plane waves
-per rank with 99 samples per pass, is set by latency.
-There the strong call at 8 ranks went from 20.1 us to 7.6 us, B won 6
-of 6 pairs, and the run of one binary on both sides gave 0.99 and 4 of</p>
+<p>The small problem of the agreement test, 16 atoms and 64 plane waves per rank
+with 99 samples per pass, is set by latency.
+There the strong call at 8 ranks went from 20.1 us to 7.6 us, B won 6 of 6
+pairs, and the run of one binary on both sides gave 0.99 and 4 of</p>
 <ol class="arabic simple">
 <li></li>
 </ol>
@@ -636,7 +630,7 @@ of 6 pairs, and the run of one binary on both sides gave 0.99 and 4 of</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Debug an input with CPMDCDECK OUT - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Check forces and stress by finite differences" href="check-forces.html" /><link rel="prev" title="Extrapolate the orbitals along a trajectory" href="extrapolate-orbitals.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Debug an input with CPMDCDECK OUT - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Check forces and stress by finite differences" href="check-forces.html" /><link rel="prev" title="Extrapolate the orbitals along a trajectory" href="extrapolate-orbitals.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/debug-deck.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -342,36 +343,35 @@ Dynamics) parses it.</p>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> writes the file each time it renders a message: in
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
 the <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> entry points, and every one-shot call.
-Each write replaces the previous content, so the file holds the deck of the
-most recent configuration.
+Each write replaces the previous content, so the file holds the deck of the most
+recent configuration.
 The write happens in the default build too, so a message can be checked on a
 machine without OpenCPMD.
-An empty <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>, or a path that cannot be opened for writing,
-skips the write without an error.</p>
+An empty <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>, or a path that cannot be opened for writing, skips
+the write without an error.</p>
 <p>Under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> every rank renders the same deck to the same path.
-Point each rank at its own file when the ranks share a file system, for
-example through a wrapper script that appends <code class="docutils literal notranslate"><span class="pre">$OMPI_COMM_WORLD_RANK</span></code>.</p>
+Point each rank at its own file when the ranks share a file system, for example
+through a wrapper script that appends <code class="docutils literal notranslate"><span class="pre">$OMPI_COMM_WORLD_RANK</span></code>.</p>
 </section>
 <section id="what-the-opencpmd-path-changes">
 <h2>What the OpenCPMD path changes<a class="headerlink" href="#what-the-opencpmd-path-changes" title="Link to this heading">¶</a></h2>
 <p>The file holds the method deck.
-On each cold evaluation, the OpenCPMD path builds the deck that
-CPMD parses from it in three steps:</p>
+On each cold evaluation, the OpenCPMD path builds the deck that CPMD parses from
+it in three steps:</p>
 <ol class="arabic simple">
-<li><p>If the method deck has an <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block with coordinate lines, it is used
-as it is.
+<li><p>If the method deck has an <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block with coordinate lines, it is used as
+it is.
 Otherwise every <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block is dropped and a new one is written from the
 step’s atomic numbers and positions.
 A <code class="docutils literal notranslate"><span class="pre">!SPECIES</span> <span class="pre">SYM</span></code> comment in the method deck selects that element’s file,
 <code class="docutils literal notranslate"><span class="pre">LMAX</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC</span></code>, and, when the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line has it, <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code>.
-An element with no such comment uses the built-in table (see
-<a class="reference internal" href="write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>).
+An element with no such comment uses the built-in table (see <a class="reference internal" href="write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>).
 An element in neither fails before CPMD starts, and the error names the
 atomic number.
-When the method deck has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, or <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> section at all,
-a minimal deck replaces it: <code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code>,
-<code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span> <span class="pre">1.0d-5</span></code>, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code>, <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code>, and the
-functional, cutoff, charge, and multiplicity of the message.
+When the method deck has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, or <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> section at all, a
+minimal deck replaces it: <code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span> <span class="pre">1.0d-5</span></code>, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code>, <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code>, and the functional,
+cutoff, charge, and multiplicity of the message.
 The symmetry comes from the step’s box.
 A cube is <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>.
 Unequal orthogonal edges are <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">8</span></code>.
@@ -387,12 +387,12 @@ isolated-molecule keyword, the same symmetry choice is written into
 An explicit symmetry line, Hockney solver, <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, or isolated-molecule
 keyword is left as written.
 <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> is not given a <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line.</p></li>
-<li><p>If the deck has no <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> keyword, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code> is inserted after
-<code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>.</p></li>
+<li><p>If the deck has no <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> keyword, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code> is inserted after <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>.</p></li>
 </ol>
 <p>The method text is kept in full, including a block longer than a few thousand
-characters. A preview buffer shorter than the composed deck returns an error
-and does not keep a shortened copy.</p>
+characters.
+A preview buffer shorter than the composed deck returns an error and does not
+keep a shortened copy.</p>
 <p>So read <code class="docutils literal notranslate"><span class="pre">method.inp</span></code> with those edits in mind.
 The <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block in the file lists the pseudopotential lines with a
 placeholder atom count of 0; the coordinates come from each step.</p>
@@ -436,10 +436,10 @@ library does not, compare the two after the edits above:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">diff<span class="w"> </span>-u<span class="w"> </span>reference.inp<span class="w"> </span>method.inp
 </span></pre></div>
 </div>
-<p>Differences in <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> are expected: coordinates, atom counts, and the
-species order come from the step.
-Every other difference is a field that the message sets differently or leaves
-to a default.</p>
+<p>Differences in <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> are expected: coordinates, atom counts, and the species
+order come from the step.
+Every other difference is a field that the message sets differently or leaves to
+a default.</p>
 </section>
 </section>
 
@@ -550,7 +550,7 @@ to a default.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

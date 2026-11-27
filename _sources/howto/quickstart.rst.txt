@@ -83,8 +83,8 @@ each contract.
 
 :doc:`Build options, artifacts, and Pixi tasks <../reference/build-options>`
 lists the Meson test suites and the tests in each.
-The stub suite includes ``adopt-comm-stub`` and ``bind-calculator-stub``, which
-run on four ranks when MPI is found.
+The stub suite includes ``adopt-comm-stub`` and ``bind-calculator-stub``, which run
+on four ranks when MPI is found.
 
 Run the host example
 --------------------
@@ -139,14 +139,13 @@ Build against OpenCPMD
 The same C ABI links against a patched OpenCPMD archive instead of the reference
 evaluator.
 Build the archive as the :doc:`archive how-to <opencpmd-archive>`
-describes, then follow :doc:`the install how-to <install>` to
-configure ``build-cpmd`` with ``-Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build``.
+describes, then follow :doc:`the install how-to <install>` to configure
+``build-cpmd`` with ``-Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build``.
 Both options are required before ``meson.build`` links the archive: that build
 adds ``water-capnp-cli-parity``, ``box-cell-energy``, ``embed-teardown``, and
 ``scf-unconverged``, and runs ``extrapolate-wfn`` plus the ``e2e`` and ``mpi`` suites
 against the linked archive.
-When a build or a call fails, see
-:doc:`troubleshooting <troubleshooting>`.
+When a build or a call fails, see :doc:`troubleshooting <troubleshooting>`.
 
 Read next
 ---------

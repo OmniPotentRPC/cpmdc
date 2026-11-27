@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use cpmdc as an ASE calculator" href="ase.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Call cpmdc from Python - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Use cpmdc as an ASE calculator" href="ase.html" /><link rel="prev" title="Embedding cpmdc" href="embedding.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/python.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -335,8 +336,7 @@ Hartree per Bohr for forces.
 <code class="docutils literal notranslate"><span class="pre">evaluate</span></code> and <code class="docutils literal notranslate"><span class="pre">caps</span></code> without importing cpmdc’s ASE module.
 <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> in <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> is an ASE calculator over the same session.
 <code class="docutils literal notranslate"><span class="pre">Session.calculate_au</span></code> takes Bohr and returns the virial as well, and
-<code class="docutils literal notranslate"><span class="pre">cpmdc.lammps</span></code> drives LAMMPS with it (see
-<a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>).</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc.lammps</span></code> drives LAMMPS with it (see <a class="reference internal" href="lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>).</p>
 <section id="load-the-library">
 <h2>Load the library<a class="headerlink" href="#load-the-library" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;cpmdc[ase]&quot;</span></code> installs the package with its own <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> and
@@ -397,20 +397,17 @@ sources.
 <code class="docutils literal notranslate"><span class="pre">forces_to_ev_per_angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">stress_to_ev_per_angstrom3</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">dipole_to_e_angstrom</span></code> apply them.
 <code class="docutils literal notranslate"><span class="pre">Evaluation</span></code> is the native result:
-<code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code>, optional <code class="docutils literal notranslate"><span class="pre">stress_h_bohr3</span></code>, and optional
-<code class="docutils literal notranslate"><span class="pre">dipole_e_bohr</span></code>.
+<code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code>, optional <code class="docutils literal notranslate"><span class="pre">stress_h_bohr3</span></code>, optional <code class="docutils literal notranslate"><span class="pre">dipole_e_bohr</span></code>, and optional <code class="docutils literal notranslate"><span class="pre">charges_e</span></code>.
 A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The <code class="docutils literal notranslate"><span class="pre">schema</span></code> argument of <code class="docutils literal notranslate"><span class="pre">Session</span></code>, <code class="docutils literal notranslate"><span class="pre">Potential</span></code>, and <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> is
 deprecated and ignored, and passing it warns with <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>.</p>
 <p>A C-contiguous <code class="docutils literal notranslate"><span class="pre">float64</span></code> array of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code>, and lists or tuples of plain
-<code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code> rows, are packed without a Python loop over the
-coordinates.
-Another container, or a coordinate that is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>, a string, or a NumPy
-scalar inside a list, is still accepted where it was and takes the checked
-loop.
-For <code class="docutils literal notranslate"><span class="pre">calculate_au</span></code>, a C-contiguous <code class="docutils literal notranslate"><span class="pre">float64</span></code> or <code class="docutils literal notranslate"><span class="pre">int32</span></code> buffer is the only
-form that is not copied.</p>
+<code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code> rows, are packed without a Python loop over the coordinates.
+Another container, or a coordinate that is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>, a string, or a NumPy scalar
+inside a list, is still accepted where it was and takes the checked loop.
+For <code class="docutils literal notranslate"><span class="pre">calculate_au</span></code>, a C-contiguous <code class="docutils literal notranslate"><span class="pre">float64</span></code> or <code class="docutils literal notranslate"><span class="pre">int32</span></code> buffer is the only form
+that is not copied.</p>
 </section>
 <section id="use-it-as-an-rgpot-provider">
 <h2>Use it as an rgpot provider<a class="headerlink" href="#use-it-as-an-rgpot-provider" title="Link to this heading">¶</a></h2>
@@ -419,11 +416,20 @@ in eV/Angstrom, and <code class="docutils literal notranslate"><span class="pre"
 library computed a tensor.
 It returns <code class="docutils literal notranslate"><span class="pre">dipole</span></code> as three e*Angstrom components only when OpenCPMD recomputed
 the molecular moment for that step.
+It returns <code class="docutils literal notranslate"><span class="pre">charges</span></code> as one value per atom, in electrons, only when OpenCPMD
+stored Hirshfeld charges for that step.
 <code class="docutils literal notranslate"><span class="pre">Potential.caps</span></code> returns <code class="docutils literal notranslate"><span class="pre">stress=True</span></code> and <code class="docutils literal notranslate"><span class="pre">energies=False</span></code>.
 It returns <code class="docutils literal notranslate"><span class="pre">dipole=True</span></code> only when the evaluator can produce a dipole: never for
-the reference evaluator, never for a library without <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code>,
-and for OpenCPMD until an evaluation comes back without one, because a deck
-without <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> produces none.
+the reference evaluator, never for a library without
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code>, and for OpenCPMD until an evaluation comes back
+without one, because a deck without <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or
+<code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code> produces none.
+It returns <code class="docutils literal notranslate"><span class="pre">charges=True</span></code> only when the evaluator can store charges: never for
+the reference evaluator, never for a library without
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charges</span></code>, and for OpenCPMD until an evaluation comes back
+without them.
+K points, broken symmetry, a species without a weight function, and
+<code class="docutils literal notranslate"><span class="pre">CPMDC_CHARGE_SNAPSHOT=0</span></code> produce none.
 The call reads the session, so the dict is not a constant.
 The Berry-phase dipole exists only for a neutral periodic cell and only modulo
 the lattice quantum, so it can jump by a lattice vector between geometries.
@@ -470,11 +476,11 @@ path minus the floor is what the Python layer adds.</p>
 </div>
 <p>One run is a batch of calls of about 50 ms and the figure is the mean time per
 call.
-A ring of four geometries is cycled, so the session never answers from its
-last geometry.
+A ring of four geometries is cycled, so the session never answers from its last
+geometry.
 The tables give the median over the runs, the quartiles, and the extremes.
-<code class="docutils literal notranslate"><span class="pre">bench/results/client_overhead.org</span></code> holds the base and tip tables of the
-change that packs inputs with <code class="docutils literal notranslate"><span class="pre">array</span></code> and <code class="docutils literal notranslate"><span class="pre">memoryview</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">bench/results/client_overhead.org</span></code> holds the base and tip tables of the change
+that packs inputs with <code class="docutils literal notranslate"><span class="pre">array</span></code> and <code class="docutils literal notranslate"><span class="pre">memoryview</span></code>.</p>
 </section>
 </section>
 
@@ -585,7 +591,7 @@ change that packs inputs with <code class="docutils literal notranslate"><span c
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

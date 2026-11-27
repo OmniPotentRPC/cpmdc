@@ -31,12 +31,11 @@ Cap'n Proto
 
 Cold call
     An evaluation that runs CPMD's full setup and starts the SCF
-    without stored orbitals: the first call of the process, or a call that changes
-    the functional, deck, cutoff, charge, multiplicity, atom count, or elemental
-    composition, or the cell.
-    A constant-cutoff cell within ``CPMDC_CELL_IN_PLACE`` stays warm, and a new
-    session with the same setup is warm (see
-    :doc:`wavefunction state <../explanation/wavefunction-state>`).
+    without stored orbitals: the first call of the process, or a call
+    that changes the functional, deck, cutoff, charge, multiplicity,
+    atom count, or elemental composition, or the cell.
+    A constant-cutoff cell within ``CPMDC_CELL_IN_PLACE`` stays warm,
+    and a new session with the same setup is warm (see :doc:`wavefunction state <../explanation/wavefunction-state>`).
 
 CPMD
     Car-Parrinello Molecular Dynamics, the plane-wave density functional
@@ -60,8 +59,8 @@ Deck
 
 Default build
     ``libcpmdc.so`` built without OpenCPMD.
-    It evaluates a deterministic reference function so the ABI can be tested
-    anywhere.
+    It evaluates a deterministic reference function so the ABI
+    can be tested anywhere.
 
 DFT
     Density functional theory.
@@ -70,20 +69,22 @@ E
 -
 
 ``ener_com``
-    The OpenCPMD module that holds the energy terms of the last SCF; ``cpmdc_last_energy_components()``
-    copies it.
+    The OpenCPMD module that holds the energy terms of the last SCF;
+    ``cpmdc_last_energy_components()`` copies it.
 
 F
 -
 
 Feature ID
     A stable string naming a capability, such as
-    ``abi.cpmdc_session_calculate_result`` or ``params.inputSections.cpmd.maxIter``.
+    ``abi.cpmdc_session_calculate_result`` or
+    ``params.inputSections.cpmd.maxIter``.
     Looked up with ``cpmdc_feature_find()``.
 
 File route
     Running ``cpmd.x`` once per force call and exchanging decks and
-    output files through the file system; the alternative to embedding.
+    output files through the file system; the alternative to
+    embedding.
 
 ``fion``
     OpenCPMD's array of ionic forces, ``coor%fion``, read by ``cpmdc`` after
@@ -98,8 +99,9 @@ G
 
 Gauss-Hermite integration
     CPMD's default numerical treatment of the
-    nonlocal pseudopotential projectors, used when ``KLEINMAN-BYLANDER`` is not on
-    the pseudopotential file line.
+    nonlocal pseudopotential projectors, used when
+    ``KLEINMAN-BYLANDER`` is not on the pseudopotential
+    file line.
 
 H
 -
@@ -114,16 +116,17 @@ K
 
 Kleinman-Bylander form
     A separable form of the nonlocal pseudopotential,
-    selected per species with ``KLEINMAN-BYLANDER`` on the ``\*file`` line, or
-    ``kleinmanBylander = true`` in ``CPMDAtomsPseudopotential``.
+    selected per species with ``KLEINMAN-BYLANDER`` on the
+    ``\*file`` line, or ``kleinmanBylander = true`` in
+    ``CPMDAtomsPseudopotential``.
 
 M
 -
 
 ``memfd``
     An anonymous in-memory file.
-    ``cpmdc`` writes the composed deck to one and passes CPMD its ``/proc/self/fd/N``
-    path.
+    ``cpmdc`` writes the composed deck to one and passes CPMD its
+    ``/proc/self/fd/N`` path.
 
 MPI
     Message Passing Interface, the library CPMD uses to spread one SCF over
@@ -159,7 +162,8 @@ PCG
 
 ``PotentialConfig``
     A message with one backend arm, such as ``cpmd``, and an
-    optional ``CommonMethodSpec`` overlay; read by ``cpmdc_configure()``.
+    optional ``CommonMethodSpec`` overlay; read by
+    ``cpmdc_configure()``.
 
 ``PotentialResult``
     The result message: energy, forces, and the extension
@@ -204,9 +208,10 @@ T
 
 Topology
     The atom count and elemental composition of a session.
-    ``session_accept_topology`` fixes the topology only after an evaluation call
-    passes its argument checks and collective orbital preflight. A rejected
-    preflight leaves the topology configurable.
+    ``session_accept_topology`` fixes the topology only after an
+    evaluation call passes its argument checks and collective orbital
+    preflight.
+    A rejected preflight leaves the topology configurable.
     A reordering of those elements stays on the session.
 
 W

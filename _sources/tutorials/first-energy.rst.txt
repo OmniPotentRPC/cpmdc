@@ -195,7 +195,7 @@ The Fortran wrapper adds the MPI library and the Fortran runtime for ``libcpmdc`
 
 .. code:: text
 
-    cpmdc/0.7.0 available=0
+    cpmdc/0.8.0 available=0
     energy_h=0.95870388
     force[0] =  -0.053992  -0.053992  -0.055259
     force[1] =  -0.006749  -0.007771  -0.006116
@@ -217,9 +217,8 @@ Molecular Dynamics (CPMD) code itself.
 Three things change: the library, the pseudopotential files, and one environment
 variable.
 
-1. Build a patched OpenCPMD archive with ``-fPIC``, as the
-   :doc:`archive how-to <../howto/opencpmd-archive>` describes, into
-   ``/path/to/opencpmd-build``.
+1. Build a patched OpenCPMD archive with ``-fPIC``, as the :doc:`archive how-to <../howto/opencpmd-archive>`
+   describes, into ``/path/to/opencpmd-build``.
 
 2. Link ``cpmdc`` against it, with the MPI compiler wrappers that built OpenCPMD:
 
@@ -258,7 +257,7 @@ The program prints the energy and forces last:
 
 .. code:: text
 
-    cpmdc/0.7.0 available=1
+    cpmdc/0.8.0 available=1
      ...
      NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
        1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58
@@ -278,10 +277,9 @@ direction normal to the molecular plane, and mirror-symmetric in ``y``.
 The ``x`` components round to zero at six decimals, and two keep their minus sign.
 They also sum to zero: cpmdc moves the molecule to the middle of its isolated
 cell before each evaluation and removes the net force the fixed cell would
-otherwise add;
-:doc:`atoms in an isolated cell <../explanation/isolated-cells>` explains
-why, and :doc:`the environment reference <../reference/environment>` lists
-the ``CPMDC_RECENTER`` settings.
+otherwise add; :doc:`atoms in an isolated cell <../explanation/isolated-cells>`
+explains why, and :doc:`the environment reference <../reference/environment>`
+lists the ``CPMDC_RECENTER`` settings.
 The iteration timings in the ``TCPU`` column depend on the machine.
 
 What you built
@@ -299,12 +297,11 @@ The pseudopotential directory is unchanged.
 To evaluate many geometries, call ``cpmdc_session_calculate_forces()`` again on
 the same session.
 On an OpenCPMD build, a call starts from the stored orbitals when the
-functional, deck, cell, cutoff, charge, multiplicity, and elemental
-composition match and the geometry lies within ``CPMDC_WARM_RMSD`` (default
-``0.15`` Angstrom root-mean-square distance per atom) of the stored geometry;
-beyond ``CPMDC_WARM_RMSD`` it skips full setup and starts from the deck's guess
-instead (see
-:doc:`wavefunction state between calls <../explanation/wavefunction-state>`).
+functional, deck, cell, cutoff, charge, multiplicity, and elemental composition
+match and the geometry lies within ``CPMDC_WARM_RMSD`` (default ``0.15`` Angstrom
+root-mean-square distance per atom) of the stored geometry; beyond
+``CPMDC_WARM_RMSD`` it skips full setup and starts from the deck's guess instead
+(see :doc:`wavefunction state between calls <../explanation/wavefunction-state>`).
 A new session with that same basis starts from those orbitals under the same
 distance rule, including when the atomic numbers are reordered.
 The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a

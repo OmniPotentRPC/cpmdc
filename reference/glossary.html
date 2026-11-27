@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Glossary - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="API Reference" href="../api/index.html" /><link rel="prev" title="API contracts" href="contracts.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Glossary - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="API Reference" href="../api/index.html" /><link rel="prev" title="API contracts" href="contracts.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/glossary.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -360,12 +361,11 @@ writes.
 <code class="docutils literal notranslate"><span class="pre">capnp</span> <span class="pre">encode</span></code> turns a text message into the binary form.</p>
 </dd>
 <dt>Cold call</dt><dd><p>An evaluation that runs CPMD’s full setup and starts the SCF
-without stored orbitals: the first call of the process, or a call that changes
-the functional, deck, cutoff, charge, multiplicity, atom count, or elemental
-composition, or the cell.
-A constant-cutoff cell within <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> stays warm, and a new
-session with the same setup is warm (see
-<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state</span></a>).</p>
+without stored orbitals: the first call of the process, or a call
+that changes the functional, deck, cutoff, charge, multiplicity,
+atom count, or elemental composition, or the cell.
+A constant-cutoff cell within <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> stays warm,
+and a new session with the same setup is warm (see <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state</span></a>).</p>
 </dd>
 <dt>CPMD</dt><dd><p>Car-Parrinello Molecular Dynamics, the plane-wave density functional
 code; <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> embeds its OpenCPMD distribution.</p>
@@ -386,8 +386,8 @@ and the results of its last evaluation.</p>
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> renders one from <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> and hands it to CPMD in memory.</p>
 </dd>
 <dt>Default build</dt><dd><p><code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> built without OpenCPMD.
-It evaluates a deterministic reference function so the ABI can be tested
-anywhere.</p>
+It evaluates a deterministic reference function so the ABI
+can be tested anywhere.</p>
 </dd>
 <dt>DFT</dt><dd><p>Density functional theory.</p>
 </dd>
@@ -396,8 +396,8 @@ anywhere.</p>
 <section id="e">
 <h2>E<a class="headerlink" href="#e" title="Link to this heading">¶</a></h2>
 <dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">ener_com</span></code></dt><dd><p>The OpenCPMD module that holds the energy terms of the last SCF; <code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components()</span></code>
-copies it.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">ener_com</span></code></dt><dd><p>The OpenCPMD module that holds the energy terms of the last SCF;
+<code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components()</span></code> copies it.</p>
 </dd>
 </dl>
 </section>
@@ -405,11 +405,13 @@ copies it.</p>
 <h2>F<a class="headerlink" href="#f" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt>Feature ID</dt><dd><p>A stable string naming a capability, such as
-<code class="docutils literal notranslate"><span class="pre">abi.cpmdc_session_calculate_result</span></code> or <code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.maxIter</span></code>.
+<code class="docutils literal notranslate"><span class="pre">abi.cpmdc_session_calculate_result</span></code> or
+<code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.maxIter</span></code>.
 Looked up with <code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find()</span></code>.</p>
 </dd>
 <dt>File route</dt><dd><p>Running <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> once per force call and exchanging decks and
-output files through the file system; the alternative to embedding.</p>
+output files through the file system; the alternative to
+embedding.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">fion</span></code></dt><dd><p>OpenCPMD’s array of ionic forces, <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, read by <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> after
 each SCF.</p>
@@ -423,8 +425,9 @@ an optional cell, and output units.</p>
 <h2>G<a class="headerlink" href="#g" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt>Gauss-Hermite integration</dt><dd><p>CPMD’s default numerical treatment of the
-nonlocal pseudopotential projectors, used when <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> is not on
-the pseudopotential file line.</p>
+nonlocal pseudopotential projectors, used when
+<code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> is not on the pseudopotential
+file line.</p>
 </dd>
 </dl>
 </section>
@@ -441,8 +444,9 @@ Added by <code class="docutils literal notranslate"><span class="pre">cpmdc</spa
 <h2>K<a class="headerlink" href="#k" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt>Kleinman-Bylander form</dt><dd><p>A separable form of the nonlocal pseudopotential,
-selected per species with <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line, or
-<code class="docutils literal notranslate"><span class="pre">kleinmanBylander</span> <span class="pre">=</span> <span class="pre">true</span></code> in <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code>.</p>
+selected per species with <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">\*file</span></code> line, or <code class="docutils literal notranslate"><span class="pre">kleinmanBylander</span> <span class="pre">=</span> <span class="pre">true</span></code> in
+<code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code>.</p>
 </dd>
 </dl>
 </section>
@@ -450,8 +454,8 @@ selected per species with <code class="docutils literal notranslate"><span class
 <h2>M<a class="headerlink" href="#m" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt><code class="docutils literal notranslate"><span class="pre">memfd</span></code></dt><dd><p>An anonymous in-memory file.
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> writes the composed deck to one and passes CPMD its <code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code>
-path.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> writes the composed deck to one and passes CPMD its
+<code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code> path.</p>
 </dd>
 <dt>MPI</dt><dd><p>Message Passing Interface, the library CPMD uses to spread one SCF over
 several processes (ranks).</p>
@@ -486,7 +490,8 @@ holds the result the host should use.</p>
 <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> adds a line minimisation along each search direction.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></dt><dd><p>A message with one backend arm, such as <code class="docutils literal notranslate"><span class="pre">cpmd</span></code>, and an
-optional <code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code> overlay; read by <code class="docutils literal notranslate"><span class="pre">cpmdc_configure()</span></code>.</p>
+optional <code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code> overlay; read by
+<code class="docutils literal notranslate"><span class="pre">cpmdc_configure()</span></code>.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code></dt><dd><p>The result message: energy, forces, and the extension
 fields, in the units <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> asked for.</p>
@@ -528,9 +533,10 @@ is 0.</p>
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> from each step’s positions.</p>
 </dd>
 <dt>Topology</dt><dd><p>The atom count and elemental composition of a session.
-<code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+<code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an
+evaluation call passes its argument checks and collective orbital
+preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of those elements stays on the session.</p>
 </dd>
 </dl>
@@ -652,7 +658,7 @@ the orbitals of a previous successful call in the same process.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

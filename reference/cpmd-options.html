@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMD option mapping - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Feature inventory" href="feature-inventory.html" /><link rel="prev" title="CPMDParams schema fields" href="cpmdparams-schema.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMD option mapping - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Feature inventory" href="feature-inventory.html" /><link rel="prev" title="CPMDParams schema fields" href="cpmdparams-schema.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/cpmd-options.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -739,38 +740,36 @@ page.</p>
 <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> still produces a valid-looking deck for debugging.
 When structured <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> sections provide scalar method values
 (functional, cutoff, charge, multiplicity, or zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with
-<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>), those section values are also the
-effective embed configuration passed through the C ABI.
-The functional, cutoff, charge, and multiplicity lines the renderer writes
-and that configuration follow the same precedence.
+<code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>), those section values are also the effective embed
+configuration passed through the C ABI.
+The functional, cutoff, charge, and multiplicity lines the renderer writes and
+that configuration follow the same precedence.
 <code class="docutils literal notranslate"><span class="pre">raw</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, and <code class="docutils literal notranslate"><span class="pre">set</span></code> sections, <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, and section <code class="docutils literal notranslate"><span class="pre">directives</span></code>
 are rendered as given and are not read back into that configuration, so the
-carrier check runs for every set overlay field of a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay,
-whether or not a typed field also sets it, including zero <code class="docutils literal notranslate"><span class="pre">charge</span></code> with
-<code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>, and a carrier of the same setting
-rejects that field.
+carrier check runs for every set overlay field of a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay, whether or
+not a typed field also sets it, including zero <code class="docutils literal notranslate"><span class="pre">charge</span></code> with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code>,
+and a carrier of the same setting rejects that field.
 A <code class="docutils literal notranslate"><span class="pre">FUNCTIONAL</span></code> directive in a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> section or a <code class="docutils literal notranslate"><span class="pre">DFT.FUNCTIONAL</span></code> set
 directive is rejected when the deck is rendered, because the rendered <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>
 section already carries the functional.
-The same render rejects a <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> directive in
-the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section, and a <code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or
+The same render rejects a <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> directive in the
+typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section, and a <code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or
 <code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code> set directive.
 <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code> is written on every deck, including the default 70 Ry.
 <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> is written only when it is not 0 and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> only when it is
-greater than 1; an omitted line is the schema default the recorded
-configuration carries.
-Those directives are rejected for a default value and for any other value
-alike.
+greater than 1; an omitted line is the schema default the recorded configuration
+carries.
+Those directives are rejected for a default value and for any other value alike.
 A default leaves the directive as a value the recorded configuration does not
 carry, and any other value leaves two lines.
 The render does not keep one and drop the other.
-A section value that differs from the schema default (functional <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>,
-cutoff 70 Ry, charge 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code>, multiplicity 1) beats the
-top-level field.
-A method field in a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> section that is omitted or holds
-its schema default is unset and does not replace the top-level arm or overlay
-value, so a typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge of 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code> is also unset,
-while zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> is explicit.
+A section value that differs from the schema default (functional <code class="docutils literal notranslate"><span class="pre">BLYP</span></code>, cutoff
+70 Ry, charge 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code>, multiplicity 1) beats the top-level
+field.
+A method field in a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> section that is omitted or holds its
+schema default is unset and does not replace the top-level arm or overlay value,
+so a typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge of 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code> is also unset, while
+zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> is explicit.
 For geometry deck rendering, <code class="docutils literal notranslate"><span class="pre">atoms.pseudopotentials</span></code> groups <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover
@@ -4881,7 +4880,7 @@ is reserved void in this package).</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

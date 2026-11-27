@@ -9,9 +9,8 @@ Paths
 
 The force path of ``cpmdc`` has no hot numeric kernel.
 The C sources compile a deck and read Cap'n Proto messages.
-The optional plane-wave scaling scaffold (``-Dwith_pwscale=true``, see
-:doc:`the rank how-to <../howto/pwscale-ranks>`) has kernels, and it is not
-on the force path.
+The optional plane-wave scaling scaffold (``-Dwith_pwscale=true``, see :doc:`the rank how-to <../howto/pwscale-ranks>`)
+has kernels, and it is not on the force path.
 The Fortran sources are the embedding bridge into OpenCPMD.
 There is no AVX-512 path, no AVX2 path, and no NEON path in this repository.
 Every translation unit compiles for x86-64 (v1) on x86\ :sub:`64`  and armv8-a on
@@ -63,10 +62,9 @@ statically into an audited artefact.
 The default link is dynamic, so the allowlist has no vendored path.
 
 Dispatched kernels elsewhere in this set of libraries follow the cluster-pair
-layout of Páll and Hess, Comput.
-Phys.
-Commun. 184, 2641 (2013),
-https://doi.org/10.1016/j.cpc.2013.06.003. One binary per microarchitecture belongs in EESSI (Dröge et al., Softw. Pract. Exp. 53, 176 (2023), https://doi.org/10.1002/spe.3075).
+layout of Páll and Hess, Comput. Phys. Commun. 184, 2641 (2013), `doi:10.1016/j.cpc.2013.06.003 <https://doi.org/10.1016/j.cpc.2013.06.003>`_.
+One binary per microarchitecture belongs in EESSI (Dröge et al., Softw. Pract.
+Exp. 53, 176 (2023), `doi:10.1002/spe.3075 <https://doi.org/10.1002/spe.3075>`_).
 
 Bit-identical results
 ---------------------

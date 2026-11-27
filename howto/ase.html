@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Use cpmdc as an ASE calculator - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" /><link rel="prev" title="Call cpmdc from Python" href="python.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Use cpmdc as an ASE calculator - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Relax a cell at a constant cutoff" href="constant-cutoff.html" /><link rel="prev" title="Call cpmdc from Python" href="python.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/ase.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -339,9 +340,13 @@ Importing <code class="docutils literal notranslate"><span class="pre">cpmdc.ase
 <code class="docutils literal notranslate"><span class="pre">ase.calculators.calculator.register_calculator_class</span></code>, so
 <code class="docutils literal notranslate"><span class="pre">get_calculator_class(&quot;cpmdc&quot;)</span></code> returns it, and an installed package also
 exposes <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> in the <code class="docutils literal notranslate"><span class="pre">ase.plugins</span></code> entry-point group.
-ASE releases that ship <code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code> (3.29 and later) list the calculator in
-<code class="docutils literal notranslate"><span class="pre">ase._4.plugins.plugins.calculators</span></code> whichever of <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> and <code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code>
-is imported first; earlier releases have no plugin API and use only the registry.
+The calculator’s <code class="docutils literal notranslate"><span class="pre">name</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;cpmdc&quot;</span></code>, the registered name, so the name that a
+trajectory or an ASE database row records is one that <code class="docutils literal notranslate"><span class="pre">get_calculator_class</span></code>
+loads.
+ASE releases that ship
+<code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code> (3.29 and later) list the calculator in <code class="docutils literal notranslate"><span class="pre">ase._4.plugins.plugins.calculators</span></code>
+whichever of <code class="docutils literal notranslate"><span class="pre">cpmdc.ase</span></code> and <code class="docutils literal notranslate"><span class="pre">ase._4.plugins</span></code> is imported first; earlier
+releases have no plugin API and use only the registry.
 It starts no <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> process and writes no input file.
 <a class="reference internal" href="python.html"><span class="doc">Call cpmdc from Python</span></a> covers <code class="docutils literal notranslate"><span class="pre">Session</span></code> and <code class="docutils literal notranslate"><span class="pre">Potential</span></code>,
 the same library without ASE.</p>
@@ -429,7 +434,13 @@ so <code class="docutils literal notranslate"><span class="pre">get_forces</span
 <td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
 <td><p>yes for a supported deck that requests Berry dipole evaluation</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">energies</span></code>, <code class="docutils literal notranslate"><span class="pre">magmom</span></code>, <code class="docutils literal notranslate"><span class="pre">magmoms</span></code>, <code class="docutils literal notranslate"><span class="pre">charges</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">charges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_charges()</span></code></p></td>
+<td><p>electrons, shape <code class="docutils literal notranslate"><span class="pre">(N,)</span></code></p></td>
+<td><p>yes for a supported deck</p></td>
+<td><p>yes for a supported deck</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">energies</span></code>, <code class="docutils literal notranslate"><span class="pre">magmom</span></code>, <code class="docutils literal notranslate"><span class="pre">magmoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">get_property(name)</span></code></p></td>
 <td><p></p></td>
 <td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
@@ -440,9 +451,18 @@ so <code class="docutils literal notranslate"><span class="pre">get_forces</span
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">free_energy</span></code> is the potential energy of the step, because the library does not
 separate an electronic entropy.
-The library returns no atomic energies, charges, or magnetic moments.
-<code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists <code class="docutils literal notranslate"><span class="pre">dipole</span></code> because linked OpenCPMD can deliver it.
-It raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when the current step cannot.</p>
+The library returns no atomic energies or magnetic moments.
+<code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists <code class="docutils literal notranslate"><span class="pre">dipole</span></code> and <code class="docutils literal notranslate"><span class="pre">charges</span></code> because linked OpenCPMD
+can deliver them.
+It raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> when the current step cannot.
+Hirshfeld charges are <code class="docutils literal notranslate"><span class="pre">q</span> <span class="pre">=</span> <span class="pre">Z_v</span> <span class="pre">-</span> <span class="pre">n</span></code>, in the caller’s atom order.
+OpenCPMD stores them after a converged Gamma-point SCF that is not broken
+symmetry and whose species have weight functions.
+A neutral molecule sums to the total charge up to the real-space partition
+residual, about 1.2e-3 e on the 50 Ry Hockney water deck.
+K points, broken symmetry, a missing weight function, the reference evaluator,
+and <code class="docutils literal notranslate"><span class="pre">CPMDC_CHARGE_SNAPSHOT=0</span></code> leave the charges unset.
+A later request for the same atoms does not evaluate again.</p>
 <p>A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
 deck with <code class="docutils literal notranslate"><span class="pre">DIPOLE</span> <span class="pre">DYNAMICS</span></code> or <code class="docutils literal notranslate"><span class="pre">PROP</span> <span class="pre">/</span> <span class="pre">DIPOLE</span> <span class="pre">MOMENT</span> <span class="pre">BERRY</span></code>.
 The reference evaluator, isolated and k-point decks, and decks without either
@@ -500,16 +520,16 @@ and the calculator negates it.</p>
 <td><p>no cell is sent: the deck sets the box and the Poisson solver, and <code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code> is ignored</p></td>
 <td><p>raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>all true, three independent cell vectors</p></td>
+<tr class="row-odd"><td><p>all true, three independent cell vectors, a volume in the normal float64 range</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">atoms.cell</span></code> is sent as the periodic cell</p></td>
 <td><p>computed when the deck is periodic</p></td>
 </tr>
-<tr class="row-even"><td><p>all true, fewer than three independent cell vectors</p></td>
-<td><p>raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
+<tr class="row-even"><td><p>all true, fewer than three independent cell vectors or a volume below the normal float64 range</p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">UnsupportedAtoms</span></code></p></td>
 <td><p></p></td>
 </tr>
 <tr class="row-odd"><td><p>a mix of true and false</p></td>
-<td><p>raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names the open axes</p></td>
+<td><p>raises <code class="docutils literal notranslate"><span class="pre">UnsupportedAtoms</span></code> that names the open axes</p></td>
 <td><p></p></td>
 </tr>
 </tbody>
@@ -517,6 +537,8 @@ and the calculator negates it.</p>
 </div>
 <p>A periodic cell with an isolated deck, such as <code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code>, gives the
 energy and the forces.
+For a tilted cell the composed CPMD deck replaces <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>
+and writes <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code>, retaining the isolated Poisson solver.
 Asking that step for stress raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code> with the
 reason, and the calculator does not evaluate the step again to find it out.</p>
 </section>
@@ -631,6 +653,10 @@ A call on an unchanged structure returns the stored step.
 A change of <code class="docutils literal notranslate"><span class="pre">positions</span></code>, <code class="docutils literal notranslate"><span class="pre">numbers</span></code>, <code class="docutils literal notranslate"><span class="pre">cell</span></code>, or <code class="docutils literal notranslate"><span class="pre">pbc</span></code> evaluates the structure
 again, and <code class="docutils literal notranslate"><span class="pre">calc.calculation_required(atoms,</span> <span class="pre">properties)</span></code> returns true for such
 a structure until it is evaluated.
+The one exception is a change of <code class="docutils literal notranslate"><span class="pre">cell</span></code> while every <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flag stays false: a
+free-boundary step sends no cell, so <code class="docutils literal notranslate"><span class="pre">check_state</span></code> does not list <code class="docutils literal notranslate"><span class="pre">cell</span></code> and the
+stored step stays valid.
+A change of <code class="docutils literal notranslate"><span class="pre">pbc</span></code> always evaluates again.
 A change of <code class="docutils literal notranslate"><span class="pre">initial_charges</span></code> or <code class="docutils literal notranslate"><span class="pre">initial_magmoms</span></code> evaluates the structure
 again, because the calculator reads both; the next section says how.
 A change of <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">momenta</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, or a constraint reuses the step as well,
@@ -676,8 +702,8 @@ That value is the top-level <code class="docutils literal notranslate"><span cla
 and the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> charge when <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> is true or that charge is
 not 0.
 Zero with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> true is explicit.
-The deck renderer and the Fortran embed record that same charge for the
-message the session opens with.
+The deck renderer and the Fortran embed record that same charge for the message
+the session opens with.
 Neither reads <code class="docutils literal notranslate"><span class="pre">Atoms.initial_charges</span></code>, and the C API does not read the
 <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> charge fields.
 The calculator decides the total before that handoff.
@@ -753,10 +779,10 @@ for partial charges, which are not a total charge:</p>
 </span></pre></div>
 </div>
 <p>A keyword such as <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>, or <code class="docutils literal notranslate"><span class="pre">xc</span></code> raises <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> in the
-constructor and in <code class="docutils literal notranslate"><span class="pre">set()</span></code>, and the message names the key and points at
-<code class="docutils literal notranslate"><span class="pre">params</span></code> and at the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> arrays.
-To change the rest of the method, encode another message and pass it to
-<code class="docutils literal notranslate"><span class="pre">set()</span></code>; this example switches to the periodic message:</p>
+constructor and in <code class="docutils literal notranslate"><span class="pre">set()</span></code>, and the message names the key and points at <code class="docutils literal notranslate"><span class="pre">params</span></code>
+and at the <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> arrays.
+To change the rest of the method, encode another message and pass it to <code class="docutils literal notranslate"><span class="pre">set()</span></code>;
+this example switches to the periodic message:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cpmdc.ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPMDCCalculator</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="k">try</span><span class="p">:</span>
@@ -796,9 +822,9 @@ in.</p></li>
 and the orbitals for the next step stay in memory.
 <code class="docutils literal notranslate"><span class="pre">params</span></code> is read when it is set, relative to the directory of the process at
 that moment, not to <code class="docutils literal notranslate"><span class="pre">directory</span></code>.
-<code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> keeps that file, and a <code class="docutils literal notranslate"><span class="pre">library</span></code> path, as an absolute path,
-so a copy that opens its session in another directory and a calculator rebuilt
-from <code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> there use the same files.
+<code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> keeps that file, and a <code class="docutils literal notranslate"><span class="pre">library</span></code> path, as an absolute path, so
+a copy that opens its session in another directory and a calculator rebuilt from
+<code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> there use the same files.
 The <code class="docutils literal notranslate"><span class="pre">restart</span></code> argument is deprecated and ignored, and passing it warns with
 <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>.</p>
 <p>The working directory belongs to the process, so another thread that opens a
@@ -823,16 +849,19 @@ says.</p>
 <tr class="row-odd"><td><p>a keyword other than <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, and ASE’s own; no <code class="docutils literal notranslate"><span class="pre">params</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">TypeError</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>stress or dipole where the step has none; <code class="docutils literal notranslate"><span class="pre">energies</span></code>, <code class="docutils literal notranslate"><span class="pre">magmoms</span></code>, or <code class="docutils literal notranslate"><span class="pre">charges</span></code></p></td>
+<tr class="row-even"><td><p>stress, dipole, or charges where the step has none; <code class="docutils literal notranslate"><span class="pre">energies</span></code> or <code class="docutils literal notranslate"><span class="pre">magmoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ase.calculators.calculator.PropertyNotImplementedError</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>mixed <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flags, a periodic cell of rank below 3 (the numpy.linalg.matrix<sub>rank</sub>  cutoff), or a cell volume below the normal float64 range</p></td>
+<tr class="row-odd"><td><p>mixed <code class="docutils literal notranslate"><span class="pre">pbc</span></code> flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix<sub>rank</sub>  cutoff)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc.ase.UnsupportedAtoms</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>a cell volume below the normal float64 range</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmdc.ase.UnsupportedAtoms</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>a step on a calculator without atoms</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>a step on a calculator without atoms</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>a <code class="docutils literal notranslate"><span class="pre">params</span></code> file that does not exist</p></td>
+<tr class="row-even"><td><p>a <code class="docutils literal notranslate"><span class="pre">params</span></code> file that does not exist</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code></p></td>
 </tr>
 </tbody>
@@ -843,15 +872,21 @@ code that catches either one for another calculator catches it unchanged.
 Its message names the working directory of the step and gives the library’s
 reason.
 The calculator stays usable, and the next call evaluates the step again.</p>
+<p><code class="docutils literal notranslate"><span class="pre">UnsupportedAtoms</span></code> is ASE’s <code class="docutils literal notranslate"><span class="pre">CalculatorSetupError</span></code>, the class that ASE names for
+an <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> object a calculator does not support, and a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, which the
+calculator raised for these structures before.
+<code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">CalculatorError</span></code> and <code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">ValueError</span></code> both catch it.
+It is raised before the library is called, so no step is evaluated and the
+calculator stays usable.</p>
 </section>
 <section id="sessions-and-copies">
 <h2>Sessions and copies<a class="headerlink" href="#sessions-and-copies" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of the same atoms stays on the session.
-After a successful step, a structure with another composition closes the
-session and opens a new one from the same <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+After a successful step, a structure with another composition closes the session
+and opens a new one from the same <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">calc.parameters</span></code> holds <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">library</span></code>, and <code class="docutils literal notranslate"><span class="pre">constant_cutoff</span></code>, with
 absolute paths.
 <code class="docutils literal notranslate"><span class="pre">calc.todict()</span></code> returns them for a trajectory or a database row.
@@ -869,14 +904,13 @@ calculator.
 copy opens its own session on its first step.
 <code class="docutils literal notranslate"><span class="pre">close()</span></code> closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.</p>
-<p><code class="docutils literal notranslate"><span class="pre">calc.read(label)</span></code> always raises ASE’s <code class="docutils literal notranslate"><span class="pre">ReadError</span></code>, because a step stores no file
-that holds results, and ASE’s default would only set the label and let the
+<p><code class="docutils literal notranslate"><span class="pre">calc.read(label)</span></code> always raises ASE’s <code class="docutils literal notranslate"><span class="pre">ReadError</span></code>, because a step stores no
+file that holds results, and ASE’s default would only set the label and let the
 caller think that results were restored.
 The <code class="docutils literal notranslate"><span class="pre">restart</span></code> keyword stays deprecated and ignored, as the reference page says.
 <code class="docutils literal notranslate"><span class="pre">parameters=</span></code> is the supported way to load a saved calculator.</p>
 <p><code class="docutils literal notranslate"><span class="pre">ase.calculators.mixing.SumCalculator</span></code> takes several <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> objects,
-or one beside another ASE calculator, and evaluates each one once per
-structure.
+or one beside another ASE calculator, and evaluates each one once per structure.
 Its stress for a cluster raises <code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code>, as the
 calculator’s own does.</p>
 </section>
@@ -886,8 +920,7 @@ calculator’s own does.</p>
 user asks of a calculator, and answers with ASE’s own tools.
 It runs on the default build, which needs no OpenCPMD archive.
 <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">test-stub</span></code> builds it, and
-<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/python/test_ase_conformance.py</span></code>
-runs the file.
+<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/python/test_ase_conformance.py</span></code> runs the file.
 The file checks these points:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -897,11 +930,11 @@ The file checks these points:</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists energy, free energy, forces, stress, and dipole, and a stored step has ASE’s shapes</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">implemented_properties</span></code> lists energy, free energy, forces, stress, dipole, and charges, and a stored step has ASE’s shapes</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">calc.results</span></code>, <code class="docutils literal notranslate"><span class="pre">ase.io.write</span></code> and <code class="docutils literal notranslate"><span class="pre">read</span></code> of extended XYZ</p></td>
 </tr>
-<tr class="row-odd"><td><p>a property outside the list raises, without evaluating a step</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code>, <code class="docutils literal notranslate"><span class="pre">get_charges()</span></code>, <code class="docutils literal notranslate"><span class="pre">get_magnetic_moment()</span></code></p></td>
+<tr class="row-odd"><td><p>a property outside the list raises, without evaluating a step, and charges raise when the step stored none, without a second evaluation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PropertyNotImplementedError</span></code>, <code class="docutils literal notranslate"><span class="pre">get_magnetic_moment()</span></code>, <code class="docutils literal notranslate"><span class="pre">get_charges()</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>the stored step is reused and discarded as ASE expects</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">check_state</span></code>, <code class="docutils literal notranslate"><span class="pre">system_changes</span></code>, <code class="docutils literal notranslate"><span class="pre">calculation_required</span></code>, <code class="docutils literal notranslate"><span class="pre">get_property(...,</span> <span class="pre">allow_calculation=False)</span></code></p></td>
@@ -954,10 +987,10 @@ The file checks these points:</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> follows the same conventions where it shares them: the
-same units, a failed step reported as <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code>, a step with a NaN or infinite
-result refused, and a new session opened after a change of composition even when
-the previous attempt to open one failed.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> follows the same conventions where it shares them:
+the same units, a failed step reported as <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code>, a step with a NaN or
+infinite result refused, and a new session opened after a change of composition
+even when the previous attempt to open one failed.</p>
 </section>
 </section>
 
@@ -1068,7 +1101,7 @@ the previous attempt to open one failed.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

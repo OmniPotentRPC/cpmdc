@@ -37,6 +37,17 @@ For GROMACS integrating on cpmdc forces, the CP2K interface is the one
 in-process route that carries the energy, the forces, and the box at full
 precision, and it is the one built and tested here.
 
+Both in-process adapters can use the session external-charge ABI.
+GROMACS ``EMBEDDING ELECTROSTATIC`` takes MM positions and charges from its
+generated PDB.
+Python ``cpmdc.lammps.FixExternal(qm_types=...)`` takes the atoms outside those
+types, reads their LAMMPS ``q`` values, and returns forces to both groups.
+The Gaussian charge potential polarizes the CPMD density; its energy is part of
+the QM energy.
+Periodic electrostatic embedding is rejected until a periodic sum is
+implemented.
+Mechanical embedding and whole-system LAMMPS operation are unchanged.
+
 OpenCPMD in GROMACS
 -------------------
 
@@ -160,8 +171,7 @@ One run on the 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open MPI
 8 ranks with ``QM_RANKS ALL`` and nothing else on the machine beyond seconds of
 analysis; the classical controls run on 1 rank.
 The library recentres the QM water in its cluster cell on every call
-(``CPMDC_RECENTER`` in
-:doc:`environment variables <../reference/environment>`).
+(``CPMDC_RECENTER`` in :doc:`environment variables <../reference/environment>`).
 The QM run took 19875 s of wall time by ``md.log``, 0.66 s per step.
 It reported the ``opencpmd`` backend and the stress on the first request, and
 ``md.log`` has no missing-stress line.
@@ -331,13 +341,17 @@ Before recentring
 :::::::::::::::::
 
 The first run of these commands, on a library that kept the QM region's absolute
-position in its cell, gave the QM water 844.6 +- 14.3
-kg/m\ :sup:`3`  (2.2761 +- 0.0390 nm\ :sup:`3`\, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm\ :sup:`3`  for 6 ps, then grew to 2.5 nm\ :sup:`3`  by 13 ps while the pressure turned more negative, and its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell. A water diffuses half a nanometre or more in 15 ps, as the one above did. ``bench/cluster_drift_scan.py``
-moves a BLYP water towards a face of the deck's 10 Angstrom Hockney cell;
-``bench/results/cluster_drift_scan.org`` has the tables. On that library the
-energy moves by -3.9e-5 Hartree with the outer hydrogen 3 Angstrom from the
-face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and -8.4e-3 at 0.5 Angstrom
-past it, where the net force is 0.17 Hartree/Bohr.
+position in its cell, gave the QM water 844.6 +- 14.3 kg/m\ :sup:`3`  (2.2761 +- 0.0390
+nm\ :sup:`3`\, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm\ :sup:`3`  for 6
+ps, then grew to 2.5 nm\ :sup:`3`  by 13 ps while the pressure turned more negative, and
+its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell.
+A water diffuses half a nanometre or more in 15 ps, as the one above did.
+
+``bench/cluster_drift_scan.py`` moves a BLYP water towards a face of the deck's 10 Angstrom Hockney cell; ``bench/results/cluster_drift_scan.org``
+has the tables.
+On that library the energy moves by -3.9e-5 Hartree with the outer hydrogen 3
+Angstrom from the face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and
+-8.4e-3 at 0.5 Angstrom past it, where the net force is 0.17 Hartree/Bohr.
 The trace of ``sum x (x) f`` goes from +0.049 Hartree at the centre to +0.093 at 1
 Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between those two is 1300
 bar on a 2.1 nm\ :sup:`3`  box, against the -13 +- 26 bar of the control, and past the
@@ -405,6 +419,10 @@ box (``metal``, NVE) through each route and reports the median wall time per ste
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
 the same SCF time to every route.
+``cpmdc-mdi`` is not in the table.
+It is a separate process on MDI, so a step also pays for the socket or MPI
+exchange.
+The command sequence and the stress sign are in :doc:`the LAMMPS interface reference <../reference/lammps>`.
 
 .. code:: bash
 
@@ -483,15 +501,11 @@ References
 1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher, P.
    Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale Modeling
    in Computational Chemistry", *J. Chem. Theory Comput.* **15**, 3810-3823
-   (2019),
-   `doi:10.1021/acs.jctc.9b00093 <https://doi.org/10.1021/acs.jctc.9b00093>`_.
+   (2019), `doi:10.1021/acs.jctc.9b00093 <https://doi.org/10.1021/acs.jctc.9b00093>`_.
 
 2. V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti, P.
    Carloni, U. Rothlisberger, "Extreme Scalability of DFT-Based QM/MM MD
-   Simulations Using MiMiC", *J. Chem. Theory Comput.* **15**, 5601-5613 (2019),
-   `doi:10.1021/acs.jctc.9b00424 <https://doi.org/10.1021/acs.jctc.9b00424>`_.
+   Simulations Using MiMiC", *J. Chem. Theory Comput.* **15**, 5601-5613 (2019), `doi:10.1021/acs.jctc.9b00424 <https://doi.org/10.1021/acs.jctc.9b00424>`_.
 
-3. MCL, the MiMiC Communication Library,
-   `gitlab.com/MiMiC-projects/CommLib <https://gitlab.com/MiMiC-projects/CommLib>`_;
-   GROMACS manual,
-   `MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations <https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html>`_.
+3. MCL, the MiMiC Communication Library, `gitlab.com/MiMiC-projects/CommLib <https://gitlab.com/MiMiC-projects/CommLib>`_;
+   GROMACS manual, `MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations <https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html>`_.

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Environment variables - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build options, artifacts, and Pixi tasks" href="build-options.html" /><link rel="prev" title="LAMMPS interface reference" href="lammps.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Environment variables - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build options, artifacts, and Pixi tasks" href="build-options.html" /><link rel="prev" title="LAMMPS interface reference" href="lammps.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/environment.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -351,33 +352,37 @@ data-aria-dark="Switch to auto color mode">
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each evaluation, OpenCPMD or the reference evaluator</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">0</span></code> skips the stress tensor on periodic cells; any other value, or unset, computes it</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_CHARGE_SNAPSHOT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each OpenCPMD evaluation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0</span></code> skips the Hirshfeld charge snapshot; any other value, or unset, requests it. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never requests it</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each OpenCPMD evaluation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> writes <code class="docutils literal notranslate"><span class="pre">cpmdc_warm_start</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_wfn_extrapolated</span> <span class="pre">K</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code> to the error stream</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each OpenCPMD evaluation</p></td>
 <td><p>largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF on a matching basis; default 0.15, a negative value takes them at any distance, and beyond the limit the SCF starts from the deck’s guess without full setup</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_orbital_limit.c</span></code>, before each OpenCPMD evaluation or orbital copy</p></td>
 <td><p>calculator rank 0’s largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each OpenCPMD evaluation on an isolated deck</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mass</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">geometry</span></code> moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; <code class="docutils literal notranslate"><span class="pre">off</span></code> or <code class="docutils literal notranslate"><span class="pre">0</span></code> keeps the caller’s coordinates; <code class="docutils literal notranslate"><span class="pre">MASS</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> and <code class="docutils literal notranslate"><span class="pre">OFF</span></code> are accepted too; any other value fails the call</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER_MARGIN</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER_MARGIN</span></code></p></td>
 <td><p>same place</p></td>
 <td><p>least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code>, each evaluation under a running MPI</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> gives every rank of the calculator rank 0’s energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank’s own result</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code> on each evaluation and orbital copy, and <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_rwfopt.patch</span></code> when the host has not already agreed a value</p></td>
-<td><p>unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code> on each evaluation and orbital copy, <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_rwfopt.patch</span></code> when the host has not already agreed a value, and <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>, which adds the extrapolation history to the count</p></td>
+<td><p>unset leaves keyed orbital storage unbounded; on an OpenCPMD build a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key’s history; the reference build stores neither and counts parked keys only; empty, zero, negative, and non-integer values fail the call</p></td>
 </tr>
 </tbody>
 </table>
@@ -437,9 +442,8 @@ A call whose orbitals start from the <code class="docutils literal notranslate">
 number of earlier converged orbital sets that the prediction combined.
 Each line is flushed as it is written, so a log file shows it while the host
 runs.</p>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> is the distance limit of
-<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">the stored orbitals</span></a> (section
-Distance limit).
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> is the distance limit of <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">the stored orbitals</span></a>
+(section Distance limit).
 A value that does not parse as a number keeps the default.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> acts only on a periodic deck with <code class="docutils literal notranslate"><span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code>; any
 other deck sets CPMD up again for every new cell, whatever the variable says.
@@ -450,31 +454,32 @@ starts from the stored orbitals and keeps the <code class="docutils literal notr
 move changes in the energy and the stress.
 Calculator rank 0 reads the value and broadcasts it; values on the other ranks
 are ignored.</p>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code> is the most parked orbital copies a calculator keeps,
-excluding the key that is selected.
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code> is the most parked orbital copies plus populated
+extrapolation-history entries a calculator keeps, including the selected key’s
+entries.
 Unset, the table grows with each new key.
-A positive integer refuses a park that would pass that count: the evaluation
-or the copy fails, <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> names the variable, and the copies
-already stored stay where they are.
+A positive integer refuses a park that would pass that count: the evaluation or
+the copy fails, <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> names the variable, and the copies already
+stored stay where they are.
 Lowering the value does not discard copies already parked; the next new park
 fails until the count is within the new limit.
 An empty value, zero, a negative value, or any value that is not a positive
 integer fails the call and does not leave the table unbounded.
 Every calculator rank must use the same value.
-A rank that disagrees, or an MPI collective that fails, fails the call on
-every rank.
+A rank that disagrees, or an MPI collective that fails, fails the call on every
+rank.
 Each evaluation and each copy checks its own arguments and session first and
 agrees the value only after that, so a call that is itself bad reports that
 reason even when the value is unusable.
-A rank that rejects its own call still joins the agreement, and every other
-rank then fails the call too, with a message that another rank rejected it,
-instead of waiting for it.
+A rank that rejects its own call still joins the agreement, and every other rank
+then fails the call too, with a message that another rank rejected it, instead
+of waiting for it.
 A session evaluation validates its topology without mutating the session and
 commits it only after the collective preflight succeeds on every rank, so a
 failed preflight leaves the session unchanged.
 Every rank also agrees whether an orbital key is selected, whether stale
-orbitals were cleared, and whether orbital preparation succeeded, failing
-every rank with the same error when any rank diverges or fails.
+orbitals were cleared, and whether orbital preparation succeeded, failing every
+rank with the same error when any rank diverges or fails.
 <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> and a warm-start call that does not go through the library read the
 variable themselves.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> adds three collectives to each evaluation on the
@@ -740,7 +745,7 @@ decide which <code class="docutils literal notranslate"><span class="pre">libcpm
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

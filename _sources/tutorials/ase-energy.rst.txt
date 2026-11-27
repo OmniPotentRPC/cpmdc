@@ -7,19 +7,16 @@ An energy and forces from ASE
 Run the example
 ---------------
 
-This lesson evaluates the same internal water geometry as the
-:doc:`first tutorial <first-energy>`, placed near the origin rather than
-at ``(5, 5, 5)``, with the ASE calculator.
+This lesson evaluates the same internal water geometry as the :doc:`first tutorial <first-energy>`,
+placed near the origin rather than at ``(5, 5, 5)``, with the ASE calculator.
 The default build's origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.
 
 Build and test the default tree with ``pixi run test-stub`` (or
-``meson setup build -Dwith_tests=true`` followed by ``meson test -C build`` or
-``meson compile -C build cpmdc water_params_bin``), as the
-:doc:`build-and-test how-to <../howto/quickstart>` does.
-Plain ``meson compile -C build`` compiles ``build/libcpmdc.so`` while the test run
-or ``water_params_bin`` target writes the encoded water message
-``build/water_blyp_params.bin``.
+``meson setup build -Dwith_tests=true`` followed by ``meson test -C build`` or ``meson compile -C build cpmdc water_params_bin``),
+as the :doc:`build-and-test how-to <../howto/quickstart>` does.
+Plain ``meson compile -C build`` compiles
+``build/libcpmdc.so`` while the test run or ``water_params_bin`` target writes the encoded water message ``build/water_blyp_params.bin``.
 Point the example at both from the root of the checkout:
 
 .. code:: bash

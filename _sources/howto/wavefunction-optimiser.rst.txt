@@ -9,16 +9,16 @@ Goal
 
 Pick the CPMD wavefunction optimiser for a session that evaluates many nearby
 geometries, such as a minimisation, a saddle search, or a nudged elastic band.
-Every call after the first starts from the orbitals of the previous call, so
-the optimiser that suits a cold start from atomic orbitals is not always the
+Every call after the first starts from the orbitals of the previous call, so the
+optimiser that suits a cold start from atomic orbitals is not always the
 cheapest for the warm calls that follow.
 
 Measured on the Si3N4 cluster
 -----------------------------
 
-One minimisation of a 7-atom Si3N4 cluster, BLYP at 70 Ry in a 14 Angstrom
-cube with Kleinman-Bylander pseudopotentials, library route on 16 MPI ranks,
-orbital convergence 1e-5.
+One minimisation of a 7-atom Si3N4 cluster, BLYP at 70 Ry in a 14 Angstrom cube
+with Kleinman-Bylander pseudopotentials, library route on 16 MPI ranks, orbital
+convergence 1e-5.
 The two runs differ only in the optimiser line of the ``&CPMD`` section.
 
 .. table::
@@ -35,8 +35,8 @@ Both reach the same minimum: the two energies differ by 0.065 meV, inside the
 orbital convergence tolerance.
 ODIIS (orbital direct inversion in the iterative subspace) needed fewer and
 cheaper SCF steps.
-PCG (preconditioned conjugate gradient) with ``MINIMIZE`` runs a line
-minimisation that costs about two energy evaluations per step.
+PCG (preconditioned conjugate gradient) with ``MINIMIZE`` runs a line minimisation
+that costs about two energy evaluations per step.
 
 Set ODIIS in the message
 ------------------------
@@ -66,18 +66,35 @@ To keep the deck's PCG line instead, use a directive:
                directives = [ ( keyword = "PCG MINIMIZE", args = [] ) ] ) )
 
 Set only one optimiser in a message.
-Check the rendered ``&CPMD`` section with ``CPMDC_DECK_OUT`` (see
-:doc:`debugging a deck <debug-deck>`).
+Check the rendered ``&CPMD`` section with ``CPMDC_DECK_OUT`` (see :doc:`debugging a deck <debug-deck>`).
 
-When to keep PCG
-----------------
+ODIIS continuation and when to keep PCG
+---------------------------------------
 
-``cpmdc`` applies one deck to every call of a session, so the optimiser chosen
-for the warm calls also runs the cold first call from atomic orbitals.
-Keep ``PCG MINIMIZE`` for a system whose ODIIS calls stop at ``MAXITER``: each
-such call is reported as a failure (see :doc:`troubleshooting <troubleshooting>`),
-and the optimiser choice does not change the converged state, only the path
-to it.
+``cpmdc`` applies one deck to every call of a session, so the optimiser chosen for
+the warm calls also runs the cold first call from atomic orbitals.
+
+On the OpenCPMD path the first pass of a call is one ``wfopts`` with the deck's
+optimiser.
+``cpmdc`` turns DIIS off and continues once with preconditioned ``PCG MINIMIZE``
+when that pass leaves the orbitals unconverged, DIIS is selected, and ``stopgm``
+has not fired.
+An ``ODIIS`` line selects DIIS.
+So does a wavefunction optimisation that names no wavefunction optimiser:
+OpenCPMD then uses preconditioned DIIS with 10 vectors.
+A ``PCG`` line, or electronic steepest descent (``TSDE`` or
+``STEEPEST DESCENT ELECTRONS``), with no ``ODIIS`` line, leaves DIIS unselected, so
+that pass does not continue.
+The continuation restores the previous converged orbitals when a converged copy
+is already stored.
+With no converged copy yet, it starts from the orbitals of the pass that just
+returned, instead of rebuilding the atomic guess.
+It runs once per call.
+If the continuation also fails to converge, the call fails.
+
+Keep ``PCG MINIMIZE`` in the deck when that single continuation still fails, or
+when the first pass hits ``stopgm`` and the continuation is not attempted (see :doc:`troubleshooting <troubleshooting>`).
+The optimiser choice does not change the converged state, only the path to it.
 
 Always set MAXITER
 ------------------
@@ -90,12 +107,14 @@ Strict PCG line minimization
 ----------------------------
 
 For strict orbital targets, apply ``tools/opencpmd_pcg_step.patch`` to the
-OpenCPMD source linked into the native archive. The directional slope and
-curvature both scale with the square of the orbital residual. An absolute
-curvature floor of 1e-15 can suppress the interpolated step even when the
-ratio of derivatives is well resolved. The patch divides both derivatives
-by their largest magnitude before finding the root; equal derivatives
-retain the supplied trial step. It does not change the convergence target.
+OpenCPMD source linked into the native archive.
+The directional slope and curvature both scale with the square of the orbital
+residual.
+An absolute curvature floor of 1e-15 can suppress the interpolated step even
+when the ratio of derivatives is well resolved.
+The patch divides both derivatives by their largest magnitude before finding the
+root; equal derivatives retain the supplied trial step.
+It does not change the convergence target.
 
 .. code:: sh
 
@@ -104,15 +123,18 @@ retain the supplied trial step. It does not change the convergence target.
     /path/to/cpmdc/tools/check_opencpmd_pcg_step.sh "$PWD" "$PWD/build/pcg-step-test"
     /path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
 
-Run compilation inside a compute allocation. The check extracts the patched
-native function and calls it from C++ for 726 roots with derivative scales
-from 1e-300 to 1e300, plus degenerate and extrapolation cases. Expected output:
+Run compilation inside a compute allocation.
+The check extracts the patched native function and calls it from C++ for 726
+roots with derivative scales from 1e-300 to 1e300, plus degenerate and
+extrapolation cases.
+Expected output:
 
 ::
 
     726 scaled native line-search roots and four degenerate/extrapolation cases pass
 
-Relink ``libcpmdc`` against the rebuilt archive. Preserve the separate
-``opencpmd_omp_info.patch`` correction for calculator groups spanning nodes.
-The algebraic check establishes scale invariance; native force convergence
-must also be checked on the requested system and orbital target.
+Relink ``libcpmdc`` against the rebuilt archive.
+Preserve the separate ``opencpmd_omp_info.patch`` correction for calculator groups
+spanning nodes.
+The algebraic check establishes scale invariance; native force convergence must
+also be checked on the requested system and orbital target.

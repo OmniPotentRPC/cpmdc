@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Wavefunction state between calls - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="The MPI model" href="mpi-model.html" /><link rel="prev" title="File, in-process, RPC, and protocol routes" href="routes.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Wavefunction state between calls - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="The MPI model" href="mpi-model.html" /><link rel="prev" title="File, in-process, RPC, and protocol routes" href="routes.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/wavefunction-state.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -370,9 +371,9 @@ Each session keeps a counter of its own successful calls.</p>
 </div>
 <p>A cell counts as unchanged when every component of <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
-all (a step without a cell matches only when the latched state also has no
-cell; <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> does not apply there because
-<code class="docutils literal notranslate"><span class="pre">embed_cell_moves_in_place</span></code> returns false when <code class="docutils literal notranslate"><span class="pre">has_cell</span></code> is 0).
+all (a step without a cell matches only when the latched state also has no cell;
+<code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> does not apply there because <code class="docutils literal notranslate"><span class="pre">embed_cell_moves_in_place</span></code> returns false when <code class="docutils literal notranslate"><span class="pre">has_cell</span></code>
+is 0).
 A new session has no cell of its own yet, so that comparison uses the cell
 stored with the orbitals.
 The cutoff matches within 1e-8 Rydberg.
@@ -447,29 +448,36 @@ A key named and then replaced before an evaluation parks nothing.
 <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code> keeps a table of stored <code class="docutils literal notranslate"><span class="pre">c0</span></code> copies, one per key,
 beside the store <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> restores from.
 Selecting another key parks the <code class="docutils literal notranslate"><span class="pre">c0</span></code> of the key being left, including a stale
-copy from an unconverged pass, and moves the copy parked under the new key
-into the store.
+copy from an unconverged pass, and moves the copy parked under the new key into
+the store.
 A partial copy from an unconverged pass is not parked.
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals()</span></code> duplicates one key’s converged orbitals, and
-the geometry they converged at, into another key, replacing that key’s
-previous copy.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals()</span></code> duplicates one key’s converged orbitals, and the
+geometry they converged at, into another key, replacing that key’s previous
+copy.
 The selected key stays selected.
 When the destination is the selected key, its live store is replaced
 immediately.
 A key with no converged orbitals is refused.
-A donor whose last pass did not converge is refused as well, whether that
-copy is the live store or a parked slot, and a copy onto the same key is
-refused too.
-Selecting that key again, or a warm start that adopts the parked slot, keeps
-the refusal.
+A donor whose last pass did not converge is refused as well, whether that copy
+is the live store or a parked slot, and a copy onto the same key is refused too.
+Selecting that key again, or a warm start that adopts the parked slot, keeps the
+refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of <code class="docutils literal notranslate"><span class="pre">c0</span></code>.
-<code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code>, a positive integer, is the most of those parked
-copies.
-A park that would pass it fails the evaluation or the copy, the result names
-the variable through <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>, and the copies already stored stay
-in the table.
+Each key also parks its <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> ring, and restores that ring when it
+is selected again.
+A copy from another key empties the destination key’s ring, since the copied
+orbitals did not converge along that key’s trajectory.
+A copy of a key onto itself changes neither its orbitals nor its ring.
+An unkeyed evaluation after a keyed one empties the ring of the key it clears,
+and destroying the session that evaluated last empties the ring as well.
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code>, a positive integer, counts every parked <code class="docutils literal notranslate"><span class="pre">c0</span></code> copy
+and every populated history entry, including entries of the selected key.
+The reference build stores neither and counts parked keys only.
+An operation that would pass it fails the evaluation or the copy, the result
+names the variable through <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>, and the selected key and all
+copies already stored stay unchanged.
 Lowering the limit does not drop a copy that is already parked.
 Unset, the table is unbounded.
 A value that is not a positive integer fails the call.
@@ -585,8 +593,12 @@ Along a trajectory with equal time steps, a combination of the orbitals of the
 earlier steps predicts the next ones better.
 Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer
 molecular dynamics (BO-MD) with <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code>, and the always stable
-predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004),
-<a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>) is one of its coefficient sets. CP2K extrapolates by default, with ASPC of order 3 (<code class="docutils literal notranslate"><span class="pre">FORCE_EVAL/DFT/QS</span> <span class="pre">EXTRAPOLATION</span></code>), and Quantum ESPRESSO offers first- and second-order extrapolation of the wavefunctions after Arias, Payne, and Joannopoulos (Phys. Rev. B 45, 1538 (1992), <a class="reference external" href="https://doi.org/10.1103/PhysRevB.45.1538">https://doi.org/10.1103/PhysRevB.45.1538</a>).</p>
+predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">doi:10.1002/jcc.10385</a>)
+is one of its coefficient sets.
+CP2K extrapolates by default, with ASPC of order 3
+(<code class="docutils literal notranslate"><span class="pre">FORCE_EVAL/DFT/QS</span> <span class="pre">EXTRAPOLATION</span></code>), and Quantum ESPRESSO offers first- and
+second-order extrapolation of the wavefunctions after Arias, Payne, and
+Joannopoulos (Phys. Rev. B 45, 1538 (1992), <a class="reference external" href="https://doi.org/10.1103/PhysRevB.45.1538">doi:10.1103/PhysRevB.45.1538</a>).</p>
 <p>OpenCPMD turns the keyword off in a wavefunction optimisation, which is the job
 a host-driven call runs.
 <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code> keeps the request and lets <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> act
@@ -597,8 +609,12 @@ entries and calls CPMD’s <code class="docutils literal notranslate"><span clas
 earlier sets onto the newest one by their overlap, and orthonormalises the
 result.
 The SCF then runs from that prediction to the same convergence threshold.
-The ring is one per process, not one per key, so a key change, an unconverged
-pass, or a start past the distance limit empties it.
+An unkeyed session keeps the one process ring and behaves as before.
+A keyed session moves the active ring into the key’s orbital slot and restores
+that key’s ring when it returns, so interleaved equal-time-step trajectories
+each build their own ASPC or polynomial prediction.
+An unconverged pass, a start past the distance limit, or adopting another key’s
+orbitals as a nearer distance donor empties the affected key’s ring.
 An unconverged pass empties it even when a converged copy was already stored.
 <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code> marks that copy stale on that branch, and
 <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_extrapolate.patch</span></code> calls <code class="docutils literal notranslate"><span class="pre">embed_break_history</span></code> there.
@@ -661,17 +677,17 @@ tenth decimal on.</p>
 <p>A plane wave is a reciprocal lattice vector G(m) = 2 pi m H<sup>-1</sup>  for integer m and
 lattice rows H, so the set of m inside the cutoff sphere, and with it the layout
 of <code class="docutils literal notranslate"><span class="pre">c0</span></code>, belongs to the cell of the setup.
-The penalty of <code class="docutils literal notranslate"><span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code> leaves the components above E0 + 2 sigma
-empty in any cell.
-While the setup’s set of m holds every m whose G in the new cell lies below
-E0 + 2 sigma, the setup’s plane waves span every occupied component of the new
-cell, and the stored orbitals still fit.
+The penalty of <code class="docutils literal notranslate"><span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code> leaves the components above E0 + 2 sigma empty
+in any cell.
+While the setup’s set of m holds every m whose G in the new cell lies below E0 +
+2 sigma, the setup’s plane waves span every occupied component of the new cell,
+and the stored orbitals still fit.
 With T = H<sub>setup</sub>  <sup>-1</sup>  H<sub>new</sub>, the squared length of G(m) in the setup cell is at
 most the largest eigenvalue of T T<sup>T</sup>  times its length in the new cell, so
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> asks that this eigenvalue times E0 + 2 sigma stay within the
 wavefunction cutoff, and four times as much within the density cutoff.</p>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> turns the move on and bounds the principal strain from
-the setup cell, the largest stretch or shrink of a length.
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> turns the move on and bounds the principal strain from the
+setup cell, the largest stretch or shrink of a length.
 A cell within it goes into <code class="docutils literal notranslate"><span class="pre">metr_com%ht</span></code>, and OpenCPMD’s <code class="docutils literal notranslate"><span class="pre">newcell</span></code> rescales the
 G vectors, the structure factors, and the pseudopotential tables, as OpenCPMD’s
 own variable-cell dynamics does each step.
@@ -682,14 +698,14 @@ orthorhombic cell, or <code class="docutils literal notranslate"><span class="pr
 A cell past the limit, or one that fails a condition, sets CPMD up again, and
 the strain is measured from that new setup cell.</p>
 <p>The plane waves between E0 + 2 sigma and the cutoff are then those of the setup
-cell rather than of the new one, which moves the energy and the stress away
-from those of a new setup in proportion to the strain.
+cell rather than of the new one, which moves the energy and the stress away from
+those of a new setup in proportion to the strain.
 On 32 waters at a 100 Ry cutoff with E0 = 85 Ry and sigma = 4.25 Ry, a 1%
 stretch in place differs from a new setup by 3.3 meV in the energy, 0.08
 meV/Angstrom in the forces, and 32 bar in the pressure.
-The tail of erf reaches further below E0 at a wider sigma: the one-water deck
-at 40 Ry with E0 = 30 Ry and the default sigma of 3 Ry differs by about 3 meV,
-1.5 meV/Angstrom, and 3e-6 eV/Angstrom<sup>3</sup>  for the same stretch.
+The tail of erf reaches further below E0 at a wider sigma: the one-water deck at
+40 Ry with E0 = 30 Ry and the default sigma of 3 Ry differs by about 3 meV, 1.5
+meV/Angstrom, and 3e-6 eV/Angstrom<sup>3</sup>  for the same stretch.
 Within one setup, the energies of the moved cells lie on one smooth surface
 whose derivative is the stress, which the <code class="docutils literal notranslate"><span class="pre">python-pytest</span></code> case
 <code class="docutils literal notranslate"><span class="pre">test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy</span></code> checks.</p>
@@ -761,47 +777,50 @@ otherwise overwrite the step’s positions.</p>
 positions of a <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> with <code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span> <span class="pre">patch-positions</span></code>.
 It rewrites only the coordinate records and copies the wavefunction records
 unchanged; the deck then needs <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_restart_write_path()</span></code> replace a <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file in
-one step, so a <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> or a library call that opens it at the same time reads
-the previous file or the finished one, never part of the new one.
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_restart_write_path()</span></code> replace a <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file in one
+step, so a <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> or a library call that opens it at the same time reads the
+previous file or the finished one, never part of the new one.
 The image goes to a short-named temporary file next to the effective
-destination. A new destination is opened with mode 0666 under the umask as a
-plain <code class="docutils literal notranslate"><span class="pre">fopen</span></code> would; replacement keeps the destination’s existing mode.
-On POSIX, when <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> is a symbolic link, as in CPMD’s
-<code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">-&gt;</span> <span class="pre">RESTART.1</span></code> convention, the target is replaced and the link
-survives. A dangling link, whose target is not there yet, is resolved hop
-by hop to the end of the chain, even past the first missing name, and the
-real end is created there: a relative target at each hop is taken from the
-directory that holds that hop’s link, and the new file takes mode 0666
-under the umask, as <code class="docutils literal notranslate"><span class="pre">fopen</span></code> did. While it walks, the writer holds an
-<code class="docutils literal notranslate"><span class="pre">O_DIRECTORY</span></code> descriptor for the parent of the destination and one for the
-directory that contained each symlink it followed, and it records that
-symlink’s device, inode, and target text. Immediately before <code class="docutils literal notranslate"><span class="pre">renameat</span></code> it
-reads those descriptors again with <code class="docutils literal notranslate"><span class="pre">fstatat</span></code> and <code class="docutils literal notranslate"><span class="pre">AT_SYMLINK_NOFOLLOW</span></code>. If
-any followed symlink is no longer that same link, or the final component
-is no longer the absent name or the same file that was resolved, the write
-fails, the temporary file is removed, and nothing is renamed. A loop, or a
-link that cannot be read, is left in place and the write fails.</p>
-<p>That check and the rename are not one operation. POSIX has no call that
-renames a file only when a whole symlink chain is unchanged, so a full
-guarantee is not available. The <code class="docutils literal notranslate"><span class="pre">renameat</span></code> uses the directory descriptor
-taken during resolution, which pins that directory inode: replacing an
-earlier path component afterwards does not redirect the write onto the
-replacement. On Linux, when the headers and kernel provide <code class="docutils literal notranslate"><span class="pre">renameat2</span></code> with
-<code class="docutils literal notranslate"><span class="pre">RENAME_NOREPLACE</span></code>, an absent final name that appears in the gap is left
-alone and the write fails. If that operation is unavailable or rejected,
-the writer falls back to plain <code class="docutils literal notranslate"><span class="pre">renameat</span></code>; a name that appears in the gap
-can then be overwritten. When the resolved destination is an existing
-file, the last check and the <code class="docutils literal notranslate"><span class="pre">renameat</span></code> are also two calls, and a
-substitution of that directory entry in the gap can be overwritten.
-Windows resolves none of this: the destination is written as given, with
-no symlink handling at all.
-The writer flushes that file and syncs it with <code class="docutils literal notranslate"><span class="pre">fsync</span></code>, renames it over the
-destination, and syncs the directory with <code class="docutils literal notranslate"><span class="pre">fsync</span></code>, so the new name also
-survives a crash.
-On Windows, <code class="docutils literal notranslate"><span class="pre">_commit</span></code> flushes the file and <code class="docutils literal notranslate"><span class="pre">MoveFileEx</span></code> with
-<code class="docutils literal notranslate"><span class="pre">MOVEFILE_REPLACE_EXISTING</span></code> and <code class="docutils literal notranslate"><span class="pre">MOVEFILE_WRITE_THROUGH</span></code> replaces the
 destination.
+A new destination is opened with mode 0666 under the umask as a plain <code class="docutils literal notranslate"><span class="pre">fopen</span></code>
+would; replacement keeps the destination’s existing mode.
+On POSIX, when <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> is a symbolic link, as in CPMD’s <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">-&gt;</span> <span class="pre">RESTART.1</span></code>
+convention, the target is replaced and the link survives.
+A dangling link, whose target is not there yet, is resolved hop by hop to the
+end of the chain, even past the first missing name, and the real end is created
+there: a relative target at each hop is taken from the directory that holds that
+hop’s link, and the new file takes mode 0666 under the umask, as <code class="docutils literal notranslate"><span class="pre">fopen</span></code> did.
+While it walks, the writer holds an <code class="docutils literal notranslate"><span class="pre">O_DIRECTORY</span></code> descriptor for the parent of
+the destination and one for the directory that contained each symlink it
+followed, and it records that symlink’s device, inode, and target text.
+Immediately before <code class="docutils literal notranslate"><span class="pre">renameat</span></code> it reads those descriptors again with <code class="docutils literal notranslate"><span class="pre">fstatat</span></code>
+and <code class="docutils literal notranslate"><span class="pre">AT_SYMLINK_NOFOLLOW</span></code>.
+If any followed symlink is no longer that same link, or the final component is
+no longer the absent name or the same file that was resolved, the write fails,
+the temporary file is removed, and nothing is renamed.
+A loop, or a link that cannot be read, is left in place and the write fails.</p>
+<p>That check and the rename are not one operation.
+POSIX has no call that renames a file only when a whole symlink chain is
+unchanged, so a full guarantee is not available.
+The <code class="docutils literal notranslate"><span class="pre">renameat</span></code> uses the directory descriptor taken during resolution, which pins
+that directory inode: replacing an earlier path component afterwards does not
+redirect the write onto the replacement.
+On Linux, when the headers and kernel provide <code class="docutils literal notranslate"><span class="pre">renameat2</span></code> with
+<code class="docutils literal notranslate"><span class="pre">RENAME_NOREPLACE</span></code>, an absent final name that appears in the gap is left alone
+and the write fails.
+If that operation is unavailable or rejected, the writer falls back to plain
+<code class="docutils literal notranslate"><span class="pre">renameat</span></code>; a name that appears in the gap can then be overwritten.
+When the resolved destination is an existing file, the last check and the
+<code class="docutils literal notranslate"><span class="pre">renameat</span></code> are also two calls, and a substitution of that directory entry in the
+gap can be overwritten.
+Windows resolves none of this: the destination is written as given, with no
+symlink handling at all.
+The writer flushes that file and syncs it with <code class="docutils literal notranslate"><span class="pre">fsync</span></code>, renames it over the
+destination, and syncs the directory with <code class="docutils literal notranslate"><span class="pre">fsync</span></code>, so the new name also survives
+a crash.
+On Windows,
+<code class="docutils literal notranslate"><span class="pre">_commit</span></code> flushes the file and <code class="docutils literal notranslate"><span class="pre">MoveFileEx</span></code> with <code class="docutils literal notranslate"><span class="pre">MOVEFILE_REPLACE_EXISTING</span></code> and <code class="docutils literal notranslate"><span class="pre">MOVEFILE_WRITE_THROUGH</span></code>
+replaces the destination.
 A failure before the rename removes the temporary file and leaves the old
 <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> in place.
 A directory that cannot be synced is reported as a failure even though the new
@@ -928,7 +947,7 @@ minimisation took 515 SCF steps at 1.26 s with <code class="docutils literal not
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

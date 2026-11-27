@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>First energy and forces through the C API - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="An energy and forces from ASE" href="ase-energy.html" /><link rel="prev" title="cpmdc" href="../index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>First energy and forces through the C API - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="An energy and forces from ASE" href="ase-energy.html" /><link rel="prev" title="cpmdc" href="../index.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/tutorials/first-energy.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -495,7 +496,7 @@ The Fortran wrapper adds the MPI library and the Fortran runtime for <code class
 </span><span data-line="4">./first_forces<span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.7.0 available=0
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.8.0 available=0
 </span><span data-line="2">energy_h=0.95870388
 </span><span data-line="3">force[0] =  -0.053992  -0.053992  -0.055259
 </span><span data-line="4">force[1] =  -0.006749  -0.007771  -0.006116
@@ -516,9 +517,8 @@ Molecular Dynamics (CPMD) code itself.
 Three things change: the library, the pseudopotential files, and one environment
 variable.</p>
 <ol class="arabic">
-<li><p>Build a patched OpenCPMD archive with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, as the
-<a class="reference internal" href="../howto/opencpmd-archive.html"><span class="doc">archive how-to</span></a> describes, into
-<code class="docutils literal notranslate"><span class="pre">/path/to/opencpmd-build</span></code>.</p></li>
+<li><p>Build a patched OpenCPMD archive with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, as the <a class="reference internal" href="../howto/opencpmd-archive.html"><span class="doc">archive how-to</span></a>
+describes, into <code class="docutils literal notranslate"><span class="pre">/path/to/opencpmd-build</span></code>.</p></li>
 <li><p>Link <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> against it, with the MPI compiler wrappers that built OpenCPMD:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">&quot;</span>
 </span><span data-line="2"><span class="nv">CC</span><span class="o">=</span>mpicc<span class="w"> </span><span class="nv">FC</span><span class="o">=</span>mpif90<span class="w"> </span>meson<span class="w"> </span>setup<span class="w"> </span>build-cpmd<span class="w"> </span><span class="se">\</span>
@@ -551,7 +551,7 @@ link, for example with <code class="docutils literal notranslate"><span class="p
 CPMD then prints its usual output, which ends with the self-consistent field
 (SCF) iterations and the energy breakdown.
 The program prints the energy and forces last:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.7.0 available=1
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.8.0 available=1
 </span><span data-line="2"> ...
 </span><span data-line="3"> NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
 </span><span data-line="4">   1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58
@@ -572,10 +572,9 @@ direction normal to the molecular plane, and mirror-symmetric in <code class="do
 The <code class="docutils literal notranslate"><span class="pre">x</span></code> components round to zero at six decimals, and two keep their minus sign.
 They also sum to zero: cpmdc moves the molecule to the middle of its isolated
 cell before each evaluation and removes the net force the fixed cell would
-otherwise add;
-<a class="reference internal" href="../explanation/isolated-cells.html"><span class="doc">atoms in an isolated cell</span></a> explains
-why, and <a class="reference internal" href="../reference/environment.html"><span class="doc">the environment reference</span></a> lists
-the <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> settings.
+otherwise add; <a class="reference internal" href="../explanation/isolated-cells.html"><span class="doc">atoms in an isolated cell</span></a>
+explains why, and <a class="reference internal" href="../reference/environment.html"><span class="doc">the environment reference</span></a>
+lists the <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> settings.
 The iteration timings in the <code class="docutils literal notranslate"><span class="pre">TCPU</span></code> column depend on the machine.</p>
 </section>
 <section id="what-you-built">
@@ -591,12 +590,11 @@ The pseudopotential directory is unchanged.
 To evaluate many geometries, call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> again on
 the same session.
 On an OpenCPMD build, a call starts from the stored orbitals when the
-functional, deck, cell, cutoff, charge, multiplicity, and elemental
-composition match and the geometry lies within <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> (default
-<code class="docutils literal notranslate"><span class="pre">0.15</span></code> Angstrom root-mean-square distance per atom) of the stored geometry;
-beyond <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> it skips full setup and starts from the deck’s guess
-instead (see
-<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state between calls</span></a>).
+functional, deck, cell, cutoff, charge, multiplicity, and elemental composition
+match and the geometry lies within <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> (default <code class="docutils literal notranslate"><span class="pre">0.15</span></code> Angstrom
+root-mean-square distance per atom) of the stored geometry; beyond
+<code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> it skips full setup and starts from the deck’s guess instead
+(see <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state between calls</span></a>).
 A new session with that same basis starts from those orbitals under the same
 distance rule, including when the atomic numbers are reordered.
 The <a class="reference internal" href="eon-rgpot.html"><span class="doc">eOn tutorial</span></a> drives exactly that loop from a
@@ -712,7 +710,7 @@ over several ranks.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

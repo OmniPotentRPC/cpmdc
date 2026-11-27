@@ -6,11 +6,12 @@ C ABI reference
 The public C ABI (application binary interface) of ``libcpmdc`` is declared in
 ``include/cpmdc.h`` and ``include/cpmdc_features.h``, with the export mark in ``include/cpmdc_export.h``.
 ``include/cpmdc_restart.h`` declares the separate ``libcpmdc_restart`` (see `RESTART file library`_).
-``include/cpmdc_pwscale.h`` declares the opt-in plane-wave scaffold, which is not part of this ABI; its contract is in the :doc:`plane-wave scaffold reference <pwscale>`.
+``include/cpmdc_pwscale.h`` declares the opt-in plane-wave scaffold, which is not
+part of this ABI; its contract is in the :doc:`plane-wave scaffold reference <pwscale>`.
 Installed headers live under ``include/cpmdc/``; include them as
 ``#include <cpmdc.h>`` with the flags of ``pkg-config --cflags cpmdc``.
 Every function has C linkage, and the header compiles as C and as C++.
-``libcpmdc`` exports those 52 functions and no other symbol; the exported symbols
+``libcpmdc`` exports those 57 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ``schema/inventory/surface_map_abi.txt`` records them; it is generated from the
 built library, and the ``c-abi-inventory`` test fails when the headers, the
@@ -20,7 +21,9 @@ carries its own ``@since`` generation.
 The header comments, which the documentation site renders as the generated API
 pages, carry the declarations; this page adds the units, the return conventions,
 and the behaviour that the implementation in ``src/cpmdc.c`` gives each call.
-The :doc:`API contracts <contracts>` page lists every function, type, and constant with its units, layout, ownership, thread and MPI behaviour, errors, and defaults; the ``reference-audit`` test keeps it in step with the headers.
+The :doc:`API contracts <contracts>` page lists every function, type, and
+constant with its units, layout, ownership, thread and MPI behaviour, errors,
+and defaults; the ``reference-audit`` test keeps it in step with the headers.
 
 Exported symbols
 ----------------
@@ -66,14 +69,14 @@ An ELF version script and an ld64 export list do not treat a missing literal
 name the same way.
 A ``global:`` pattern exports a symbol when the link defines it, and does not
 require the symbol to exist.
-``-exported_symbols_list`` requires every literal name to be defined, reporting
-an absent literal as an undefined symbol, while a wildcard entry matches only
+``-exported_symbols_list`` requires every literal name to be defined, reporting an
+absent literal as an undefined symbol, while a wildcard entry matches only
 symbols the link defines.
 Every MPI Fortran sentinel is therefore written as a wildcard pattern so neither
 Open MPI nor MPICH leaves required undefined names for the other implementation.
 The version script always names them; the macOS list adds them when OpenCPMD is
-linked, and the serial macOS library lists the literal public ``cpmdc_``
-functions alone.
+linked, and the serial macOS library lists the literal public ``cpmdc_`` functions
+alone.
 
 Releases up to and including 0.4.0 also export 56 internal functions with the
 ``cpmdc_`` prefix: the glue between ``src/cpmdc.c``, the parameter renderer, and the
@@ -122,8 +125,8 @@ Conventions
     | Threads                    | one process-wide CPMD state; serialize calls into one library instance                                                                                                               |
     +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other
-Cap'n Proto binding that writes the standard flat stream format.
+The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other Cap'n
+Proto binding that writes the standard flat stream format.
 ``ForceInput`` unit strings are matched without regard to case.
 Length: ``angstrom``, ``angstroms``, ``a``, ``aa``, ``bohr``, ``au``, ``a.u.``, ``atomic``,
 ``nm``, ``nanometer``.
@@ -138,24 +141,29 @@ A non-zero ``ForceInput.box`` replaces every ``CELL`` line of ``&SYSTEM`` and it
 ``SYMMETRY``: a cubic deck and a cubic box keep ``SYMMETRY 1``, another orthorhombic
 box gets ``SYMMETRY 8`` and ``CELL a b/a c/a``, and a box with off-diagonal
 components gets ``CELL VECTORS`` without ``SYMMETRY``, which CPMD refuses beside it.
-An isolated deck (``SYMMETRY 0``, the default deck) keeps ``SYMMETRY 0`` and takes
-only an orthorhombic box with positive diagonal entries; a box with
-off-diagonal entries fails with
-``an isolated deck (SYMMETRY 0) needs an orthorhombic box``,
-and one with a non-positive diagonal fails with
+An isolated deck (``SYMMETRY 0``, the default deck, or a ``&SYSTEM`` that names
+``CLUSTER``, ``POISSON SOLVER``, ``ISOLATED MOLECULE``, or ``MOLECULE ISOLATED``) gets
+``SYMMETRY 0`` for an orthorhombic box with positive diagonal entries.
+For a box with off-diagonal entries it replaces ``SYMMETRY 0`` with ``CLUSTER`` and
+writes ``CELL VECTORS``; CPMD documents ``CLUSTER`` as the isolated-system form that
+permits a non-orthorhombic cell.
+A deck that already names ``CLUSTER`` keeps that one line.
+A diagonal box with a non-positive entry fails with
 ``the ForceInput box has a non-positive diagonal``.
-Before fixing the session topology, a non-zero box converted to Angstrom
-is checked by one-sided Jacobi singular values and scaled LU with partial
-pivoting on a power-of-two scaled copy: a non-finite component fails with
-``cell contains a non-finite component``, a cell whose singular values do not
-all exceed the largest singular value times 3 times ``DBL_EPSILON`` (or whose
-scaled LU determinant is zero) fails with
-``cell does not have three independent vectors``, and a full-rank cell
-whose Angstrom volume falls below the normal binary64 range fails with
+Before fixing the session topology, a non-zero box converted to Angstrom is
+checked by one-sided Jacobi singular values and scaled LU with partial pivoting
+on a power-of-two scaled copy: a non-finite component fails with
+``cell contains a non-finite component``, a cell whose singular values do not all
+exceed the largest singular value times 3 times ``DBL_EPSILON`` (or whose scaled
+LU determinant is zero) fails with
+``cell does not have three independent vectors``, and a full-rank cell whose
+Angstrom volume falls below the normal binary64 range fails with
 ``cell volume is too small for binary64``.
-Deck rendering also rejects a non-zero cell without a representable rank-3
-volume (``the periodic cell does not have a representable rank-3 volume`` or
-``the cell does not have a representable rank-3 volume``).
+Deck composition applies the same test to every box with a component that is not
+zero, a NaN included, for periodic and isolated decks alike, and fails with the
+same three messages: ``cell contains a non-finite component``,
+``cell does not have three independent vectors``, or
+``cell volume is too small for binary64``.
 Without ``ANGSTROM`` the box goes in as Bohr.
 An all-zero box is a system without a cell: the deck's ``CELL`` stays, or a 12
 Angstrom cube when the deck has none.
@@ -201,8 +209,8 @@ A session holds a copy of the ``CPMDParams`` bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
 ``session_accept_topology`` fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 
 Result snapshots
 ~~~~~~~~~~~~~~~~
@@ -255,13 +263,15 @@ optimisation.
 ``CPMDCPropertySnapshot.hessian`` and ``hessian_count`` are deprecated because the
 values are the nuclear gradient, not a Hessian.
 Use ``cpmdc_last_gradient()`` or ``cpmdc_session_last_gradient()``.
-The legacy array fixes the current maximum at 4096 gradient components, or
-1365 atoms. An evaluation with more atoms fails before it runs, with
+The legacy array fixes the current maximum at 4096 gradient components, or 1365
+atoms.
+An evaluation with more atoms fails before it runs, with
 ``property gradient snapshot supports at most 1365 atoms``; it is not truncated.
 On a session the check is part of the evaluation preflight, after the topology
-check and before the topology is fixed. A first call that is too large leaves
-the session without a topology. A session that already holds another system
-reports ``topology change requires a new session`` instead of the atom limit.
+check and before the topology is fixed.
+A first call that is too large leaves the session without a topology.
+A session that already holds another system reports
+``topology change requires a new session`` instead of the atom limit.
 
 Fields of ``CPMDCEnergyComponents``; ``valid`` is an ``int``, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -324,8 +334,8 @@ snapshot was written by a successful evaluation, and every other field is a
     +-------------+------------+-----------------------------------------------+
 
 Fields of the other snapshot structs; each also starts with ``int valid``.
-Arrays have the fixed capacity shown, and a ``size_t`` count says how many
-entries a call filled.
+Arrays have the fixed capacity shown, and a ``size_t`` count says how many entries
+a call filled.
 
 .. table::
 
@@ -407,35 +417,56 @@ Library status
 
 .. table::
 
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Function                               | Returns                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-    +========================================+=====================================================================================================================================================================================================================================================================================================================================================================================================================================================+
-    | ``const char *cpmdc_version(void)``    | ``"cpmdc/"`` followed by the project version, or ``"cpmdc-stub/"`` followed by the project version in the link stub                                                                                                                                                                                                                                                                                                                                 |
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_abi_version(void)``        | the ABI generation, equal to ``CPMDC_ABI_VERSION`` and the shared-library soversion, which are the first field of ``version.txt``                                                                                                                                                                                                                                                                                                                   |
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_available(void)``          | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub                                                                                                                                                                                                                                                                                                                              |
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``void cpmdc_finalize(void)``          | reference and OpenCPMD builds: marks the runtime finalized; later calls that need it fail with ``CPMD embed not available``, but a session evaluation that repeats the step the session stored last still returns 0 from the session's cache; the link stub does nothing and its evaluations always fail with ``OpenCPMD embed not available in cpmdc stub`` followed by the called function's name in parentheses; no build calls ``MPI_Finalize`` |
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``const char *cpmdc_last_error(void)`` | per-thread text of the last failing public call, empty after a success                                                                                                                                                                                                                                                                                                                                                                              |
-    +----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Function                                       | Returns                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+    +================================================+=====================================================================================================================================================================================================================================================================================================================================================================================================================================================+
+    | ``const char *cpmdc_version(void)``            | ``"cpmdc/"`` followed by the project version, or ``"cpmdc-stub/"`` followed by the project version in the link stub                                                                                                                                                                                                                                                                                                                                 |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_abi_version(void)``                | the ABI generation, equal to ``CPMDC_ABI_VERSION`` and the shared-library soversion, which are the first field of ``version.txt``                                                                                                                                                                                                                                                                                                                   |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_available(void)``                  | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub                                                                                                                                                                                                                                                                                                                              |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``void cpmdc_finalize(void)``                  | reference and OpenCPMD builds: marks the runtime finalized; later calls that need it fail with ``CPMD embed not available``, but a session evaluation that repeats the step the session stored last still returns 0 from the session's cache; the link stub does nothing and its evaluations always fail with ``OpenCPMD embed not available in cpmdc stub`` followed by the called function's name in parentheses; no build calls ``MPI_Finalize`` |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``const char *cpmdc_last_error(void)``         | per-thread text of the last failing public call, empty after a success                                                                                                                                                                                                                                                                                                                                                                              |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDCErrorCode cpmdc_last_error_code(void)`` | machine-readable code for that failure; periodic electrostatic embedding is ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING``, and a deck ``EXTERNAL POTENTIAL`` combined with session charges is ``CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL``                                                                                                                                                                                                              |
+    +------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. table::
+
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDCErrorCode`` constant                    | Value | Meaning                                                                                                 |
+    +================================================+=======+=========================================================================================================+
+    | ``CPMDC_ERROR_NONE``                           |     0 | no failure recorded on the calling thread                                                               |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ERROR_INVALID_ARGUMENT``               |     1 | a null handle, a bad buffer, or a value the call refuses, such as a Gaussian width below 1e-12 Angstrom |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ERROR_UNAVAILABLE``                    |     2 | the backend is not linked, not ready, or this build is the link stub                                    |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`` |     3 | session charges with a periodic cell or a periodic deck                                                 |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ERROR_EVALUATION_FAILED``              |     4 | the evaluation ran and produced no result                                                               |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL``        |     5 | session charges with a deck ``EXTERNAL POTENTIAL`` or ``EXTERNAL POTENTIAL ADD``                        |
+    +------------------------------------------------+-------+---------------------------------------------------------------------------------------------------------+
 
 ``cpmdc_last_error()`` is written by ``cpmdc_params_method()``,
 ``cpmdc_set_params()``,
 ``cpmdc_configure()``, ``cpmdc_bind_calculator()``, ``cpmdc_adopt_calculator_comm()``,
 ``cpmdc_session_create()``,
 ``cpmdc_session_set_params()``, ``cpmdc_session_select_orbitals()``,
-``cpmdc_session_copy_orbitals()``,
-``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``,
-``cpmdc_potential_result_size_for_force_input()``, and every evaluation entry
-point, ``cpmdc_session_calculate_au()`` among them.
+``cpmdc_session_copy_orbitals()``, ``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``, ``cpmdc_potential_result_size_for_force_input()``, and every evaluation entry point, ``cpmdc_session_calculate_au()``
+among them.
 ``cpmdc_session_set_constant_cutoff()`` writes it too.
 When the call returns ``CPMDCResult``, the text matches ``message``, including a
 missing pseudopotential directory.
 Snapshot readers (``cpmdc_last_stress()`` and the other
-``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the
-snapshot is absent or the output pointer is null.
+``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it, except
+``cpmdc_session_last_external_charge_forces()``, which writes the code and the
+text on every failure and clears both on success.
+For the other readers, -1 means the snapshot is absent or the output pointer is
+null.
 ``cpmdc_adopted_comm()`` and ``cpmdc_capabilities_result()`` do not write it either.
 A capabilities return of -1 is the size query.
 
@@ -454,7 +485,8 @@ MPI
     | ``int cpmdc_adopted_comm(void *out, size_t nbytes)``                                     | copies the stored calculator communicator into ``out`` (on an OpenCPMD build, ``mp_comm_world``); returns 0, or -1 when no communicator is stored; does not write ``cpmdc_last_error()``                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
     +------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-``cpmdc_bind_calculator()`` splits at most once per process, so call it before the first evaluation.
+``cpmdc_bind_calculator()`` splits at most once per process, so call it before the
+first evaluation.
 A later call does not split again.
 ``cpmdc_adopt_calculator_comm()`` may run again after every session has been
 destroyed.
@@ -498,42 +530,40 @@ A typed ``dft`` or ``system`` section beats the top-level field of the same name
 A field that is omitted or holds its schema default (functional ``BLYP``, cutoff
 70 Ry, charge 0 with ``hasCharge`` ``false``, multiplicity 1) is unset and does not
 replace the top-level arm or overlay value.
-So ``xcFunctionals`` fills a ``BLYP`` functional, ``planewaveCutoffEv`` fills a
-70 Ry cutoff, ``charge`` fills a charge of 0 with ``hasCharge`` ``false``, and
+So ``xcFunctionals`` fills a ``BLYP`` functional, ``planewaveCutoffEv`` fills a 70 Ry
+cutoff, ``charge`` fills a charge of 0 with ``hasCharge`` ``false``, and
 ``spinMultiplicity`` fills a multiplicity of 1.
 A typed ``system`` charge of 0 with ``hasCharge`` ``false`` is unset; a non-zero
 system charge, and zero ``system.charge`` with ``system.hasCharge`` ``true``, is
 explicit.
-``planewaveCutoffEv`` is in eV and the deck cutoff is in Ry, so the merge
-divides by the Rydberg energy in eV (13.605693 eV).
+``planewaveCutoffEv`` is in eV and the deck cutoff is in Ry, so the merge divides
+by the Rydberg energy in eV (13.605693 eV).
 ``spinMultiplicity`` 0 is unset, and any other value, an explicit singlet
 included, is merged and checked like the other overlay scalars.
-An ``xcFunctionals`` list is mapped before that precedence, and an unmapped
-token is rejected for every arm functional.
-An opaque carrier is rendered as given and is not read back into the
-recorded functional, cutoff, charge, or multiplicity.
-So the carrier check runs for every set overlay field, whether or not a
-typed field also sets it, including zero ``charge`` with ``hasCharge`` ``true`` and
-an explicit singlet ``spinMultiplicity`` of 1.
+An ``xcFunctionals`` list is mapped before that precedence, and an unmapped token
+is rejected for every arm functional.
+An opaque carrier is rendered as given and is not read back into the recorded
+functional, cutoff, charge, or multiplicity.
+So the carrier check runs for every set overlay field, whether or not a typed
+field also sets it, including zero ``charge`` with ``hasCharge`` ``true`` and an
+explicit singlet ``spinMultiplicity`` of 1.
 The overlay field is rejected when ``inputBlocks``, a raw section, or a generic
-section opens the owning section (``&DFT`` for ``xcFunctionals``, ``&SYSTEM`` for
-the cutoff, charge, and multiplicity), when a set directive names
-``DFT.FUNCTIONAL``, ``SYSTEM.CUTOFF``, ``SYSTEM.CHARGE``, or
-``SYSTEM.MULTIPLICITY``, or when the ``directives`` list of the typed ``dft``
-section holds ``FUNCTIONAL`` or that of the typed ``system`` section holds
-``CUTOFF``, ``CHARGE``, or ``MULTIPLICITY``.
+section opens the owning section (``&DFT`` for ``xcFunctionals``, ``&SYSTEM`` for the
+cutoff, charge, and multiplicity), when a set directive names ``DFT.FUNCTIONAL``,
+``SYSTEM.CUTOFF``, ``SYSTEM.CHARGE``, or ``SYSTEM.MULTIPLICITY``, or when the
+``directives`` list of the typed ``dft`` section holds ``FUNCTIONAL`` or that of the
+typed ``system`` section holds ``CUTOFF``, ``CHARGE``, or ``MULTIPLICITY``.
 Without an overlay, a ``FUNCTIONAL`` directive in the typed ``dft`` section or a
 ``DFT.FUNCTIONAL`` set directive is rejected when the deck is rendered, because
 the rendered ``&DFT`` section already carries the functional.
-The same render rejects a ``CUTOFF``, ``CHARGE``, or ``MULTIPLICITY`` directive in
-the typed ``system`` section, and a ``SYSTEM.CUTOFF``, ``SYSTEM.CHARGE``, or
+The same render rejects a ``CUTOFF``, ``CHARGE``, or ``MULTIPLICITY`` directive in the
+typed ``system`` section, and a ``SYSTEM.CUTOFF``, ``SYSTEM.CHARGE``, or
 ``SYSTEM.MULTIPLICITY`` set directive.
 ``CUTOFF`` is written on every deck, including the default 70 Ry.
 ``CHARGE`` is written only when it is not 0 and ``MULTIPLICITY`` only when it is
-greater than 1; an omitted line is the schema default the recorded
-configuration carries.
-Those directives are rejected for a default value and for any other value
-alike.
+greater than 1; an omitted line is the schema default the recorded configuration
+carries.
+Those directives are rejected for a default value and for any other value alike.
 A default leaves the directive as a value the recorded configuration does not
 carry, and any other value leaves two lines.
 The render does not keep one and drop the other.
@@ -565,11 +595,10 @@ Each call applies the message it is given like ``cpmdc_set_params()`` and then
 evaluates.
 ``cpmdc_set_params()`` detaches the process image without clearing the stored
 orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom
-count, and elemental composition match the latched basis, and whose step
-without a cell matches a latched state that also has no cell
-(``CPMDC_CELL_IN_PLACE`` does not apply without a cell, because
-``embed_cell_moves_in_place`` returns false when ``has_cell`` is 0), skips full
-CPMD setup.
+count, and elemental composition match the latched basis, and whose step without
+a cell matches a latched state that also has no cell
+(``CPMDC_CELL_IN_PLACE`` does not apply without a cell, because ``embed_cell_moves_in_place`` returns false when ``has_cell``
+is 0), skips full CPMD setup.
 It starts the SCF from the stored orbitals when the geometry is within
 ``CPMDC_WARM_RMSD`` (default 0.15 Angstrom) of a stored geometry, and from the
 deck's guess without full setup beyond that limit.
@@ -594,25 +623,29 @@ Sessions
 
 .. table::
 
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | Function                                                                                                              | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-    +=======================================================================================================================+=========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================+
-    | ``CPMDCSession *cpmdc_session_create(const void *params, size_t size)``                                               | copy and render ``CPMDParams``; ``NULL`` on a decode or render failure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)``                                   | resolve a ``PotentialConfig`` like ``cpmdc_configure()``, then create a session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)``                                    | replace the parameters and drop any ``common`` overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)`` | add ``CONSTANT CUTOFF`` to the rendered ``&SYSTEM``; ``cutoff_ry <= 0`` removes it; same topology rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)``                                     | replace the configuration from a ``PotentialConfig``; same rule, and a failed call keeps the previous parameters and overlay                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``void cpmdc_session_destroy(CPMDCSession *s)``                                                                       | free the session; ``NULL`` is accepted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)``                                                 | record ``key``; the next evaluations start from the orbitals stored under ``key``; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past ``CPMDC_ORBITAL_SLOT_LIMIT`` fails, ``cpmdc_last_error()`` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a ``NULL`` session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)``                            | duplicate the converged orbitals of ``from_key``, and the geometry they converged at, into ``to_key``, replacing any previous copy; the selected key is unchanged; when ``to_key`` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting ``to_key`` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past ``CPMDC_ORBITAL_SLOT_LIMIT`` returns -1, ``cpmdc_last_error()`` names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule ``cpmdc_session_select_orbitals()`` has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a ``NULL`` session, before any evaluation, when ``from_key`` has no converged orbitals, or on backend copy failure |
-    +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Function                                                                                                                                              | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+    +=======================================================================================================================================================+=========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================+
+    | ``CPMDCSession *cpmdc_session_create(const void *params, size_t size)``                                                                               | copy and render ``CPMDParams``; ``NULL`` on a decode or render failure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)``                                                                   | resolve a ``PotentialConfig`` like ``cpmdc_configure()``, then create a session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)``                                                                    | replace the parameters and drop any ``common`` overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)``                                 | add ``CONSTANT CUTOFF`` to the rendered ``&SYSTEM``; ``cutoff_ry <= 0`` removes it; same topology rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_set_external_charges(CPMDCSession *s, size_t n, const double *positions_ang, const double *charges_e, const double *widths_ang)`` | copy ``n`` Gaussian MM charges for subsequent calls; widths may be ``NULL`` for the 0.30 Angstrom default and must be at least 1e-12 Angstrom; ``n == 0`` clears them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_last_external_charge_forces(const CPMDCSession *s, double *forces_h_bohr, size_t forces_len)``                                    | copy the ``3 * n`` MM forces from the last successful evaluation when active charges exist and clear ``cpmdc_last_error()``; ``n = 0`` returns 0 and copies nothing, including a null buffer; a repeat answered from the session cache counts as that evaluation; -1 writes ``CPMDC_ERROR_INVALID_ARGUMENT`` for a null session, a missing result, the wrong length, or a null buffer when active charges exist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)``                                                                     | replace the configuration from a ``PotentialConfig``; same rule, and a failed call keeps the previous parameters and overlay                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``void cpmdc_session_destroy(CPMDCSession *s)``                                                                                                       | free the session; ``NULL`` is accepted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)``                                                                                 | record ``key``; the next evaluations start from the orbitals stored under ``key``; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; on an OpenCPMD build ``CPMDC_ORBITAL_SLOT_LIMIT`` is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's entries, and the reference build, which stores neither, counts parked keys only; an evaluation that would park another copy past that limit fails, ``cpmdc_last_error()`` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a ``NULL`` session                                                                                                                                                                                                                                                                                                                                                                                        |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)``                                                            | duplicate the converged orbitals of ``from_key``, and the geometry they converged at, into ``to_key``, replacing any previous copy; the selected key is unchanged; when ``to_key`` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting ``to_key`` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past ``CPMDC_ORBITAL_SLOT_LIMIT`` returns -1, ``cpmdc_last_error()`` names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule ``cpmdc_session_select_orbitals()`` has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a ``NULL`` session, before any evaluation, when ``from_key`` has no converged orbitals, or on backend copy failure |
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 ``cpmdc_session_set_constant_cutoff()`` sets the constant-cutoff kinetic
 functional of Bernasconi et al. (1995), which CPMD applies as G\ :sup:`2`  + A [1 +
@@ -628,12 +661,44 @@ It survives a later ``cpmdc_session_set_params()``.
 The link stub returns -1.
 
 ``session_accept_topology`` fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 ``topology change requires a new session`` before CPMD runs.
 A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+External charges contribute :math:`-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r` to the
+electronic potential.
+For :math:`r/\sigma > 1/8` the closed form is used.
+At or below that ratio the potential and the force coefficient are evaluated
+from their Taylor series in :math:`(r/\sigma)^2` through :math:`(r/\sigma)^{14}`,
+because the closed force coefficient subtracts two terms of size :math:`O(1/r^2)`
+and loses digits to that cancellation as :math:`r` shrinks.
+The series is continuous with the closed form at the switch, finite at
+:math:`r = 0`, and keeps the force on a charge that sits on an ion.
+No term is dropped and nothing is clamped to the origin.
+Every charge and position must be finite, and every width must be finite and at
+least 1e-12 Angstrom, from the argument or from
+``CPMDC_EXTERNAL_CHARGE_WIDTH_ANG``.
+A narrower width fails ``cpmdc_session_set_external_charges()`` with
+``CPMDC_ERROR_INVALID_ARGUMENT`` and keeps the previous charge set, because the
+:math:`1/\sigma^4` force terms overflow to NaN for much narrower Gaussians.
+The total energy includes electron--MM and ion--MM coupling; QM and MM force
+arrays are both ``-dE/dR``.
+External charges are supported on an isolated system only, because periodic
+images are not implemented.
+A step with a periodic cell (a non-zero cell on a deck that leaves periodicity
+unset), or a step on a deck that is not an isolated system (a ``SYMMETRY`` above
+0, a ``SURFACE`` or ``POLYMER`` deck, or ``CELL VECTORS`` without an isolated
+keyword), fails with ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`` on every
+evaluation path, including ``cpmdc_session_energy_gradient()``.
+An isolated or cluster deck (``SYMMETRY 0``, ``SYMMETRY ISOLATED``,
+``POISSON SOLVER``, ``CLUSTER``, or ``ISOLATED MOLECULE``) with an isolated cell, and
+an all-zero cell, are accepted.
+Session charges and a deck-defined ``EXTERNAL POTENTIAL`` or
+``EXTERNAL POTENTIAL ADD`` are mutually exclusive.
+An evaluation that requests both fails with
+``CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`` instead of replacing the deck potential.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
 of every atom changes neither the energy nor the forces (see ``CPMDC_RECENTER`` in :doc:`environment variables <environment>`).
@@ -675,14 +740,14 @@ Session message steps
     +-----------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------+
 
 ``cpmdc_session_calculate_forces()`` and ``cpmdc_session_calculate_result()``
-enforce the ``ForceInput.box`` rules above before fixing the session topology:
-a ``box`` length other than 0 or 9 fails with ``invalid ForceInput geometry``,
-and a non-zero box fails with ``cell contains a non-finite component``,
+enforce the ``ForceInput.box`` rules above before fixing the session topology: a
+``box`` length other than 0 or 9 fails with ``invalid ForceInput geometry``, and a
+non-zero box fails with ``cell contains a non-finite component``,
 ``cell does not have three independent vectors``, or
-``cell volume is too small for binary64`` on the Angstrom cell, or fails
-in the reference evaluator when a non-zero periodic cell cannot represent
-a finite positive stress volume (``cell volume is too large for binary64``
-or ``cell volume is not representable for stress``).
+``cell volume is too small for binary64`` on the Angstrom cell, or fails in the
+reference evaluator when a non-zero periodic cell cannot represent a finite
+positive stress volume (``cell volume is too large for binary64`` or
+``cell volume is not representable for stress``).
 ``cpmdc_session_calculate_result()`` writes the required byte count to ``\*out_size``
 before it checks ``capacity``.
 When ``capacity`` is too small, or ``out`` is ``NULL``, it returns ``ok == 0`` with
@@ -690,8 +755,8 @@ When ``capacity`` is too small, or ``out`` is ``NULL``, it returns ``ok == 0`` w
 of the session result call of the NWChem library ``nwchemc`` as well.
 ``out_size`` is required: a ``NULL`` there fails with ``ok == 0``, and it is set to 0
 when the ``ForceInput`` does not parse or its geometry is invalid.
-A ``forces_len`` below ``3 * n_atoms`` fails ``cpmdc_session_calculate_forces()``
-with ``ok == 0``.
+A ``forces_len`` below ``3 * n_atoms`` fails ``cpmdc_session_calculate_forces()`` with
+``ok == 0``.
 The written ``PotentialResult`` carries ``energy`` and ``forces`` in the requested
 units, ``stress``, ``gradient``, ``dipole``, ``polarizability``, and the ``cpmdc``
 extension fields ``energyComponents``, ``chargeIntegrals``, ``multiStateEnergies``,
@@ -758,14 +823,12 @@ The topology and repeat-step rules of the session apply.
 It returns -1 and sets ``cpmdc_last_error()`` for a ``NULL`` session
 (``null session``), ``n_atoms`` outside 1 to ``INT_MAX / 3`` or a ``NULL`` required
 pointer (``invalid arguments``), a topology change, and a failed evaluation.
-For a non-zero ``cell_bohr``, it fails before fixing the session topology with
-``cell contains a non-finite component``,
-``cell does not have three independent vectors``, or
-``cell volume is too small for binary64`` judged on the converted
-Angstrom cell; when ``virial_h`` is not ``NULL`` and ``cell_bohr`` is finite, a
-Bohr volume above ``DBL_MAX`` fails before evaluation with
-``cell volume is too large for binary64``, and any non-finite component of
-``volume * stress`` after evaluation fails with ``virial is not finite``.
+For a non-zero
+``cell_bohr``, it fails before fixing the session topology with ``cell contains a non-finite component``, ``cell does not have three independent vectors``, or ``cell volume is too small for binary64`` judged on the converted Angstrom cell; when ``virial_h``
+is not ``NULL`` and ``cell_bohr`` is finite, a Bohr volume above ``DBL_MAX`` fails
+before evaluation with ``cell volume is too large for binary64``, and any
+non-finite component of ``volume * stress`` after evaluation fails with
+``virial is not finite``.
 When ``virial_h`` is ``NULL``, the reference evaluator still fails a non-zero
 periodic cell whose Bohr volume cannot be represented for stress
 (``cell volume is too large for binary64`` or
@@ -830,6 +893,8 @@ session has run.
     +-----------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
     | ``int cpmdc_last_dipole(CPMDCDipole *out)``                           | ``int cpmdc_session_last_dipole(const CPMDCSession *s, CPMDCDipole *out)``                           |
     +-----------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
+    | ``int cpmdc_last_charges(double *charges, size_t length)``            | ``int cpmdc_session_last_charges(const CPMDCSession *session, double *charges, size_t length)``      |
+    +-----------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
     | ``int cpmdc_last_stress(CPMDCStressTensor *out)``                     | ``int cpmdc_session_last_stress(const CPMDCSession *s, CPMDCStressTensor *out)``                     |
     +-----------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
 
@@ -855,12 +920,33 @@ An isolated deck, a k-point calculation, the reference evaluator, and a deck
 without either request leave the dipole invalid.
 A deck that sets ``DIPOLE DYNAMICS`` in ``&CPMD`` and ``KPOINTS`` in ``&SYSTEM`` is
 rejected before any evaluation, by ``cpmdc_session_create()``,
-``cpmdc_session_set_params()``, and the calls that take parameters, because
-OpenCPMD stops in ``localize2`` on it; ``cpmdc_last_error()`` names both keywords.
+``cpmdc_session_set_params()``, and the calls that take parameters, because OpenCPMD stops in ``localize2`` on it; ``cpmdc_last_error()``
+names both keywords.
 OpenCPMD's ``ddip%pdipole`` is not this molecular dipole: ``ddipo`` adds the ionic
-term to make ``pdipolt``, then multiplies by the cell volume to set
-``moment%dmom``. Reading ``pdipole`` after ``wfopts`` without calling ``ddipo`` would
-return stale module state.
+term to make ``pdipolt``, then multiplies by the cell volume to set ``moment%dmom``.
+Reading ``pdipole`` after ``wfopts`` without calling ``ddipo`` would return stale
+module state.
+
+The charge accessors copy Hirshfeld charges, ``q = Z_v - n``, in the caller's atom
+order and in units of e.
+OpenCPMD computes them in ``atomc`` after a converged Gamma-point SCF when the
+embed requested the snapshot and every species has a weight function, ``nshell``
+in 1 through 20.
+``proppt`` stops with k points not implemented before ``atomc``, so a k-point
+calculation leaves the charges invalid.
+Broken symmetry leaves them invalid too, as does a species whose ``nshell`` is
+outside that range.
+``CPMDC_CHARGE_SNAPSHOT=0`` skips the snapshot.
+The charges are not fields of ``CPMDCPropertySnapshot``.
+The reference evaluator and the stub store none.
+A failed evaluation invalidates stored charges, so the next read returns the
+same not-available status as before any evaluation.
+A call returns 0 only when charges were stored and ``length`` is at least the atom
+count.
+Otherwise it returns -1 and does not write the buffer or ``cpmdc_last_error()``.
+The density build ``atomc`` needs rewrites the charge integrals and the kinetic
+energy, and the embed restores both, so the reported energy is the SCF result.
+``cpmd.x`` does not request the snapshot.
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ``totstr`` (``cntl%tpres``, which requires a periodic cell and

@@ -1,0 +1,47 @@
+.. index:: pair: enum; CPMDCErrorCode
+.. _doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1:
+
+enum CPMDCErrorCode
+===================
+
+Overview
+~~~~~~~~
+
+Machine-readable reason for the most recent failing public call. :ref:`More...<details-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>`
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	#include <cpmdc.h>
+
+	enum CPMDCErrorCode {
+	    :target:`CPMDC_ERROR_NONE<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1ac3db2a67ef65aadf0211d17d55321e83>`                           = 0,
+	    :target:`CPMDC_ERROR_INVALID_ARGUMENT<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1a85d3c2c9cbf6d49b30361e8f6f62bfd1>`               = 1,
+	    :target:`CPMDC_ERROR_UNAVAILABLE<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1a104a7e794dc47d50fcafeb9c811eb164>`                    = 2,
+	    :target:`CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1a1fd8a36a19a8e17f7777c7b95a2ed65f>` = 3,
+	    :target:`CPMDC_ERROR_EVALUATION_FAILED<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1ae8916f093391cbc226ae31503aee31b1>`              = 4,
+	    :ref:`CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1a1d1e44a4251228eb7c8b8cdcd710ac61>`        = 5,
+	};
+
+.. _details-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Machine-readable reason for the most recent failing public call.
+
+The text from ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>``` remains the detailed diagnostic.
+
+Enum Values
+-----------
+
+.. index:: pair: enumvalue; CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL
+.. _doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1a1d1e44a4251228eb7c8b8cdcd710ac61:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL
+
+Session charges and a deck ``EXTERNAL POTENTIAL`` were both requested.
+

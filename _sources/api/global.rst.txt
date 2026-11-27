@@ -7,6 +7,7 @@ Global Namespace
 .. toctree::
 	:hidden:
 
+	enum_CPMDCErrorCode.rst
 	enum_CPMDCFeatureKind.rst
 	struct_CPMDCChargeIntegrals.rst
 	struct_CPMDCDipole.rst
@@ -35,6 +36,7 @@ Overview
 	// typedefs
 
 	typedef struct CPMDCResult :ref:`CPMDCResult<doxid-cpmdc_8h_1a624f3d7d040e783aef1536f49e2a43ca>`;
+	typedef enum :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>` :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a5b60d334b4f27c6afab0f764c9f581b9>`;
 	typedef struct CPMDCEnergyComponents :ref:`CPMDCEnergyComponents<doxid-cpmdc_8h_1aedc8eb0071a1f153ea4db9c0d96bce19>`;
 	typedef struct CPMDCChargeIntegrals :ref:`CPMDCChargeIntegrals<doxid-cpmdc_8h_1aae00229c7649a90a8da6e23113d367dd>`;
 	typedef struct CPMDCMultiStateEnergies :ref:`CPMDCMultiStateEnergies<doxid-cpmdc_8h_1a7154299d9d5bfe722eb33b24d941abf8>`;
@@ -55,6 +57,7 @@ Overview
 
 	// enums
 
+	enum :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>`;
 	enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>`;
 
 	// structs
@@ -87,6 +90,8 @@ Overview
 	CPMDC_API :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create<doxid-cpmdc_8h_1ab23467cf922312d417497493f78b93ad>`(const void* params_capnp, size_t params_capnp_size_bytes);
 	CPMDC_API int :ref:`cpmdc_session_set_params<doxid-cpmdc_8h_1a98afe31cb8ae1b9e2c53d80c2ffabd42>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* params_capnp, size_t params_capnp_size_bytes);
 	CPMDC_API int :ref:`cpmdc_session_set_constant_cutoff<doxid-cpmdc_8h_1aeeea42852294c2c9de4d1958de04ee84>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double cutoff_ry, double height_ry, double width_ry);
+	CPMDC_API int :ref:`cpmdc_session_set_external_charges<doxid-cpmdc_8h_1acd2f51daf63bc90f593bd1b1c52667e4>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, size_t n_charges, const double* positions_ang, const double* charges_e, const double* widths_ang);
+	CPMDC_API int :ref:`cpmdc_session_last_external_charge_forces<doxid-cpmdc_8h_1a3c8f6bb4736b856034472e8b0d24f51a>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double* forces_h_bohr, size_t forces_len);
 	CPMDC_API :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create_from_config<doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>`(const void* config_capnp, size_t config_capnp_size_bytes);
 	CPMDC_API int :ref:`cpmdc_session_configure<doxid-cpmdc_8h_1a85d433de4dee32e3a3cec05587b3448d>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* config_capnp, size_t config_capnp_size_bytes);
 	CPMDC_API void :ref:`cpmdc_session_destroy<doxid-cpmdc_8h_1afe5e6b952ebf9700dd383786a37be58c>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session);
@@ -104,6 +109,7 @@ Overview
 	CPMDC_API int :ref:`cpmdc_capabilities_result<doxid-cpmdc_8h_1a34fb88fb7ba45f57249e29346ffb5d32>`(void* capabilities_capnp, size_t capabilities_capnp_capacity_bytes, size_t* capabilities_capnp_size_bytes);
 	CPMDC_API const char* :ref:`cpmdc_version<doxid-cpmdc_8h_1a2de0f095eaf5d32c0a2e6aa5449f8903>`(void);
 	CPMDC_API const char* :ref:`cpmdc_last_error<doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>`(void);
+	CPMDC_API :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>` :ref:`cpmdc_last_error_code<doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a>`(void);
 	CPMDC_API int :ref:`cpmdc_abi_version<doxid-cpmdc_8h_1aee86a30f2a724b354f33828938bf859c>`(void);
 	CPMDC_API int :ref:`cpmdc_available<doxid-cpmdc_8h_1a190d73a25d3f2b3f3dd040c9992d43c4>`(void);
 	CPMDC_API void :ref:`cpmdc_finalize<doxid-cpmdc_8h_1a9274ea8eda586f5f73f2272dd45bc6ed>`(void);
@@ -121,6 +127,8 @@ Overview
 	CPMDC_API int :ref:`cpmdc_session_last_gradient<doxid-cpmdc_8h_1aafd3421da0bedb4742331d904dcb9cdb>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double* out, size_t capacity, size_t* count);
 	CPMDC_API int :ref:`cpmdc_last_dipole<doxid-cpmdc_8h_1acf0374bb73ca2908c152260a685c4b25>`(:ref:`CPMDCDipole<doxid-struct_c_p_m_d_c_dipole>`* out);
 	CPMDC_API int :ref:`cpmdc_session_last_dipole<doxid-cpmdc_8h_1a1994564df1c8549f9a1fc71af0067ee7>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCDipole<doxid-struct_c_p_m_d_c_dipole>`* out);
+	CPMDC_API int :ref:`cpmdc_last_charges<doxid-cpmdc_8h_1a8fb7b85eb906f674b66969cc2a06921b>`(double* charges, size_t length);
+	CPMDC_API int :ref:`cpmdc_session_last_charges<doxid-cpmdc_8h_1add39fc28aa02303967418258ce2e9e24>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double* charges, size_t length);
 	CPMDC_API int :ref:`cpmdc_last_stress<doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f>`(:ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	CPMDC_API int :ref:`cpmdc_session_last_stress<doxid-cpmdc_8h_1a2c30dd4c1719f0957c5befefa668d98d>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	CPMDC_API int :ref:`cpmdc_last_rank_spread<doxid-cpmdc_8h_1ae23c55812ac6c2d03fb6489951732fc3>`(:ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`* out);
@@ -193,6 +201,18 @@ Typedefs
 	typedef struct CPMDCResult CPMDCResult
 
 Result returned by energy / gradient / forces entry points.
+
+.. index:: pair: typedef; CPMDCErrorCode
+.. _doxid-cpmdc_8h_1a5b60d334b4f27c6afab0f764c9f581b9:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef enum :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>` CPMDCErrorCode
+
+Machine-readable reason for the most recent failing public call.
+
+The text from ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>``` remains the detailed diagnostic.
 
 .. index:: pair: typedef; CPMDCEnergyComponents
 .. _doxid-cpmdc_8h_1aedc8eb0071a1f153ea4db9c0d96bce19:
@@ -600,6 +620,34 @@ The session deck gains ``&SYSTEM CONSTANT CUTOFF``, which replaces G^2 in the ki
 
 0, or -1 when ``session`` is ``NULL``, a value is not finite, the session has accepted a topology, E0 + 2 sigma exceeds the deck's cutoff, the message also sets ``system.constantCutoff``, or the message gives ``&SYSTEM`` as raw text. The session keeps its previous setting on failure, and the reason is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```.
 
+.. index:: pair: function; cpmdc_session_set_external_charges
+.. _doxid-cpmdc_8h_1acd2f51daf63bc90f593bd1b1c52667e4:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API int cpmdc_session_set_external_charges(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, size_t n_charges, const double* positions_ang, const double* charges_e, const double* widths_ang)
+
+Set Gaussian-smeared MM point charges for the next session step.
+
+Positions and Gaussian standard deviations are Angstrom; charges are in units of the elementary charge. ``widths_ang`` may be NULL, selecting ``CPMDC_EXTERNAL_CHARGE_WIDTH_ANG`` (default 0.30 Angstrom) for every charge. A count of zero clears the embedding. Repeating this call replaces the previous charge set and invalidates the geometry-result cache.
+
+Every charge and position must be finite, and every width must be finite and at least 1e-12 Angstrom. A narrower width is refused with ``CPMDC_ERROR_INVALID_ARGUMENT`` and leaves the previous charge set in place, because the force terms scale as ``1 / sigma^4`` and overflow to NaN for much narrower Gaussians. The same lower bound applies to ``CPMDC_EXTERNAL_CHARGE_WIDTH_ANG``.
+
+The interaction kernel is ``erf(r / (sqrt(2) sigma)) / r``, evaluated from its closed form for ``r / sigma`` above 1/8 and from a Taylor series in ``(r / sigma)^2`` through ``(r / sigma)^14`` below it, so a charge at an ion position gives a finite energy and force. Only isolated systems are supported. A periodic cell, or a deck that is not an isolated system, fails with ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`` on every evaluation path.
+
+.. index:: pair: function; cpmdc_session_last_external_charge_forces
+.. _doxid-cpmdc_8h_1a3c8f6bb4736b856034472e8b0d24f51a:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API int cpmdc_session_last_external_charge_forces(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double* forces_h_bohr, size_t forces_len)
+
+Copy forces on the external charges from the last successful step.
+
+``forces_h_bohr`` has ``3 * n_charges`` doubles in the order installed by ``:ref:`cpmdc_session_set_external_charges() <doxid-cpmdc_8h_1acd2f51daf63bc90f593bd1b1c52667e4>```. Returns 0 after the copy and clears ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```. Returns -1, with ``CPMDC_ERROR_INVALID_ARGUMENT`` and a message, when ``session`` is NULL, when no successful evaluation has stored forces for the current charge set, when ``forces_len`` is not ``3 * n_charges``, or when the buffer is NULL and ``forces_len`` is positive. An empty charge set has an empty result: after a successful evaluation, ``forces_len = 0`` returns 0 and copies nothing. A failed evaluation clears that result. A later call answered from the session cache marks it readable again.
+
 .. index:: pair: function; cpmdc_session_create_from_config
 .. _doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c:
 
@@ -656,7 +704,7 @@ Release a persistent evaluation session.
 
 Name the calculation the next evaluations of this session belong to.
 
-The process stores the converged orbitals of one SCF. With a key named, those orbitals are kept per key: an evaluation under a key starts from the orbitals the last converged evaluation under the same key left, and a key that has none yet starts from the orbitals already stored. Of the stored orbitals of every key, the ones that converged nearest to the new geometry start the SCF, and only within CPMDC_WARM_RMSD (root-mean- square distance per atom, default 0.15 Angstrom); farther, the deck's guess starts it. A host that runs several calculations on one calculator, the images of a band or the beads of a ring polymer, names each by a stable key, so each starts from its own previous geometry instead of from its neighbour's. Every rank of a calculator names the same key before the same evaluation. The call records the key. The evaluation applies it, so a key that is named and then replaced before an evaluation does not park orbitals. CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked copies. An evaluation that would park another copy past that limit fails, :ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>` names the variable, and the copies already stored are left unchanged. Unset storage is unbounded. A basis change clears every key's orbitals. A session that never names a key keeps one stored copy.
+The process stores the converged orbitals of one SCF. With a key named, those orbitals are kept per key: an evaluation under a key starts from the orbitals the last converged evaluation under the same key left, and a key that has none yet starts from the orbitals already stored. Of the stored orbitals of every key, the ones that converged nearest to the new geometry start the SCF, and only within CPMDC_WARM_RMSD (root-mean- square distance per atom, default 0.15 Angstrom); farther, the deck's guess starts it. A host that runs several calculations on one calculator, the images of a band or the beads of a ring polymer, names each by a stable key, so each starts from its own previous geometry instead of from its neighbour's. Every rank of a calculator names the same key before the same evaluation. The call records the key. The evaluation applies it, so a key that is named and then replaced before an evaluation does not park orbitals. A key also keeps its own ``EXTRAPOLATE WFN`` ring, so switching keys preserves each trajectory's predictor history. CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked orbital copies plus populated extrapolation-ring entries, including the selected key's entries, on an OpenCPMD build. The reference build stores neither orbitals nor rings and counts parked keys only. An evaluation that would add another copy past that limit fails, :ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>` names the variable, and every stored copy and the selected key are left unchanged. Unset storage is unbounded. A basis change clears every key's orbitals and history. A session that never names a key keeps the single process history exactly as the unkeyed route does. An unkeyed evaluation after a keyed one empties the history, and so does destroying the session that evaluated last.
 
 
 
@@ -852,7 +900,17 @@ Diagnostic for the most recent public call on this thread that reports failure t
 
 Written by ``:ref:`cpmdc_params_method() <doxid-cpmdc_8h_1a984e13cd741a7b572cb26e07dd4ed249>```, ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a4ead93418d798f0efa78201ee139a78e>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a1d186f78a2871edca68f954e3cdd1055>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1a3248bc3610324ebe2d7709f1b6e1c212>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1ab23467cf922312d417497493f78b93ad>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a98afe31cb8ae1b9e2c53d80c2ffabd42>```, ``:ref:`cpmdc_session_set_constant_cutoff() <doxid-cpmdc_8h_1aeeea42852294c2c9de4d1958de04ee84>```, ``:ref:`cpmdc_session_select_orbitals() <doxid-cpmdc_8h_1a23e2405fce3175f46695bdb6030b05e4>```, ``:ref:`cpmdc_session_copy_orbitals() <doxid-cpmdc_8h_1a585f05a2f8a6a2a62994e841c1cab573>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a85d433de4dee32e3a3cec05587b3448d>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1aa75a9ff4660e780e32a8fcca0d57074d>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1aaa45146d41dccf27daee54e9ea5855d1>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1a61e3c6a4a0da4621b9d71778b330570f>```, the session variants, ``:ref:`cpmdc_session_calculate_au() <doxid-cpmdc_8h_1a091584d601b5f5d8a5586278921f507c>```, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
 
-Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_adopted_comm() <doxid-cpmdc_8h_1a877e3fb355229e5305acd8d113bec1af>``` and ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a34fb88fb7ba45f57249e29346ffb5d32>``` do not write it either. A capabilities return of -1 is the size query.
+Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it, except ``:ref:`cpmdc_session_last_external_charge_forces() <doxid-cpmdc_8h_1a3c8f6bb4736b856034472e8b0d24f51a>```, which writes this string and ``:ref:`cpmdc_last_error_code() <doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a>``` on every failure and clears both on success. For the other readers, -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_adopted_comm() <doxid-cpmdc_8h_1a877e3fb355229e5305acd8d113bec1af>``` and ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a34fb88fb7ba45f57249e29346ffb5d32>``` do not write it either. A capabilities return of -1 is the size query.
+
+.. index:: pair: function; cpmdc_last_error_code
+.. _doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API :ref:`CPMDCErrorCode<doxid-cpmdc_8h_1a449e7c4e9c8d6b3d4525e621bbbd37d1>` cpmdc_last_error_code(void)
+
+Typed reason corresponding to ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```.
 
 .. index:: pair: function; cpmdc_abi_version
 .. _doxid-cpmdc_8h_1aee86a30f2a724b354f33828938bf859c:
@@ -1045,6 +1103,30 @@ Returns 0 only when the dipole was recomputed for that geometry. Returns -1 with
 	CPMDC_API int cpmdc_session_last_dipole(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCDipole<doxid-struct_c_p_m_d_c_dipole>`* out)
 
 Copy the last molecular dipole stored on ``session``.
+
+.. index:: pair: function; cpmdc_last_charges
+.. _doxid-cpmdc_8h_1a8fb7b85eb906f674b66969cc2a06921b:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API int cpmdc_last_charges(double* charges, size_t length)
+
+Copy the Hirshfeld charges of the last evaluation.
+
+Charges are not fields of ``:ref:`CPMDCPropertySnapshot <doxid-struct_c_p_m_d_c_property_snapshot>```. ``length`` is the number of doubles available in ``charges``. On success the call writes one value per atom, in the caller's atom order, in units of e. Returns 0 only when that evaluation stored charges and ``length`` is at least the atom count. Returns -1 otherwise, and does not write ``charges`` or ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```. A failed evaluation invalidates stored charges, so the next read has the same not-available status as before any evaluation.
+
+.. index:: pair: function; cpmdc_session_last_charges
+.. _doxid-cpmdc_8h_1add39fc28aa02303967418258ce2e9e24:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	CPMDC_API int cpmdc_session_last_charges(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, double* charges, size_t length)
+
+Copy the Hirshfeld charges stored on ``session``.
+
+The buffer rules match ``:ref:`cpmdc_last_charges() <doxid-cpmdc_8h_1a8fb7b85eb906f674b66969cc2a06921b>```. A failed evaluation invalidates the charges stored on ``session``, so this call then returns the not-available status it uses before any evaluation.
 
 .. index:: pair: function; cpmdc_last_stress
 .. _doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f:

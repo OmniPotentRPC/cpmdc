@@ -11,9 +11,13 @@ Importing ``cpmdc.ase`` registers ``CPMDCCalculator`` under ``"cpmdc"`` with
 ``ase.calculators.calculator.register_calculator_class``, so
 ``get_calculator_class("cpmdc")`` returns it, and an installed package also
 exposes ``cpmdc.ase`` in the ``ase.plugins`` entry-point group.
-ASE releases that ship ``ase._4.plugins`` (3.29 and later) list the calculator in
-``ase._4.plugins.plugins.calculators`` whichever of ``cpmdc.ase`` and ``ase._4.plugins``
-is imported first; earlier releases have no plugin API and use only the registry.
+The calculator's ``name`` is ``"cpmdc"``, the registered name, so the name that a
+trajectory or an ASE database row records is one that ``get_calculator_class``
+loads.
+ASE releases that ship
+``ase._4.plugins`` (3.29 and later) list the calculator in ``ase._4.plugins.plugins.calculators``
+whichever of ``cpmdc.ase`` and ``ase._4.plugins`` is imported first; earlier
+releases have no plugin API and use only the registry.
 It starts no ``cpmd.x`` process and writes no input file.
 :doc:`Call cpmdc from Python <python>` covers ``Session`` and ``Potential``,
 the same library without ASE.
@@ -69,27 +73,38 @@ so ``get_forces`` after ``get_potential_energy`` does not evaluate again:
 
 .. table::
 
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | Property                                           | ASE call                                        | Unit                                                       | Free boundaries                        | Periodic cell                                                  |
-    +====================================================+=================================================+============================================================+========================================+================================================================+
-    | ``energy``                                         | ``get_potential_energy()``                      | eV                                                         | yes                                    | yes                                                            |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | ``free_energy``                                    | ``get_potential_energy(force_consistent=True)`` | eV                                                         | equals ``energy``                      | equals ``energy``                                              |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | ``forces``                                         | ``get_forces()``                                | eV/Angstrom, shape ``(N, 3)``                              | yes                                    | yes                                                            |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | ``stress``                                         | ``get_stress()``                                | eV/Angstrom\ :sup:`3`\, Voigt ``(xx, yy, zz, yz, xz, xy)`` | raises ``PropertyNotImplementedError`` | yes, unless the deck is isolated or ``CPMDC_STRESS=0``         |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | ``dipole``                                         | ``get_dipole_moment()``                         | e\*Angstrom, shape ``(3,)``                                | raises ``PropertyNotImplementedError`` | yes for a supported deck that requests Berry dipole evaluation |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
-    | ``energies``, ``magmom``, ``magmoms``, ``charges`` | ``get_property(name)``                          | \                                                          | raises ``PropertyNotImplementedError`` | raises ``PropertyNotImplementedError``                         |
-    +----------------------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | Property                              | ASE call                                        | Unit                                                       | Free boundaries                        | Periodic cell                                                  |
+    +=======================================+=================================================+============================================================+========================================+================================================================+
+    | ``energy``                            | ``get_potential_energy()``                      | eV                                                         | yes                                    | yes                                                            |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``free_energy``                       | ``get_potential_energy(force_consistent=True)`` | eV                                                         | equals ``energy``                      | equals ``energy``                                              |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``forces``                            | ``get_forces()``                                | eV/Angstrom, shape ``(N, 3)``                              | yes                                    | yes                                                            |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``stress``                            | ``get_stress()``                                | eV/Angstrom\ :sup:`3`\, Voigt ``(xx, yy, zz, yz, xz, xy)`` | raises ``PropertyNotImplementedError`` | yes, unless the deck is isolated or ``CPMDC_STRESS=0``         |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``dipole``                            | ``get_dipole_moment()``                         | e\*Angstrom, shape ``(3,)``                                | raises ``PropertyNotImplementedError`` | yes for a supported deck that requests Berry dipole evaluation |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``charges``                           | ``get_charges()``                               | electrons, shape ``(N,)``                                  | yes for a supported deck               | yes for a supported deck                                       |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
+    | ``energies``, ``magmom``, ``magmoms`` | ``get_property(name)``                          | \                                                          | raises ``PropertyNotImplementedError`` | raises ``PropertyNotImplementedError``                         |
+    +---------------------------------------+-------------------------------------------------+------------------------------------------------------------+----------------------------------------+----------------------------------------------------------------+
 
 ``free_energy`` is the potential energy of the step, because the library does not
 separate an electronic entropy.
-The library returns no atomic energies, charges, or magnetic moments.
-``implemented_properties`` lists ``dipole`` because linked OpenCPMD can deliver it.
+The library returns no atomic energies or magnetic moments.
+``implemented_properties`` lists ``dipole`` and ``charges`` because linked OpenCPMD
+can deliver them.
 It raises ``PropertyNotImplementedError`` when the current step cannot.
+Hirshfeld charges are ``q = Z_v - n``, in the caller's atom order.
+OpenCPMD stores them after a converged Gamma-point SCF that is not broken
+symmetry and whose species have weight functions.
+A neutral molecule sums to the total charge up to the real-space partition
+residual, about 1.2e-3 e on the 50 Ry Hockney water deck.
+K points, broken symmetry, a missing weight function, the reference evaluator,
+and ``CPMDC_CHARGE_SNAPSHOT=0`` leave the charges unset.
+A later request for the same atoms does not evaluate again.
 
 A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
 deck with ``DIPOLE DYNAMICS`` or ``PROP / DIPOLE MOMENT BERRY``.
@@ -142,20 +157,22 @@ The ``pbc`` flags choose the boundaries:
 
 .. table::
 
-    +-----------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
-    | ``atoms.pbc`` and ``atoms.cell``                    | Step                                                                                         | Stress                                 |
-    +=====================================================+==============================================================================================+========================================+
-    | all false                                           | no cell is sent: the deck sets the box and the Poisson solver, and ``atoms.cell`` is ignored | raises ``PropertyNotImplementedError`` |
-    +-----------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
-    | all true, three independent cell vectors            | ``atoms.cell`` is sent as the periodic cell                                                  | computed when the deck is periodic     |
-    +-----------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
-    | all true, fewer than three independent cell vectors | raises ``ValueError``                                                                        | \                                      |
-    +-----------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
-    | a mix of true and false                             | raises ``ValueError`` that names the open axes                                               | \                                      |
-    +-----------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
+    +------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
+    | ``atoms.pbc`` and ``atoms.cell``                                                               | Step                                                                                         | Stress                                 |
+    +================================================================================================+==============================================================================================+========================================+
+    | all false                                                                                      | no cell is sent: the deck sets the box and the Poisson solver, and ``atoms.cell`` is ignored | raises ``PropertyNotImplementedError`` |
+    +------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
+    | all true, three independent cell vectors, a volume in the normal float64 range                 | ``atoms.cell`` is sent as the periodic cell                                                  | computed when the deck is periodic     |
+    +------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
+    | all true, fewer than three independent cell vectors or a volume below the normal float64 range | raises ``UnsupportedAtoms``                                                                  | \                                      |
+    +------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
+    | a mix of true and false                                                                        | raises ``UnsupportedAtoms`` that names the open axes                                         | \                                      |
+    +------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------+----------------------------------------+
 
 A periodic cell with an isolated deck, such as ``water.params.bin``, gives the
 energy and the forces.
+For a tilted cell the composed CPMD deck replaces ``SYMMETRY 0`` with ``CLUSTER``
+and writes ``CELL VECTORS``, retaining the isolated Poisson solver.
 Asking that step for stress raises ``PropertyNotImplementedError`` with the
 reason, and the calculator does not evaluate the step again to find it out.
 
@@ -281,6 +298,10 @@ A call on an unchanged structure returns the stored step.
 A change of ``positions``, ``numbers``, ``cell``, or ``pbc`` evaluates the structure
 again, and ``calc.calculation_required(atoms, properties)`` returns true for such
 a structure until it is evaluated.
+The one exception is a change of ``cell`` while every ``pbc`` flag stays false: a
+free-boundary step sends no cell, so ``check_state`` does not list ``cell`` and the
+stored step stays valid.
+A change of ``pbc`` always evaluates again.
 A change of ``initial_charges`` or ``initial_magmoms`` evaluates the structure
 again, because the calculator reads both; the next section says how.
 A change of ``tags``, ``momenta``, ``info``, or a constraint reuses the step as well,
@@ -329,8 +350,8 @@ That value is the top-level ``charge`` when no typed ``system`` charge is explic
 and the typed ``system`` charge when ``system.hasCharge`` is true or that charge is
 not 0.
 Zero with ``hasCharge`` true is explicit.
-The deck renderer and the Fortran embed record that same charge for the
-message the session opens with.
+The deck renderer and the Fortran embed record that same charge for the message
+the session opens with.
 Neither reads ``Atoms.initial_charges``, and the C API does not read the
 ``ForceInput`` charge fields.
 The calculator decides the total before that handoff.
@@ -398,10 +419,10 @@ for partial charges, which are not a total charge:
             print(exc)
 
 A keyword such as ``charge``, ``multiplicity``, or ``xc`` raises ``TypeError`` in the
-constructor and in ``set()``, and the message names the key and points at
-``params`` and at the ``Atoms`` arrays.
-To change the rest of the method, encode another message and pass it to
-``set()``; this example switches to the periodic message:
+constructor and in ``set()``, and the message names the key and points at ``params``
+and at the ``Atoms`` arrays.
+To change the rest of the method, encode another message and pass it to ``set()``;
+this example switches to the periodic message:
 
 .. code:: python
 
@@ -446,9 +467,9 @@ A library step writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.
 and the orbitals for the next step stay in memory.
 ``params`` is read when it is set, relative to the directory of the process at
 that moment, not to ``directory``.
-``calc.parameters`` keeps that file, and a ``library`` path, as an absolute path,
-so a copy that opens its session in another directory and a calculator rebuilt
-from ``calc.todict()`` there use the same files.
+``calc.parameters`` keeps that file, and a ``library`` path, as an absolute path, so
+a copy that opens its session in another directory and a calculator rebuilt from
+``calc.todict()`` there use the same files.
 The ``restart`` argument is deprecated and ignored, and passing it warns with
 ``DeprecationWarning``.
 
@@ -463,21 +484,23 @@ Handle errors
 
 .. table::
 
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | Condition                                                                                                                                            | Raised                                                     |
-    +======================================================================================================================================================+============================================================+
-    | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite          | ``cpmdc.ase.CalculationFailed``                            |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | a keyword other than ``params``, ``library``, ``constant_cutoff``, and ASE's own; no ``params``                                                      | ``TypeError``                                              |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | stress or dipole where the step has none; ``energies``, ``magmoms``, or ``charges``                                                                  | ``ase.calculators.calculator.PropertyNotImplementedError`` |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | mixed ``pbc`` flags, a periodic cell of rank below 3 (the numpy.linalg.matrix\ :sub:`rank`  cutoff), or a cell volume below the normal float64 range | ``ValueError``                                             |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | a step on a calculator without atoms                                                                                                                 | ``ValueError``                                             |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
-    | a ``params`` file that does not exist                                                                                                                | ``FileNotFoundError``                                      |
-    +------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | Condition                                                                                                                                   | Raised                                                     |
+    +=============================================================================================================================================+============================================================+
+    | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ``cpmdc.ase.CalculationFailed``                            |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | a keyword other than ``params``, ``library``, ``constant_cutoff``, and ASE's own; no ``params``                                             | ``TypeError``                                              |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | stress, dipole, or charges where the step has none; ``energies`` or ``magmoms``                                                             | ``ase.calculators.calculator.PropertyNotImplementedError`` |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | mixed ``pbc`` flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix\ :sub:`rank`  cutoff)                                      | ``cpmdc.ase.UnsupportedAtoms``                             |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | a cell volume below the normal float64 range                                                                                                | ``cpmdc.ase.UnsupportedAtoms``                             |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | a step on a calculator without atoms                                                                                                        | ``ValueError``                                             |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
+    | a ``params`` file that does not exist                                                                                                       | ``FileNotFoundError``                                      |
+    +---------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+
 
 ``CalculationFailed`` is both ASE's ``CalculationFailed`` and ``cpmdc.CPMDCError``, so
 code that catches either one for another calculator catches it unchanged.
@@ -485,15 +508,22 @@ Its message names the working directory of the step and gives the library's
 reason.
 The calculator stays usable, and the next call evaluates the step again.
 
+``UnsupportedAtoms`` is ASE's ``CalculatorSetupError``, the class that ASE names for
+an ``Atoms`` object a calculator does not support, and a ``ValueError``, which the
+calculator raised for these structures before.
+``except CalculatorError`` and ``except ValueError`` both catch it.
+It is raised before the library is called, so no step is evaluated and the
+calculator stays usable.
+
 Sessions and copies
 -------------------
 
 ``session_accept_topology`` fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of the same atoms stays on the session.
-After a successful step, a structure with another composition closes the
-session and opens a new one from the same ``params``.
+After a successful step, a structure with another composition closes the session
+and opens a new one from the same ``params``.
 
 ``calc.parameters`` holds ``params``, ``library``, and ``constant_cutoff``, with
 absolute paths.
@@ -514,15 +544,14 @@ copy opens its own session on its first step.
 ``close()`` closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
 
-``calc.read(label)`` always raises ASE's ``ReadError``, because a step stores no file
-that holds results, and ASE's default would only set the label and let the
+``calc.read(label)`` always raises ASE's ``ReadError``, because a step stores no
+file that holds results, and ASE's default would only set the label and let the
 caller think that results were restored.
 The ``restart`` keyword stays deprecated and ignored, as the reference page says.
 ``parameters=`` is the supported way to load a saved calculator.
 
 ``ase.calculators.mixing.SumCalculator`` takes several ``CPMDCCalculator`` objects,
-or one beside another ASE calculator, and evaluates each one once per
-structure.
+or one beside another ASE calculator, and evaluates each one once per structure.
 Its stress for a cluster raises ``PropertyNotImplementedError``, as the
 calculator's own does.
 
@@ -533,8 +562,7 @@ Check the calculator with ASE
 user asks of a calculator, and answers with ASE's own tools.
 It runs on the default build, which needs no OpenCPMD archive.
 ``pixi run test-stub`` builds it, and
-``pixi run pytest tests/python/test_ase_conformance.py``
-runs the file.
+``pixi run pytest tests/python/test_ase_conformance.py`` runs the file.
 The file checks these points:
 
 .. table::
@@ -542,9 +570,9 @@ The file checks these points:
     +-------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
     | Question                                                                                                                                                    | ASE tool                                                                                                      |
     +=============================================================================================================================================================+===============================================================================================================+
-    | ``implemented_properties`` lists energy, free energy, forces, stress, and dipole, and a stored step has ASE's shapes                                        | ``calc.results``, ``ase.io.write`` and ``read`` of extended XYZ                                               |
+    | ``implemented_properties`` lists energy, free energy, forces, stress, dipole, and charges, and a stored step has ASE's shapes                               | ``calc.results``, ``ase.io.write`` and ``read`` of extended XYZ                                               |
     +-------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-    | a property outside the list raises, without evaluating a step                                                                                               | ``PropertyNotImplementedError``, ``get_charges()``, ``get_magnetic_moment()``                                 |
+    | a property outside the list raises, without evaluating a step, and charges raise when the step stored none, without a second evaluation                     | ``PropertyNotImplementedError``, ``get_magnetic_moment()``, ``get_charges()``                                 |
     +-------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
     | the stored step is reused and discarded as ASE expects                                                                                                      | ``check_state``, ``system_changes``, ``calculation_required``, ``get_property(..., allow_calculation=False)`` |
     +-------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
@@ -579,7 +607,7 @@ The file checks these points:
     | a few steps of a cell relaxation lower the energy and the largest stress component                                                                          | ``BFGS`` with ``FrechetCellFilter``                                                                           |
     +-------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 
-``cpmdc.lammps.FixExternal`` follows the same conventions where it shares them: the
-same units, a failed step reported as ``CPMDCError``, a step with a NaN or infinite
-result refused, and a new session opened after a change of composition even when
-the previous attempt to open one failed.
+``cpmdc.lammps.FixExternal`` follows the same conventions where it shares them:
+the same units, a failed step reported as ``CPMDCError``, a step with a NaN or
+infinite result refused, and a new session opened after a change of composition
+even when the previous attempt to open one failed.

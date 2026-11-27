@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build the OpenCPMD archive for embedding - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Write a CPMDParams message" href="write-cpmdparams.html" /><link rel="prev" title="Build and test cpmdc" href="quickstart.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build the OpenCPMD archive for embedding - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Write a CPMDParams message" href="write-cpmdparams.html" /><link rel="prev" title="Build and test cpmdc" href="quickstart.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/opencpmd-archive.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -394,21 +395,29 @@ GCC 14 rejects the stock return of a pointer from that function.
 <td><p><code class="docutils literal notranslate"><span class="pre">src/wfopts_utils.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/ddipo_utils.mod.F90</span></code></p></td>
 <td><p>the in-process wavefunction optimisation never calls <code class="docutils literal notranslate"><span class="pre">ddipo</span></code>, so <code class="docutils literal notranslate"><span class="pre">ddip%pdipole</span></code> is stale and no dipole belongs to the current geometry; <code class="docutils literal notranslate"><span class="pre">ddipo_embed</span></code> is the new entry point, and <code class="docutils literal notranslate"><span class="pre">ddipo</span></code> keeps its argument list</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_charges.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/atomc_utils.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/wfopts_utils.mod.F90</span></code></p></td>
+<td><p>after a converged Gamma-point SCF the embed builds the density and calls <code class="docutils literal notranslate"><span class="pre">atomc</span></code> for Hirshfeld charges, then restores the charge integrals and the kinetic energy that build rewrites; k points, broken symmetry, and a species without a weight function leave the snapshot invalid; <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> does not request it. Apply this after the dipole patch</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rggen_utils.mod.F90</span></code></p></td>
 <td><p>a calculator that spans nodes with unequal numbers of ranks calls <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code> with different counts in the report and can stop before the first electronic iteration</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_pcg_step.patch</span></code> (optional)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_pcg_step.patch</span></code> (optional)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/pcgrad_driver.mod.F90</span></code></p></td>
 <td><p>the PCG line minimisation can suppress its interpolated step for strict orbital targets; see <a class="reference internal" href="wavefunction-optimiser.html"><span class="doc">the optimiser how-to</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_constant_cutoff_precon.patch</span></code> (optional)</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_constant_cutoff_precon.patch</span></code> (optional)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/hesele_utils.mod.F90</span></code></p></td>
 <td><p>with <code class="docutils literal notranslate"><span class="pre">CONSTANT</span> <span class="pre">CUTOFF</span></code> the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see <a class="reference internal" href="constant-cutoff.html"><span class="doc">relaxing a cell at a constant cutoff</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_atomwf_kpts_ortho.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_atomwf_kpts_ortho.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/atomwf_utils.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/gsortho_utils.mod.F90</span></code></p></td>
 <td><p>k-point atomic wavefunction initialization with randomized extra states overflows <code class="docutils literal notranslate"><span class="pre">zmatat</span></code> because <code class="docutils literal notranslate"><span class="pre">gs_ortho_c</span></code> passes <code class="docutils literal notranslate"><span class="pre">2*np*n0</span></code> to <code class="docutils literal notranslate"><span class="pre">mp_sum</span></code> on a <code class="docutils literal notranslate"><span class="pre">COMPLEX(real_8)</span></code> array and <code class="docutils literal notranslate"><span class="pre">atomwf</span></code> passes <code class="docutils literal notranslate"><span class="pre">zmatat(atwp%nattot,</span> <span class="pre">atwp%nattot)</span></code> instead of sizing the orthogonalization scratch to <code class="docutils literal notranslate"><span class="pre">(nleft,</span> <span class="pre">MAX(atwp%nattot,</span> <span class="pre">nleft))</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_external_charges.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/efld.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/eextern_utils.mod.F90</span></code></p></td>
+<td><p>external-charge embedding has no density-force hook on the real-space grid, and <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> does not link against <code class="docutils literal notranslate"><span class="pre">set_cpmdc_external_force_hook</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -436,7 +445,8 @@ Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embe
 the rwfopt patch.
 Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_extrapolate.patch</span></code> after the teardown patch, whose lines
 in <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> it follows.
-Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_dipole.patch</span></code> after it.</p>
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_dipole.patch</span></code> after it.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_charges.patch</span></code> after the dipole patch.</p>
 </section>
 <section id="build-a-patched-tree">
 <h2>Build a patched tree<a class="headerlink" href="#build-a-patched-tree" title="Link to this heading">¶</a></h2>
@@ -447,8 +457,8 @@ build:</p>
 </span><span data-line="3">git<span class="w"> </span>checkout<span class="w"> </span>062582b7cfd832d36f88f504cd08e4ead42eb404
 </span><span data-line="4"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="5"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
-</span><span data-line="6"><span class="w">         </span>embed_teardown<span class="w"> </span>embed_extrapolate<span class="w"> </span>embed_dipole<span class="w"> </span>omp_info<span class="w"> </span><span class="se">\</span>
-</span><span data-line="7"><span class="w">         </span>atomwf_kpts_ortho<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="6"><span class="w">         </span>embed_teardown<span class="w"> </span>embed_extrapolate<span class="w"> </span>embed_dipole<span class="w"> </span>embed_charges<span class="w"> </span>omp_info<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">         </span>atomwf_kpts_ortho<span class="w"> </span>external_charges<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="8"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="9"><span class="k">done</span>
 </span></pre></div>
@@ -487,8 +497,8 @@ rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
 </span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">         </span>embed_teardown<span class="w"> </span>embed_extrapolate<span class="w"> </span>embed_dipole<span class="w"> </span>omp_info<span class="w"> </span><span class="se">\</span>
-</span><span data-line="5"><span class="w">         </span>atomwf_kpts_ortho<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="4"><span class="w">         </span>embed_teardown<span class="w"> </span>embed_extrapolate<span class="w"> </span>embed_dipole<span class="w"> </span>embed_charges<span class="w"> </span>omp_info<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">         </span>atomwf_kpts_ortho<span class="w"> </span>external_charges<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="6"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="7"><span class="k">done</span>
 </span><span data-line="8">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build
@@ -496,18 +506,17 @@ rebuild only the affected members:</p>
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of the embedding patch,
-<code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">control_test_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">ddipo_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">wfopts_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">gsortho_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">atomwf_utils.mod.o</span></code>,
-the 34 modules of the teardown patch, and <code class="docutils literal notranslate"><span class="pre">embed_teardown.mod.o</span></code>
-after them, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code> for the module order, with one Make job, then
-replaces those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>.
-<code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_embed_objects.py</span></code> fails when a source file in
-<code class="docutils literal notranslate"><span class="pre">tools/opencpmd_*.patch</span></code> has no object in that list or in the dedicated
-rebuild scripts.
+<code class="docutils literal notranslate"><span class="pre">efld.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">eextern_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">control_test_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ddipo_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">wfopts_utils.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">gsortho_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">atomwf_utils.mod.o</span></code>, the 34 modules of the teardown
+patch, and <code class="docutils literal notranslate"><span class="pre">embed_teardown.mod.o</span></code> after them, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code> for the
+module order, with one Make job, then replaces those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and
+runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>.
+<code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_embed_objects.py</span></code> fails when a source file in <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_*.patch</span></code>
+has no object in that list or in the dedicated rebuild scripts.
 It runs one job because gfortran stores a copy of
 <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can leave the two module
 files naming different components.
@@ -551,8 +560,8 @@ Build it from the configured tree before <code class="docutils literal notransla
 <p>The last command counts the exported <code class="docutils literal notranslate"><span class="pre">cpmdc_*</span></code> symbols.
 The export list hides every other symbol of the archives except the MPI Fortran
 sentinels, which must stay global (see <a class="reference internal" href="../explanation/opencpmd-patches.html"><span class="doc">How the OpenCPMD patches work</span></a>).
-A cold evaluation needs the pseudopotential directory in <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>;
-the <a class="reference internal" href="../tutorials/first-energy.html"><span class="doc">first energy tutorial</span></a> runs one.
+A cold evaluation needs the pseudopotential directory in <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>; the <a class="reference internal" href="../tutorials/first-energy.html"><span class="doc">first energy tutorial</span></a>
+runs one.
 Stress tensors, which <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code> carries for periodic cells, need
 no extra patch: <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> sets <code class="docutils literal notranslate"><span class="pre">cntl%tpres</span></code> before the SCF and copies <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code>
 afterwards.
@@ -714,7 +723,7 @@ A library built with only one of those runs only that set.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

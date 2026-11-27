@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Extrapolate the orbitals along a trajectory - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Debug an input with CPMDCDECK OUT" href="debug-deck.html" /><link rel="prev" title="Choose the wavefunction optimiser" href="wavefunction-optimiser.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Extrapolate the orbitals along a trajectory - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Debug an input with CPMDCDECK OUT" href="debug-deck.html" /><link rel="prev" title="Choose the wavefunction optimiser" href="wavefunction-optimiser.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/extrapolate-orbitals.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -327,17 +328,29 @@ data-aria-dark="Switch to auto color mode">
 <h1>Extrapolate the orbitals along a trajectory<a class="headerlink" href="#extrapolate-the-orbitals-along-a-trajectory" title="Link to this heading">¶</a></h1>
 <section id="goal">
 <h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
-<p>Start each self-consistent field (SCF) of a host-driven trajectory from a prediction over the orbitals of the previous steps.
-Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer molecular dynamics (BO-MD) with <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code>.
-Use it when the host takes equal time steps, as a molecular dynamics (MD) integrator does.
-An optimiser, a saddle search, or a nudged elastic band moves by unequal steps, and the plain warm start of <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state between calls</span></a> suits them.</p>
+<p>Start each self-consistent field (SCF) of a host-driven trajectory from a
+prediction over the orbitals of the previous steps.
+Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer
+molecular dynamics (BO-MD) with <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code>.
+Use it when the host takes equal time steps, as a molecular dynamics (MD)
+integrator does.
+An optimiser or a saddle search moves by unequal steps, and the plain warm start
+of <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state between calls</span></a>
+suits them.
+A band or ring polymer whose images or beads each advance at equal intervals can
+name every trajectory with <code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code>; each key then
+extrapolates from its own earlier converged orbitals.</p>
 </section>
 <section id="apply-the-patch">
 <h2>Apply the patch<a class="headerlink" href="#apply-the-patch" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code> goes onto the OpenCPMD tree after <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code>, as the <a class="reference internal" href="opencpmd-archive.html"><span class="doc">archive how-to</span></a> lists.
-Without it, OpenCPMD prints <code class="docutils literal notranslate"><span class="pre">WARNING!</span> <span class="pre">WAVEFUNCTION</span> <span class="pre">EXTRAPOLATION</span> <span class="pre">ONLY</span> <span class="pre">SUPPORTED</span> <span class="pre">FOR</span> <span class="pre">BO-MD.</span> <span class="pre">DISABLING...</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code> goes onto the OpenCPMD tree after
+<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code>, as the <a class="reference internal" href="opencpmd-archive.html"><span class="doc">archive how-to</span></a>
+lists.
+Without it, OpenCPMD prints
+<code class="docutils literal notranslate"><span class="pre">WARNING!</span> <span class="pre">WAVEFUNCTION</span> <span class="pre">EXTRAPOLATION</span> <span class="pre">ONLY</span> <span class="pre">SUPPORTED</span> <span class="pre">FOR</span> <span class="pre">BO-MD.</span> <span class="pre">DISABLING...</span></code>.
 Every warm call then starts from the unchanged stored orbitals.
-A <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> built from this tree needs the patch: it links <code class="docutils literal notranslate"><span class="pre">embed_extrapolation_used</span></code> from the archive.</p>
+A <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> built from this tree needs the patch: it links
+<code class="docutils literal notranslate"><span class="pre">embed_extrapolation_used</span></code> from the archive.</p>
 </section>
 <section id="ask-for-it-in-the-message">
 <h2>Ask for it in the message<a class="headerlink" href="#ask-for-it-in-the-message" title="Link to this heading">¶</a></h2>
@@ -349,17 +362,24 @@ A <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></
 </span></pre></div>
 </div>
 <p>The message renders <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span> <span class="pre">ASPC</span></code> with <code class="docutils literal notranslate"><span class="pre">4</span></code> on the next line.
-<code class="docutils literal notranslate"><span class="pre">ASPC</span></code> selects the always stable predictor-corrector (ASPC) coefficients of Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>).
+<code class="docutils literal notranslate"><span class="pre">ASPC</span></code> selects the always stable predictor-corrector (ASPC) coefficients of
+Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>).
 <code class="docutils literal notranslate"><span class="pre">POLY</span></code> selects the polynomial ones.
-OpenCPMD starts from the ASPC coefficients and switches only for <code class="docutils literal notranslate"><span class="pre">POLY</span></code> on the <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> line.
-An <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code> with an empty <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> renders <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> alone, and that deck uses ASPC.
-The order is the number of earlier converged orbital sets that the prediction combines.
-OpenCPMD still prints its warning, because <code class="docutils literal notranslate"><span class="pre">control_test</span></code> keeps <code class="docutils literal notranslate"><span class="pre">cntl%textrap</span></code> off for a wavefunction optimisation; the patch reads the request from <code class="docutils literal notranslate"><span class="pre">embed_extrap_wfn</span></code> instead.</p>
+OpenCPMD starts from the ASPC coefficients and switches only for <code class="docutils literal notranslate"><span class="pre">POLY</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> line.
+An <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code> with an empty <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> renders
+<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> alone, and that deck uses ASPC.
+The order is the number of earlier converged orbital sets that the prediction
+combines.
+OpenCPMD still prints its warning, because
+<code class="docutils literal notranslate"><span class="pre">control_test</span></code> keeps <code class="docutils literal notranslate"><span class="pre">cntl%textrap</span></code> off for a wavefunction optimisation; the patch reads the request from <code class="docutils literal notranslate"><span class="pre">embed_extrap_wfn</span></code>
+instead.</p>
 </section>
 <section id="check-that-it-runs">
 <h2>Check that it runs<a class="headerlink" href="#check-that-it-runs" title="Link to this heading">¶</a></h2>
 <p>Run the host with <code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS=1</span></code>.
-A call that starts from a prediction writes <code class="docutils literal notranslate"><span class="pre">cpmdc_wfn_extrapolated</span> <span class="pre">K</span></code> before its <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code> line, with <code class="docutils literal notranslate"><span class="pre">K</span></code> the number of orbital sets combined.
+A call that starts from a prediction writes <code class="docutils literal notranslate"><span class="pre">cpmdc_wfn_extrapolated</span> <span class="pre">K</span></code> before
+its <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code> line, with <code class="docutils literal notranslate"><span class="pre">K</span></code> the number of orbital sets combined.
 <code class="docutils literal notranslate"><span class="pre">tests/test_extrapolate_wfn.c</span></code> captures these first lines from the error stream while it steps through the water trajectory of <code class="docutils literal notranslate"><span class="pre">tests/golden/water_aspc_bomd.txt</span></code>:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc_warm_start -2 periodic=F
 </span><span data-line="2">cpmdc_scf_steps 18
@@ -379,18 +399,43 @@ From the third call on, <code class="docutils literal notranslate"><span class="
 </section>
 <section id="know-when-the-history-restarts">
 <h2>Know when the history restarts<a class="headerlink" href="#know-when-the-history-restarts" title="Link to this heading">¶</a></h2>
-<p>The prediction is valid only when the stored orbitals come from the previous calls of one trajectory.
-Each of these events empties the history:</p>
+<p>The prediction is valid only when the stored orbitals come from the previous
+calls of one trajectory.
+Without a key, the process keeps the single history it always did.
+With keys, each key keeps its own ring, and switching keys parks and restores
+that ring together with the key’s converged orbitals.
+Each of these events empties the affected key’s history:</p>
 <ul class="simple">
-<li><p>a call whose SCF does not converge, including one that already held a converged copy, or an orbital direct inversion in the iterative subspace (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG) <code class="docutils literal notranslate"><span class="pre">MINIMIZE</span></code> continuation. <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_rwfopt.patch</span></code> marks that donor stale, and <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code> empties the ring on the same branch</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code> with another key</p></li>
+<li><p>a call whose SCF does not converge, including one that already held a
+converged copy, or an orbital direct inversion in the iterative subspace
+(ODIIS) pass that ends in the preconditioned conjugate gradient (PCG)
+<code class="docutils literal notranslate"><span class="pre">MINIMIZE</span></code> continuation.
+<code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_rwfopt.patch</span></code> marks that donor stale, and <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>
+empties the ring on the same branch</p></li>
 <li><p>stored orbitals farther than <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> from the new geometry</p></li>
-<li><p>anything that clears the stored orbitals, such as a cell, cutoff, or composition change; a constant-cutoff cell that moves in place under <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> keeps the history</p></li>
+<li><p>adopting another key’s nearer parked orbitals as a distance donor</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals()</span></code> from another key onto the key, which empties
+the destination key’s ring; a copy of a key onto itself changes neither its
+orbitals nor its ring</p></li>
+<li><p>an unkeyed evaluation after a keyed one, which empties the ring of the key it
+clears</p></li>
+<li><p>destroying the session that evaluated last, keyed or not</p></li>
 </ul>
+<p>Anything that clears the stored orbitals, such as a cell, cutoff, or composition
+change, clears every key’s history.
+A constant-cutoff cell that moves in place under <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code> keeps
+every history.
+On an OpenCPMD build <code class="docutils literal notranslate"><span class="pre">CPMDC_ORBITAL_SLOT_LIMIT</span></code> counts every parked orbital set
+and every populated entry in the keyed history rings; the reference build has no
+rings and counts parked keys only.
+An evaluation that would exceed it fails before switching the key or changing
+any stored state.</p>
 <p>The next calls then build the history again from the stored orbitals.
 <code class="docutils literal notranslate"><span class="pre">STORE</span></code> and <code class="docutils literal notranslate"><span class="pre">CSTEPS</span></code> have no effect on this route.
-A library call writes no <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file, and every call converges its SCF to <code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code>.
-The energy and forces are those of a converged SCF, so only the number of iterations changes.</p>
+A library call writes no <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file, and every call converges its SCF to
+<code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code>.
+The energy and forces are those of a converged SCF, so only the number of
+iterations changes.</p>
 </section>
 </section>
 
@@ -501,7 +546,7 @@ The energy and forces are those of a converged SCF, so only the number of iterat
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

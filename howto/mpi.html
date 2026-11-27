@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run under mpirun - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Choose the wavefunction optimiser" href="wavefunction-optimiser.html" /><link rel="prev" title="Run GROMACS on cpmdc forces" href="gromacs.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run under mpirun - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Choose the wavefunction optimiser" href="wavefunction-optimiser.html" /><link rel="prev" title="Run GROMACS on cpmdc forces" href="gromacs.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/mpi.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -419,8 +420,8 @@ Group <code class="docutils literal notranslate"><span class="pre">g</span></cod
 groups.
 With 16 ranks and <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> 4, group 0 is ranks 0 to 3, group 1 is ranks
 4 to 7, and so on.
-A rank’s group index is <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code>, with integer division,
-and its rank inside the group is <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">%</span> <span class="pre">ranks_per_calc</span></code>.
+A rank’s group index is
+<code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code>, with integer division, and its rank inside the group is <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">%</span> <span class="pre">ranks_per_calc</span></code>.
 The group’s first rank, world rank <code class="docutils literal notranslate"><span class="pre">group</span> <span class="pre">*</span> <span class="pre">ranks_per_calc</span></code>, is its parent rank.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -456,17 +457,17 @@ A later call does not split again, also when the communicator in use came from
 <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> instead of an earlier bind.
 It still checks its own <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> as above, and it returns
 <code class="docutils literal notranslate"><span class="pre">world_rank</span> <span class="pre">/</span> <span class="pre">ranks_per_calc</span></code> for that value.
-That is the index of the group in use only when the value is the same as the
-one that made the split.
-A value that does not divide the world size, or is above it, returns -1 on
-every rank, as it does on the first call, and the split already in use stays as
-it was.</p>
+That is the index of the group in use only when the value is the same as the one
+that made the split.
+A value that does not divide the world size, or is above it, returns -1 on every
+rank, as it does on the first call, and the split already in use stays as it
+was.</p>
 </section>
 <section id="mpi-start">
 <h3>MPI start<a class="headerlink" href="#mpi-start" title="Link to this heading">¶</a></h3>
-<p>On an OpenCPMD build, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> when MPI is not
-running, before it looks at <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code>, so the call starts MPI even when
-it then refuses the value.
+<p>On an OpenCPMD build, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> calls
+<code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> when MPI is not running, before it looks at <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code>, so the
+call starts MPI even when it then refuses the value.
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> starts MPI only in OpenCPMD builds.
 The default build, which runs the reference evaluator, and the link stub never
 call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>.
@@ -484,10 +485,8 @@ communicator by the time setup reaches <code class="docutils literal notranslate
 <p>A host that has already split its ranks passes that communicator to
 <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm(comm,</span> <span class="pre">nbytes,</span> <span class="pre">ranks_per_calc)</span></code>.
 <a class="reference external" href="https://rgpot.rgoswami.me">rgpot</a> does this when it binds calculator groups.
-Its MPI contract is the
-<a class="reference external" href="https://rgpot.rgoswami.me/reference/mpi.html">rgpot MPI reference</a>, and the
-messages those hosts share are the ones in the
-<a class="reference internal" href="../index.html"><span class="doc">cpmdc overview</span></a>.
+Its MPI contract is the <a class="reference external" href="https://rgpot.rgoswami.me/reference/mpi.html">rgpot MPI reference</a>,
+and the messages those hosts share are the ones in the <a class="reference internal" href="../index.html"><span class="doc">cpmdc overview</span></a>.
 <code class="docutils literal notranslate"><span class="pre">nbytes</span></code> is <code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code>.
 The call is collective on <code class="docutils literal notranslate"><span class="pre">comm</span></code>.
 It reads rank and size from <code class="docutils literal notranslate"><span class="pre">comm</span></code>.
@@ -702,7 +701,7 @@ job holds.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

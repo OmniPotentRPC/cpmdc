@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Minimise a structure from eOn through rgpot - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Install and build" href="../howto/install.html" /><link rel="prev" title="An energy and forces from ASE" href="ase-energy.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Minimise a structure from eOn through rgpot - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Install and build" href="../howto/install.html" /><link rel="prev" title="An energy and forces from ASE" href="ase-energy.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/tutorials/eon-rgpot.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -336,12 +337,12 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="minimise-a-structure-from-eon-through-rgpot">
 <h1>Minimise a structure from eOn through rgpot<a class="headerlink" href="#minimise-a-structure-from-eon-through-rgpot" title="Link to this heading">¶</a></h1>
-<p>This tutorial relaxes the water molecule of the
-<a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a> with eOn’s minimiser, with every force
-call going through <code class="docutils literal notranslate"><span class="pre">rgpot</span></code> into <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> inside the <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> process.
-It reuses <code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code> from that tutorial and runs against either build
-of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> that the tutorial made: the default build in <code class="docutils literal notranslate"><span class="pre">$CPMDC/build</span></code>, and
-the OpenCPMD build in <code class="docutils literal notranslate"><span class="pre">$CPMDC/build-cpmd</span></code>.
+<p>This tutorial relaxes the water molecule of the <a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a>
+with eOn’s minimiser, with every force call going through <code class="docutils literal notranslate"><span class="pre">rgpot</span></code> into
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> inside the <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> process.
+It reuses <code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code> from that tutorial and runs against either build of
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> that the tutorial made: the default build in
+<code class="docutils literal notranslate"><span class="pre">$CPMDC/build</span></code>, and the OpenCPMD build in <code class="docutils literal notranslate"><span class="pre">$CPMDC/build-cpmd</span></code>.
 The default build evaluates the reference well, finishes in about a second, and
 needs no OpenCPMD and no pseudopotentials.
 The OpenCPMD build computes a BLYP energy and takes about a minute.
@@ -350,10 +351,10 @@ Run every command in the Pixi shell that the first tutorial opened.</p>
 <section id="what-connects-to-what">
 <h2>What connects to what<a class="headerlink" href="#what-connects-to-what" title="Link to this heading">¶</a></h2>
 <p>eOn’s <code class="docutils literal notranslate"><span class="pre">RGPOT</span></code> potential loads rgpot’s <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, which opens <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> with
-<code class="docutils literal notranslate"><span class="pre">dlopen</span></code> and keeps one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> for the life of the client. eOn hands each
-geometry to <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> turns it into a <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> runs
-the SCF in the same process, starting every call after the first from the
-previous orbitals.
+<code class="docutils literal notranslate"><span class="pre">dlopen</span></code> and keeps one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> for the life of the client.
+eOn hands each geometry to <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>, <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> turns it into a <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> runs the SCF in the same process, starting every call after the
+first from the previous orbitals.
 The method comes from a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message file that eOn reads through
 <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code>.</p>
 <p>You need an <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> built with RGPOT support whose <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span></code> section
@@ -372,9 +373,10 @@ stays isolated.</p>
 <section id="build-eonclient">
 <h2>Build eonclient<a class="headerlink" href="#build-eonclient" title="Link to this heading">¶</a></h2>
 <p>This section builds rgpot and eOn into one prefix with the compilers and
-libraries of cpmdc’s Pixi environment. eOn’s own <code class="docutils literal notranslate"><span class="pre">pixi.toml</span></code> does not load under
-Pixi 0.84.2: its task <code class="docutils literal notranslate"><span class="pre">mkeon</span></code> depends on an environment <code class="docutils literal notranslate"><span class="pre">eon</span></code> that the file does
-not define. cpmdc’s environment has no Eigen, and eOn needs Eigen 3.4.
+libraries of cpmdc’s Pixi environment.
+eOn’s own <code class="docutils literal notranslate"><span class="pre">pixi.toml</span></code> does not load under Pixi 0.84.2: its task <code class="docutils literal notranslate"><span class="pre">mkeon</span></code> depends
+on an environment <code class="docutils literal notranslate"><span class="pre">eon</span></code> that the file does not define. cpmdc’s environment has
+no Eigen, and eOn needs Eigen 3.4.
 Install it as a separate Pixi environment:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>global<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;eigen&gt;=3.4,&lt;3.5&#39;</span>
 </span></pre></div>
@@ -400,8 +402,8 @@ Build rgpot with MPI and install it:</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">with_rpc</span></code> builds <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>.
 <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code> builds <code class="docutils literal notranslate"><span class="pre">librgpot_mpi</span></code>, which rgpot loads only when the client runs
-under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>. eOn’s configure stops when the installed rgpot has no Fortran
-potentials.
+under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>.
+eOn’s configure stops when the installed rgpot has no Fortran potentials.
 <code class="docutils literal notranslate"><span class="pre">with_expr</span></code> matches the rgpot that eOn builds when it finds none installed.
 Then build eOn against the installed rgpot:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/TheochemUI/eOn.git<span class="w"> </span>eon
@@ -415,8 +417,10 @@ Then build eOn against the installed rgpot:</p>
 </div>
 <p>Meson reports <code class="docutils literal notranslate"><span class="pre">rgpot</span> <span class="pre">found:</span> <span class="pre">YES</span> <span class="pre">3.7.0</span></code> and uses the installed rgpot instead of
 its own copy.
-<code class="docutils literal notranslate"><span class="pre">-Dwith_mpi=enabled</span></code> makes eOn build <code class="docutils literal notranslate"><span class="pre">librgpot_pot_mpi</span></code>, which starts MPI for the calculator groups and ends it at exit. eOn builds that library when <code class="docutils literal notranslate"><span class="pre">rgpot.pc</span></code> defines <code class="docutils literal notranslate"><span class="pre">RGPOT_HAS_MPI</span></code> or when its own <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code>
-is on. rgpot 5fec533f puts the define in <code class="docutils literal notranslate"><span class="pre">rgpot-mpi.pc</span></code> instead, so <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code>
+<code class="docutils literal notranslate"><span class="pre">-Dwith_mpi=enabled</span></code> makes eOn build <code class="docutils literal notranslate"><span class="pre">librgpot_pot_mpi</span></code>, which starts MPI for
+the calculator groups and ends it at exit.
+eOn builds that library when <code class="docutils literal notranslate"><span class="pre">rgpot.pc</span></code> defines <code class="docutils literal notranslate"><span class="pre">RGPOT_HAS_MPI</span></code> or when its own
+<code class="docutils literal notranslate"><span class="pre">with_mpi</span></code> is on. rgpot 5fec533f puts the define in <code class="docutils literal notranslate"><span class="pre">rgpot-mpi.pc</span></code> instead, so <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code>
 is the switch that works here.
 The same <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> runs on one rank without <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>.</p>
 </section>
@@ -581,15 +585,15 @@ of its <code class="docutils literal notranslate"><span class="pre">develop</spa
 counts and final energies in both builds.
 Each <code class="docutils literal notranslate"><span class="pre">[Matter]</span></code> row lists the iteration, the step size in Angstrom, the force
 norm in eV per Angstrom, and the energy in eV.
-eOn’s <code class="docutils literal notranslate"><span class="pre">[Optimizer]</span></code> defaults apply: the conjugate-gradient optimiser stops
-when the force norm falls below <code class="docutils literal notranslate"><span class="pre">converged_force</span></code>, 0.01, and moves no atom
-more than <code class="docutils literal notranslate"><span class="pre">max_move</span></code>, 0.2 Angstrom, in one step.
+eOn’s <code class="docutils literal notranslate"><span class="pre">[Optimizer]</span></code> defaults apply: the conjugate-gradient optimiser stops when
+the force norm falls below
+<code class="docutils literal notranslate"><span class="pre">converged_force</span></code>, 0.01, and moves no atom more than <code class="docutils literal notranslate"><span class="pre">max_move</span></code>, 0.2 Angstrom,
+in one step.
 Both runs made one force call before the first iteration and two per iteration.</p>
 <section id="default-build">
 <h3>Default build<a class="headerlink" href="#default-build" title="Link to this heading">¶</a></h3>
-<p>This is the default build of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>, so the energies come from the
-reference well and mean nothing physically, as in the
-<a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a>.
+<p>This is the default build of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>, so the energies come from the reference
+well and mean nothing physically, as in the <a class="reference internal" href="first-energy.html"><span class="doc">first tutorial</span></a>.
 The minimisation took 39 iterations and 79 force calls.
 The step stayed at the 0.2 Angstrom limit for the first 37 iterations.
 The sed command printed:</p>
@@ -669,8 +673,8 @@ The sed command printed:</p>
 </span><span data-line="24">3.2.0 rgpot_version
 </span></pre></div>
 </div>
-<p>The final energy is 10.63288405405 eV and the final force norm is
-8.63448e-03 eV/Angstrom.
+<p>The final energy is 10.63288405405 eV and the final force norm is 8.63448e-03
+eV/Angstrom.
 The three timing lines depend on the machine.
 <code class="docutils literal notranslate"><span class="pre">engine_build_identity</span></code> is the eOn commit.
 <code class="docutils literal notranslate"><span class="pre">rgpot_version</span></code> is a constant compiled into eOn (<code class="docutils literal notranslate"><span class="pre">rgpot_pin</span></code>), not the version
@@ -745,19 +749,18 @@ In <code class="docutils literal notranslate"><span class="pre">min.con</span></
 <h3>What to expect<a class="headerlink" href="#what-to-expect" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Default build: the run is deterministic arithmetic.
-Expect <code class="docutils literal notranslate"><span class="pre">GOOD</span></code>, 39 iterations, 79 force calls, and a final energy within
-1e-6 eV of 10.63288405405.</p></li>
+Expect <code class="docutils literal notranslate"><span class="pre">GOOD</span></code>, 39 iterations, 79 force calls, and a final energy within 1e-6
+eV of 10.63288405405.</p></li>
 <li><p>OpenCPMD build: expect <code class="docutils literal notranslate"><span class="pre">GOOD</span></code>, a final force norm below 0.01 eV/Angstrom, and
 a final energy within 1e-4 eV of -464.1301944953.
 The test below does not compare SCF iteration counts or timings.</p></li>
-<li><p>A run that stops with a termination status other than 0, prints no
-<code class="docutils literal notranslate"><span class="pre">[Matter]</span></code> rows, or reports an energy outside these bounds did not
-reproduce this page.</p></li>
+<li><p>A run that stops with a termination status other than 0, prints no <code class="docutils literal notranslate"><span class="pre">[Matter]</span></code>
+rows, or reports an energy outside these bounds did not reproduce this page.</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">tests/test_tutorials_run.py</span></code> runs this page’s <code class="docutils literal notranslate"><span class="pre">pos.con</span></code> and <code class="docutils literal notranslate"><span class="pre">config.ini</span></code> through
-<code class="docutils literal notranslate"><span class="pre">eonclient</span></code> and compares <code class="docutils literal notranslate"><span class="pre">results.dat</span></code> and the <code class="docutils literal notranslate"><span class="pre">[Matter]</span></code> rows with the transcript
-for the build under test: the default-build transcript for a default library,
-and the OpenCPMD transcript for a library that links OpenCPMD when
+<p><code class="docutils literal notranslate"><span class="pre">tests/test_tutorials_run.py</span></code> runs this page’s <code class="docutils literal notranslate"><span class="pre">pos.con</span></code> and <code class="docutils literal notranslate"><span class="pre">config.ini</span></code>
+through <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> and compares <code class="docutils literal notranslate"><span class="pre">results.dat</span></code> and the <code class="docutils literal notranslate"><span class="pre">[Matter]</span></code> rows with the
+transcript for the build under test: the default-build transcript for a default
+library, and the OpenCPMD transcript for a library that links OpenCPMD when
 <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> is set.
 It skips this check when no <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> is on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>; set <code class="docutils literal notranslate"><span class="pre">EONCLIENT</span></code> to the
 path of one to run it.</p>
@@ -773,10 +776,8 @@ path of one to run it.</p>
 <p>To see what CPMD receives, set
 <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT=$PWD/deck.inp</span></code> before <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> (see <a class="reference internal" href="../howto/debug-deck.html"><span class="doc">debugging
 a deck</span></a>).
-For a periodic system or a larger cluster, write the message as the
-<a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">CPMDParams how-to</span></a> shows, and choose the
-optimiser for warm starts with the
-<a class="reference internal" href="../howto/wavefunction-optimiser.html"><span class="doc">optimiser how-to</span></a>.</p>
+For a periodic system or a larger cluster, write the message as the <a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">CPMDParams how-to</span></a>
+shows, and choose the optimiser for warm starts with the <a class="reference internal" href="../howto/wavefunction-optimiser.html"><span class="doc">optimiser how-to</span></a>.</p>
 </section>
 <section id="run-on-several-ranks">
 <h2>Run on several ranks<a class="headerlink" href="#run-on-several-ranks" title="Link to this heading">¶</a></h2>
@@ -786,8 +787,8 @@ optimiser for warm starts with the
 </div>
 <p>Every rank runs the whole client. rgpot binds the four ranks into one calculator
 and hands its communicator to <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code>.
-Only CPMD’s parent rank holds the calculator’s result. eOn broadcasts that
-result to every rank, and rgpot finalizes MPI at exit.
+Only CPMD’s parent rank holds the calculator’s result.
+eOn broadcasts that result to every rank, and rgpot finalizes MPI at exit.
 <a class="reference internal" href="../howto/mpi.html"><span class="doc">Running under mpirun</span></a> explains these rules.</p>
 <p>With the build above and the same files, CPMD split each SCF over four
 processors, and only the parent rank printed.
@@ -912,7 +913,7 @@ but they exited without <code class="docutils literal notranslate"><span class="
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

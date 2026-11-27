@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Plane-wave scaffold reference - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Python API" href="python.html" /><link rel="prev" title="C ABI reference" href="c-abi.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Plane-wave scaffold reference - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Python API" href="python.html" /><link rel="prev" title="C ABI reference" href="c-abi.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/pwscale.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -350,17 +351,16 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="plane-wave-scaffold-reference">
 <h1>Plane-wave scaffold reference<a class="headerlink" href="#plane-wave-scaffold-reference" title="Link to this heading">¶</a></h1>
-<p>The plane-wave scaffold is declared in <code class="docutils literal notranslate"><span class="pre">include/cpmdc_pwscale.h</span></code> and
-implemented in <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale.c</span></code> (CPU and MPI),
-<code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> (CUDA), and <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda_stub.c</span></code>
+<p>The plane-wave scaffold is declared in
+<code class="docutils literal notranslate"><span class="pre">include/cpmdc_pwscale.h</span></code> and implemented in <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale.c</span></code> (CPU and MPI), <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> (CUDA), and <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda_stub.c</span></code>
 (the CUDA calls of a build without CUDA).
 It evaluates one structure-factor sum on a synthetic plane-wave grid so that
 threads, ranks, and a GPU can be timed and compared on the same arithmetic.
 It is separate from the embed force call and the reference potential, and sits
 outside the C ABI of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (see the <a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a>):
 the functions use plain C linkage, the header stays in <code class="docutils literal notranslate"><span class="pre">include/</span></code> and is used
-from the source tree, and <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports only the functions of <code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code>
-and <code class="docutils literal notranslate"><span class="pre">cpmdc_features.h</span></code>.
+from the source tree, and <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports only the functions of <code class="docutils literal notranslate"><span class="pre">cpmdc.h</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_features.h</span></code>.
 The <a class="reference internal" href="../howto/pwscale-ranks.html"><span class="doc">rank how-to</span></a> shows how to time it.</p>
 <section id="availability">
 <h2>Availability<a class="headerlink" href="#availability" title="Link to this heading">¶</a></h2>
@@ -430,8 +430,8 @@ None of them writes <code class="docutils literal notranslate"><span class="pre"
 <p>“MPI in the build” means that Meson found the MPI C compiler wrapper and passed
 <code class="docutils literal notranslate"><span class="pre">-DCPMDC_PWSCALE_HAVE_MPI=1</span></code> to <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale.c</span></code>.
 “CUDA in the build” means <code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale_cuda=true</span></code>: Meson then needs <code class="docutils literal notranslate"><span class="pre">nvcc</span></code>,
-compiles the kernel for <code class="docutils literal notranslate"><span class="pre">sm_70</span></code>, and links <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> in
-place of the stub.
+compiles the kernel for <code class="docutils literal notranslate"><span class="pre">sm_70</span></code>, and links <code class="docutils literal notranslate"><span class="pre">src/cpmdc_pwscale_cuda.cu</span></code> in place
+of the stub.
 A CUDA build on a host without a device still returns
 <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOCUDA</span></code> from <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_cuda</span></code>.</p>
 </section>
@@ -488,10 +488,10 @@ waves.
 Let <code class="docutils literal notranslate"><span class="pre">n</span></code> be the smallest odd integer with <code class="docutils literal notranslate"><span class="pre">n^3</span> <span class="pre">&gt;=</span> <span class="pre">npw</span></code>.
 Plane wave <code class="docutils literal notranslate"><span class="pre">k</span></code>, for <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">k</span> <span class="pre">&lt;</span> <span class="pre">npw</span></code>, has the integer indices
 <code class="docutils literal notranslate"><span class="pre">ix</span> <span class="pre">=</span> <span class="pre">k</span> <span class="pre">mod</span> <span class="pre">n</span> <span class="pre">-</span> <span class="pre">n/2</span></code>, <code class="docutils literal notranslate"><span class="pre">iy</span> <span class="pre">=</span> <span class="pre">(k</span> <span class="pre">/</span> <span class="pre">n)</span> <span class="pre">mod</span> <span class="pre">n</span> <span class="pre">-</span> <span class="pre">n/2</span></code>, and <code class="docutils literal notranslate"><span class="pre">iz</span> <span class="pre">=</span> <span class="pre">k</span> <span class="pre">/</span> <span class="pre">n^2</span> <span class="pre">-</span> <span class="pre">n/2</span></code>
-(integer division), and the wave vector
-<code class="docutils literal notranslate"><span class="pre">G</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">pi</span> <span class="pre">/</span> <span class="pre">cell_bohr</span> <span class="pre">*</span> <span class="pre">(ix,</span> <span class="pre">iy,</span> <span class="pre">iz)</span></code> in inverse Bohr.
-So the plane waves are the first <code class="docutils literal notranslate"><span class="pre">npw</span></code> cells of an <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> box,
-x running fastest; the box is cut short when <code class="docutils literal notranslate"><span class="pre">npw</span></code> is not a cube.
+(integer division), and the wave vector <code class="docutils literal notranslate"><span class="pre">G</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">pi</span> <span class="pre">/</span> <span class="pre">cell_bohr</span> <span class="pre">*</span> <span class="pre">(ix,</span> <span class="pre">iy,</span> <span class="pre">iz)</span></code> in
+inverse Bohr.
+So the plane waves are the first <code class="docutils literal notranslate"><span class="pre">npw</span></code> cells of an <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> box, x
+running fastest; the box is cut short when <code class="docutils literal notranslate"><span class="pre">npw</span></code> is not a cube.
 With <code class="docutils literal notranslate"><span class="pre">G2</span> <span class="pre">=</span> <span class="pre">|G|^2</span></code> and the position <code class="docutils literal notranslate"><span class="pre">r</span></code> of an atom of atomic number <code class="docutils literal notranslate"><span class="pre">Z</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">w</span><span class="p">(</span><span class="n">G</span><span class="p">)</span>     <span class="o">=</span> <span class="mi">4</span> <span class="n">pi</span> <span class="o">/</span> <span class="n">G2</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">G2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="n">alpha</span><span class="p">))</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">G2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="n">sigma</span><span class="o">^</span><span class="mi">2</span><span class="p">))</span>
 </span><span data-line="2"><span class="n">energy</span>   <span class="o">=</span> <span class="nb">sum</span> <span class="n">over</span> <span class="n">G</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">atoms</span> <span class="n">a</span><span class="p">:</span>  <span class="n">Z_a</span> <span class="o">*</span> <span class="n">w</span><span class="p">(</span><span class="n">G</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">G</span> <span class="o">.</span> <span class="n">r_a</span><span class="p">)</span>
@@ -505,9 +505,8 @@ inverse Bohr; the code does not check units.</p>
 </section>
 <section id="how-work-is-split">
 <h3>How work is split<a class="headerlink" href="#how-work-is-split" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code> gives each worker a contiguous run of plane waves and
-every atom; <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code> gives each worker every plane wave and a
-contiguous run of atoms.
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_PW</span></code> gives each worker a contiguous run of plane waves and every atom; <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_DIST_ATOMS</span></code>
+gives each worker every plane wave and a contiguous run of atoms.
 Piece <code class="docutils literal notranslate"><span class="pre">i</span></code> of <code class="docutils literal notranslate"><span class="pre">p</span></code> over <code class="docutils literal notranslate"><span class="pre">m</span></code> items covers <code class="docutils literal notranslate"><span class="pre">[i</span> <span class="pre">*</span> <span class="pre">m</span> <span class="pre">/</span> <span class="pre">p,</span> <span class="pre">(i</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">m</span> <span class="pre">/</span> <span class="pre">p)</span></code>.
 Workers are the OpenMP threads of one call, and in the MPI calls the ranks of
 the communicator, each with its own OpenMP team.
@@ -517,9 +516,9 @@ With the atom split threads write disjoint force entries.</p>
 </section>
 <section id="agreement">
 <h3>Agreement<a class="headerlink" href="#agreement" title="Link to this heading">¶</a></h3>
-<p>A parallel or MPI result agrees with the serial one when
-<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code> accepts the energy and every force component,
-with the tolerance <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code>, and the visit counts are equal.
+<p>A parallel or MPI result agrees with the serial one when <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code>
+accepts the energy and every force component, with the tolerance
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_RTOL</span></code>, and the visit counts are equal.
 Bitwise equality is claimed only in the case below.
 For a fixed rank count and thread count, every rank holds the same bytes and
 repeated runs give the same bytes, because the partial sums are added in rank
@@ -530,8 +529,9 @@ The CUDA path adds with <code class="docutils literal notranslate"><span class="
 <section id="status-codes-and-constants">
 <h2>Status codes and constants<a class="headerlink" href="#status-codes-and-constants" title="Link to this heading">¶</a></h2>
 <p>Every function that returns <code class="docutils literal notranslate"><span class="pre">int</span></code> status returns one of these, except the
-predicates <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code>, which return 1 or 0.</p>
+predicates <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_within</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_sample_check</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_compiled</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_cuda_device</span></code>, which return 1 or 0.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -580,8 +580,8 @@ predicates <code class="docutils literal notranslate"><span class="pre">cpmdc_pw
 </tbody>
 </table>
 </div>
-<p>Codes are negative so that one rank’s failure can be taken as the minimum
-over ranks.</p>
+<p>Codes are negative so that one rank’s failure can be taken as the minimum over
+ranks.</p>
 </section>
 <section id="types">
 <h2>Types<a class="headerlink" href="#types" title="Link to this heading">¶</a></h2>
@@ -698,7 +698,8 @@ The CPU calls set the fields below; the CUDA call differs where noted.</p>
 </section>
 <section id="cpmdc-pwscale-mpi-bind">
 <h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind</span></code><a class="headerlink" href="#cpmdc-pwscale-mpi-bind" title="Link to this heading">¶</a></h3>
-<p>An opaque handle declared as <code class="docutils literal notranslate"><span class="pre">typedef</span> <span class="pre">struct</span> <span class="pre">cpmdc_pwscale_mpi_bind</span> <span class="pre">cpmdc_pwscale_mpi_bind</span></code>.
+<p>An opaque handle declared as
+<code class="docutils literal notranslate"><span class="pre">typedef</span> <span class="pre">struct</span> <span class="pre">cpmdc_pwscale_mpi_bind</span> <span class="pre">cpmdc_pwscale_mpi_bind</span></code>.
 It exists only in a build with MPI; without MPI a pointer of this type is always
 <code class="docutils literal notranslate"><span class="pre">NULL</span></code>.
 See <a class="reference internal" href="#binding">Binding</a> for what it holds.</p>
@@ -753,9 +754,9 @@ See <a class="reference internal" href="#binding">Binding</a> for what it holds.
 <section id="cpmdc-pwscale-fill-geometry">
 <h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_fill_geometry</span></code><a class="headerlink" href="#cpmdc-pwscale-fill-geometry" title="Link to this heading">¶</a></h3>
 <p>Fills <code class="docutils literal notranslate"><span class="pre">positions_bohr</span></code> and <code class="docutils literal notranslate"><span class="pre">atomic_numbers</span></code> for atoms <code class="docutils literal notranslate"><span class="pre">i</span> <span class="pre">=</span> <span class="pre">0</span> <span class="pre">..</span> <span class="pre">natoms</span> <span class="pre">-</span> <span class="pre">1</span></code>,
-with <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">1</span></code>:
-the position is <code class="docutils literal notranslate"><span class="pre">(fmod(0.11</span> <span class="pre">s,</span> <span class="pre">0.73),</span> <span class="pre">fmod(0.17</span> <span class="pre">s,</span> <span class="pre">0.71),</span> <span class="pre">fmod(0.23</span> <span class="pre">s,</span> <span class="pre">0.69))</span></code>
-times <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> and the atomic number is <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">mod</span> <span class="pre">8</span></code>.
+with <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">i</span> <span class="pre">+</span> <span class="pre">1</span></code>: the position is
+<code class="docutils literal notranslate"><span class="pre">(fmod(0.11</span> <span class="pre">s,</span> <span class="pre">0.73),</span> <span class="pre">fmod(0.17</span> <span class="pre">s,</span> <span class="pre">0.71),</span> <span class="pre">fmod(0.23</span> <span class="pre">s,</span> <span class="pre">0.69))</span></code> times <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>
+and the atomic number is <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">mod</span> <span class="pre">8</span></code>.
 Every position is inside the cell.
 The arrays depend only on <code class="docutils literal notranslate"><span class="pre">natoms</span></code> and <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> of <code class="docutils literal notranslate"><span class="pre">prob</span></code>.</p>
 <div class="table-wrapper docutils container">
@@ -935,8 +936,8 @@ rank-ordered sum, the Allgather included; the binding step before it is not
 timed.
 <code class="docutils literal notranslate"><span class="pre">stats-&gt;alloc_bytes</span></code> holds <code class="docutils literal notranslate"><span class="pre">(ranks</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">(3</span> <span class="pre">*</span> <span class="pre">natoms</span> <span class="pre">+</span> <span class="pre">4)</span></code> doubles of exchange
 buffers plus the scratch of this rank’s team.</p>
-<p>Returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code>, <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> in a build without MPI
-(with <code class="docutils literal notranslate"><span class="pre">stats</span></code> zeroed), or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code>.
+<p>Returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_OK</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> in a build without MPI (with <code class="docutils literal notranslate"><span class="pre">stats</span></code> zeroed), or <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code>.
 The pointers and the problem are checked on the calling rank before any
 collective, so a rank that fails that check returns at once without joining.
 If every rank passes the same bad argument, every rank returns
@@ -951,8 +952,8 @@ which reports such a failure on every rank.</p>
 communicator, the handle of the communicator, and the buffers of the exchange
 (<code class="docutils literal notranslate"><span class="pre">(ranks</span> <span class="pre">+</span> <span class="pre">1)</span> <span class="pre">*</span> <span class="pre">(3</span> <span class="pre">*</span> <span class="pre">natoms</span> <span class="pre">+</span> <span class="pre">4)</span></code> doubles).
 It saves the checks and allocation of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> on every step.
-The caller owns a binding from a successful <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code> until
-<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code>.
+The caller owns a binding from a successful <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_create</span></code>
+until <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_mpi_bind_free</span></code>.
 The communicator is not copied, only its handle, so it must outlive the binding.
 The bound calls overwrite the buffers of the binding, so one binding serves one
 call at a time.</p>
@@ -994,23 +995,23 @@ across ranks.
 <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, and <code class="docutils literal notranslate"><span class="pre">sigma</span></code> must match as well, but they are not compared.
 On failure after that collective every rank returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code> and
 <code class="docutils literal notranslate"><span class="pre">\*out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>.
-Three failures come before the collective and do not join it:
-<code class="docutils literal notranslate"><span class="pre">out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code> differs from <code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">NULL</span></code>
-<code class="docutils literal notranslate"><span class="pre">comm</span></code>, and a rank or size query of the communicator fails.
+Three failures come before the collective and do not join it: <code class="docutils literal notranslate"><span class="pre">out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code> differs from <code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">NULL</span></code> <code class="docutils literal notranslate"><span class="pre">comm</span></code>, and a rank
+or size query of the communicator fails.
 A build without MPI returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> and sets <code class="docutils literal notranslate"><span class="pre">\*out</span></code> to <code class="docutils literal notranslate"><span class="pre">NULL</span></code>
 when <code class="docutils literal notranslate"><span class="pre">out</span></code> is not <code class="docutils literal notranslate"><span class="pre">NULL</span></code>.</p>
 </section>
 <section id="cpmdc-pwscale-eval-mpi-bound">
 <h3><code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi_bound</span></code><a class="headerlink" href="#cpmdc-pwscale-eval-mpi-bound" title="Link to this heading">¶</a></h3>
 <p>One force call on a binding.
-It has the arguments and the result of <code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> for the problem
-and <code class="docutils literal notranslate"><span class="pre">dist</span></code> of the binding, without <code class="docutils literal notranslate"><span class="pre">prob</span></code>, <code class="docutils literal notranslate"><span class="pre">dist</span></code>, <code class="docutils literal notranslate"><span class="pre">comm</span></code>, and <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code>.
+It has the arguments and the result of
+<code class="docutils literal notranslate"><span class="pre">cpmdc_pwscale_eval_mpi</span></code> for the problem and <code class="docutils literal notranslate"><span class="pre">dist</span></code> of the binding, without <code class="docutils literal notranslate"><span class="pre">prob</span></code>, <code class="docutils literal notranslate"><span class="pre">dist</span></code>, <code class="docutils literal notranslate"><span class="pre">comm</span></code>, and <code class="docutils literal notranslate"><span class="pre">comm_bytes</span></code>.
 The geometry arrays are per call.</p>
-<p>The call is collective over the bound communicator and runs one
-<code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code> of each rank’s return code, visit counts, energy, and forces.
-A failure on one rank, such as a missing array, a team that fails, or
-<code class="docutils literal notranslate"><span class="pre">nthreads</span></code> above 4096, is seen by every rank, and every rank returns the lowest
-(most negative) code any rank produced; <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> is untouched then.
+<p>The call is collective over the bound communicator and runs one <code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code>
+of each rank’s return code, visit counts, energy, and forces.
+A failure on one rank, such as a missing array, a team that fails, or <code class="docutils literal notranslate"><span class="pre">nthreads</span></code>
+above 4096, is seen by every rank, and every rank returns the lowest (most
+negative) code any rank produced; <code class="docutils literal notranslate"><span class="pre">forces_h_bohr</span></code> is untouched then.
 A <code class="docutils literal notranslate"><span class="pre">NULL</span></code> <code class="docutils literal notranslate"><span class="pre">bind</span></code> returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_ARG</span></code> at once, without the collective.
 A build without MPI returns <code class="docutils literal notranslate"><span class="pre">CPMDC_PWSCALE_ERR_NOMPI</span></code> and zeroes <code class="docutils literal notranslate"><span class="pre">stats</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">stats-&gt;g_visited</span></code> is <code class="docutils literal notranslate"><span class="pre">npw</span></code> with either split, <code class="docutils literal notranslate"><span class="pre">stats-&gt;atom_visits</span></code> is the sum
@@ -1089,8 +1090,8 @@ and the result is the same sum in the same units; <code class="docutils literal 
 </div>
 <p>A missing build or device writes no timing: <code class="docutils literal notranslate"><span class="pre">stats</span></code> stays zeroed.
 On success <code class="docutils literal notranslate"><span class="pre">stats-&gt;seconds</span></code> is the event time from before the host-to-device
-copies to after the device-to-host copies and the synchronization, so it contains
-the copy times.
+copies to after the device-to-host copies and the synchronization, so it
+contains the copy times.
 <code class="docutils literal notranslate"><span class="pre">h2d_seconds</span></code> covers the position and atomic-number copies; <code class="docutils literal notranslate"><span class="pre">d2h_seconds</span></code> runs
 from the end of the kernel launch to the end of the call, so it covers the
 copies back and any kernel time that is still running.
@@ -1245,7 +1246,7 @@ field of the header is missing from this page.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build and test cpmdc - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" /><link rel="prev" title="Install and build" href="install.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build and test cpmdc - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Build the OpenCPMD archive for embedding" href="opencpmd-archive.html" /><link rel="prev" title="Install and build" href="install.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/quickstart.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -408,8 +409,8 @@ The <a class="reference internal" href="../contributing/index.html"><span class=
 each contract.</p>
 <p><a class="reference internal" href="../reference/build-options.html"><span class="doc">Build options, artifacts, and Pixi tasks</span></a>
 lists the Meson test suites and the tests in each.
-The stub suite includes <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code>, which
-run on four ranks when MPI is found.</p>
+The stub suite includes <code class="docutils literal notranslate"><span class="pre">adopt-comm-stub</span></code> and <code class="docutils literal notranslate"><span class="pre">bind-calculator-stub</span></code>, which run
+on four ranks when MPI is found.</p>
 </section>
 <section id="run-the-host-example">
 <h2>Run the host example<a class="headerlink" href="#run-the-host-example" title="Link to this heading">¶</a></h2>
@@ -455,14 +456,13 @@ itself; see <a class="reference internal" href="python.html"><span class="doc">C
 <p>The same C ABI links against a patched OpenCPMD archive instead of the reference
 evaluator.
 Build the archive as the <a class="reference internal" href="opencpmd-archive.html"><span class="doc">archive how-to</span></a>
-describes, then follow <a class="reference internal" href="install.html"><span class="doc">the install how-to</span></a> to
-configure <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code> with <code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span> <span class="pre">-Dcpmd_root=/path/to/opencpmd-build</span></code>.
+describes, then follow <a class="reference internal" href="install.html"><span class="doc">the install how-to</span></a> to configure
+<code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code> with <code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span> <span class="pre">-Dcpmd_root=/path/to/opencpmd-build</span></code>.
 Both options are required before <code class="docutils literal notranslate"><span class="pre">meson.build</span></code> links the archive: that build
 adds <code class="docutils literal notranslate"><span class="pre">water-capnp-cli-parity</span></code>, <code class="docutils literal notranslate"><span class="pre">box-cell-energy</span></code>, <code class="docutils literal notranslate"><span class="pre">embed-teardown</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">scf-unconverged</span></code>, and runs <code class="docutils literal notranslate"><span class="pre">extrapolate-wfn</span></code> plus the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> and <code class="docutils literal notranslate"><span class="pre">mpi</span></code> suites
 against the linked archive.
-When a build or a call fails, see
-<a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>.</p>
+When a build or a call fails, see <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>.</p>
 </section>
 <section id="read-next">
 <h2>Read next<a class="headerlink" href="#read-next" title="Link to this heading">¶</a></h2>
@@ -599,7 +599,7 @@ When a build or a call fails, see
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

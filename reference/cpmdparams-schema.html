@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMDParams schema fields - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMD option mapping" href="cpmd-options.html" /><link rel="prev" title="Build options, artifacts, and Pixi tasks" href="build-options.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMDParams schema fields - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMD option mapping" href="cpmd-options.html" /><link rel="prev" title="Build options, artifacts, and Pixi tasks" href="build-options.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/cpmdparams-schema.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -329,11 +330,11 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="cpmdparams-schema-fields">
 <h1>CPMDParams schema fields<a class="headerlink" href="#cpmdparams-schema-fields" title="Link to this heading">¶</a></h1>
-<p>The schema is <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>, a vendored copy of the shared
-<code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code> release pinned in <code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>.
+<p>The schema is
+<code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>, a vendored copy of the shared <code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code> release pinned in <code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>.
 This page lists the fields that decide what CPMD computes.
-The <a class="reference internal" href="cpmd-options.html"><span class="doc">option mapping</span></a> lists every typed field with its feature ID
-and deck spelling.</p>
+The <a class="reference internal" href="cpmd-options.html"><span class="doc">option mapping</span></a> lists every typed field with its
+feature ID and deck spelling.</p>
 <section id="cpmdparams">
 <h2><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code><a class="headerlink" href="#cpmdparams" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
@@ -402,12 +403,12 @@ and deck spelling.</p>
 </div>
 <p>A section missing from <code class="docutils literal notranslate"><span class="pre">inputSections</span></code> gets a default: <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> with
 <code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code> and <code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code> 1e-6, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> with
-<code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code> and the top-level cutoff, charge, and multiplicity, and <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>
-with the top-level functional.
+<code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code> and the top-level cutoff, charge, and multiplicity, and <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> with
+the top-level functional.
 That deck has no <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line.
-A force call with a positive volume writes symmetry 1 for a cube, symmetry 8
-for unequal orthogonal edges, or <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> with no symmetry line when
-the box is tilted.
+A force call with a positive volume writes symmetry 1 for a cube, symmetry 8 for
+unequal orthogonal edges, or <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> with no symmetry line when the box
+is tilted.
 A zero box stays <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and adds <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>.</p>
 </section>
 <section id="cpmdinputsection">
@@ -481,8 +482,7 @@ A zero box stays <code class="docutils literal notranslate"><span class="pre">SY
 </tbody>
 </table>
 </div>
-<p>Every typed section has a <code class="docutils literal notranslate"><span class="pre">directives</span></code> list for keywords without a typed
-field.</p>
+<p>Every typed section has a <code class="docutils literal notranslate"><span class="pre">directives</span></code> list for keywords without a typed field.</p>
 </section>
 <section id="cpmdcpmdsection-the-fields-a-force-call-uses">
 <h2><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses<a class="headerlink" href="#cpmdcpmdsection-the-fields-a-force-call-uses" title="Link to this heading">¶</a></h2>
@@ -538,8 +538,8 @@ field.</p>
 </tbody>
 </table>
 </div>
-<p>The OpenCPMD path ignores restarted coordinates, velocities, and geometry:
-the host owns them.</p>
+<p>The OpenCPMD path ignores restarted coordinates, velocities, and geometry: the
+host owns them.</p>
 </section>
 <section id="cpmdsystemsection-the-fields-that-set-the-cell">
 <h2><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell<a class="headerlink" href="#cpmdsystemsection-the-fields-that-set-the-cell" title="Link to this heading">¶</a></h2>
@@ -664,12 +664,12 @@ the host owns them.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section also carries <code class="docutils literal notranslate"><span class="pre">constraints</span></code>, <code class="docutils literal notranslate"><span class="pre">isotopes</span></code>, <code class="docutils literal notranslate"><span class="pre">velocities</span></code>,
 <code class="docutils literal notranslate"><span class="pre">dummyAtoms</span></code>, <code class="docutils literal notranslate"><span class="pre">changeBonds</span></code>, <code class="docutils literal notranslate"><span class="pre">generate</span></code>, and <code class="docutils literal notranslate"><span class="pre">directives</span></code>.
 Coordinates never go here.
-On the OpenCPMD path, the <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block CPMD reads is rebuilt from each
-step’s geometry.
+On the OpenCPMD path, the <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block CPMD reads is rebuilt from each step’s
+geometry.
 Entries in <code class="docutils literal notranslate"><span class="pre">pseudopotentials</span></code> supply the file, <code class="docutils literal notranslate"><span class="pre">LMAX</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> for the elements they name.
-Elements left out of that list use a built-in table for H, C, N, O, Si, and
-Ge; see <a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>.</p>
+Elements left out of that list use a built-in table for H, C, N, O, Si, and Ge;
+see <a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>.</p>
 </section>
 <section id="forceinput">
 <h2><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code><a class="headerlink" href="#forceinput" title="Link to this heading">¶</a></h2>
@@ -711,55 +711,53 @@ Ge; see <a class="reference internal" href="../howto/write-cpmdparams.html"><spa
 <p>A union of backend arms plus a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay (<code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code>).
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> accepts the <code class="docutils literal notranslate"><span class="pre">cpmd</span></code> arm, which holds a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, the overlay alone,
 or both together.
-When both are set, a value the arm sets beats the overlay, and the overlay
-fills only what the arm leaves at the schema defaults and beats a schema
-default.
+When both are set, a value the arm sets beats the overlay, and the overlay fills
+only what the arm leaves at the schema defaults and beats a schema default.
 The overlay fills <code class="docutils literal notranslate"><span class="pre">xcFunctionals</span></code>, <code class="docutils literal notranslate"><span class="pre">planewaveCutoffEv</span></code>, <code class="docutils literal notranslate"><span class="pre">charge</span></code>,
 <code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code>, Fermi <code class="docutils literal notranslate"><span class="pre">smearing</span></code> (when <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> sets none), and
 <code class="docutils literal notranslate"><span class="pre">vanDerWaalsS6</span></code> (into a <code class="docutils literal notranslate"><span class="pre">vdwParams</span></code> section with <code class="docutils literal notranslate"><span class="pre">s6</span></code> unset).
 An arm field sets a value when it differs from the schema default (functional
-<code class="docutils literal notranslate"><span class="pre">BLYP</span></code>, cutoff 70 Ry, charge 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code>, multiplicity 1), and
-a typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> section beats the top-level field.
-A method field in a typed section that is omitted or holds its schema default
-is unset and does not replace the top-level arm or overlay value; a typed
-<code class="docutils literal notranslate"><span class="pre">system</span></code> charge of 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code> is unset, and a non-zero charge
-or zero <code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> is explicit.
+<code class="docutils literal notranslate"><span class="pre">BLYP</span></code>, cutoff 70 Ry, charge 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code>, multiplicity 1), and a
+typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> or <code class="docutils literal notranslate"><span class="pre">system</span></code> section beats the top-level field.
+A method field in a typed section that is omitted or holds its schema default is
+unset and does not replace the top-level arm or overlay value; a typed <code class="docutils literal notranslate"><span class="pre">system</span></code>
+charge of 0 with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">false</span></code> is unset, and a non-zero charge or zero
+<code class="docutils literal notranslate"><span class="pre">system.charge</span></code> with <code class="docutils literal notranslate"><span class="pre">system.hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> is explicit.
 <code class="docutils literal notranslate"><span class="pre">planewaveCutoffEv</span></code> is in eV and is converted to the Ry the deck carries.
-<code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code> 0 is unset, so an explicit singlet of 1 is merged and
-checked like the other overlay scalars.
-The functional, cutoff, charge, and multiplicity lines the deck renderers
-write and the recorded settings follow this precedence.
-An unmapped <code class="docutils literal notranslate"><span class="pre">xcFunctionals</span></code> token is rejected for every arm functional,
-before that precedence.
+<code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code> 0 is unset, so an explicit singlet of 1 is merged and checked
+like the other overlay scalars.
+The functional, cutoff, charge, and multiplicity lines the deck renderers write
+and the recorded settings follow this precedence.
+An unmapped <code class="docutils literal notranslate"><span class="pre">xcFunctionals</span></code> token is rejected for every arm functional, before
+that precedence.
 Opaque carriers are rendered as given and are not folded into the recorded
-settings, so the carrier check runs for every set overlay field, whether or
-not a typed field also sets it, including zero <code class="docutils literal notranslate"><span class="pre">charge</span></code> with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code>
-<code class="docutils literal notranslate"><span class="pre">true</span></code> and an explicit singlet <code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code> of 1.
+settings, so the carrier check runs for every set overlay field, whether or not
+a typed field also sets it, including zero <code class="docutils literal notranslate"><span class="pre">charge</span></code> with <code class="docutils literal notranslate"><span class="pre">hasCharge</span></code> <code class="docutils literal notranslate"><span class="pre">true</span></code> and
+an explicit singlet <code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code> of 1.
 The overlay field is rejected when <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, a raw section, or a generic
 section opens <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> (<code class="docutils literal notranslate"><span class="pre">xcFunctionals</span></code>) or <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> (cutoff, charge,
-multiplicity), when a set directive names <code class="docutils literal notranslate"><span class="pre">DFT.FUNCTIONAL</span></code>,
-<code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code>, or when the
-<code class="docutils literal notranslate"><span class="pre">directives</span></code> list of the typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> section holds <code class="docutils literal notranslate"><span class="pre">FUNCTIONAL</span></code> or that of
-the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section holds <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code>.
+multiplicity), when a set directive names <code class="docutils literal notranslate"><span class="pre">DFT.FUNCTIONAL</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code>, or when the <code class="docutils literal notranslate"><span class="pre">directives</span></code> list of the
+typed <code class="docutils literal notranslate"><span class="pre">dft</span></code> section holds <code class="docutils literal notranslate"><span class="pre">FUNCTIONAL</span></code> or that of the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section
+holds <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code>.
 Without an overlay, the deck render rejects a <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> directive in the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section, and a
-<code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>, <code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code> set directive.
+<code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> directive in the typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section, and a <code class="docutils literal notranslate"><span class="pre">SYSTEM.CUTOFF</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SYSTEM.CHARGE</span></code>, or <code class="docutils literal notranslate"><span class="pre">SYSTEM.MULTIPLICITY</span></code> set directive.
 <code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code> is written on every deck, including the default 70 Ry.
 <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> is written only when it is not 0 and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> only when it is
-greater than 1; an omitted line is the schema default the recorded
-configuration carries.
-Those directives are rejected for a default value and for any other value
-alike.
+greater than 1; an omitted line is the schema default the recorded configuration
+carries.
+Those directives are rejected for a default value and for any other value alike.
 A default leaves the directive as a value the recorded configuration does not
 carry, and any other value leaves two lines.
 The render does not keep one and drop the other.
-Fermi <code class="docutils literal notranslate"><span class="pre">smearing</span></code> also rejects split <code class="docutils literal notranslate"><span class="pre">TEMPERATURE</span></code> and <code class="docutils literal notranslate"><span class="pre">ELECTRON</span></code> arguments
-in <code class="docutils literal notranslate"><span class="pre">cpmd.directives</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMD.TEMPERATURE</span></code> set directives.
-The merge requires <code class="docutils literal notranslate"><span class="pre">basisSet</span></code> to be unset or <code class="docutils literal notranslate"><span class="pre">&quot;planewave&quot;</span></code>, and rejects
-negative or non-finite scalars and conflicting or unmergeable fields
-(<code class="docutils literal notranslate"><span class="pre">kMesh</span></code>, SCF controls, <code class="docutils literal notranslate"><span class="pre">vanDerWaalsMethod</span></code>, <code class="docutils literal notranslate"><span class="pre">relativityMethod</span></code>, already-set
-smearing or <code class="docutils literal notranslate"><span class="pre">s6</span></code>, or <code class="docutils literal notranslate"><span class="pre">vanDerWaalsS6</span></code> without <code class="docutils literal notranslate"><span class="pre">vdwParams</span></code>); see the
-<a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a> for the lowering rules.</p>
+Fermi <code class="docutils literal notranslate"><span class="pre">smearing</span></code> also rejects split <code class="docutils literal notranslate"><span class="pre">TEMPERATURE</span></code> and <code class="docutils literal notranslate"><span class="pre">ELECTRON</span></code> arguments in
+<code class="docutils literal notranslate"><span class="pre">cpmd.directives</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMD.TEMPERATURE</span></code> set directives.
+The merge requires <code class="docutils literal notranslate"><span class="pre">basisSet</span></code> to be unset or <code class="docutils literal notranslate"><span class="pre">&quot;planewave&quot;</span></code>, and rejects negative
+or non-finite scalars and conflicting or unmergeable fields (<code class="docutils literal notranslate"><span class="pre">kMesh</span></code>, SCF
+controls, <code class="docutils literal notranslate"><span class="pre">vanDerWaalsMethod</span></code>, <code class="docutils literal notranslate"><span class="pre">relativityMethod</span></code>, already-set smearing or <code class="docutils literal notranslate"><span class="pre">s6</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">vanDerWaalsS6</span></code> without <code class="docutils literal notranslate"><span class="pre">vdwParams</span></code>); see the <a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a>
+for the lowering rules.</p>
 </section>
 </section>
 
@@ -870,7 +868,7 @@ smearing or <code class="docutils literal notranslate"><span class="pre">s6</spa
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

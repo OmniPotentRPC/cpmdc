@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Public C surface map - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="API contracts" href="contracts.html" /><link rel="prev" title="Feature inventory" href="feature-inventory.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Public C surface map - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="API contracts" href="contracts.html" /><link rel="prev" title="Feature inventory" href="feature-inventory.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/surface-map.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -330,15 +331,17 @@ The <a class="reference internal" href="c-abi.html"><span class="doc">C ABI refe
 page records where each one lives.
 The <code class="docutils literal notranslate"><span class="pre">cpmd-public-abi-inventory</span></code>, <code class="docutils literal notranslate"><span class="pre">stub-abi-symbol-coverage</span></code>,
 <code class="docutils literal notranslate"><span class="pre">shared-dlopen-symbol-coverage</span></code>, and <code class="docutils literal notranslate"><span class="pre">c-abi-inventory</span></code> tests keep it true.</p>
-<p>Protocol adapters are deliberately outside this surface.  Direct callers use
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> or the Cap’n Proto result calls; remote callers
-normally use rgpot’s Cap’n Proto RPC.  An optional i-PI adapter belongs to
-rgpot as a frontend over every potential.  In an rgpot build with the RPC
-stack, <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> selects <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> for <code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code>
-and for <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code>.  Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD so
-a singular cell is passed through instead of padded.  The
-<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI migration status</span></a> records that
-route.  <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks.</p>
+<p>Protocol adapters are deliberately outside this surface.
+Direct callers use <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> or the Cap’n Proto result
+calls; remote callers normally use rgpot’s Cap’n Proto RPC.
+An optional i-PI adapter belongs to rgpot as a frontend over every potential.
+In an rgpot build with the RPC stack, <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> selects <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> for
+<code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> and for <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code>.
+Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD so a singular cell is passed through
+instead of padded.
+The <a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI migration status</span></a> records that
+route.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks.</p>
 <section id="sources-checked">
 <h2>Sources checked<a class="headerlink" href="#sources-checked" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
@@ -464,133 +467,147 @@ builds, implemented for the stub, and present as an <code class="docutils litera
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_destroy</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_external_charges</span></code></p></td>
+<td><p>setup</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_destroy</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_copy_orbitals</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result_from_config</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result_from_config</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input</span></code></p></td>
 <td><p>result size</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_version</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_version</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_abi_version</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_abi_version</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_configure</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_configure</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error</span></code></p></td>
+<td><p>result snapshot</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error_code</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
@@ -639,112 +656,133 @@ builds, implemented for the stub, and present as an <code class="docutils litera
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_charges</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_rank_spread</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress</span></code></p></td>
+<td><p>result snapshot</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_rank_spread</span></code></p></td>
 <td><p>MPI</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_md_trajectory_row</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_md_trajectory_row</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_multi_state_energies</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_multi_state_energies</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_charge_integrals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_charge_integrals</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_energy_components</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_energy_components</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charge_integrals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charge_integrals</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_multi_state_energies</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_multi_state_energies</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_md_trajectory_row</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_md_trajectory_row</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_property_snapshot</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_property_snapshot</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_gradient</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_gradient</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_dipole</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_stress</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charges</span></code></p></td>
 <td><p>result snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_count</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_external_charge_forces</span></code></p></td>
+<td><p>result snapshot</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_stress</span></code></p></td>
+<td><p>result snapshot</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_count</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
@@ -754,14 +792,14 @@ builds, implemented for the stub, and present as an <code class="docutils litera
 </tbody>
 </table>
 </div>
-<p>52 symbols in <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code>, 52 with every column present.</p>
+<p>57 symbols in <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code>, 57 with every column present.</p>
 </section>
 <section id="exported-symbols">
 <h2>Exported symbols<a class="headerlink" href="#exported-symbols" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">schema/inventory/surface_map_abi.txt</span></code> is generated by
 <code class="docutils literal notranslate"><span class="pre">scripts/abi_inventory.py</span></code> from the exported symbols of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (<code class="docutils literal notranslate"><span class="pre">nm</span> <span class="pre">-D</span> <span class="pre">--defined-only</span></code>, or <code class="docutils literal notranslate"><span class="pre">nm</span> <span class="pre">-gU</span></code> on macOS; <code class="docutils literal notranslate"><span class="pre">NM</span></code> names another <code class="docutils literal notranslate"><span class="pre">nm</span></code>) and the declarations in <code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code>
 and <code class="docutils literal notranslate"><span class="pre">include/cpmdc_features.h</span></code>.
-It lists the 52 public functions with their header, the ABI generation
+It lists the 57 public functions with their header, the ABI generation
 (<code class="docutils literal notranslate"><span class="pre">CPMDC_ABI_VERSION</span></code>, 0), and a <code class="docutils literal notranslate"><span class="pre">&#64;since</span></code> column that stays <code class="docutils literal notranslate"><span class="pre">-</span></code> until a
 declaration records a later generation.
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> exports exactly those symbols: internal glue is hidden (see <a class="reference internal" href="c-abi.html"><span class="doc">the C ABI reference</span></a>
@@ -896,7 +934,7 @@ VDW, VECTORS, WAVEFUNCTION.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

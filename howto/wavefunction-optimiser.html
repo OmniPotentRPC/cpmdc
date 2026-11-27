@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Choose the wavefunction optimiser - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Extrapolate the orbitals along a trajectory" href="extrapolate-orbitals.html" /><link rel="prev" title="Run under mpirun" href="mpi.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Choose the wavefunction optimiser - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Extrapolate the orbitals along a trajectory" href="extrapolate-orbitals.html" /><link rel="prev" title="Run under mpirun" href="mpi.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/wavefunction-optimiser.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -233,7 +234,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#goal">Goal</a></li>
 <li><a class="reference internal" href="#measured-on-the-si3n4-cluster">Measured on the Si3N4 cluster</a></li>
 <li><a class="reference internal" href="#set-odiis-in-the-message">Set ODIIS in the message</a></li>
-<li><a class="reference internal" href="#when-to-keep-pcg">When to keep PCG</a></li>
+<li><a class="reference internal" href="#odiis-continuation-and-when-to-keep-pcg">ODIIS continuation and when to keep PCG</a></li>
 <li><a class="reference internal" href="#always-set-maxiter">Always set MAXITER</a></li>
 <li><a class="reference internal" href="#strict-pcg-line-minimization">Strict PCG line minimization</a></li>
 </ul>
@@ -330,15 +331,15 @@ data-aria-dark="Switch to auto color mode">
 <h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
 <p>Pick the CPMD wavefunction optimiser for a session that evaluates many nearby
 geometries, such as a minimisation, a saddle search, or a nudged elastic band.
-Every call after the first starts from the orbitals of the previous call, so
-the optimiser that suits a cold start from atomic orbitals is not always the
+Every call after the first starts from the orbitals of the previous call, so the
+optimiser that suits a cold start from atomic orbitals is not always the
 cheapest for the warm calls that follow.</p>
 </section>
 <section id="measured-on-the-si3n4-cluster">
 <h2>Measured on the Si3N4 cluster<a class="headerlink" href="#measured-on-the-si3n4-cluster" title="Link to this heading">¶</a></h2>
-<p>One minimisation of a 7-atom Si3N4 cluster, BLYP at 70 Ry in a 14 Angstrom
-cube with Kleinman-Bylander pseudopotentials, library route on 16 MPI ranks,
-orbital convergence 1e-5.
+<p>One minimisation of a 7-atom Si3N4 cluster, BLYP at 70 Ry in a 14 Angstrom cube
+with Kleinman-Bylander pseudopotentials, library route on 16 MPI ranks, orbital
+convergence 1e-5.
 The two runs differ only in the optimiser line of the <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> section.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -373,8 +374,8 @@ The two runs differ only in the optimiser line of the <code class="docutils lite
 orbital convergence tolerance.
 ODIIS (orbital direct inversion in the iterative subspace) needed fewer and
 cheaper SCF steps.
-PCG (preconditioned conjugate gradient) with <code class="docutils literal notranslate"><span class="pre">MINIMIZE</span></code> runs a line
-minimisation that costs about two energy evaluations per step.</p>
+PCG (preconditioned conjugate gradient) with <code class="docutils literal notranslate"><span class="pre">MINIMIZE</span></code> runs a line minimisation
+that costs about two energy evaluations per step.</p>
 </section>
 <section id="set-odiis-in-the-message">
 <h2>Set ODIIS in the message<a class="headerlink" href="#set-odiis-in-the-message" title="Link to this heading">¶</a></h2>
@@ -400,17 +401,32 @@ To keep the deck’s PCG line instead, use a directive:</p>
 </span></pre></div>
 </div>
 <p>Set only one optimiser in a message.
-Check the rendered <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> section with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> (see
-<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).</p>
+Check the rendered <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> section with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> (see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).</p>
 </section>
-<section id="when-to-keep-pcg">
-<h2>When to keep PCG<a class="headerlink" href="#when-to-keep-pcg" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> applies one deck to every call of a session, so the optimiser chosen
-for the warm calls also runs the cold first call from atomic orbitals.
-Keep <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> for a system whose ODIIS calls stop at <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>: each
-such call is reported as a failure (see <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>),
-and the optimiser choice does not change the converged state, only the path
-to it.</p>
+<section id="odiis-continuation-and-when-to-keep-pcg">
+<h2>ODIIS continuation and when to keep PCG<a class="headerlink" href="#odiis-continuation-and-when-to-keep-pcg" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> applies one deck to every call of a session, so the optimiser chosen for
+the warm calls also runs the cold first call from atomic orbitals.</p>
+<p>On the OpenCPMD path the first pass of a call is one <code class="docutils literal notranslate"><span class="pre">wfopts</span></code> with the deck’s
+optimiser.
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> turns DIIS off and continues once with preconditioned <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code>
+when that pass leaves the orbitals unconverged, DIIS is selected, and <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>
+has not fired.
+An <code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> line selects DIIS.
+So does a wavefunction optimisation that names no wavefunction optimiser:
+OpenCPMD then uses preconditioned DIIS with 10 vectors.
+A <code class="docutils literal notranslate"><span class="pre">PCG</span></code> line, or electronic steepest descent (<code class="docutils literal notranslate"><span class="pre">TSDE</span></code> or
+<code class="docutils literal notranslate"><span class="pre">STEEPEST</span> <span class="pre">DESCENT</span> <span class="pre">ELECTRONS</span></code>), with no <code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> line, leaves DIIS unselected, so
+that pass does not continue.
+The continuation restores the previous converged orbitals when a converged copy
+is already stored.
+With no converged copy yet, it starts from the orbitals of the pass that just
+returned, instead of rebuilding the atomic guess.
+It runs once per call.
+If the continuation also fails to converge, the call fails.</p>
+<p>Keep <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> in the deck when that single continuation still fails, or
+when the first pass hits <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> and the continuation is not attempted (see <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>).
+The optimiser choice does not change the converged state, only the path to it.</p>
 </section>
 <section id="always-set-maxiter">
 <h2>Always set MAXITER<a class="headerlink" href="#always-set-maxiter" title="Link to this heading">¶</a></h2>
@@ -421,28 +437,33 @@ steps than that, and an SCF that stops at the limit fails the call.</p>
 <section id="strict-pcg-line-minimization">
 <h2>Strict PCG line minimization<a class="headerlink" href="#strict-pcg-line-minimization" title="Link to this heading">¶</a></h2>
 <p>For strict orbital targets, apply <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_pcg_step.patch</span></code> to the
-OpenCPMD source linked into the native archive. The directional slope and
-curvature both scale with the square of the orbital residual. An absolute
-curvature floor of 1e-15 can suppress the interpolated step even when the
-ratio of derivatives is well resolved. The patch divides both derivatives
-by their largest magnitude before finding the root; equal derivatives
-retain the supplied trial step. It does not change the convergence target.</p>
+OpenCPMD source linked into the native archive.
+The directional slope and curvature both scale with the square of the orbital
+residual.
+An absolute curvature floor of 1e-15 can suppress the interpolated step even
+when the ratio of derivatives is well resolved.
+The patch divides both derivatives by their largest magnitude before finding the
+root; equal derivatives retain the supplied trial step.
+It does not change the convergence target.</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/OpenCPMD
 </span><span data-line="2">patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_pcg_step.patch
 </span><span data-line="3">/path/to/cpmdc/tools/check_opencpmd_pcg_step.sh<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">/build/pcg-step-test&quot;</span>
 </span><span data-line="4">/path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh<span class="w"> </span>/path/to/cpmd-root
 </span></pre></div>
 </div>
-<p>Run compilation inside a compute allocation. The check extracts the patched
-native function and calls it from C++ for 726 roots with derivative scales
-from 1e-300 to 1e300, plus degenerate and extrapolation cases. Expected output:</p>
+<p>Run compilation inside a compute allocation.
+The check extracts the patched native function and calls it from C++ for 726
+roots with derivative scales from 1e-300 to 1e300, plus degenerate and
+extrapolation cases.
+Expected output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="mi">726</span> <span class="n">scaled</span> <span class="n">native</span> <span class="n">line</span><span class="o">-</span><span class="n">search</span> <span class="n">roots</span> <span class="ow">and</span> <span class="n">four</span> <span class="n">degenerate</span><span class="o">/</span><span class="n">extrapolation</span> <span class="n">cases</span> <span class="k">pass</span>
 </span></pre></div>
 </div>
-<p>Relink <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> against the rebuilt archive. Preserve the separate
-<code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code> correction for calculator groups spanning nodes.
-The algebraic check establishes scale invariance; native force convergence
-must also be checked on the requested system and orbital target.</p>
+<p>Relink <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> against the rebuilt archive.
+Preserve the separate <code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code> correction for calculator groups
+spanning nodes.
+The algebraic check establishes scale invariance; native force convergence must
+also be checked on the requested system and orbital target.</p>
 </section>
 </section>
 
@@ -553,7 +574,7 @@ must also be checked on the requested system and orbital target.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

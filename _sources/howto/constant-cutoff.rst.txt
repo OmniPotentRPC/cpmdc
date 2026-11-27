@@ -198,8 +198,8 @@ At 40 Ry, BFGS overshoots on that flat volume mode, so 20 of its 53 steps raise
 the energy, by at most 0.041 eV; the first six steps lower it every time.
 
 :doc:`Density of water at a constant cutoff <../explanation/constant-cutoff-npt>`
-runs NPT dynamics of 32 waters with and without the functional and compares
-the density with a published PBE value.
+runs NPT dynamics of 32 waters with and without the functional and compares the
+density with a published PBE value.
 
 The :doc:`C ABI <../reference/c-abi>`, :doc:`Python API <../reference/python>`,
 and :doc:`CPMD options <../reference/cpmd-options>` references list the

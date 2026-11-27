@@ -7,9 +7,9 @@ Check forces and stress by finite differences
 Goal
 ----
 
-Compare the forces a session returns with central differences of its
-energy, the way the CP2K ``DEBUG`` run type does with ``DEBUG_FORCES`` and
-``DEBUG_STRESS_TENSOR``.
+Compare the forces a session returns with central differences of its energy, the
+way the CP2K ``DEBUG`` run type does with
+``DEBUG_FORCES`` and ``DEBUG_STRESS_TENSOR``.
 A mismatch points at the gradient, not at the energy.
 
 Run the check
@@ -23,61 +23,68 @@ It takes one ``CPMDParams`` message and one ``ForceInput`` step:
 
     build/cpmdc-fd-check build/water_blyp_params.bin build/force_input_water.bin
 
-Each coordinate moves by ``+DX`` and ``-DX`` Bohr, so a check of ``N`` atoms
-costs ``6N`` energy evaluations after the first one.
+Each coordinate moves by ``+DX`` and ``-DX`` Bohr, so a check of ``N`` atoms costs
+``6N`` energy evaluations after the first one.
 Every evaluation is a ``cpmdc_session_calculate_result()`` call with
 ``lengthUnit = "bohr"`` and ``energyUnit = "hartree"``.
 The numerical force is ``-(E(+DX) - E(-DX)) / (2 DX)``.
 
 .. table::
 
-    +--------------------------+-----------------+-------------------------------+
-    | Option                   | Default         | CP2K keyword                  |
-    +==========================+=================+===============================+
-    | ``--dx``                 | ``1e-3`` Bohr   | ``DEBUG%DX``                  |
-    +--------------------------+-----------------+-------------------------------+
-    | ``--max-relative-error`` | ``0.2`` percent | ``DEBUG%MAX_RELATIVE_ERROR``  |
-    +--------------------------+-----------------+-------------------------------+
-    | ``--eps-no-error-check`` | ``1e-5`` a.u.   | ``DEBUG%EPS_NO_ERROR_CHECK``  |
-    +--------------------------+-----------------+-------------------------------+
-    | ``--stress``             | off             | ``DEBUG%DEBUG_STRESS_TENSOR`` |
-    +--------------------------+-----------------+-------------------------------+
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
+    | Option                                    | Default         | CP2K keyword                                                           |
+    +===========================================+=================+========================================================================+
+    | ``--dx``                                  | ``1e-3`` Bohr   | ``DEBUG%DX``                                                           |
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
+    | ``--max-relative-error``                  | ``0.2`` percent | ``DEBUG%MAX_RELATIVE_ERROR``                                           |
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
+    | ``--eps-no-error-check``                  | ``1e-5`` a.u.   | ``DEBUG%EPS_NO_ERROR_CHECK``                                           |
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
+    | ``--stress``                              | off             | ``DEBUG%DEBUG_STRESS_TENSOR``                                          |
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
+    | ``--external-charge X,Y,Z,Q[,WIDTH_ANG]`` | none            | repeatable; Gaussian MM point charge in Angstrom and elementary charge |
+    +-------------------------------------------+-----------------+------------------------------------------------------------------------+
 
-A component whose analytic value is below ``--eps-no-error-check`` is printed
-and not checked.
+With ``--external-charge``, each entry installs a Gaussian MM charge (default
+width ``0.30`` Angstrom when omitted) on the session before evaluating the energy
+and forces, and checks the MM forces from
+``cpmdc_session_last_external_charge_forces()`` (``mm_forces``) alongside the QM
+``forces`` against central differences of ``+/- DX`` Bohr on each coordinate.
+
+A component whose analytic value is below ``--eps-no-error-check`` is printed and
+not checked.
 A force at or below ``1e-4`` Hartree/Bohr may be off by five times the limit.
 The last line of each block gives the largest absolute and relative error and
 how many components were checked.
-The exit status is 0 when every checked component agrees, 1 on a mismatch,
-and 2 on a usage, input, or evaluation error.
+The exit status is 0 when every checked component agrees, 1 on a mismatch, and 2
+on a usage, input, or evaluation error.
 
 Check the stress
 ----------------
 
 ``--stress`` needs a periodic cell for which the calculator writes
 ``PotentialResult.stress``; an isolated cell exits with status 2.
-Each of the six symmetric strains ``eps_ab`` is applied as ``+DX`` and ``-DX`` to
-the cell vectors and to the positions, so the fractional coordinates stay
-fixed.
+Each of the six symmetric strains ``eps_ab`` is applied as ``+DX`` and ``-DX`` to the
+cell vectors and to the positions, so the fractional coordinates stay fixed.
 That costs 12 more evaluations.
 The check compares virials in Hartree, as CP2K compares ``pv_virial``, so
 ``--eps-no-error-check`` means the same as there.
-The numerical virial is ``-(E(+DX) - E(-DX)) / (2 DX)`` and the analytic one
-is the volume times ``PotentialResult.stress`` in Hartree/Bohr\ :sup:`3`\, the sign of
-OpenCPMD ``paiu/omega``.
+The numerical virial is ``-(E(+DX) - E(-DX)) / (2 DX)`` and the analytic one is
+the volume times ``PotentialResult.stress`` in
+Hartree/Bohr\ :sup:`3`\, the sign of OpenCPMD ``paiu/omega``.
 
 What the reference build shows
 ------------------------------
 
 The reference evaluator returns the analytic gradient of its energy, so its
 forces agree to rounding.
-Its stress is ``-dE/d(eps) / volume``, the OpenCPMD sign of that derivative,
-so ``--stress`` agrees to rounding as well.
+Its stress is ``-dE/d(eps) / volume``, the OpenCPMD sign of that derivative, so
+``--stress`` agrees to rounding as well.
 An isolated cell still has no tensor.
 
 With OpenCPMD
 -------------
 
 An SCF energy carries the error of its convergence.
-Converge the orbitals well below ``DX`` times the force you want to check, or
-the differences measure the SCF threshold instead of the gradient.
+Converge the orbitals well below ``DX`` times the force you want to check, or the
+differences measure the SCF threshold instead of the gradient.

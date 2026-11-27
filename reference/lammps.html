@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>LAMMPS interface reference - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Environment variables" href="environment.html" /><link rel="prev" title="GROMACS interface reference" href="gromacs.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>LAMMPS interface reference - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Environment variables" href="environment.html" /><link rel="prev" title="GROMACS interface reference" href="gromacs.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/lammps.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -233,8 +234,11 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#units">Units</a></li>
 <li><a class="reference internal" href="#cell-and-positions">Cell and positions</a></li>
 <li><a class="reference internal" href="#atom-ids">Atom IDs</a></li>
+<li><a class="reference internal" href="#electrostatic-qm-mm-embedding">Electrostatic QM/MM embedding</a></li>
 <li><a class="reference internal" href="#virial-and-pressure">Virial and pressure</a></li>
+<li><a class="reference internal" href="#the-python-session-adapter">The Python session adapter</a></li>
 <li><a class="reference internal" href="#per-atom-quantities">Per-atom quantities</a></li>
+<li><a class="reference internal" href="#mdi-engine">MDI engine</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -325,14 +329,15 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="lammps-interface-reference">
 <h1>LAMMPS interface reference<a class="headerlink" href="#lammps-interface-reference" title="Link to this heading">¶</a></h1>
-<p>Both routes of <a class="reference internal" href="../howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>,
+<p>The in-process routes of <a class="reference internal" href="../howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> and <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code>, pass the same numbers to
 LAMMPS.
 The Python class adapts <code class="docutils literal notranslate"><span class="pre">cpmdc.Session</span></code> to the standard rgpot Python potential
 protocol and delegates its LAMMPS mechanics to <code class="docutils literal notranslate"><span class="pre">rgpot.lammps.FixExternal</span></code>.
 The plugin remains cpmdc’s compiled, LAMMPS-specific route.
-This page gives their units, the cell and positions they send, and the virial
-they return.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> is the separate MDI engine for <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code>.
+Its wire units and stress are under <a class="reference internal" href="#mdi-engine">MDI engine</a>.
+This page gives the units, the cell and positions, and the virial.</p>
 <section id="units">
 <h2>Units<a class="headerlink" href="#units" title="Link to this heading">¶</a></h2>
 <p>cpmdc works in Bohr and Hartree.
@@ -420,26 +425,84 @@ A box with some axes periodic and others not is refused; <code class="docutils l
 <section id="atom-ids">
 <h2>Atom IDs<a class="headerlink" href="#atom-ids" title="Link to this heading">¶</a></h2>
 <p>Both routes gather the system and order their call to cpmdc by increasing atom
-ID. IDs must be positive and unique, but need not be the consecutive integers
-1 through N: deleting atoms without compression leaves holes that are
-preserved while each force is returned to its original atom.</p>
+ID.
+IDs must be positive and unique, but need not be the consecutive integers 1
+through N: deleting atoms without compression leaves holes that are preserved
+while each force is returned to its original atom.</p>
 <p>Changing the atoms’ elemental composition, including by
-<code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> or <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code>, closes the current
-cpmdc session before the next
-evaluation and opens a new session for the changed topology. An unchanged
-composition continues on the existing session.</p>
+<code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> or <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code>, closes the current cpmdc
+session before the next evaluation and opens a new session for the changed
+topology.
+An unchanged composition continues on the existing session.</p>
+</section>
+<section id="electrostatic-qm-mm-embedding">
+<h2>Electrostatic QM/MM embedding<a class="headerlink" href="#electrostatic-qm-mm-embedding" title="Link to this heading">¶</a></h2>
+<p>Both routes keep their whole-system behavior by default.
+For <code class="docutils literal notranslate"><span class="pre">FixExternal</span></code>, pass <code class="docutils literal notranslate"><span class="pre">qm_types=[...]</span></code>; other atom types provide their LAMMPS
+<code class="docutils literal notranslate"><span class="pre">q</span></code> values as Gaussian MM charges.
+<code class="docutils literal notranslate"><span class="pre">mm_width_angstrom</span></code> defaults to 0.30.
+For the plugin, write <code class="docutils literal notranslate"><span class="pre">NULL</span></code> for each MM type, for example
+<code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span> <span class="pre">params.bin</span> <span class="pre">width</span> <span class="pre">0.30</span></code> followed by <code class="docutils literal notranslate"><span class="pre">pair_coeff</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">O</span> <span class="pre">H</span> <span class="pre">NULL</span></code>.</p>
+<p>Element entries are QM and <code class="docutils literal notranslate"><span class="pre">NULL</span></code> entries use the per-atom charge.
+The energy includes the QM–MM electrostatic coupling and forces are returned to
+both groups.
+Electrostatic embedding is currently isolated only; a periodic box is rejected
+instead of using an incomplete image convention, so the virial
+<span class="math notranslate nohighlight">\(-dE/d(\mathrm{strain})\)</span>, which needs a cell, is zero on both routes.
+<code class="docutils literal notranslate"><span class="pre">qm_types</span></code> must name at least one type, and <code class="docutils literal notranslate"><span class="pre">mm_width_angstrom</span></code> and the plugin’s
+<code class="docutils literal notranslate"><span class="pre">width</span></code> must be finite and at least 1e-12 Angstrom; a smaller value is refused
+when the fix or the pair style is configured.
+Both routes send the charges on every step that has MM atoms, and clear them on
+the first step that has none after a step that had some, so deleting or retyping
+every MM atom leaves no stale charge in the session.</p>
 </section>
 <section id="virial-and-pressure">
 <h2>Virial and pressure<a class="headerlink" href="#virial-and-pressure" title="Link to this heading">¶</a></h2>
 <p>cpmdc returns the virial <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">-dE/d(strain)</span></code> in Hartree.
 LAMMPS’ global virial of a pair style or of <code class="docutils literal notranslate"><span class="pre">fix_modify</span> <span class="pre">virial</span> <span class="pre">yes</span></code> has the same
-sign and units of energy, <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">sum</span> <span class="pre">r</span> <span class="pre">f</span></code> for a pair potential, so both routes
-pass <code class="docutils literal notranslate"><span class="pre">W</span></code> times the energy factor, symmetrized, as <code class="docutils literal notranslate"><span class="pre">xx</span> <span class="pre">yy</span> <span class="pre">zz</span> <span class="pre">xy</span> <span class="pre">xz</span> <span class="pre">yz</span></code>.
+sign and units of energy, <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">sum</span> <span class="pre">r</span> <span class="pre">f</span></code> for a pair potential, so both in-process
+routes pass <code class="docutils literal notranslate"><span class="pre">W</span></code> times the energy factor, symmetrized, as <code class="docutils literal notranslate"><span class="pre">xx</span> <span class="pre">yy</span> <span class="pre">zz</span> <span class="pre">xy</span> <span class="pre">xz</span> <span class="pre">yz</span></code>.
 The pressure LAMMPS prints is then <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">=</span> <span class="pre">(sum</span> <span class="pre">m</span> <span class="pre">v</span> <span class="pre">v</span> <span class="pre">+</span> <span class="pre">W)</span> <span class="pre">/</span> <span class="pre">V</span></code> in its pressure
 units; a compressed cell has a positive diagonal of <code class="docutils literal notranslate"><span class="pre">W</span></code> and a positive pressure.
 <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">npt</span></code> and <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">nph</span></code> use it as they use any pair virial.
-<code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">pressure</span> <span class="pre">NULL</span> <span class="pre">virial</span></code> reports the virial part alone, <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">/</span> <span class="pre">V</span></code> in
-pressure units.</p>
+<code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">ID</span> <span class="pre">all</span> <span class="pre">pressure</span> <span class="pre">NULL</span> <span class="pre">virial</span></code> reports the virial part alone, <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">/</span> <span class="pre">V</span></code> in
+pressure units.
+LAMMPS accepts only the group <code class="docutils literal notranslate"><span class="pre">all</span></code> for that compute.
+The MDI engine does not send this extensive virial.
+It sends the intensive stress, as <a class="reference internal" href="#mdi-engine">MDI engine</a> describes.</p>
+</section>
+<section id="the-python-session-adapter">
+<h2>The Python session adapter<a class="headerlink" href="#the-python-session-adapter" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> hands <code class="docutils literal notranslate"><span class="pre">rgpot.lammps.FixExternal</span></code> a small potential
+that wraps one <code class="docutils literal notranslate"><span class="pre">cpmdc.Session</span></code>.
+rgpot passes Angstrom and eV, so the adapter turns them into the atomic units
+<code class="docutils literal notranslate"><span class="pre">Session.calculate_au</span></code> takes, and back, with factors it derives once when the
+driver is built, from the unit factors of rgpot and of this page:</p>
+<ul class="simple">
+<li><p>Positions and the cell are divided by one factor, the LAMMPS length per Bohr
+over the length per Angstrom of rgpot.
+Dividing, as the route before the delegation did, keeps the energy and the
+forces of <code class="docutils literal notranslate"><span class="pre">metal</span></code> units bit-identical to that route; multiplying by the
+reciprocal would not.</p></li>
+<li><p>The energy and the forces are multiplied by the energy per Hartree over the
+energy per eV of rgpot, and the forces by that factor over the length factor.</p></li>
+<li><p>Forces and virial are views of one buffer, so one finiteness test covers both
+and the energy.
+Only after that test fails does the adapter test each array to name the one
+that holds the non-finite value; the message is
+<code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">library</span> <span class="pre">returned</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">forces</span></code>, or <code class="docutils literal notranslate"><span class="pre">virial</span></code>.</p></li>
+<li><p>The composition guard compares the sorted atomic numbers as plain integers.
+A changed composition closes the session and opens a new one, as above.</p></li>
+<li><p>The stress rgpot expects is <code class="docutils literal notranslate"><span class="pre">-W</span> <span class="pre">/</span> <span class="pre">V</span></code> in the energy factor.
+<code class="docutils literal notranslate"><span class="pre">V</span></code> is the absolute determinant of the 3 by 3 cell, written out as its six
+products, not a linear algebra call.
+In <code class="docutils literal notranslate"><span class="pre">metal</span></code> units the virial agrees with the earlier route to round-off, not
+bit for bit, because rgpot multiplies the stress by its own determinant of the
+cell.</p></li>
+</ul>
+<p>rgpot may do per-step work of its own on its side of this protocol.
+The adapter does not depend on it, and any <code class="docutils literal notranslate"><span class="pre">rgpot.lammps</span></code> that provides
+<code class="docutils literal notranslate"><span class="pre">unit_factors</span></code>, <code class="docutils literal notranslate"><span class="pre">length_per_angstrom</span></code> and <code class="docutils literal notranslate"><span class="pre">energy_per_ev</span></code> works.</p>
 </section>
 <section id="per-atom-quantities">
 <h2>Per-atom quantities<a class="headerlink" href="#per-atom-quantities" title="Link to this heading">¶</a></h2>
@@ -448,21 +511,130 @@ The energy and the virial are totals of the whole system, and <code class="docut
 splits neither:</p>
 <ul class="simple">
 <li><p>A density functional energy is a functional of the electron density, not a sum
-of terms that belong to atoms, so any per-atom share of it would be a choice of
-partition, not a result of cpmdc.</p></li>
-<li><p>The virial <code class="docutils literal notranslate"><span class="pre">-dE/d(strain)</span></code> is a derivative with respect to the cell. It holds
-kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts that are not
-<code class="docutils literal notranslate"><span class="pre">sum</span> <span class="pre">r</span> <span class="pre">f</span></code> over atoms, so it has no per-atom form that adds up to the pressure.</p></li>
+of terms that belong to atoms, so any per-atom share of it would be a choice
+of partition, not a result of cpmdc.</p></li>
+<li><p>The virial <code class="docutils literal notranslate"><span class="pre">-dE/d(strain)</span></code> is a derivative with respect to the cell.
+It holds kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts
+that are not <code class="docutils literal notranslate"><span class="pre">sum</span> <span class="pre">r</span> <span class="pre">f</span></code> over atoms, so it has no per-atom form that adds up to
+the pressure.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code> therefore refuses a run in which a compute asks for a split:
-<code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">pe/atom</span></code>, <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">stress/atom</span></code>, or <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">centroid/stress/atom</span></code>, with
-any keywords, even one that is never printed.
-The error <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span> <span class="pre">computes</span> <span class="pre">no</span> <span class="pre">per-atom</span> <span class="pre">energy</span> <span class="pre">or</span> <span class="pre">virial</span> <span class="pre">(compute</span> <span class="pre">ID)</span></code>
-names the compute and comes from <code class="docutils literal notranslate"><span class="pre">init_style</span></code>, before the first evaluation.
+<code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">pe/atom</span></code>, <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">stress/atom</span></code>, or <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">centroid/stress/atom</span></code>,
+with any keywords, even one that is never printed.
+The error
+<code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span> <span class="pre">computes</span> <span class="pre">no</span> <span class="pre">per-atom</span> <span class="pre">energy</span> <span class="pre">or</span> <span class="pre">virial</span> <span class="pre">(compute</span> <span class="pre">ID)</span></code> names the compute and comes from <code class="docutils literal notranslate"><span class="pre">init_style</span></code>,
+before the first evaluation.
 <code class="docutils literal notranslate"><span class="pre">uncompute</span> <span class="pre">ID</span></code> removes the request.
-<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> hands LAMMPS one energy and one virial and sets no per-atom values,
-so <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">pe/atom</span></code> and <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">stress/atom</span></code> take nothing from it.
-Per-atom forces work with every compute, for example <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">property/atom</span> <span class="pre">fx</span> <span class="pre">fy</span> <span class="pre">fz</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> hands LAMMPS one energy and one virial and sets no per-atom
+values, so <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">pe/atom</span></code> and <code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">stress/atom</span></code> take nothing from it.
+Per-atom forces work with every compute, for example
+<code class="docutils literal notranslate"><span class="pre">compute</span> <span class="pre">ID</span> <span class="pre">group-ID</span> <span class="pre">property/atom</span> <span class="pre">fx</span> <span class="pre">fy</span> <span class="pre">fz</span></code>.</p>
+</section>
+<section id="mdi-engine">
+<h2>MDI engine<a class="headerlink" href="#mdi-engine" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> is the engine LAMMPS
+<code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> drives (<a class="reference external" href="https://docs.lammps.org/fix_mdi_qm.html">fix
+mdi/qm</a>, <a class="reference external" href="https://docs.lammps.org/Howto_mdi.html">Using LAMMPS with the MDI
+library</a>).
+LAMMPS integrates.
+The engine is one separate process, not a plugin, and it does not answer
+<code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qmmm</span></code>.
+Build it with the MDI library, as <a class="reference internal" href="../howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>
+shows.
+The <code class="docutils literal notranslate"><span class="pre">mdi-qm</span></code> test checks this contract on the reference evaluator and does not
+link libmdi.</p>
+<p>MDI length is the Bohr and MDI energy is the Hartree.
+For <code class="docutils literal notranslate"><span class="pre">metal</span></code> and <code class="docutils literal notranslate"><span class="pre">real</span></code>, LAMMPS converts with <code class="docutils literal notranslate"><span class="pre">MDI_Conversion_factor</span></code> before it
+sends coordinates and after it receives energy, forces, and stress.
+The engine does not apply the CODATA 2018 factors of the in-process routes.
+The MDI library’s factors differ from those in the ninth significant figure, so
+a <code class="docutils literal notranslate"><span class="pre">metal</span></code> energy from this route is not bit-identical to <code class="docutils literal notranslate"><span class="pre">FixExternal</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> sends, on <code class="docutils literal notranslate"><span class="pre">&#64;DEFAULT</span></code>:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>When</p></th>
+<th class="head"><p>Contents</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;NATOMS</span></code></p></td>
+<td><p>a new system, including the first step</p></td>
+<td><p>one int, the atom count. Drops the previous cell, origin, species, and coordinates</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;CELL_DISPL</span></code></p></td>
+<td><p>fully periodic, and the engine registers the command</p></td>
+<td><p>box origin, Bohr, three doubles</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;CELL</span></code></p></td>
+<td><p>fully periodic</p></td>
+<td><p>nine Bohr components, one lattice vector per row: <code class="docutils literal notranslate"><span class="pre">(lx,</span> <span class="pre">0,</span> <span class="pre">0)</span></code>, <code class="docutils literal notranslate"><span class="pre">(xy,</span> <span class="pre">ly,</span> <span class="pre">0)</span></code>, <code class="docutils literal notranslate"><span class="pre">(xz,</span> <span class="pre">yz,</span> <span class="pre">lz)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;ELEMENTS</span></code></p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">elements</span></code> keyword</p></td>
+<td><p>one atomic number per atom, ascending LAMMPS atom ID</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;TYPES</span></code></p></td>
+<td><p>no <code class="docutils literal notranslate"><span class="pre">elements</span></code> keyword</p></td>
+<td><p>accepted as atomic numbers, so the LAMMPS types must already be atomic numbers</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;COORDS</span></code></p></td>
+<td><p>every evaluation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3N</span></code> Bohr coordinates, Cartesian, each atom remapped into the box</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;PE</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;ENERGY</span></code></p></td>
+<td><p>every evaluation</p></td>
+<td><p>cpmdc total energy, Hartree</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;KE_ELEC</span></code></p></td>
+<td><p>every evaluation, because the engine registers it</p></td>
+<td><ol class="arabic simple" start="0">
+<li><p>The electronic kinetic energy is already inside <code class="docutils literal notranslate"><span class="pre">&lt;PE</span></code>. LAMMPS adds <code class="docutils literal notranslate"><span class="pre">&lt;PE</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;KE_ELEC</span></code> and does not also read <code class="docutils literal notranslate"><span class="pre">&lt;ENERGY</span></code> when both exist</p></li>
+</ol>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;FORCES</span></code></p></td>
+<td><p>every evaluation</p></td>
+<td><p>Hartree/Bohr, <code class="docutils literal notranslate"><span class="pre">-dE/dR</span></code>, in <code class="docutils literal notranslate"><span class="pre">&gt;COORDS</span></code> order</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;STRESS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">virial</span> <span class="pre">yes</span></code></p></td>
+<td><p>nine Hartree/Bohr<sup>3</sup>  components, row-major <code class="docutils literal notranslate"><span class="pre">xx</span> <span class="pre">xy</span> <span class="pre">xz</span> <span class="pre">yx</span> <span class="pre">yy</span> <span class="pre">yz</span> <span class="pre">zx</span> <span class="pre">zy</span> <span class="pre">zz</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> copies <code class="docutils literal notranslate"><span class="pre">atom-&gt;x</span></code> and calls <code class="docutils literal notranslate"><span class="pre">domain-&gt;remap</span></code> before it sends
+<code class="docutils literal notranslate"><span class="pre">&gt;COORDS</span></code>, so each atom lies inside the box.
+The image flags are not applied.
+The engine subtracts
+<code class="docutils literal notranslate"><span class="pre">&gt;CELL_DISPL</span></code> from those coordinates before <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code>, so
+the positions sit in a cell whose origin is zero.
+When this step has a cell and a previous step, it then shifts each atom by the
+lattice vector that brings it nearest to its previous position.
+A cached geometry, a reused neighbor list, and wavefunction extrapolation
+therefore see one continuous path, and the energy and forces match the unwrapped
+trajectory.
+A displacement of more than half a box edge is that lattice image.
+A singular cell on a later step fails the evaluation.
+A new <code class="docutils literal notranslate"><span class="pre">&gt;NATOMS</span></code> drops that path with the previous cell, origin, species, and
+coordinates.
+A step that never received <code class="docutils literal notranslate"><span class="pre">&gt;CELL</span></code> since the last <code class="docutils literal notranslate"><span class="pre">&gt;NATOMS</span></code> is a cluster: the
+session is called with no cell, and no lattice shift is applied.
+One evaluation serves <code class="docutils literal notranslate"><span class="pre">&lt;PE</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;ENERGY</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;FORCES</span></code>, and <code class="docutils literal notranslate"><span class="pre">&lt;STRESS</span></code> until the next
+<code class="docutils literal notranslate"><span class="pre">&gt;</span></code> command.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;STRESS</span></code> is <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_stress()</span></code>, <code class="docutils literal notranslate"><span class="pre">-dE/d(strain)</span> <span class="pre">/</span> <span class="pre">V</span></code>, positive under
+compression.
+LAMMPS reads indexes 0, 4, and 8 as <code class="docutils literal notranslate"><span class="pre">xx</span> <span class="pre">yy</span> <span class="pre">zz</span></code> and the pairs <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">3)</span></code>, <code class="docutils literal notranslate"><span class="pre">(2,</span> <span class="pre">6)</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">(5,</span> <span class="pre">7)</span></code> as the symmetrized <code class="docutils literal notranslate"><span class="pre">xy</span> <span class="pre">xz</span> <span class="pre">yz</span></code>, multiplies by the box volume in its
+length unit, and stores that extensive virial.
+When the session computed no stress, including an isolated deck and
+<code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code>, the nine components are zero.
+A change in the count of any element closes the session and opens another on the
+same <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.
+Forces are per atom.
+The energy and the stress are totals.</p>
 </section>
 </section>
 
@@ -573,9 +745,10 @@ Per-atom forces work with every compute, for example <code class="docutils liter
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>
-      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>File, in-process, RPC, and protocol routes - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Wavefunction state between calls" href="wavefunction-state.html" /><link rel="prev" title="Architecture" href="architecture.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>File, in-process, RPC, and protocol routes - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Wavefunction state between calls" href="wavefunction-state.html" /><link rel="prev" title="Architecture" href="architecture.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/routes.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -326,31 +327,31 @@ data-aria-dark="Switch to auto color mode">
 <h1>File, in-process, RPC, and protocol routes<a class="headerlink" href="#file-in-process-rpc-and-protocol-routes" title="Link to this heading">¶</a></h1>
 <p>A host can reach CPMD through several layers.
 The default local interface is the in-process session API:
-<code class="docutils literal notranslate"><span class="pre">Session.calculate_au()</span></code> for atomic-unit arrays, or
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> for Cap’n Proto messages.
+<code class="docutils literal notranslate"><span class="pre">Session.calculate_au()</span></code> for atomic-unit arrays, or <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code>
+for Cap’n Proto messages.
 The default remote interface is rgpot’s Cap’n Proto RPC over <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code>.
-i-PI is an optional rgpot protocol frontend over potentials; protocol
-frontends do not belong inside an engine library.  In an rgpot build with
-the RPC stack, <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> selects <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> for
+i-PI is an optional rgpot protocol frontend over potentials; protocol frontends
+do not belong inside an engine library.
+In an rgpot build with the RPC stack, <code class="docutils literal notranslate"><span class="pre">rgpot-ipi-driver</span></code> selects <code class="docutils literal notranslate"><span class="pre">CPMDPot</span></code> for
 <code class="docutils literal notranslate"><span class="pre">--pot</span> <span class="pre">&quot;CPMD</span> <span class="pre">params</span> <span class="pre">FILE&quot;</span></code> and for <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">CPMD</span> <span class="pre">-o</span> <span class="pre">params=FILE</span></code>.
 Pass <code class="docutils literal notranslate"><span class="pre">--preserve-open-cell</span></code> for CPMD so a singular cell is passed through
-instead of padded.  The
-<a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI migration status</span></a> records that
-route.  <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks.</p>
+instead of padded.
+The <a class="reference internal" href="../howto/socket-drivers.html"><span class="doc">i-PI migration status</span></a> records that
+route.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> remain compatibility fallbacks.</p>
 <p>The measurements below compare the two original execution routes.
-The file route writes a deck, starts <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> for each force call, and reads
-the energy and forces back from CPMD’s output files.
+The file route writes a deck, starts <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> for each force call, and reads the
+energy and forces back from CPMD’s output files.
 The in-process route loads <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> once and calls it; CPMD runs inside the
 host, and geometry and forces move as C arrays.
 Both run the same OpenCPMD source on the same input.
 They differ in what a call costs, in how the wavefunction of one call reaches
 the next, and in what can go wrong.</p>
-<p>The numbers on this page come from one study: a 7-atom Si3N4 cluster, BLYP at
-70 Ry in a 14 Angstrom cube, Kleinman-Bylander pseudopotentials, orbital
+<p>The numbers on this page come from one study: a 7-atom Si3N4 cluster, BLYP at 70
+Ry in a 14 Angstrom cube, Kleinman-Bylander pseudopotentials, orbital
 convergence 1e-5, driven by eOn.
 The file route was eOn’s <code class="docutils literal notranslate"><span class="pre">ext_pot</span></code> potential with a wrapper around
-<code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">cpmd.x</span></code>; the in-process route was eOn’s <code class="docutils literal notranslate"><span class="pre">RGPOT</span></code> potential with
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>.
+<code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">cpmd.x</span></code>; the in-process route was eOn’s <code class="docutils literal notranslate"><span class="pre">RGPOT</span></code> potential with <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>.
 Each CPMD instance ran on 16 MPI ranks unless a row says otherwise.</p>
 <section id="what-one-call-costs">
 <h2>What one call costs<a class="headerlink" href="#what-one-call-costs" title="Link to this heading">¶</a></h2>
@@ -377,24 +378,23 @@ Each CPMD instance ran on 16 MPI ranks unless a row says otherwise.</p>
 </tbody>
 </table>
 </div>
-<p>The fixed 3.7 s of the file route is the price of a new process: <code class="docutils literal notranslate"><span class="pre">mpirun</span></code>
-start, CPMD’s setup of the plane-wave basis and the pseudopotentials, and
-reading a 23 MB <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> before the first SCF iteration.
+<p>The fixed 3.7 s of the file route is the price of a new process: <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> start,
+CPMD’s setup of the plane-wave basis and the pseudopotentials, and reading a 23
+MB <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> before the first SCF iteration.
 The in-process route pays that setup once per session and then only the SCF.
-A file-route call cannot get cheaper than its fixed part, whatever the
-geometry.</p>
+A file-route call cannot get cheaper than its fixed part, whatever the geometry.</p>
 </section>
 <section id="how-the-wavefunction-travels">
 <h2>How the wavefunction travels<a class="headerlink" href="#how-the-wavefunction-travels" title="Link to this heading">¶</a></h2>
 <p>The file route starts each call from a saved <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>.
 In the study, every converged call stored its restart file in a pool with its
 positions, and a new call loaded the one whose geometry was nearest.
-The in-process route keeps the orbitals of the previous call in memory on
-every rank and starts the next SCF from them.</p>
+The in-process route keeps the orbitals of the previous call in memory on every
+rank and starts the next SCF from them.</p>
 <p>The two policies behave differently in a nudged elastic band.
-There eOn gives each image its own file-route potential, so the nearest
-pooled geometry is usually the same image one band step earlier, a few
-hundredths of an Angstrom away.
+There eOn gives each image its own file-route potential, so the nearest pooled
+geometry is usually the same image one band step earlier, a few hundredths of an
+Angstrom away.
 The in-process client evaluates the images one after another, so each call
 starts from the previous image, a neighbour along the path.</p>
 <div class="table-wrapper docutils container">
@@ -434,18 +434,18 @@ starts from the previous image, a neighbour along the path.</p>
 </table>
 </div>
 <p>The barriers agree to 0.07 meV, and the call counts to one call.
-The in-process run lost on two counts that the per-call table does not show:
-its warm start came from a neighbouring image, and its images ran in series
-on one CPMD instance while the file route ran seven at once.
+The in-process run lost on two counts that the per-call table does not show: its
+warm start came from a neighbouring image, and its images ran in series on one
+CPMD instance while the file route ran seven at once.
 It also used <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> on every call, at about two energy evaluations per
 SCF step.
 A single-image search suffers less from the warm-start difference: a dimer
 search on the in-process route took 212 calls at 15.5 s per call and 17.2 SCF
 iterations per call.</p>
 <p>Two changes close most of the gap, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> already provides the first:
-calculator groups (<code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code>) run one CPMD instance per image
-side by side, and ODIIS instead of <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> halves the cost of a warm
-SCF step (see <a class="reference internal" href="../howto/wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>).</p>
+calculator groups (<code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code>) run one CPMD instance per image side
+by side, and ODIIS instead of <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> halves the cost of a warm SCF step
+(see <a class="reference internal" href="../howto/wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>).</p>
 </section>
 <section id="what-each-route-has-to-guard-against">
 <h2>What each route has to guard against<a class="headerlink" href="#what-each-route-has-to-guard-against" title="Link to this heading">¶</a></h2>
@@ -490,13 +490,13 @@ SCF step (see <a class="reference internal" href="../howto/wavefunction-optimise
 </table>
 </div>
 <p>The file route can be made safe; it cannot be made cheap.
-The in-process route removes the fixed cost and the file hazards, and moves
-the burden to getting the message and the MPI handling right.</p>
+The in-process route removes the fixed cost and the file hazards, and moves the
+burden to getting the message and the MPI handling right.</p>
 </section>
 <section id="both-routes-give-the-same-answers">
 <h2>Both routes give the same answers<a class="headerlink" href="#both-routes-give-the-same-answers" title="Link to this heading">¶</a></h2>
-<p>Every energy compared across the two routes and the two optimisers agreed
-within the orbital convergence tolerance.
+<p>Every energy compared across the two routes and the two optimisers agreed within
+the orbital convergence tolerance.
 A 4-rank in-process single point of the cluster’s reference geometry gave
 -1396.269515581643 eV on all four ranks.
 The optimiser and the warm-start policy change the path to the converged
@@ -611,7 +611,7 @@ wavefunction, not the converged state.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

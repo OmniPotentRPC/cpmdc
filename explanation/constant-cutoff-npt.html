@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Density of water at a constant cutoff - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="How the OpenCPMD patches work" href="opencpmd-patches.html" /><link rel="prev" title="cpmdc inside MD engines" href="md-engines.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Density of water at a constant cutoff - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="How the OpenCPMD patches work" href="opencpmd-patches.html" /><link rel="prev" title="cpmdc inside MD engines" href="md-engines.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/constant-cutoff-npt.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -329,32 +330,60 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="density-of-water-at-a-constant-cutoff">
 <h1>Density of water at a constant cutoff<a class="headerlink" href="#density-of-water-at-a-constant-cutoff" title="Link to this heading">¶</a></h1>
-<p>This page explains why NPT dynamics on a fixed plane-wave cutoff gives liquid water the wrong density, and measures the density that <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> gives with and without the constant-cutoff functional.
-The steps that turn the functional on are in <a class="reference internal" href="../howto/constant-cutoff.html"><span class="doc">Relax a cell at a constant cutoff</span></a>; the GROMACS NPT runs of a QM water in classical water are in <a class="reference internal" href="md-engines.html"><span class="doc">cpmdc inside MD engines</span></a>.</p>
+<p>This page explains why NPT dynamics on a fixed plane-wave cutoff gives liquid
+water the wrong density, and measures the density that <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> gives
+with and without the constant-cutoff functional.
+The steps that turn the functional on are in <a class="reference internal" href="../howto/constant-cutoff.html"><span class="doc">Relax a cell at a constant cutoff</span></a>;
+the GROMACS NPT runs of a QM water in classical water are in <a class="reference internal" href="md-engines.html"><span class="doc">cpmdc inside MD engines</span></a>.</p>
 <section id="why-a-fixed-cutoff-compresses-the-liquid">
 <h2>Why a fixed cutoff compresses the liquid<a class="headerlink" href="#why-a-fixed-cutoff-compresses-the-liquid" title="Link to this heading">¶</a></h2>
-<p>Without the functional, every new cell is a new setup of the deck at its cutoff, and the stress is the derivative of the energy at the plane waves of that setup.
-A larger cell holds more plane waves at the same cutoff, so the energy of the setups falls with the volume faster than that stress says.
+<p>Without the functional, every new cell is a new setup of the deck at its cutoff,
+and the stress is the derivative of the energy at the plane waves of that setup.
+A larger cell holds more plane waves at the same cutoff, so the energy of the
+setups falls with the volume faster than that stress says.
 The difference is the Pulay stress.
-The barostat holds the stress at the target pressure, which holds -dE/dV of the setups above the target by the Pulay stress, so the liquid settles denser than the volume where -dE/dV is the target.
-A basis that keeps its plane waves as the cell moves, as Parrinello-Rahman dynamics in a plane-wave code does, has a stress that follows its energy, but its effective cutoff falls as the cell grows, which raises the energy of the larger cells and biases the volume the same way.</p>
+The barostat holds the stress at the target pressure, which holds
+-dE/dV of the setups above the target by the Pulay stress, so the liquid settles denser than the volume where -dE/dV
+is the target.
+A basis that keeps its plane waves as the cell moves, as Parrinello-Rahman
+dynamics in a plane-wave code does, has a stress that follows its energy, but
+its effective cutoff falls as the cell grows, which raises the energy of the
+larger cells and biases the volume the same way.</p>
 <p>The constant-cutoff functional of Bernasconi et al. (reference 1) removes both.
-The energy belongs to the constant cutoff E0, which stays below the cutoff of the deck in every cell that the run visits, and the stress is the derivative of that energy.</p>
+The energy belongs to the constant cutoff E0, which stays below the cutoff of
+the deck in every cell that the run visits, and the stress is the derivative of
+that energy.</p>
 </section>
 <section id="the-runs">
 <h2>The runs<a class="headerlink" href="#the-runs" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">bench/constant_cutoff_npt.py</span></code> integrates hydrostatic NPT with ASE’s <code class="docutils literal notranslate"><span class="pre">LangevinBAOAB</span></code>, whose cell follows the Langevin-Hoover equations of Quigley and Probert (reference 2): the Martyna-Tobias-Klein barostat with a Langevin piston, and Langevin dynamics of the atoms.
+<p><code class="docutils literal notranslate"><span class="pre">bench/constant_cutoff_npt.py</span></code> integrates hydrostatic NPT with ASE’s
+<code class="docutils literal notranslate"><span class="pre">LangevinBAOAB</span></code>, whose cell follows the Langevin-Hoover equations of Quigley and
+Probert (reference 2): the Martyna-Tobias-Klein barostat with a Langevin piston,
+and Langevin dynamics of the atoms.
 ASE added that integrator in 3.27, so <code class="docutils literal notranslate"><span class="pre">run</span></code> needs ASE 3.27 or newer.
-<code class="docutils literal notranslate"><span class="pre">start</span></code> thermalizes momenta with <code class="docutils literal notranslate"><span class="pre">thermalize_momenta</span></code> on ASE 3.29 and with <code class="docutils literal notranslate"><span class="pre">MaxwellBoltzmannDistribution</span></code> on earlier releases, and the module imports on ASE 3.23.
-Each step evaluates the energy, the forces, and the stress through <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> once.
+<code class="docutils literal notranslate"><span class="pre">start</span></code> thermalizes momenta with <code class="docutils literal notranslate"><span class="pre">thermalize_momenta</span></code> on ASE 3.29 and with
+<code class="docutils literal notranslate"><span class="pre">MaxwellBoltzmannDistribution</span></code> on earlier releases, and the module imports on
+ASE 3.23.
+Each step evaluates the energy, the forces, and the stress through
+<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> once.
 Every run shares these settings:</p>
 <ul class="simple">
-<li><p>32 waters, from the box that <code class="docutils literal notranslate"><span class="pre">start</span></code> writes: a 9.8555 Angstrom cube at 1000 kg/m<sup>3</sup>, after 10 ps of a classical flexible TIP3P model at 350 K.</p></li>
-<li><p>PBE with the Troullier-Martins pseudopotentials <code class="docutils literal notranslate"><span class="pre">O_MT_PBE</span></code> and <code class="docutils literal notranslate"><span class="pre">H_MT_PBE</span></code> of the CPMD library (reference 3), orbital convergence 1e-5, and orbitals predicted by ASPC of order 4.</p></li>
-<li><p>350 K and 1 bar, a thermostat time <code class="docutils literal notranslate"><span class="pre">--t-tau</span></code> of 100 fs, 1 fs steps, and deuterium masses on the hydrogens.
-The density counts each molecule as H2O, 18.015 u, so that it compares with light water.</p></li>
-<li><p>OpenCPMD on 7 or 8 ranks of one node, as the cost table gives, with <code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code>, and <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.01</span></code>, which keeps the plane waves of a constant-cutoff setup through every cell within 1% strain of it.</p></li>
-<li><p>E0 = 85 Ry and sigma = 4.25 Ry on the 100 Ry deck, and E0 = 102 Ry and sigma = 5.1 Ry on the 120 Ry deck, with the default A of 50 times the deck cutoff, so that E0 + 2 sigma stays below the deck cutoff.</p></li>
+<li><p>32 waters, from the box that <code class="docutils literal notranslate"><span class="pre">start</span></code> writes: a 9.8555 Angstrom cube at 1000
+kg/m<sup>3</sup>, after 10 ps of a classical flexible TIP3P model at 350 K.</p></li>
+<li><p>PBE with the Troullier-Martins pseudopotentials <code class="docutils literal notranslate"><span class="pre">O_MT_PBE</span></code> and <code class="docutils literal notranslate"><span class="pre">H_MT_PBE</span></code> of
+the CPMD library (reference 3), orbital convergence 1e-5, and orbitals
+predicted by ASPC of order 4.</p></li>
+<li><p>350 K and 1 bar, a thermostat time <code class="docutils literal notranslate"><span class="pre">--t-tau</span></code> of 100 fs, 1 fs steps, and
+deuterium masses on the hydrogens.
+The density counts each molecule as H2O, 18.015 u, so that it compares with
+light water.</p></li>
+<li><p>OpenCPMD on 7 or 8 ranks of one node, as the cost table gives, with
+<code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code>, and <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.01</span></code>, which keeps the
+plane waves of a constant-cutoff setup through every cell within 1% strain of
+it.</p></li>
+<li><p>E0 = 85 Ry and sigma = 4.25 Ry on the 100 Ry deck, and E0 = 102 Ry and sigma =
+5.1 Ry on the 120 Ry deck, with the default A of 50 times the deck cutoff, so
+that E0 + 2 sigma stays below the deck cutoff.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.org</span></code> names each run by its record:</p>
 <div class="table-wrapper docutils container">
@@ -408,14 +437,23 @@ The density counts each molecule as H2O, 18.015 u, so that it compares with ligh
 </table>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">relax100</span></code> starts from the box with a barostat time <code class="docutils literal notranslate"><span class="pre">--p-tau</span></code> of 500 fs.
-ASE sets the piston mass from that time with a heuristic fitted to aluminium, and on 32 waters that mass gives a slow swing of the volume: in 0.43 ps the density falls from 1000 to 761 kg/m<sup>3</sup>, where it turns.
-<code class="docutils literal notranslate"><span class="pre">cc100</span></code> continues from the state of <code class="docutils literal notranslate"><span class="pre">relax100</span></code> at 0.47 ps with <code class="docutils literal notranslate"><span class="pre">--p-tau</span> <span class="pre">100</span></code>, which divides the piston mass by 25 and multiplies its friction by 5, and keeps the strain rate of the state.
-The other four runs start from the last state of <code class="docutils literal notranslate"><span class="pre">cc100</span></code> with the same seed, so they draw the same noise for the thermostat and the piston, and the differences between them come from the basis.</p>
+ASE sets the piston mass from that time with a heuristic fitted to aluminium,
+and on 32 waters that mass gives a slow swing of the volume: in 0.43 ps the
+density falls from 1000 to 761 kg/m<sup>3</sup>, where it turns.
+<code class="docutils literal notranslate"><span class="pre">cc100</span></code> continues from the state of <code class="docutils literal notranslate"><span class="pre">relax100</span></code> at 0.47 ps with <code class="docutils literal notranslate"><span class="pre">--p-tau</span> <span class="pre">100</span></code>,
+which divides the piston mass by 25 and multiplies its friction by 5, and keeps
+the strain rate of the state.
+The other four runs start from the last state of <code class="docutils literal notranslate"><span class="pre">cc100</span></code> with the same seed, so
+they draw the same noise for the thermostat and the piston, and the differences
+between them come from the basis.</p>
 </section>
 <section id="the-stress-of-one-configuration">
 <h2>The stress of one configuration<a class="headerlink" href="#the-stress-of-one-configuration" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">constant_cutoff_npt.py</span> <span class="pre">pressure</span></code> evaluated the last state of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>, at 763.9 kg/m<sup>3</sup>  (1253.21 Angstrom<sup>3</sup>), at six bases with orbital convergence 1e-6 and wrote <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_pressure.org</span></code>.
-The atomic pressure is the virial of the forces on the atoms; the molecular pressure is the virial of the forces on the molecular centres of mass, which leaves out the intramolecular forces.
+<p><code class="docutils literal notranslate"><span class="pre">constant_cutoff_npt.py</span> <span class="pre">pressure</span></code> evaluated the last state of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>, at 763.9
+kg/m<sup>3</sup>  (1253.21 Angstrom<sup>3</sup>), at six bases with orbital convergence 1e-6 and wrote <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_pressure.org</span></code>.
+The atomic pressure is the virial of the forces on the atoms; the molecular
+pressure is the virial of the forces on the molecular centres of mass, which
+leaves out the intramolecular forces.
 Neither holds the kinetic term, which is the same at every basis:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -488,14 +526,28 @@ Neither holds the kinetic term, which is the same at every basis:</p>
 </tbody>
 </table>
 </div>
-<p>The molecular pressure, which sets the density, has converged at E0 = 85 Ry: it lies 0.35 kbar above that at E0 = 136 Ry, and those at 102 and 119 Ry lie within 0.15 kbar of it.
-Without the functional, the same configuration has a molecular pressure 17.4 kbar below the converged one at 100 Ry and 2.9 kbar below it at 120 Ry; that is the Pulay stress of a new setup at each cutoff, and the atomic pressures differ by about the same amounts.
-The atomic pressure at a constant cutoff converges more slowly, 6.2 kbar above the converged one at E0 = 85 Ry, because it holds the virial of the O-H bonds, whose force at a fixed length changes with the basis.
-In the dynamics the bonds relax to the length of each basis within a vibration, and the time average of the virial of the forces within the molecules cancels the kinetic energy of the motion within them, so the mean atomic and molecular pressures, each with its kinetic term, are equal and the density follows the molecular one.</p>
+<p>The molecular pressure, which sets the density, has converged at E0 = 85 Ry: it
+lies 0.35 kbar above that at E0 = 136 Ry, and those at 102 and 119 Ry lie within
+0.15 kbar of it.
+Without the functional, the same configuration has a molecular pressure 17.4
+kbar below the converged one at 100 Ry and 2.9 kbar below it at 120 Ry; that is
+the Pulay stress of a new setup at each cutoff, and the atomic pressures differ
+by about the same amounts.
+The atomic pressure at a constant cutoff converges more slowly, 6.2 kbar above
+the converged one at E0 = 85 Ry, because it holds the virial of the O-H bonds,
+whose force at a fixed length changes with the basis.
+In the dynamics the bonds relax to the length of each basis within a vibration,
+and the time average of the virial of the forces within the molecules cancels
+the kinetic energy of the motion within them, so the mean atomic and molecular
+pressures, each with its kinetic term, are equal and the density follows the
+molecular one.</p>
 </section>
 <section id="density">
 <h2>Density<a class="headerlink" href="#density" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">table</span></code> discards the start of each run that Chodera’s method detects (reference 4), at least 0.05 ps of a run that starts from a state, and gives the Flyvbjerg-Petersen standard error of the mean (reference 5) at the coarsest blocking level with at least 8 blocks:</p>
+<p><code class="docutils literal notranslate"><span class="pre">table</span></code> discards the start of each run that Chodera’s method detects (reference
+4), at least 0.05 ps of a run that starts from a state, and gives the
+Flyvbjerg-Petersen standard error of the mean (reference 5) at the coarsest
+blocking level with at least 8 blocks:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -524,9 +576,15 @@ In the dynamics the bonds relax to the length of each basis within a vibration, 
 </tbody>
 </table>
 </div>
-<p>Only <code class="docutils literal notranslate"><span class="pre">cc100</span></code> is long enough for a mean, and its standard error is a lower bound: the error of the density still grows from 3.65 kg/m<sup>3</sup>  at blocks of 0.016 ps to 5.67 kg/m<sup>3</sup>  at 0.064 ps, the coarsest level with 10 blocks.
-The density swings with a period of about 0.1 ps, so the 0.65 ps averaged hold six or seven swings, and the last took it from 824 kg/m<sup>3</sup>  at 0.65 ps to 755 kg/m<sup>3</sup>  at 0.69 ps.
-The volume fluctuations over those 0.65 ps give a compressibility var(V)/(kT mean(V)) of 2.3e-5 /bar, uncertain by tens of percent with so few swings.
+<p>Only <code class="docutils literal notranslate"><span class="pre">cc100</span></code> is long enough for a mean, and its standard error is a lower bound:
+the error of the density still grows from 3.65
+kg/m<sup>3</sup>  at blocks of 0.016 ps to 5.67 kg/m<sup>3</sup>  at 0.064 ps, the coarsest level with
+10 blocks.
+The density swings with a period of about 0.1 ps, so the 0.65 ps averaged hold
+six or seven swings, and the last took it from 824
+kg/m<sup>3</sup>  at 0.65 ps to 755 kg/m<sup>3</sup>  at 0.69 ps.
+The volume fluctuations over those 0.65 ps give a compressibility var(V)/(kT
+mean(V)) of 2.3e-5 /bar, uncertain by tens of percent with so few swings.
 The mean temperature, 352 +- 6 K, agrees with the 350 K of the thermostat.</p>
 <p>The runs that are too short for a mean:</p>
 <div class="table-wrapper docutils container">
@@ -654,12 +712,25 @@ The mean temperature, 352 +- 6 K, agrees with the 350 K of the thermostat.</p>
 </tbody>
 </table>
 </div>
-<p>With the kinetic term, the state has a pressure of -2.5 kbar at E0 = 85 Ry, -7.6 kbar at E0 = 102 Ry, -25.7 kbar at a fixed 100 Ry, and -11.5 kbar at a fixed 120 Ry.
-At the same deck cutoff, the barostat of the run without the functional pulls the cell in by the Pulay stress, on top of the swing that all four runs share: at 40 fs, near the top of that swing, off100 stands 289 kg/m<sup>3</sup>  (35%) above cc100b at 1117 kg/m<sup>3</sup>, and the compression has heated it to 507 K by 50 fs, while off120 stands 50 kg/m<sup>3</sup>  (6%) above cc120.
-The static compressibility of <code class="docutils literal notranslate"><span class="pre">cc100</span></code> turns the 2.9 kbar Pulay stress of 120 Ry into a density 7% higher; 50 fs show the start of that shift, not where a run settles.</p>
-<p>Between the two constant cutoffs, the change of basis at the start rings the O-D bonds, whose virial swings the pressure of cc120 against cc100b by up to 5 kbar at the 13 fs period of the stretch.
-That difference averages +1.0, -0.2, and +0.5 kbar over steps 1 to 10, 11 to 30, and 31 to 50, and the first push leaves cc120 10 kg/m<sup>3</sup>  (1.2%) below cc100b at 50 fs.
-The molecular pressures of the single points, 0.2 kbar apart, put the equilibrium density at E0 = 102 Ry about 4 kg/m<sup>3</sup>  above that at E0 = 85 Ry.</p>
+<p>With the kinetic term, the state has a pressure of -2.5 kbar at E0 = 85 Ry, -7.6
+kbar at E0 = 102 Ry, -25.7 kbar at a fixed 100 Ry, and -11.5 kbar at a fixed 120
+Ry.
+At the same deck cutoff, the barostat of the run without the functional pulls
+the cell in by the Pulay stress, on top of the swing that all four runs share:
+at 40 fs, near the top of that swing, off100 stands 289
+kg/m<sup>3</sup>  (35%) above cc100b at 1117 kg/m<sup>3</sup>, and the compression has heated it to
+507 K by 50 fs, while off120 stands 50 kg/m<sup>3</sup>  (6%) above cc120.
+The static compressibility of <code class="docutils literal notranslate"><span class="pre">cc100</span></code> turns the 2.9 kbar Pulay stress of 120 Ry
+into a density 7% higher; 50 fs show the start of that shift, not where a run
+settles.</p>
+<p>Between the two constant cutoffs, the change of basis at the start rings the O-D
+bonds, whose virial swings the pressure of cc120 against cc100b by up to 5 kbar
+at the 13 fs period of the stretch.
+That difference averages +1.0, -0.2, and +0.5 kbar over steps 1 to 10, 11 to 30,
+and 31 to 50, and the first push leaves cc120 10 kg/m<sup>3</sup>  (1.2%) below cc100b at
+50 fs.
+The molecular pressures of the single points, 0.2 kbar apart, put the
+equilibrium density at E0 = 102 Ry about 4 kg/m<sup>3</sup>  above that at E0 = 85 Ry.</p>
 <figure class="align-default" id="id1">
 <img alt="Density of 32 PBE waters against time, with and without the constant cutoff" src="../_images/constant-cutoff-npt.svg" />
 <figcaption>
@@ -671,18 +742,36 @@ constant cutoff. The dotted line is the PBE density of Miceli et al.
 (2015).</span><a class="headerlink" href="#id1" title="Link to this image">¶</a></p>
 </figcaption>
 </figure>
-<p><code class="docutils literal notranslate"><span class="pre">docs/render_constant_cutoff_npt.py</span></code> draws the figure from <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.json</span></code> when the docs build.</p>
+<p><code class="docutils literal notranslate"><span class="pre">docs/render_constant_cutoff_npt.py</span></code> draws the figure from <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.json</span></code>
+when the docs build.</p>
 </section>
 <section id="against-a-published-pbe-density">
 <h2>Against a published PBE density<a class="headerlink" href="#against-a-published-pbe-density" title="Link to this heading">¶</a></h2>
-<p>Miceli, de Gironcoli, and Pasquarello (reference 6) ran isobaric dynamics of 64 waters with PBE in Quantum ESPRESSO: Troullier-Martins pseudopotentials, Parrinello-Rahman cell dynamics at zero pressure, 0.48 fs steps, and velocities rescaled only when the mean temperature left 350 +- 20 K.
-They kept the number of plane waves constant, at a cutoff of 85 Ry in a cell of 1 g/cm<sup>3</sup>, which converges the stress within 1 kbar, and averaged runs of 25 to 35 ps after 5 ps of equilibration.
-At a mean temperature of 349 K, PBE gave them 0.87 g/cm<sup>3</sup>, 13% below experiment, which is 870 kg/m<sup>3</sup>; they quote no error bar.</p>
-<p><code class="docutils literal notranslate"><span class="pre">cc100</span></code> gives 826 +- 6 kg/m<sup>3</sup>  at 352 K, 44 kg/m<sup>3</sup>  or 5% below their density, and its standard error is a lower bound.
-Its basis explains little of the gap: with the compressibility of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>, the 0.35 kbar between the molecular pressures at E0 = 85 and 136 Ry puts the density of the converged basis about 7 kg/m<sup>3</sup>  higher, and the 1 kbar within which Miceli et al. converge their stress is worth about 20 kg/m<sup>3</sup>.
-The rest lies within what differs between the runs: 0.65 ps of 32 waters against 25 to 35 ps of 64, Troullier-Martins pseudopotentials on both sides but not necessarily the same ones, and a Langevin thermostat against occasional rescaling.
-The deuterium masses do not enter, since the density of classical nuclei does not depend on their masses.
-A fixed cutoff, by contrast, sets the density by its Pulay stress: 100 Ry passes 1100 kg/m<sup>3</sup>  within 40 fs, and the 7% that 120 Ry adds would put it near 880 kg/m<sup>3</sup>, close to the published density by accident.</p>
+<p>Miceli, de Gironcoli, and Pasquarello (reference 6) ran isobaric dynamics of 64
+waters with PBE in Quantum ESPRESSO: Troullier-Martins pseudopotentials,
+Parrinello-Rahman cell dynamics at zero pressure, 0.48 fs steps, and velocities
+rescaled only when the mean temperature left 350 +- 20 K. They kept the number
+of plane waves constant, at a cutoff of 85 Ry in a cell of 1 g/cm<sup>3</sup>, which
+converges the stress within 1 kbar, and averaged runs of 25 to 35 ps after 5 ps
+of equilibration.
+At a mean temperature of 349 K, PBE gave them 0.87
+g/cm<sup>3</sup>, 13% below experiment, which is 870 kg/m<sup>3</sup>; they quote no error bar.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cc100</span></code> gives 826 +- 6 kg/m<sup>3</sup>  at 352 K, 44 kg/m<sup>3</sup>  or 5% below their density, and
+its standard error is a lower bound.
+Its basis explains little of the gap: with the compressibility of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>, the
+0.35 kbar between the molecular pressures at E0 = 85 and 136 Ry puts the density
+of the converged basis about 7
+kg/m<sup>3</sup>  higher, and the 1 kbar within which Miceli et al. converge their stress is worth about 20 kg/m<sup>3</sup>.
+The rest lies within what differs between the runs: 0.65 ps of 32 waters against
+25 to 35 ps of 64, Troullier-Martins pseudopotentials on both sides but not
+necessarily the same ones, and a Langevin thermostat against occasional
+rescaling.
+The deuterium masses do not enter, since the density of classical nuclei does
+not depend on their masses.
+A fixed cutoff, by contrast, sets the density by its Pulay stress: 100 Ry passes
+1100
+kg/m<sup>3</sup>  within 40 fs, and the 7% that 120 Ry adds would put it near 880 kg/m<sup>3</sup>,
+close to the published density by accident.</p>
 </section>
 <section id="cost">
 <h2>Cost<a class="headerlink" href="#cost" title="Link to this heading">¶</a></h2>
@@ -744,23 +833,44 @@ A fixed cutoff, by contrast, sets the density by its Pulay stress: 100 Ry passes
 </tbody>
 </table>
 </div>
-<p>At a constant cutoff a step takes 8.9 to 9.4 SCF iterations, and the in-place moves hold the new setups to 16 in the 700 steps of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>.
-Without the functional every step is a new setup and takes 17 to 18 iterations: on the same 8 ranks, off100 costs 1.5 times the wall time per step of cc100b, and off120 twice that of cc120.
-The six single points took 6 minutes, and the runs 5.7 hours on the 8 cores of one VM.</p>
+<p>At a constant cutoff a step takes 8.9 to 9.4 SCF iterations, and the in-place
+moves hold the new setups to 16 in the 700 steps of <code class="docutils literal notranslate"><span class="pre">cc100</span></code>.
+Without the functional every step is a new setup and takes 17 to 18 iterations:
+on the same 8 ranks, off100 costs 1.5 times the wall time per step of cc100b,
+and off120 twice that of cc120.
+The six single points took 6 minutes, and the runs 5.7 hours on the 8 cores of
+one VM.</p>
 </section>
 <section id="tests-that-keep-the-stress">
 <h2>Tests that keep the stress<a class="headerlink" href="#tests-that-keep-the-stress" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_calculator.py</span></code> integrates the pressure of the one-water deck at E0 = 30 Ry over a 2% stretch and requires it to equal the energy change; the fixed-basis stress of that deck misses the slope by 1.6e-2 eV/Angstrom<sup>3</sup>, about 1 eV over the stretch.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">test_a_constant_cutoff_cell_moves_in_place_within_the_strain_limit</span></code> requires the in-place moves to start from the stored orbitals and to give the energy, forces, and stress of a new setup.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">test_constant_cutoff_virial_matches_ase</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/python/test_lammps.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test_opencpmd_constant_cutoff_stress_matches_ase</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/python/test_gromacs_opencpmd.py</span></code> require the virial that LAMMPS integrates and the stress that GROMACS couples to, from <code class="docutils literal notranslate"><span class="pre">system.constantCutoff</span></code> in the message, to equal the stress of <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> for the same configuration, and to lie far from the fixed-basis stress.</p></li>
-<li><p>The <code class="docutils literal notranslate"><span class="pre">constant-cutoff-npt-plot</span></code> Meson test draws the figure from <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.json</span></code> and requires a curve per run, a band per mean, the reference line, and the panel of the runs from a shared state.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tests/python/test_constant_cutoff_npt_table.py</span></code> checks how <code class="docutils literal notranslate"><span class="pre">table</span></code> finds the run that wrote each state, and requires this page to carry the tables of <code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.org</span></code> and <code class="docutils literal notranslate"><span class="pre">constant_cutoff_pressure.org</span></code> that it quotes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/python/test_ase_calculator.py</span></code>
+integrates the pressure of the one-water deck at E0 = 30 Ry over a 2% stretch
+and requires it to equal the energy change; the fixed-basis stress of that
+deck misses the slope by 1.6e-2 eV/Angstrom<sup>3</sup>, about 1 eV over the stretch.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test_a_constant_cutoff_cell_moves_in_place_within_the_strain_limit</span></code> requires
+the in-place moves to start from the stored orbitals and to give the energy,
+forces, and stress of a new setup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test_constant_cutoff_virial_matches_ase</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/python/test_lammps.py</span></code> and
+<code class="docutils literal notranslate"><span class="pre">test_opencpmd_constant_cutoff_stress_matches_ase</span></code> in
+<code class="docutils literal notranslate"><span class="pre">tests/python/test_gromacs_opencpmd.py</span></code> require the virial that LAMMPS
+integrates and the stress that GROMACS couples to, from
+<code class="docutils literal notranslate"><span class="pre">system.constantCutoff</span></code> in the message, to equal the stress of
+<code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> for the same configuration, and to lie far from the
+fixed-basis stress.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">constant-cutoff-npt-plot</span></code> Meson test draws the figure from
+<code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.json</span></code> and requires a curve per run, a band
+per mean, the reference line, and the panel of the runs from a shared state.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/python/test_constant_cutoff_npt_table.py</span></code> checks how <code class="docutils literal notranslate"><span class="pre">table</span></code> finds the
+run that wrote each state, and requires this page to carry the tables of
+<code class="docutils literal notranslate"><span class="pre">bench/results/constant_cutoff_npt.org</span></code> and <code class="docutils literal notranslate"><span class="pre">constant_cutoff_pressure.org</span></code>
+that it quotes.</p></li>
 </ul>
 </section>
 <section id="run-it">
 <h2>Run it<a class="headerlink" href="#run-it" title="Link to this heading">¶</a></h2>
-<p>With an OpenCPMD build of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> in <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">capnp</span></code> on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and the pseudopotentials of the CPMD regression tests:</p>
+<p>With an OpenCPMD build of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> in <code class="docutils literal notranslate"><span class="pre">build-cpmd</span></code>, <code class="docutils literal notranslate"><span class="pre">capnp</span></code> on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and the
+pseudopotentials of the CPMD regression tests:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">CPMDC_PSEUDO_DIR</span><span class="o">=</span><span class="nv">$CPMD_ROOT</span>/../Regtests/tests/PP_LIBRARY<span class="w"> </span><span class="nv">CPMDC_CELL_IN_PLACE</span><span class="o">=</span><span class="m">0</span>.01
 </span><span data-line="2">python<span class="w"> </span>bench/constant_cutoff_npt.py<span class="w"> </span>start<span class="w"> </span>--out<span class="w"> </span>box32.xyz
 </span><span data-line="3">npt<span class="o">()</span><span class="w"> </span><span class="o">{</span>
@@ -781,8 +891,10 @@ The six single points took 6 minutes, and the runs 5.7 hours on the 8 cores of o
 </span><span data-line="18">npt<span class="w"> </span>run<span class="w"> </span>--start<span class="w"> </span><span class="nv">$from</span><span class="w"> </span>--cutoff<span class="w"> </span><span class="m">120</span><span class="w"> </span>--e0<span class="w"> </span><span class="m">102</span><span class="w"> </span>--width<span class="w"> </span><span class="m">5</span>.1<span class="w"> </span>--conv<span class="w"> </span>1e-5<span class="w"> </span>--steps<span class="w"> </span><span class="m">100</span><span class="w"> </span>--out<span class="w"> </span>runs/cc120.json
 </span></pre></div>
 </div>
-<p>Each run checkpoints every 10 steps and continues with <code class="docutils literal notranslate"><span class="pre">run</span> <span class="pre">--library</span> <span class="pre">build-cpmd/libcpmdc.so</span> <span class="pre">--out</span> <span class="pre">RUN.json</span> <span class="pre">--resume</span></code>.
-The records and state files stay out of the repository; the tables and the figure come from them:</p>
+<p>Each run checkpoints every 10 steps and continues with
+<code class="docutils literal notranslate"><span class="pre">run</span> <span class="pre">--library</span> <span class="pre">build-cpmd/libcpmdc.so</span> <span class="pre">--out</span> <span class="pre">RUN.json</span> <span class="pre">--resume</span></code>.
+The records and state files stay out of the repository; the tables and the
+figure come from them:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">python<span class="w"> </span>bench/constant_cutoff_npt.py<span class="w"> </span>table<span class="w"> </span>runs/relax100.json<span class="w"> </span>runs/cc100.json<span class="w"> </span><span class="se">\</span>
 </span><span data-line="2"><span class="w">  </span>runs/cc100b.json<span class="w"> </span>runs/off100.json<span class="w"> </span>runs/off120.json<span class="w"> </span>runs/cc120.json<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">  </span>--json<span class="w"> </span>bench/results/constant_cutoff_npt.json<span class="w"> </span>--output<span class="w"> </span>bench/results/constant_cutoff_npt.org
@@ -794,24 +906,18 @@ The records and state files stay out of the repository; the tables and the figur
 <h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p>M. Bernasconi, G. L. Chiarotti, P. Focher, S. Scandolo, E. Tosatti, M.
-Parrinello, “First-principle-constant pressure molecular dynamics”, <em>J. Phys. Chem. Solids</em> <strong>56</strong>, 501-505 (1995),
-<a class="reference external" href="https://doi.org/10.1016/0022-3697(94)00228-2">doi:10.1016/0022-3697(94)00228-2</a>.</p></li>
+Parrinello, “First-principle-constant pressure molecular dynamics”, <em>J. Phys. Chem. Solids</em> <strong>56</strong>, 501-505 (1995), <a class="reference external" href="https://doi.org/10.1016/0022-3697(94)00228-2">doi:10.1016/0022-3697(94)00228-2</a>.</p></li>
 <li><p>D. Quigley, M. I. J. Probert, “Langevin dynamics in constant pressure
-extended systems”, <em>J. Chem. Phys.</em> <strong>120</strong>, 11432-11441 (2004),
-<a class="reference external" href="https://doi.org/10.1063/1.1755657">doi:10.1063/1.1755657</a>.</p></li>
+extended systems”, <em>J. Chem. Phys.</em> <strong>120</strong>, 11432-11441 (2004), <a class="reference external" href="https://doi.org/10.1063/1.1755657">doi:10.1063/1.1755657</a>.</p></li>
 <li><p>N. Troullier, J. L. Martins, “Efficient pseudopotentials for plane-wave
-calculations”, <em>Phys. Rev. B</em> <strong>43</strong>, 1993-2006 (1991),
-<a class="reference external" href="https://doi.org/10.1103/PhysRevB.43.1993">doi:10.1103/PhysRevB.43.1993</a>.</p></li>
+calculations”, <em>Phys. Rev. B</em> <strong>43</strong>, 1993-2006 (1991), <a class="reference external" href="https://doi.org/10.1103/PhysRevB.43.1993">doi:10.1103/PhysRevB.43.1993</a>.</p></li>
 <li><p>J. D. Chodera, “A Simple Method for Automated Equilibration Detection in
-Molecular Simulations”, <em>J. Chem. Theory Comput.</em> <strong>12</strong>, 1799-1805 (2016),
-<a class="reference external" href="https://doi.org/10.1021/acs.jctc.5b00784">doi:10.1021/acs.jctc.5b00784</a>.</p></li>
+Molecular Simulations”, <em>J. Chem. Theory Comput.</em> <strong>12</strong>, 1799-1805 (2016), <a class="reference external" href="https://doi.org/10.1021/acs.jctc.5b00784">doi:10.1021/acs.jctc.5b00784</a>.</p></li>
 <li><p>H. Flyvbjerg, H. G. Petersen, “Error estimates on averages of correlated
-data”, <em>J. Chem. Phys.</em> <strong>91</strong>, 461-466 (1989),
-<a class="reference external" href="https://doi.org/10.1063/1.457480">doi:10.1063/1.457480</a>.</p></li>
+data”, <em>J. Chem. Phys.</em> <strong>91</strong>, 461-466 (1989), <a class="reference external" href="https://doi.org/10.1063/1.457480">doi:10.1063/1.457480</a>.</p></li>
 <li><p>G. Miceli, S. de Gironcoli, A. Pasquarello, “Isobaric first-principles
-molecular dynamics of liquid water with nonlocal van der Waals
-interactions”, <em>J. Chem. Phys.</em> <strong>142</strong>, 034501 (2015),
-<a class="reference external" href="https://doi.org/10.1063/1.4905333">doi:10.1063/1.4905333</a>.</p></li>
+molecular dynamics of liquid water with nonlocal van der Waals interactions”,
+<em>J. Chem. Phys.</em> <strong>142</strong>, 034501 (2015), <a class="reference external" href="https://doi.org/10.1063/1.4905333">doi:10.1063/1.4905333</a>.</p></li>
 </ol>
 </section>
 </section>
@@ -923,7 +1029,7 @@ interactions”, <em>J. Chem. Phys.</em> <strong>142</strong>, 034501 (2015),
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

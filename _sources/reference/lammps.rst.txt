@@ -3,14 +3,15 @@ LAMMPS interface reference
 ==========================
 
 
-Both routes of :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`,
+The in-process routes of :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`,
 ``cpmdc.lammps.FixExternal`` and ``pair_style cpmdc``, pass the same numbers to
 LAMMPS.
 The Python class adapts ``cpmdc.Session`` to the standard rgpot Python potential
 protocol and delegates its LAMMPS mechanics to ``rgpot.lammps.FixExternal``.
 The plugin remains cpmdc's compiled, LAMMPS-specific route.
-This page gives their units, the cell and positions they send, and the virial
-they return.
+``cpmdc-mdi`` is the separate MDI engine for ``fix mdi/qm``.
+Its wire units and stress are under `MDI engine`_.
+This page gives the units, the cell and positions, and the virial.
 
 Units
 -----
@@ -68,28 +69,93 @@ Atom IDs
 --------
 
 Both routes gather the system and order their call to cpmdc by increasing atom
-ID. IDs must be positive and unique, but need not be the consecutive integers
-1 through N: deleting atoms without compression leaves holes that are
-preserved while each force is returned to its original atom.
+ID.
+IDs must be positive and unique, but need not be the consecutive integers 1
+through N: deleting atoms without compression leaves holes that are preserved
+while each force is returned to its original atom.
 
 Changing the atoms' elemental composition, including by
-``delete_atoms ... compress no`` or ``fix evaporate``, closes the current
-cpmdc session before the next
-evaluation and opens a new session for the changed topology. An unchanged
-composition continues on the existing session.
+``delete_atoms ... compress no`` or ``fix evaporate``, closes the current cpmdc
+session before the next evaluation and opens a new session for the changed
+topology.
+An unchanged composition continues on the existing session.
+
+Electrostatic QM/MM embedding
+-----------------------------
+
+Both routes keep their whole-system behavior by default.
+For ``FixExternal``, pass ``qm_types=[...]``; other atom types provide their LAMMPS
+``q`` values as Gaussian MM charges.
+``mm_width_angstrom`` defaults to 0.30.
+For the plugin, write ``NULL`` for each MM type, for example
+``pair_style cpmdc params.bin width 0.30`` followed by ``pair_coeff * * O H NULL``.
+
+Element entries are QM and ``NULL`` entries use the per-atom charge.
+The energy includes the QM--MM electrostatic coupling and forces are returned to
+both groups.
+Electrostatic embedding is currently isolated only; a periodic box is rejected
+instead of using an incomplete image convention, so the virial
+:math:`-dE/d(\mathrm{strain})`, which needs a cell, is zero on both routes.
+``qm_types`` must name at least one type, and ``mm_width_angstrom`` and the plugin's
+``width`` must be finite and at least 1e-12 Angstrom; a smaller value is refused
+when the fix or the pair style is configured.
+Both routes send the charges on every step that has MM atoms, and clear them on
+the first step that has none after a step that had some, so deleting or retyping
+every MM atom leaves no stale charge in the session.
 
 Virial and pressure
 -------------------
 
 cpmdc returns the virial ``W = -dE/d(strain)`` in Hartree.
 LAMMPS' global virial of a pair style or of ``fix_modify virial yes`` has the same
-sign and units of energy, ``W = sum r f`` for a pair potential, so both routes
-pass ``W`` times the energy factor, symmetrized, as ``xx yy zz xy xz yz``.
+sign and units of energy, ``W = sum r f`` for a pair potential, so both in-process
+routes pass ``W`` times the energy factor, symmetrized, as ``xx yy zz xy xz yz``.
 The pressure LAMMPS prints is then ``P = (sum m v v + W) / V`` in its pressure
 units; a compressed cell has a positive diagonal of ``W`` and a positive pressure.
 ``fix npt`` and ``fix nph`` use it as they use any pair virial.
-``compute pressure NULL virial`` reports the virial part alone, ``W / V`` in
+``compute ID all pressure NULL virial`` reports the virial part alone, ``W / V`` in
 pressure units.
+LAMMPS accepts only the group ``all`` for that compute.
+The MDI engine does not send this extensive virial.
+It sends the intensive stress, as `MDI engine`_ describes.
+
+The Python session adapter
+--------------------------
+
+``cpmdc.lammps.FixExternal`` hands ``rgpot.lammps.FixExternal`` a small potential
+that wraps one ``cpmdc.Session``.
+rgpot passes Angstrom and eV, so the adapter turns them into the atomic units
+``Session.calculate_au`` takes, and back, with factors it derives once when the
+driver is built, from the unit factors of rgpot and of this page:
+
+- Positions and the cell are divided by one factor, the LAMMPS length per Bohr
+  over the length per Angstrom of rgpot.
+  Dividing, as the route before the delegation did, keeps the energy and the
+  forces of ``metal`` units bit-identical to that route; multiplying by the
+  reciprocal would not.
+
+- The energy and the forces are multiplied by the energy per Hartree over the
+  energy per eV of rgpot, and the forces by that factor over the length factor.
+
+- Forces and virial are views of one buffer, so one finiteness test covers both
+  and the energy.
+  Only after that test fails does the adapter test each array to name the one
+  that holds the non-finite value; the message is
+  ``the library returned a non-finite energy``, ``forces``, or ``virial``.
+
+- The composition guard compares the sorted atomic numbers as plain integers.
+  A changed composition closes the session and opens a new one, as above.
+
+- The stress rgpot expects is ``-W / V`` in the energy factor.
+  ``V`` is the absolute determinant of the 3 by 3 cell, written out as its six
+  products, not a linear algebra call.
+  In ``metal`` units the virial agrees with the earlier route to round-off, not
+  bit for bit, because rgpot multiplies the stress by its own determinant of the
+  cell.
+
+rgpot may do per-step work of its own on its side of this protocol.
+The adapter does not depend on it, and any ``rgpot.lammps`` that provides
+``unit_factors``, ``length_per_angstrom`` and ``energy_per_ev`` works.
 
 Per-atom quantities
 -------------------
@@ -99,19 +165,104 @@ The energy and the virial are totals of the whole system, and ``pair_style cpmdc
 splits neither:
 
 - A density functional energy is a functional of the electron density, not a sum
-  of terms that belong to atoms, so any per-atom share of it would be a choice of
-  partition, not a result of cpmdc.
+  of terms that belong to atoms, so any per-atom share of it would be a choice
+  of partition, not a result of cpmdc.
 
-- The virial ``-dE/d(strain)`` is a derivative with respect to the cell. It holds
-  kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts that are not
-  ``sum r f`` over atoms, so it has no per-atom form that adds up to the pressure.
+- The virial ``-dE/d(strain)`` is a derivative with respect to the cell.
+  It holds kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts
+  that are not ``sum r f`` over atoms, so it has no per-atom form that adds up to
+  the pressure.
 
 ``pair_style cpmdc`` therefore refuses a run in which a compute asks for a split:
-``compute pe/atom``, ``compute stress/atom``, or ``compute centroid/stress/atom``, with
-any keywords, even one that is never printed.
-The error ``pair_style cpmdc computes no per-atom energy or virial (compute ID)``
-names the compute and comes from ``init_style``, before the first evaluation.
+``compute pe/atom``, ``compute stress/atom``, or ``compute centroid/stress/atom``,
+with any keywords, even one that is never printed.
+The error
+``pair_style cpmdc computes no per-atom energy or virial (compute ID)`` names the compute and comes from ``init_style``,
+before the first evaluation.
 ``uncompute ID`` removes the request.
-``FixExternal`` hands LAMMPS one energy and one virial and sets no per-atom values,
-so ``compute pe/atom`` and ``compute stress/atom`` take nothing from it.
-Per-atom forces work with every compute, for example ``compute property/atom fx fy fz``.
+``FixExternal`` hands LAMMPS one energy and one virial and sets no per-atom
+values, so ``compute pe/atom`` and ``compute stress/atom`` take nothing from it.
+Per-atom forces work with every compute, for example
+``compute ID group-ID property/atom fx fy fz``.
+
+MDI engine
+----------
+
+``cpmdc-mdi`` is the engine LAMMPS
+``fix mdi/qm`` drives (`fix
+mdi/qm <https://docs.lammps.org/fix_mdi_qm.html>`_, `Using LAMMPS with the MDI
+library <https://docs.lammps.org/Howto_mdi.html>`_).
+LAMMPS integrates.
+The engine is one separate process, not a plugin, and it does not answer
+``fix mdi/qmmm``.
+Build it with the MDI library, as :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`
+shows.
+The ``mdi-qm`` test checks this contract on the reference evaluator and does not
+link libmdi.
+
+MDI length is the Bohr and MDI energy is the Hartree.
+For ``metal`` and ``real``, LAMMPS converts with ``MDI_Conversion_factor`` before it
+sends coordinates and after it receives energy, forces, and stress.
+The engine does not apply the CODATA 2018 factors of the in-process routes.
+The MDI library's factors differ from those in the ninth significant figure, so
+a ``metal`` energy from this route is not bit-identical to ``FixExternal``.
+
+``fix mdi/qm`` sends, on ``@DEFAULT``:
+
+.. table::
+
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Command              | When                                                 | Contents                                                                                                                                            |
+    +======================+======================================================+=====================================================================================================================================================+
+    | ``>NATOMS``          | a new system, including the first step               | one int, the atom count. Drops the previous cell, origin, species, and coordinates                                                                  |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``>CELL_DISPL``      | fully periodic, and the engine registers the command | box origin, Bohr, three doubles                                                                                                                     |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``>CELL``            | fully periodic                                       | nine Bohr components, one lattice vector per row: ``(lx, 0, 0)``, ``(xy, ly, 0)``, ``(xz, yz, lz)``                                                 |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``>ELEMENTS``        | the ``elements`` keyword                             | one atomic number per atom, ascending LAMMPS atom ID                                                                                                |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``>TYPES``           | no ``elements`` keyword                              | accepted as atomic numbers, so the LAMMPS types must already be atomic numbers                                                                      |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``>COORDS``          | every evaluation                                     | ``3N`` Bohr coordinates, Cartesian, each atom remapped into the box                                                                                 |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``<PE``, ``<ENERGY`` | every evaluation                                     | cpmdc total energy, Hartree                                                                                                                         |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``<KE_ELEC``         | every evaluation, because the engine registers it    | 0. The electronic kinetic energy is already inside ``<PE``. LAMMPS adds ``<PE`` and ``<KE_ELEC`` and does not also read ``<ENERGY`` when both exist |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``<FORCES``          | every evaluation                                     | Hartree/Bohr, ``-dE/dR``, in ``>COORDS`` order                                                                                                      |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``<STRESS``          | ``virial yes``                                       | nine Hartree/Bohr\ :sup:`3`  components, row-major ``xx xy xz yx yy yz zx zy zz``                                                                   |
+    +----------------------+------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+
+``fix mdi/qm`` copies ``atom->x`` and calls ``domain->remap`` before it sends
+``>COORDS``, so each atom lies inside the box.
+The image flags are not applied.
+The engine subtracts
+``>CELL_DISPL`` from those coordinates before ``cpmdc_session_calculate_au()``, so
+the positions sit in a cell whose origin is zero.
+When this step has a cell and a previous step, it then shifts each atom by the
+lattice vector that brings it nearest to its previous position.
+A cached geometry, a reused neighbor list, and wavefunction extrapolation
+therefore see one continuous path, and the energy and forces match the unwrapped
+trajectory.
+A displacement of more than half a box edge is that lattice image.
+A singular cell on a later step fails the evaluation.
+A new ``>NATOMS`` drops that path with the previous cell, origin, species, and
+coordinates.
+A step that never received ``>CELL`` since the last ``>NATOMS`` is a cluster: the
+session is called with no cell, and no lattice shift is applied.
+One evaluation serves ``<PE``, ``<ENERGY``, ``<FORCES``, and ``<STRESS`` until the next
+``>`` command.
+
+``<STRESS`` is ``cpmdc_session_last_stress()``, ``-dE/d(strain) / V``, positive under
+compression.
+LAMMPS reads indexes 0, 4, and 8 as ``xx yy zz`` and the pairs ``(1, 3)``, ``(2, 6)``,
+and ``(5, 7)`` as the symmetrized ``xy xz yz``, multiplies by the box volume in its
+length unit, and stores that extensive virial.
+When the session computed no stress, including an isolated deck and
+``CPMDC_STRESS=0``, the nine components are zero.
+A change in the count of any element closes the session and opens another on the
+same ``CPMDParams`` message.
+Forces are per atom.
+The energy and the stress are totals.

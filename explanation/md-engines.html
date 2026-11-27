@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc inside MD engines - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Density of water at a constant cutoff" href="constant-cutoff-npt.html" /><link rel="prev" title="Atoms in an isolated cell" href="isolated-cells.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc inside MD engines - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Density of water at a constant cutoff" href="constant-cutoff-npt.html" /><link rel="prev" title="Atoms in an isolated cell" href="isolated-cells.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/md-engines.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -385,6 +386,16 @@ the route for an MPI-launched CPMD that integrates.
 For GROMACS integrating on cpmdc forces, the CP2K interface is the one
 in-process route that carries the energy, the forces, and the box at full
 precision, and it is the one built and tested here.</p>
+<p>Both in-process adapters can use the session external-charge ABI.
+GROMACS <code class="docutils literal notranslate"><span class="pre">EMBEDDING</span> <span class="pre">ELECTROSTATIC</span></code> takes MM positions and charges from its
+generated PDB.
+Python <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal(qm_types=...)</span></code> takes the atoms outside those
+types, reads their LAMMPS <code class="docutils literal notranslate"><span class="pre">q</span></code> values, and returns forces to both groups.
+The Gaussian charge potential polarizes the CPMD density; its energy is part of
+the QM energy.
+Periodic electrostatic embedding is rejected until a periodic sum is
+implemented.
+Mechanical embedding and whole-system LAMMPS operation are unchanged.</p>
 </section>
 <section id="opencpmd-in-gromacs">
 <h2>OpenCPMD in GROMACS<a class="headerlink" href="#opencpmd-in-gromacs" title="Link to this heading">¶</a></h2>
@@ -539,8 +550,7 @@ paths.</p>
 8 ranks with <code class="docutils literal notranslate"><span class="pre">QM_RANKS</span> <span class="pre">ALL</span></code> and nothing else on the machine beyond seconds of
 analysis; the classical controls run on 1 rank.
 The library recentres the QM water in its cluster cell on every call
-(<code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> in
-<a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>).
+(<code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> in <a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>).
 The QM run took 19875 s of wall time by <code class="docutils literal notranslate"><span class="pre">md.log</span></code>, 0.66 s per step.
 It reported the <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> backend and the stress on the first request, and
 <code class="docutils literal notranslate"><span class="pre">md.log</span></code> has no missing-stress line.</p>
@@ -1050,13 +1060,16 @@ control.</p>
 <section id="before-recentring">
 <h5>Before recentring<a class="headerlink" href="#before-recentring" title="Link to this heading">¶</a></h5>
 <p>The first run of these commands, on a library that kept the QM region’s absolute
-position in its cell, gave the QM water 844.6 +- 14.3
-kg/m<sup>3</sup>  (2.2761 +- 0.0390 nm<sup>3</sup>, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm<sup>3</sup>  for 6 ps, then grew to 2.5 nm<sup>3</sup>  by 13 ps while the pressure turned more negative, and its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell. A water diffuses half a nanometre or more in 15 ps, as the one above did. <code class="docutils literal notranslate"><span class="pre">bench/cluster_drift_scan.py</span></code>
-moves a BLYP water towards a face of the deck’s 10 Angstrom Hockney cell;
-<code class="docutils literal notranslate"><span class="pre">bench/results/cluster_drift_scan.org</span></code> has the tables. On that library the
-energy moves by -3.9e-5 Hartree with the outer hydrogen 3 Angstrom from the
-face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and -8.4e-3 at 0.5 Angstrom
-past it, where the net force is 0.17 Hartree/Bohr.
+position in its cell, gave the QM water 844.6 +- 14.3 kg/m<sup>3</sup>  (2.2761 +- 0.0390
+nm<sup>3</sup>, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm<sup>3</sup>  for 6
+ps, then grew to 2.5 nm<sup>3</sup>  by 13 ps while the pressure turned more negative, and
+its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell.
+A water diffuses half a nanometre or more in 15 ps, as the one above did.</p>
+<p><code class="docutils literal notranslate"><span class="pre">bench/cluster_drift_scan.py</span></code> moves a BLYP water towards a face of the deck’s 10 Angstrom Hockney cell; <code class="docutils literal notranslate"><span class="pre">bench/results/cluster_drift_scan.org</span></code>
+has the tables.
+On that library the energy moves by -3.9e-5 Hartree with the outer hydrogen 3
+Angstrom from the face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and
+-8.4e-3 at 0.5 Angstrom past it, where the net force is 0.17 Hartree/Bohr.
 The trace of <code class="docutils literal notranslate"><span class="pre">sum</span> <span class="pre">x</span> <span class="pre">(x)</span> <span class="pre">f</span></code> goes from +0.049 Hartree at the centre to +0.093 at 1
 Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between those two is 1300
 bar on a 2.1 nm<sup>3</sup>  box, against the -13 +- 26 bar of the control, and past the
@@ -1161,7 +1174,11 @@ second picosecond.</p>
 box (<code class="docutils literal notranslate"><span class="pre">metal</span></code>, NVE) through each route and reports the median wall time per step
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
-the same SCF time to every route.</p>
+the same SCF time to every route.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> is not in the table.
+It is a separate process on MDI, so a step also pays for the socket or MPI
+exchange.
+The command sequence and the stress sign are in <a class="reference internal" href="../reference/lammps.html"><span class="doc">the LAMMPS interface reference</span></a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">python<span class="w"> </span>bench/lammps_routes.py<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--steps<span class="w"> </span><span class="m">2000</span><span class="w"> </span>--repeats<span class="w"> </span><span class="m">7</span>
 </span></pre></div>
 </div>
@@ -1262,16 +1279,12 @@ An OpenCPMD step adds the same SCF time to every route.</p>
 <li><p>J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher, P.
 Carloni, U. Rothlisberger, “MiMiC: A Novel Framework for Multiscale Modeling
 in Computational Chemistry”, <em>J. Chem. Theory Comput.</em> <strong>15</strong>, 3810-3823
-(2019),
-<a class="reference external" href="https://doi.org/10.1021/acs.jctc.9b00093">doi:10.1021/acs.jctc.9b00093</a>.</p></li>
+(2019), <a class="reference external" href="https://doi.org/10.1021/acs.jctc.9b00093">doi:10.1021/acs.jctc.9b00093</a>.</p></li>
 <li><p>V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti, P.
 Carloni, U. Rothlisberger, “Extreme Scalability of DFT-Based QM/MM MD
-Simulations Using MiMiC”, <em>J. Chem. Theory Comput.</em> <strong>15</strong>, 5601-5613 (2019),
-<a class="reference external" href="https://doi.org/10.1021/acs.jctc.9b00424">doi:10.1021/acs.jctc.9b00424</a>.</p></li>
-<li><p>MCL, the MiMiC Communication Library,
-<a class="reference external" href="https://gitlab.com/MiMiC-projects/CommLib">gitlab.com/MiMiC-projects/CommLib</a>;
-GROMACS manual,
-<a class="reference external" href="https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html">MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations</a>.</p></li>
+Simulations Using MiMiC”, <em>J. Chem. Theory Comput.</em> <strong>15</strong>, 5601-5613 (2019), <a class="reference external" href="https://doi.org/10.1021/acs.jctc.9b00424">doi:10.1021/acs.jctc.9b00424</a>.</p></li>
+<li><p>MCL, the MiMiC Communication Library, <a class="reference external" href="https://gitlab.com/MiMiC-projects/CommLib">gitlab.com/MiMiC-projects/CommLib</a>;
+GROMACS manual, <a class="reference external" href="https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html">MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations</a>.</p></li>
 </ol>
 </section>
 </section>
@@ -1383,7 +1396,7 @@ GROMACS manual,
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

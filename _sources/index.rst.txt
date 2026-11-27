@@ -46,8 +46,8 @@ The result-carrier call, ``cpmdc_session_calculate_result()``, writes the same
 ``PotentialResult`` message used by ``rgpot`` RPC clients.
 
 ``session_accept_topology`` fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.
@@ -98,7 +98,7 @@ Start Here
      - Run ``rgpot-ipi-driver`` over ``CPMDPot`` when the rgpot build has the RPC stack (``--pot "CPMD params FILE"`` or ``-m CPMD -o params=FILE``, with ``--preserve-open-cell``); ``cpmdc-ipi`` and ``cpmdc-ipi-c`` remain compatibility fallbacks
      - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
    * - Run LAMMPS on cpmdc forces
-     - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
+     - Attach ``cpmdc.lammps.FixExternal`` from Python, load ``pair_style cpmdc`` from the plugin, or run ``cpmdc-mdi`` under ``fix mdi/qm``
      - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
    * - Run GROMACS on cpmdc forces
      - Link ``libcpmdc_gromacs`` into GROMACS' CP2K QM/MM interface, for a QM group or the whole system
@@ -107,7 +107,7 @@ Start Here
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
    * - Tune SCF convergence in ``&CPMD``
-     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - Pick ODIIS or PCG; an unconverged DIIS pass continues once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
@@ -119,7 +119,7 @@ Start Here
      - Compare analytic forces and stress against central finite differences
      - :doc:`Check forces and stress by finite differences <howto/check-forces>`
    * - Benchmark MPI rank scaling for a grid
-     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - Measure structure-factor rank scaling with the opt-in ``pwscale`` scaffold
      - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
      - Match common error strings and failure modes to their fixes
@@ -166,8 +166,9 @@ Reference at a glance
 
 :doc:`The C ABI reference <reference/c-abi>` lists every public call with
 its contract, :doc:`the plane-wave scaffold reference <reference/pwscale>`
-does the same for the opt-in scaffold, and :doc:`CPMD option mapping <reference/cpmd-options>` says
-which ``CPMDParams`` field or feature ID carries each line of the CPMD manual.
+does the same for the opt-in scaffold, and :doc:`CPMD option mapping <reference/cpmd-options>`
+says which ``CPMDParams`` field or feature ID carries each line of the CPMD
+manual.
 An OpenCPMD archive build links the same C ABI against ``libcpmd.a``.
 
 .. toctree::
@@ -257,7 +258,21 @@ GitHub reads that file and offers the record as "Cite this repository" on the
 repository page, as the
 `GitHub documentation on citation files <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files>`_
 describes.
-The record carries no digital object identifier (DOI).
+The Citation File Format record lists the Zenodo concept DOI for all versions.
+This release has no version DOI.
+``codemeta.json`` is the CodeMeta 2.0 record, and ``.zenodo.json`` is the Zenodo
+deposit metadata.
+``version-sync`` writes the version in ``CITATION.cff``, ``codemeta.json``, and
+``.zenodo.json`` from ``version.txt``.
+``.zenodo.json`` carries a ``version`` field.
+Zenodo lists ``version`` as optional deposit metadata.
+``release-assert`` checks the cog copies and the version fields in ``codemeta.json``
+and ``.zenodo.json``, and fails when one differs from ``version.txt``.
+The Citation File Format record references CPMD.
+Its reference uses the citation in the CPMD manual and the version, license, and
+repository of `CPMD-code/CPMD <https://github.com/CPMD-code/CPMD>`_.
+It credits the CPMD consortium, the author that the manual names.
+IBM Corp and the MPI für Festkörperforschung Stuttgart hold the copyright.
 
 An OpenCPMD archive build computes its energies and forces with OpenCPMD, so a
 paper that reports them cites OpenCPMD as well.

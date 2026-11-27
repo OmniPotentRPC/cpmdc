@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="./">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="First energy and forces through the C API" href="tutorials/first-energy.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="First energy and forces through the C API" href="tutorials/first-energy.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -370,8 +371,8 @@ decodes those bytes with generated <code class="docutils literal notranslate"><s
 The result-carrier call, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code>, writes the same
 <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> message used by <code class="docutils literal notranslate"><span class="pre">rgpot</span></code> RPC clients.</p>
 <p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology only after an evaluation call
-passes its argument checks and collective orbital preflight. A rejected
-preflight leaves the topology configurable.
+passes its argument checks and collective orbital preflight.
+A rejected preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.</p>
@@ -436,7 +437,7 @@ composition requires a new session.</p>
 <td><p><a class="reference internal" href="howto/socket-drivers.html"><span class="doc">Drive cpmdc over the i-PI socket protocol</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p>Run LAMMPS on cpmdc forces</p></td>
-<td><p>Attach <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> from Python, or load <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code> from the plugin</p></td>
+<td><p>Attach <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps.FixExternal</span></code> from Python, load <code class="docutils literal notranslate"><span class="pre">pair_style</span> <span class="pre">cpmdc</span></code> from the plugin, or run <code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> under <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code></p></td>
 <td><p><a class="reference internal" href="howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>Run GROMACS on cpmdc forces</p></td>
@@ -448,7 +449,7 @@ composition requires a new session.</p>
 <td><p><a class="reference internal" href="howto/mpi.html"><span class="doc">Run under mpirun</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>Tune SCF convergence in <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code></p></td>
-<td><p>Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps</p></td>
+<td><p>Pick ODIIS or PCG; an unconverged DIIS pass continues once with <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code></p></td>
 <td><p><a class="reference internal" href="howto/wavefunction-optimiser.html"><span class="doc">Choose a wavefunction optimiser</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p>Extrapolate orbitals across trajectory steps</p></td>
@@ -464,7 +465,7 @@ composition requires a new session.</p>
 <td><p><a class="reference internal" href="howto/check-forces.html"><span class="doc">Check forces and stress by finite differences</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>Benchmark MPI rank scaling for a grid</p></td>
-<td><p>Measure 3D FFT scaling with the opt-in <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> scaffold</p></td>
+<td><p>Measure structure-factor rank scaling with the opt-in <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> scaffold</p></td>
 <td><p><a class="reference internal" href="howto/pwscale-ranks.html"><span class="doc">Choose an MPI rank count</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p>Find out why a call failed or an energy is off</p></td>
@@ -517,8 +518,9 @@ feature table, sessions, result sizing, and unit conversion.</p>
 <h2>Reference at a glance<a class="headerlink" href="#reference-at-a-glance" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="reference/c-abi.html"><span class="doc">The C ABI reference</span></a> lists every public call with
 its contract, <a class="reference internal" href="reference/pwscale.html"><span class="doc">the plane-wave scaffold reference</span></a>
-does the same for the opt-in scaffold, and <a class="reference internal" href="reference/cpmd-options.html"><span class="doc">CPMD option mapping</span></a> says
-which <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> field or feature ID carries each line of the CPMD manual.
+does the same for the opt-in scaffold, and <a class="reference internal" href="reference/cpmd-options.html"><span class="doc">CPMD option mapping</span></a>
+says which <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> field or feature ID carries each line of the CPMD
+manual.
 An OpenCPMD archive build links the same C ABI against <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code>.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
@@ -610,7 +612,21 @@ GitHub reads that file and offers the record as “Cite this repository” on th
 repository page, as the
 <a class="reference external" href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files">GitHub documentation on citation files</a>
 describes.
-The record carries no digital object identifier (DOI).</p>
+The Citation File Format record lists the Zenodo concept DOI for all versions.
+This release has no version DOI.
+<code class="docutils literal notranslate"><span class="pre">codemeta.json</span></code> is the CodeMeta 2.0 record, and <code class="docutils literal notranslate"><span class="pre">.zenodo.json</span></code> is the Zenodo
+deposit metadata.
+<code class="docutils literal notranslate"><span class="pre">version-sync</span></code> writes the version in <code class="docutils literal notranslate"><span class="pre">CITATION.cff</span></code>, <code class="docutils literal notranslate"><span class="pre">codemeta.json</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">.zenodo.json</span></code> from <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+<code class="docutils literal notranslate"><span class="pre">.zenodo.json</span></code> carries a <code class="docutils literal notranslate"><span class="pre">version</span></code> field.
+Zenodo lists <code class="docutils literal notranslate"><span class="pre">version</span></code> as optional deposit metadata.
+<code class="docutils literal notranslate"><span class="pre">release-assert</span></code> checks the cog copies and the version fields in <code class="docutils literal notranslate"><span class="pre">codemeta.json</span></code>
+and <code class="docutils literal notranslate"><span class="pre">.zenodo.json</span></code>, and fails when one differs from <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+The Citation File Format record references CPMD.
+Its reference uses the citation in the CPMD manual and the version, license, and
+repository of <a class="reference external" href="https://github.com/CPMD-code/CPMD">CPMD-code/CPMD</a>.
+It credits the CPMD consortium, the author that the manual names.
+IBM Corp and the MPI für Festkörperforschung Stuttgart hold the copyright.</p>
 <p>An OpenCPMD archive build computes its energies and forces with OpenCPMD, so a
 paper that reports them cites OpenCPMD as well.
 OpenCPMD ships no citation file; name it with its repository, <a class="reference external" href="https://github.com/OpenCPMD/CPMD">github.com/OpenCPMD/CPMD</a>,
@@ -725,7 +741,7 @@ at the root of the repository.</p>
     </div>
   </div>
 </footer>
-      <script src="_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="_static/documentation_options.js?v=486e5634"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/target-highlight.js?v=df7d332b"></script>

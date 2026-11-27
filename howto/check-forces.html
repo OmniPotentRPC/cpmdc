@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Check forces and stress by finite differences - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" /><link rel="prev" title="Debug an input with CPMDCDECK OUT" href="debug-deck.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Check forces and stress by finite differences - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" /><link rel="prev" title="Debug an input with CPMDCDECK OUT" href="debug-deck.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/check-forces.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -327,9 +328,9 @@ data-aria-dark="Switch to auto color mode">
 <h1>Check forces and stress by finite differences<a class="headerlink" href="#check-forces-and-stress-by-finite-differences" title="Link to this heading">¶</a></h1>
 <section id="goal">
 <h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
-<p>Compare the forces a session returns with central differences of its
-energy, the way the CP2K <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code> run type does with <code class="docutils literal notranslate"><span class="pre">DEBUG_FORCES</span></code> and
-<code class="docutils literal notranslate"><span class="pre">DEBUG_STRESS_TENSOR</span></code>.
+<p>Compare the forces a session returns with central differences of its energy, the
+way the CP2K <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code> run type does with
+<code class="docutils literal notranslate"><span class="pre">DEBUG_FORCES</span></code> and <code class="docutils literal notranslate"><span class="pre">DEBUG_STRESS_TENSOR</span></code>.
 A mismatch points at the gradient, not at the energy.</p>
 </section>
 <section id="run-the-check">
@@ -340,8 +341,8 @@ It takes one <code class="docutils literal notranslate"><span class="pre">CPMDPa
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">build/cpmdc-fd-check<span class="w"> </span>build/water_blyp_params.bin<span class="w"> </span>build/force_input_water.bin
 </span></pre></div>
 </div>
-<p>Each coordinate moves by <code class="docutils literal notranslate"><span class="pre">+DX</span></code> and <code class="docutils literal notranslate"><span class="pre">-DX</span></code> Bohr, so a check of <code class="docutils literal notranslate"><span class="pre">N</span></code> atoms
-costs <code class="docutils literal notranslate"><span class="pre">6N</span></code> energy evaluations after the first one.
+<p>Each coordinate moves by <code class="docutils literal notranslate"><span class="pre">+DX</span></code> and <code class="docutils literal notranslate"><span class="pre">-DX</span></code> Bohr, so a check of <code class="docutils literal notranslate"><span class="pre">N</span></code> atoms costs
+<code class="docutils literal notranslate"><span class="pre">6N</span></code> energy evaluations after the first one.
 Every evaluation is a <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> call with
 <code class="docutils literal notranslate"><span class="pre">lengthUnit</span> <span class="pre">=</span> <span class="pre">&quot;bohr&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">energyUnit</span> <span class="pre">=</span> <span class="pre">&quot;hartree&quot;</span></code>.
 The numerical force is <code class="docutils literal notranslate"><span class="pre">-(E(+DX)</span> <span class="pre">-</span> <span class="pre">E(-DX))</span> <span class="pre">/</span> <span class="pre">(2</span> <span class="pre">DX)</span></code>.</p>
@@ -370,44 +371,52 @@ The numerical force is <code class="docutils literal notranslate"><span class="p
 <td><p>off</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">DEBUG%DEBUG_STRESS_TENSOR</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--external-charge</span> <span class="pre">X,Y,Z,Q[,WIDTH_ANG]</span></code></p></td>
+<td><p>none</p></td>
+<td><p>repeatable; Gaussian MM point charge in Angstrom and elementary charge</p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>A component whose analytic value is below <code class="docutils literal notranslate"><span class="pre">--eps-no-error-check</span></code> is printed
-and not checked.
+<p>With <code class="docutils literal notranslate"><span class="pre">--external-charge</span></code>, each entry installs a Gaussian MM charge (default
+width <code class="docutils literal notranslate"><span class="pre">0.30</span></code> Angstrom when omitted) on the session before evaluating the energy
+and forces, and checks the MM forces from
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_external_charge_forces()</span></code> (<code class="docutils literal notranslate"><span class="pre">mm_forces</span></code>) alongside the QM
+<code class="docutils literal notranslate"><span class="pre">forces</span></code> against central differences of <code class="docutils literal notranslate"><span class="pre">+/-</span> <span class="pre">DX</span></code> Bohr on each coordinate.</p>
+<p>A component whose analytic value is below <code class="docutils literal notranslate"><span class="pre">--eps-no-error-check</span></code> is printed and
+not checked.
 A force at or below <code class="docutils literal notranslate"><span class="pre">1e-4</span></code> Hartree/Bohr may be off by five times the limit.
 The last line of each block gives the largest absolute and relative error and
 how many components were checked.
-The exit status is 0 when every checked component agrees, 1 on a mismatch,
-and 2 on a usage, input, or evaluation error.</p>
+The exit status is 0 when every checked component agrees, 1 on a mismatch, and 2
+on a usage, input, or evaluation error.</p>
 </section>
 <section id="check-the-stress">
 <h2>Check the stress<a class="headerlink" href="#check-the-stress" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">--stress</span></code> needs a periodic cell for which the calculator writes
 <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code>; an isolated cell exits with status 2.
-Each of the six symmetric strains <code class="docutils literal notranslate"><span class="pre">eps_ab</span></code> is applied as <code class="docutils literal notranslate"><span class="pre">+DX</span></code> and <code class="docutils literal notranslate"><span class="pre">-DX</span></code> to
-the cell vectors and to the positions, so the fractional coordinates stay
-fixed.
+Each of the six symmetric strains <code class="docutils literal notranslate"><span class="pre">eps_ab</span></code> is applied as <code class="docutils literal notranslate"><span class="pre">+DX</span></code> and <code class="docutils literal notranslate"><span class="pre">-DX</span></code> to the
+cell vectors and to the positions, so the fractional coordinates stay fixed.
 That costs 12 more evaluations.
 The check compares virials in Hartree, as CP2K compares <code class="docutils literal notranslate"><span class="pre">pv_virial</span></code>, so
 <code class="docutils literal notranslate"><span class="pre">--eps-no-error-check</span></code> means the same as there.
-The numerical virial is <code class="docutils literal notranslate"><span class="pre">-(E(+DX)</span> <span class="pre">-</span> <span class="pre">E(-DX))</span> <span class="pre">/</span> <span class="pre">(2</span> <span class="pre">DX)</span></code> and the analytic one
-is the volume times <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code> in Hartree/Bohr<sup>3</sup>, the sign of
-OpenCPMD <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code>.</p>
+The numerical virial is <code class="docutils literal notranslate"><span class="pre">-(E(+DX)</span> <span class="pre">-</span> <span class="pre">E(-DX))</span> <span class="pre">/</span> <span class="pre">(2</span> <span class="pre">DX)</span></code> and the analytic one is
+the volume times <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code> in
+Hartree/Bohr<sup>3</sup>, the sign of OpenCPMD <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code>.</p>
 </section>
 <section id="what-the-reference-build-shows">
 <h2>What the reference build shows<a class="headerlink" href="#what-the-reference-build-shows" title="Link to this heading">¶</a></h2>
 <p>The reference evaluator returns the analytic gradient of its energy, so its
 forces agree to rounding.
-Its stress is <code class="docutils literal notranslate"><span class="pre">-dE/d(eps)</span> <span class="pre">/</span> <span class="pre">volume</span></code>, the OpenCPMD sign of that derivative,
-so <code class="docutils literal notranslate"><span class="pre">--stress</span></code> agrees to rounding as well.
+Its stress is <code class="docutils literal notranslate"><span class="pre">-dE/d(eps)</span> <span class="pre">/</span> <span class="pre">volume</span></code>, the OpenCPMD sign of that derivative, so
+<code class="docutils literal notranslate"><span class="pre">--stress</span></code> agrees to rounding as well.
 An isolated cell still has no tensor.</p>
 </section>
 <section id="with-opencpmd">
 <h2>With OpenCPMD<a class="headerlink" href="#with-opencpmd" title="Link to this heading">¶</a></h2>
 <p>An SCF energy carries the error of its convergence.
-Converge the orbitals well below <code class="docutils literal notranslate"><span class="pre">DX</span></code> times the force you want to check, or
-the differences measure the SCF threshold instead of the gradient.</p>
+Converge the orbitals well below <code class="docutils literal notranslate"><span class="pre">DX</span></code> times the force you want to check, or the
+differences measure the SCF threshold instead of the gradient.</p>
 </section>
 </section>
 
@@ -518,7 +527,7 @@ the differences measure the SCF threshold instead of the gradient.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

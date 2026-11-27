@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Troubleshooting - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="C ABI reference" href="../reference/c-abi.html" /><link rel="prev" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Troubleshooting - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="C ABI reference" href="../reference/c-abi.html" /><link rel="prev" title="Time the plane-wave scaffold on ranks" href="pwscale-ranks.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/troubleshooting.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -355,8 +356,7 @@ data-aria-dark="Switch to auto color mode">
           <section id="troubleshooting">
 <h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h1>
 <p>Each entry names the symptom, the cause in the code, and the fix.
-Set <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> first when the symptom involves energies (see
-<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).
+Set <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> first when the symptom involves energies (see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).
 The last section says how to report a problem that no entry covers.</p>
 <section id="energies">
 <h2>Energies<a class="headerlink" href="#energies" title="Link to this heading">¶</a></h2>
@@ -398,8 +398,7 @@ from <code class="docutils literal notranslate"><span class="pre">sum</span> <sp
 <p><strong>Fix:</strong> leave <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> unset (<code class="docutils literal notranslate"><span class="pre">mass</span></code>), or set it to <code class="docutils literal notranslate"><span class="pre">geometry</span></code>, which
 moves the atoms to the middle of the cell on each call.
 Set <code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER_MARGIN</span></code> to the clearance the density needs, for example 3
-Angstrom, to make a cell that is too small for the region fail instead (see
-<a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>).</p>
+Angstrom, to make a cell that is too small for the region fail instead (see <a class="reference internal" href="../reference/environment.html"><span class="doc">environment variables</span></a>).</p>
 </section>
 <section id="the-energy-changes-when-only-the-cell-changes">
 <h3>The energy changes when only the cell changes<a class="headerlink" href="#the-energy-changes-when-only-the-cell-changes" title="Link to this heading">¶</a></h3>
@@ -439,10 +438,9 @@ Without <code class="docutils literal notranslate"><span class="pre">maxIter</sp
 </tbody>
 </table>
 </div>
-<p><strong>Fix:</strong> raise <code class="docutils literal notranslate"><span class="pre">maxIter</span></code>, or switch the optimiser (see
-<a class="reference internal" href="wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>); otherwise put that
-element’s pseudopotential in the message, or use an element the built-in table
-knows.</p>
+<p><strong>Fix:</strong> raise <code class="docutils literal notranslate"><span class="pre">maxIter</span></code>, or switch the optimiser (see <a class="reference internal" href="wavefunction-optimiser.html"><span class="doc">choosing the optimiser</span></a>);
+otherwise put that element’s pseudopotential in the message, or use an element
+the built-in table knows.</p>
 <p>A missing pseudopotential directory is a different message.
 When neither <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> nor
 <code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code> names a directory, <code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>
@@ -494,9 +492,8 @@ A different elemental composition runs setup.</p>
 <p><strong>Cause:</strong> the <code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code> or <code class="docutils literal notranslate"><span class="pre">energyUnit</span></code> of the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> is not a unit
 string <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> knows.
 The call fails before it evaluates.</p>
-<p><strong>Fix:</strong> use one of the unit strings of the
-<a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a>, such as <code class="docutils literal notranslate"><span class="pre">angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">bohr</span></code>,
-<code class="docutils literal notranslate"><span class="pre">eV</span></code>, or <code class="docutils literal notranslate"><span class="pre">hartree</span></code>; case does not matter.</p>
+<p><strong>Fix:</strong> use one of the unit strings of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI reference</span></a>,
+such as <code class="docutils literal notranslate"><span class="pre">angstrom</span></code>, <code class="docutils literal notranslate"><span class="pre">bohr</span></code>, <code class="docutils literal notranslate"><span class="pre">eV</span></code>, or <code class="docutils literal notranslate"><span class="pre">hartree</span></code>; case does not matter.</p>
 </section>
 <section id="cpmd-embed-not-available">
 <h3><code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">embed</span> <span class="pre">not</span> <span class="pre">available</span></code><a class="headerlink" href="#cpmd-embed-not-available" title="Link to this heading">¶</a></h3>
@@ -518,8 +515,7 @@ parentheses, and linking <code class="docutils literal notranslate"><span class=
 <h3>Forces are all zero with a finite energy<a class="headerlink" href="#forces-are-all-zero-with-a-finite-energy" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> the OpenCPMD archive lacks <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code>, so <code class="docutils literal notranslate"><span class="pre">fion</span></code> is
 deallocated before <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads it.</p>
-<p><strong>Fix:</strong> apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and rebuild the archive (see
-<a class="reference internal" href="opencpmd-archive.html"><span class="doc">building the archive</span></a>).
+<p><strong>Fix:</strong> apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and rebuild the archive (see <a class="reference internal" href="opencpmd-archive.html"><span class="doc">building the archive</span></a>).
 A symmetric cluster at a stationary geometry also gives zero forces; displace an
 atom to tell the two apart.</p>
 </section>
@@ -534,14 +530,12 @@ one: inside its <code class="docutils literal notranslate"><span class="pre">mdr
 forces, which have no nonlocal part, were unchanged.</p>
 <p><strong>Fix:</strong> build the host against the BLAS <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links.
 <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> stops <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> with <code class="docutils literal notranslate"><span class="pre">dgemm_</span> <span class="pre">resolves</span> <span class="pre">to</span> <span class="pre">.../libgromacs...</span></code> when OpenCPMD is linked, and <code class="docutils literal notranslate"><span class="pre">scripts/ci/build_gromacs_cpmdc.sh</span></code>
-builds GROMACS against the BLAS of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (see
-<a class="reference internal" href="gromacs.html"><span class="doc">GROMACS</span></a>).</p>
+builds GROMACS against the BLAS of <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> (see <a class="reference internal" href="gromacs.html"><span class="doc">GROMACS</span></a>).</p>
 </section>
 <section id="ranks-disagree-about-forces-under-mpirun">
 <h3>Ranks disagree about forces under mpirun<a class="headerlink" href="#ranks-disagree-about-forces-under-mpirun" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> only CPMD’s parent rank holds the calculator’s forces.</p>
-<p><strong>Fix:</strong> broadcast the parent rank’s result (see
-<a class="reference internal" href="mpi.html"><span class="doc">running under mpirun</span></a>).</p>
+<p><strong>Fix:</strong> broadcast the parent rank’s result (see <a class="reference internal" href="mpi.html"><span class="doc">running under mpirun</span></a>).</p>
 </section>
 <section id="mpirun-reports-an-abnormal-termination-at-exit">
 <h3>mpirun reports an abnormal termination at exit<a class="headerlink" href="#mpirun-reports-an-abnormal-termination-at-exit" title="Link to this heading">¶</a></h3>
@@ -610,9 +604,8 @@ error and does not write a shortened deck.</p>
 </section>
 <section id="report-a-new-problem">
 <h2>Report a new problem<a class="headerlink" href="#report-a-new-problem" title="Link to this heading">¶</a></h2>
-<p>Open an issue on the
-<a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a> when no
-entry above matches.
+<p>Open an issue on the <a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a>
+when no entry above matches.
 Questions go there too.</p>
 <p>Print the version and the build options that choose the code path.
 Replace <code class="docutils literal notranslate"><span class="pre">build</span></code> with your build directory, then run this command in the source
@@ -637,8 +630,7 @@ tree.</p>
 <p>Put these items in the report:</p>
 <ol class="arabic simple">
 <li><p>the output of that command;</p></li>
-<li><p>the deck that <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> wrote for the failing call (see
-<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>);</p></li>
+<li><p>the deck that <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> wrote for the failing call (see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>);</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> for a failed call, or the
 <code class="docutils literal notranslate"><span class="pre">--print-errorlogs</span></code> output for a failed test;</p></li>
 <li><p>the <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file, when the call stopped with
@@ -754,7 +746,7 @@ tree.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

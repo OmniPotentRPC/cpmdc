@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build options, artifacts, and Pixi tasks - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMDParams schema fields" href="cpmdparams-schema.html" /><link rel="prev" title="Environment variables" href="environment.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build options, artifacts, and Pixi tasks - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMDParams schema fields" href="cpmdparams-schema.html" /><link rel="prev" title="Environment variables" href="environment.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/build-options.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -363,7 +364,7 @@ Pass one as <code class="docutils literal notranslate"><span class="pre">-DNAME=
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">with_python</span></code></p></td>
 <td><p>boolean</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
-<td><p>install <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code>, its schema, and an unversioned <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> for a wheel; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code></p></td>
+<td><p>install <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code>, its schema, and an unversioned <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> for a wheel; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">with_readcon</span></code></p></td>
 <td><p>boolean</p></td>
@@ -395,6 +396,11 @@ Pass one as <code class="docutils literal notranslate"><span class="pre">-DNAME=
 <td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
 <td><p>build <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> and <code class="docutils literal notranslate"><span class="pre">libcp2k.pc</span></code> for the GROMACS QM/MM interface (see <a class="reference internal" href="../howto/gromacs.html"><span class="doc">the GROMACS how-to</span></a>)</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">with_mdi</span></code></p></td>
+<td><p>feature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
+<td><p>build <code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code>, the MDI engine for LAMMPS <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code>; needs the MDI library and a usable <code class="docutils literal notranslate"><span class="pre">mdi.h</span></code>. The <code class="docutils literal notranslate"><span class="pre">mdi-qm</span></code> test does not (see <a class="reference internal" href="../howto/lammps.html"><span class="doc">the LAMMPS how-to</span></a>)</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -407,16 +413,18 @@ OpenCPMD keeps <code class="docutils literal notranslate"><span class="pre">time
 </section>
 <section id="darwin-link-behavior-for-wheels">
 <h2>Darwin link behavior for wheels<a class="headerlink" href="#darwin-link-behavior-for-wheels" title="Link to this heading">¶</a></h2>
-<p>The serial wheel (<code class="docutils literal notranslate"><span class="pre">with_cpmd=false</span></code>) builds <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> without a reference to
-<code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>. On ELF, an undefined weak reference can remain unresolved,
-but <code class="docutils literal notranslate"><span class="pre">ld64</span></code> reports that same reference as undefined at link time. The Darwin
-stop hook is used only when <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> is non-empty.
+<p>The serial wheel
+(<code class="docutils literal notranslate"><span class="pre">with_cpmd=false</span></code>) builds <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> without a reference to <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>.
+On ELF, an undefined weak reference can remain unresolved, but <code class="docutils literal notranslate"><span class="pre">ld64</span></code> reports
+that same reference as undefined at link time.
+The Darwin stop hook is used only when <code class="docutils literal notranslate"><span class="pre">with_cpmd=true</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> is
+non-empty.
 <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code> is the pair that passes <code class="docutils literal notranslate"><span class="pre">-DCPMDC_HAS_CPMD=1</span></code> and links <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code>.</p>
 <p>On Darwin, the export list also differs by build mode: the serial library
 exports the literal public C ABI symbols, while an OpenCPMD build adds wildcard
-patterns for MPI Fortran sentinel COMMON blocks. <code class="docutils literal notranslate"><span class="pre">ld64</span></code> requires every literal
-<code class="docutils literal notranslate"><span class="pre">-exported_symbols_list</span></code> name to exist in the linked image, but wildcard entries
-match only symbols that are present.</p>
+patterns for MPI Fortran sentinel COMMON blocks.
+<code class="docutils literal notranslate"><span class="pre">ld64</span></code> requires every literal <code class="docutils literal notranslate"><span class="pre">-exported_symbols_list</span></code> name to exist in the
+linked image, but wildcard entries match only symbols that are present.</p>
 </section>
 <section id="installed-artifacts">
 <h2>Installed artifacts<a class="headerlink" href="#installed-artifacts" title="Link to this heading">¶</a></h2>
@@ -466,11 +474,15 @@ match only symbols that are present.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_gromacs.so</span></code>, <code class="docutils literal notranslate"><span class="pre">include/cpmdc/gromacs/libcp2k.h</span></code>, <code class="docutils literal notranslate"><span class="pre">lib/cpmdc/gromacs/pkgconfig/libcp2k.pc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">with_gromacs_shim</span></code> is not disabled and <code class="docutils literal notranslate"><span class="pre">with_python</span></code> is off</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bin/cpmdc-mdi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">with_mdi</span></code> is not disabled, the MDI library is found, <code class="docutils literal notranslate"><span class="pre">mdi.h</span></code> can be included, and <code class="docutils literal notranslate"><span class="pre">with_python</span></code> is off</p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>. A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets
-no soversion, because a wheel stores no symlinks.
+<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets no soversion, because a wheel stores no symlinks.
 The stub archive <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> is built for the tests and not installed.</p>
 </section>
 <section id="meson-test-suites">
@@ -525,19 +537,23 @@ These suites group the tests of the default build by layer.
 </tbody>
 </table>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">mpi</span></code> tests above are added when <code class="docutils literal notranslate"><span class="pre">with_tests=true</span></code> and the C MPI
-dependency is found (<code class="docutils literal notranslate"><span class="pre">rank-consensus</span></code> also requires <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code> to be false).
+<p>Run <code class="docutils literal notranslate"><span class="pre">geometry-rmsd</span></code>, <code class="docutils literal notranslate"><span class="pre">warm-selector</span></code>, and <code class="docutils literal notranslate"><span class="pre">warm-selector-abi</span></code> by name with
+<code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span> <span class="pre">-C</span> <span class="pre">build</span> <span class="pre">geometry-rmsd</span> <span class="pre">warm-selector</span> <span class="pre">warm-selector-abi</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">mpi</span></code> tests above are added when
+<code class="docutils literal notranslate"><span class="pre">with_tests=true</span></code> and the C MPI dependency is found (<code class="docutils literal notranslate"><span class="pre">rank-consensus</span></code> also requires <code class="docutils literal notranslate"><span class="pre">has_cpmd</span></code>
+to be false).
 They launch through <code class="docutils literal notranslate"><span class="pre">tests/run_mpi_test.py</span></code>, which uses <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> or <code class="docutils literal notranslate"><span class="pre">mpiexec</span></code>
 when one is on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and otherwise exits 77 so Meson marks the test skipped.</p>
-<p>Opt-in options add <code class="docutils literal notranslate"><span class="pre">restart-con</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_readcon=true</span></code>), <code class="docutils literal notranslate"><span class="pre">pwscale</span></code>
-(<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>), and <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> plus <code class="docutils literal notranslate"><span class="pre">water</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code> with a
-non-empty <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code>).</p>
+<p>Opt-in options add <code class="docutils literal notranslate"><span class="pre">restart-con</span></code>
+(<code class="docutils literal notranslate"><span class="pre">-Dwith_readcon=true</span></code>), <code class="docutils literal notranslate"><span class="pre">pwscale</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_pwscale=true</span></code>), and <code class="docutils literal notranslate"><span class="pre">opencpmd</span></code> plus
+<code class="docutils literal notranslate"><span class="pre">water</span></code> (<code class="docutils literal notranslate"><span class="pre">-Dwith_cpmd=true</span></code> with a non-empty <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code>).</p>
 <p>In the <code class="docutils literal notranslate"><span class="pre">e2e</span></code> suite, <code class="docutils literal notranslate"><span class="pre">e2e-single-point</span></code> runs <code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code> and a
 session force call on one <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, then <code class="docutils literal notranslate"><span class="pre">cpmdc_energy_forces</span></code> on bare
 positions.
 <code class="docutils literal notranslate"><span class="pre">e2e-optimizer-session</span></code> runs three geometry steps on one <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, the
 topology rejection, and a second session for a change of species.
-Both skip when <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code> is <code class="docutils literal notranslate"><span class="pre">0</span></code>, which is every build without OpenCPMD.</p>
+Both skip when <code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span></code> is <code class="docutils literal notranslate"><span class="pre">0</span></code>, which is every build without
+OpenCPMD.</p>
 <p>cmocka is resolved through pkg-config or CMake.
 The parser tests use Cap’n Proto text fixtures encoded by the <code class="docutils literal notranslate"><span class="pre">capnp</span></code> CLI
 (<code class="docutils literal notranslate"><span class="pre">tests/encode_capnp.py</span></code>).
@@ -614,21 +630,23 @@ linked.</p>
 </div>
 <p>Run a docs task with <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">-e</span> <span class="pre">docs</span> <span class="pre">docbld</span></code>.</p>
 <p>One sanitizer CI failure was traced to libfabric’s memhooks monitor replacing
-AddressSanitizer’s <code class="docutils literal notranslate"><span class="pre">mprotect</span></code> interceptor during <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>.  In a separate
-Open MPI 5 reproduction, <code class="docutils literal notranslate"><span class="pre">FI_MR_CACHE_MONITOR=disabled</span></code> alone still ended in
-SIGILL, while <code class="docutils literal notranslate"><span class="pre">--mca</span> <span class="pre">memory</span> <span class="pre">^patcher</span></code> prevented it.  Selecting a non-UCX
-transport also prevented that reproduction.  The sanitize job disables the
-observed libfabric path, and <code class="docutils literal notranslate"><span class="pre">tests/run_mpi_test.py</span></code> passes the Open MPI memory
-and transport exclusions in both the environment and launcher arguments.</p>
+AddressSanitizer’s <code class="docutils literal notranslate"><span class="pre">mprotect</span></code> interceptor during <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>.
+In a separate Open MPI 5 reproduction, <code class="docutils literal notranslate"><span class="pre">FI_MR_CACHE_MONITOR=disabled</span></code> alone
+still ended in SIGILL, while <code class="docutils literal notranslate"><span class="pre">--mca</span> <span class="pre">memory</span> <span class="pre">^patcher</span></code> prevented it.
+Selecting a non-UCX transport also prevented that reproduction.
+The sanitize job disables the observed libfabric path, and
+<code class="docutils literal notranslate"><span class="pre">tests/run_mpi_test.py</span></code> passes the Open MPI memory and transport exclusions in
+both the environment and launcher arguments.</p>
 </section>
 <section id="meson-test-parallelism-and-blas-threads">
 <h2>Meson test parallelism and BLAS threads<a class="headerlink" href="#meson-test-parallelism-and-blas-threads" title="Link to this heading">¶</a></h2>
 <p>The default test setup (<code class="docutils literal notranslate"><span class="pre">blasthreads</span></code>) sets <code class="docutils literal notranslate"><span class="pre">OPENBLAS_NUM_THREADS</span></code>,
-<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>, and <code class="docutils literal notranslate"><span class="pre">MKL_NUM_THREADS</span></code> to <code class="docutils literal notranslate"><span class="pre">1</span></code> so parallel <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code>
-workers do not each spawn a full OpenBLAS pool. Meson applies those values to
-every test child; exports of the same names in the shell that runs <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code>
-are not passed through. To force different caps, set them on the <code class="docutils literal notranslate"><span class="pre">env:</span></code> keyword
-of the individual test or run the executable outside Meson.</p>
+<code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>, and <code class="docutils literal notranslate"><span class="pre">MKL_NUM_THREADS</span></code> to <code class="docutils literal notranslate"><span class="pre">1</span></code> so parallel <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code> workers
+do not each spawn a full OpenBLAS pool.
+Meson applies those values to every test child; exports of the same names in the
+shell that runs <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">test</span></code> are not passed through.
+To force different caps, set them on the <code class="docutils literal notranslate"><span class="pre">env:</span></code> keyword of the individual test
+or run the executable outside Meson.</p>
 </section>
 </section>
 
@@ -739,7 +757,7 @@ of the individual test or run the executable outside Meson.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

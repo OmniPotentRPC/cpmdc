@@ -8,12 +8,12 @@ Why a C ABI around CPMD
 -----------------------
 
 OpenCPMD is a Fortran program.
-Its state lives in module variables, its input is a deck of ``&SECTION``
-blocks read from a file, and its normal life is one run per process.
+Its state lives in module variables, its input is a deck of ``&SECTION`` blocks
+read from a file, and its normal life is one run per process.
 A host that wants many energies and forces, such as a minimiser, a saddle
-search, or a nudged elastic band, needs something else: a library it can
-call repeatedly, from C, C++, Rust, or Python, without writing decks or
-starting processes.
+search, or a nudged elastic band, needs something else: a library it can call
+repeatedly, from C, C++, Rust, or Python, without writing decks or starting
+processes.
 ``cpmdc`` is that library.
 It follows the pattern of ``nwchemc``: Cap'n Proto messages on the boundary, a
 small C ABI, and a Fortran ``iso_c_binding`` layer that drives the engine as a
@@ -50,8 +50,8 @@ Layers
     | Stub              | ``src/cpmdc_stub.c``                                                          | the same symbols for link checks; calls that need OpenCPMD fail, and ``cpmdc_adopt_calculator_comm`` still returns the calculator index when MPI is linked                                                                                                                                                                                                                                                                         |
     +-------------------+-------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-The C side never includes CPMD headers, and the Fortran side never sees a
-Cap'n Proto type it did not decode itself.
+The C side never includes CPMD headers, and the Fortran side never sees a Cap'n
+Proto type it did not decode itself.
 Everything that crosses between them is a C array, a scalar, or a
 null-terminated string.
 
@@ -61,8 +61,8 @@ Two messages, two lifetimes
 ``CPMDParams`` carries the method: functional, cutoff, the typed deck sections,
 and literal blocks.
 A host builds it once per session.
-``ForceInput`` carries one geometry: positions, atomic numbers, an optional
-cell, and the units the host wants back.
+``ForceInput`` carries one geometry: positions, atomic numbers, an optional cell,
+and the units the host wants back.
 A host builds one per step.
 Keeping them apart is what lets a warm step skip CPMD's setup.
 
@@ -77,60 +77,63 @@ What one evaluation does
 2. ``cpmdc_session_calculate_result()`` decodes the ``ForceInput``, converts
    positions and the cell to Angstrom, and sizes the result buffer.
    ``session_accept_topology`` fixes the topology after that call passes its
-   argument checks and collective orbital preflight. A rejected preflight
-   leaves it configurable. All of that is before any CPMD work.
+   argument checks and collective orbital preflight.
+   A rejected preflight leaves it configurable.
+   All of that is before any CPMD work.
 
-3. On a cold evaluation, the bridge composes the full deck from the method
-   deck and the step geometry, writes it to an anonymous ``memfd`` exposed as
-   ``/proc/self/fd/N``, and runs OpenCPMD's own setup on it (``control``,
-   ``dftin``, ``sysin``, ``ratom``, ``setsys``, ``rinit``, and the rest), then the SCF
-   through ``wfopts``.
+3. On a cold evaluation, the bridge composes the full deck from the method deck
+   and the step geometry, writes it to an anonymous ``memfd`` exposed as
+   ``/proc/self/fd/N``, and runs OpenCPMD's own setup on it (``control``, ``dftin``,
+   ``sysin``, ``ratom``, ``setsys``, ``rinit``, and the rest), then the SCF through
+   ``wfopts``.
 
 4. On a warm step, the bridge writes the new positions into ``coor%tau0``
-   (Angstrom to Bohr), recomputes the structure factors with ``phfac``,
-   restores the saved orbitals, and runs ``wfopts`` again.
+   (Angstrom to Bohr), recomputes the structure factors with ``phfac``, restores
+   the saved orbitals, and runs ``wfopts`` again.
 
-5. After the SCF, the bridge reads ``ener_com%etot`` and ``coor%fion``, copies
-   the energy components, charges, dipole, and stress into the session, and
-   reports failure when the orbitals did not converge.
+5. After the SCF, the bridge reads ``ener_com%etot`` and ``coor%fion``, copies the
+   energy components, charges, dipole, and stress into the session, and reports
+   failure when the orbitals did not converge.
 
-6. ``cpmdc.c`` negates the gradient into forces, scales energy and forces to
-   the requested units, and writes the ``PotentialResult``.
+6. ``cpmdc.c`` negates the gradient into forces, scales energy and forces to the
+   requested units, and writes the ``PotentialResult``.
 
 No deck is written to disk unless ``CPMDC_DECK_OUT`` names a file.
-The only input file CPMD opens is the in-memory deck, and a library force
-call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz``;
-``cpmd.x`` on the same deck writes them.
+The only input file CPMD opens is the in-memory deck, and a library force call
+writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz``; ``cpmd.x`` on the
+same deck writes them.
 
 Where the deck comes from
 -------------------------
 
 The deck is rendered from ``CPMDParams`` for three reasons: CPMD's own parsers
 already turn every keyword into module state, so no C setter per keyword is
-needed; the rendered deck is what ``cpmd.x`` would read; and ``CPMDC_DECK_OUT``
-can show it to a person.
+needed; the rendered deck is what ``cpmd.x`` would read; and ``CPMDC_DECK_OUT`` can
+show it to a person.
 Typed fields render the keywords the schema models, ``directives`` carry keywords
-without a typed field, and ``set``, ``generic``, ``raw``, and ``inputBlocks`` carry
-text that must pass through unchanged.
+without a typed field, and ``set``, ``generic``, ``raw``, and ``inputBlocks`` carry text
+that must pass through unchanged.
 The geometry never goes into ``CPMDParams``: the bridge writes ``&ATOMS`` from the
 step on a cold evaluation and moves atoms through ``tau0`` on a warm step.
 
 Sessions, topology, and state
 -----------------------------
 
-``session_accept_topology`` fixes the topology after an evaluation call passes
-its argument checks and collective orbital preflight, because the species
-tables, the plane-wave setup, and the stored orbitals are sized for one
-composition. A rejected preflight leaves it configurable.
+``session_accept_topology`` fixes the topology after an evaluation call passes its
+argument checks and collective orbital preflight, because the species tables,
+the plane-wave setup, and the stored orbitals are sized for one composition.
+A rejected preflight leaves it configurable.
 A reordering of those elements stays on the session.
-Coordinates may change freely. A changed cell runs setup again, except a
-constant-cutoff cell that stays within ``CPMDC_CELL_IN_PLACE``.
+Coordinates may change freely.
+A changed cell runs setup again, except a constant-cutoff cell that stays within
+``CPMDC_CELL_IN_PLACE``.
 OpenCPMD's module state is one per process, so one session at a time owns it.
 A different session with the same functional, deck, cutoff, cell, charge,
 multiplicity, and elemental composition reuses the stored orbitals.
 A different method or composition runs setup again on the next evaluation.
-:doc:`Wavefunction state <wavefunction-state>` follows the orbitals from call to call,
-and :doc:`the MPI model <mpi-model>` covers ranks and calculator groups.
+:doc:`Wavefunction state <wavefunction-state>` follows the orbitals from
+call to call, and :doc:`the MPI model <mpi-model>` covers ranks and
+calculator groups.
 
 Three builds, one ABI
 ---------------------
@@ -147,14 +150,14 @@ Three builds, one ABI
     | OpenCPMD ``libcpmdc.so`` (``-Dwith_cpmd=true``) |                     1 | OpenCPMD ``wfopts`` with ionic forces                                     | ``etot``, ``ekin``, ``epseu``, ``enl``, ``eht``, ``exc`` |
     +-------------------------------------------------+-----------------------+---------------------------------------------------------------------------+----------------------------------------------------------+
 
-The reference build exists so the ABI, the parser, sessions, units, and
-result sizing can be tested on any machine.
+The reference build exists so the ABI, the parser, sessions, units, and result
+sizing can be tested on any machine.
 Its energies are deterministic and have no physical meaning.
 
 The file route it replaces
 --------------------------
 
-Before the library, a host ran ``cpmd.x`` once per force call and exchanged
-decks, restart files, and ``GEOMETRY`` through the file system.
-:doc:`The route comparison <routes>` measures what each approach costs and what each one
-has to guard against.
+Before the library, a host ran ``cpmd.x`` once per force call and exchanged decks,
+restart files, and ``GEOMETRY`` through the file system.
+:doc:`The route comparison <routes>` measures what each approach costs and
+what each one has to guard against.

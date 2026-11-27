@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run LAMMPS on cpmdc forces - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run GROMACS on cpmdc forces" href="gromacs.html" /><link rel="prev" title="Drive cpmdc over the i-PI socket protocol" href="socket-drivers.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Run LAMMPS on cpmdc forces - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Run GROMACS on cpmdc forces" href="gromacs.html" /><link rel="prev" title="Drive cpmdc over the i-PI socket protocol" href="socket-drivers.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/lammps.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -232,6 +233,7 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#from-python-with-fix-external">From Python with fix external</a></li>
 <li><a class="reference internal" href="#from-an-input-script-with-pairstyle-cpmdc">From an input script with pair<sub>style</sub>  cpmdc</a></li>
+<li><a class="reference internal" href="#from-a-separate-process-with-fix-mdi-qm">From a separate process with fix mdi/qm</a></li>
 <li><a class="reference internal" href="#several-mpi-ranks">Several MPI ranks</a></li>
 <li><a class="reference internal" href="#the-harness-on-the-reference-well-and-on-opencpmd">The harness on the reference well and on OpenCPMD</a></li>
 </ul>
@@ -324,11 +326,13 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="run-lammps-on-cpmdc-forces">
 <h1>Run LAMMPS on cpmdc forces<a class="headerlink" href="#run-lammps-on-cpmdc-forces" title="Link to this heading">¶</a></h1>
-<p>LAMMPS can take its energy, forces, and virial from cpmdc in process, so its
-integrators, thermostats, barostats, minimizers, and output run on a cpmdc
-potential energy surface.
-Two routes call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>
-once per force evaluation; both pass the same numbers to LAMMPS.</p>
+<p>LAMMPS can take its energy, forces, and virial from cpmdc in process, or from a
+separate cpmdc process, so its integrators, thermostats, barostats, minimizers,
+and output run on a cpmdc potential energy surface.
+The in-process routes and <code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_au()</span></code> of the <a class="reference internal" href="../reference/c-abi.html"><span class="doc">C ABI</span></a>
+once per force evaluation.
+The in-process routes pass LAMMPS units.
+<code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> passes atomic units, and LAMMPS converts those.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -346,7 +350,11 @@ once per force evaluation; both pass the same numbers to LAMMPS.</p>
 <td><p>a LAMMPS plugin, <code class="docutils literal notranslate"><span class="pre">cpmdcplugin.so</span></code>, loaded with <code class="docutils literal notranslate"><span class="pre">plugin</span> <span class="pre">load</span></code></p></td>
 <td><p>LAMMPS with the <code class="docutils literal notranslate"><span class="pre">PLUGIN</span></code> package and the headers it was built from; no Python</p></td>
 </tr>
-<tr class="row-even"><td><p>i-PI sockets</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> in the MDI package, LAMMPS as the driver</p></td>
+<td><p>the MDI library when the engine is built; LAMMPS built with <code class="docutils literal notranslate"><span class="pre">PKG_MDI</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>i-PI sockets</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">ipi</span></code>, a client of an i-PI server</p></td>
 <td><p>i-PI and <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>; see <a class="reference internal" href="socket-drivers.html"><span class="doc">the socket drivers</span></a></p></td>
 </tr>
@@ -355,16 +363,17 @@ once per force evaluation; both pass the same numbers to LAMMPS.</p>
 </div>
 <p>The plugin suits LAMMPS input scripts run by <code class="docutils literal notranslate"><span class="pre">lmp</span></code> and has the least overhead
 per step (see <a class="reference internal" href="../explanation/md-engines.html"><span class="doc">cpmdc inside MD engines</span></a>).
-<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> suits Python workflows and needs no compiler.  The cpmdc class is
-a compatibility wrapper: it presents a <code class="docutils literal notranslate"><span class="pre">cpmdc.Session</span></code> as a Python rgpot
-potential and delegates the LAMMPS protocol, unit conversion, cell, virial,
-MPI gather and callback errors to <code class="docutils literal notranslate"><span class="pre">rgpot.lammps.FixExternal</span></code>.  Install rgpot
-alongside cpmdc to use this route.  <code class="docutils literal notranslate"><span class="pre">rgpot.lammps</span></code> is not in a released rgpot
-wheel yet; the Python tests skip, with that reason, when the import fails.
+<code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> suits Python workflows and needs no compiler.
+The cpmdc class is a compatibility wrapper: it presents a <code class="docutils literal notranslate"><span class="pre">cpmdc.Session</span></code> as a
+Python rgpot potential and delegates the LAMMPS protocol, unit conversion, cell,
+virial, MPI gather and callback errors to <code class="docutils literal notranslate"><span class="pre">rgpot.lammps.FixExternal</span></code>.
+Install rgpot alongside cpmdc to use this route.
+<code class="docutils literal notranslate"><span class="pre">rgpot.lammps</span></code> is not in a released rgpot wheel yet; the Python tests skip, with
+that reason, when the import fails.
 The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.</p>
 <p>The <a class="reference internal" href="../reference/lammps.html"><span class="doc">LAMMPS interface reference</span></a> gives the unit
-styles, the cell, and the virial both routes use.</p>
+styles, the cell, and the virial the routes use.</p>
 <section id="from-python-with-fix-external">
 <h2>From Python with fix external<a class="headerlink" href="#from-python-with-fix-external" title="Link to this heading">¶</a></h2>
 <p>Define the box, the atoms, and the masses as usual, without a pair style for the
@@ -450,6 +459,49 @@ The plugin links only <code class="docutils literal notranslate"><span class="pr
 LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary built
 against its headers.</p>
 </section>
+<section id="from-a-separate-process-with-fix-mdi-qm">
+<h2>From a separate process with fix mdi/qm<a class="headerlink" href="#from-a-separate-process-with-fix-mdi-qm" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc-mdi</span></code> answers the MDI commands
+<code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> sends (<a class="reference external" href="https://docs.lammps.org/fix_mdi_qm.html">fix mdi/qm</a>).
+Meson builds the executable when it finds the MDI library (<code class="docutils literal notranslate"><span class="pre">-Dwith_mdi=auto</span></code>),
+by pkg-config or by the CMake package.
+MDI 1.4.40’s CMake package exports the library and <code class="docutils literal notranslate"><span class="pre">mdi_INCLUDE_DIR</span></code> but does
+not put <code class="docutils literal notranslate"><span class="pre">mdi.h</span></code> on the imported target.
+The build adds that include directory when the header is missing from the
+dependency.
+<code class="docutils literal notranslate"><span class="pre">-Dwith_mdi=enabled</span></code> refuses to configure when the library is absent or when
+<code class="docutils literal notranslate"><span class="pre">mdi.h</span></code> still cannot be included.
+The command test <code class="docutils literal notranslate"><span class="pre">mdi-qm</span></code> does not need it.
+The executable takes one <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.
+Run one engine process.
+LAMMPS may use several ranks: <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qm</span></code> gathers the atoms before it sends
+them.
+<code class="docutils literal notranslate"><span class="pre">elements</span></code> makes LAMMPS send atomic numbers with <code class="docutils literal notranslate"><span class="pre">&gt;ELEMENTS</span></code>.
+<code class="docutils literal notranslate"><span class="pre">virial</span> <span class="pre">yes</span></code> requests <code class="docutils literal notranslate"><span class="pre">&lt;STRESS</span></code>, which an NPT run needs.
+<code class="docutils literal notranslate"><span class="pre">atom_modify</span> <span class="pre">map</span> <span class="pre">yes</span></code> is required by the fix.
+This engine does not answer <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">mdi/qmmm</span></code>.
+GROMACS is unchanged: <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code> still serves the CP2K
+QM/MM interface, and MiMiC stays out for the reasons in <a class="reference internal" href="../explanation/md-engines.html"><span class="doc">cpmdc
+inside MD engines</span></a>.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1"># engine, one process
+</span><span data-line="2">cpmdc-mdi water.params.bin -mdi &quot;-role ENGINE -name cpmdc -method TCP -hostname localhost -port 8021&quot;
+</span><span data-line="3">
+</span><span data-line="4"># in.mdi
+</span><span data-line="5">units           metal
+</span><span data-line="6">atom_style      atomic
+</span><span data-line="7">atom_modify     map yes
+</span><span data-line="8">boundary        p p p
+</span><span data-line="9">read_data       water.data
+</span><span data-line="10">fix             qm all mdi/qm virial yes elements O H
+</span><span data-line="11">timestep        0.00025
+</span><span data-line="12">fix             nve all nve
+</span><span data-line="13">run             100
+</span></pre></div>
+</div>
+<p>Launch the driver on the same port.
+MDI requires <code class="docutils literal notranslate"><span class="pre">-hostname</span></code> for a TCP engine and accepts it for the driver:
+<code class="docutils literal notranslate"><span class="pre">lmp</span> <span class="pre">-mdi</span> <span class="pre">&quot;-role</span> <span class="pre">DRIVER</span> <span class="pre">-name</span> <span class="pre">LAMMPS</span> <span class="pre">-method</span> <span class="pre">TCP</span> <span class="pre">-hostname</span> <span class="pre">localhost</span> <span class="pre">-port</span> <span class="pre">8021&quot;</span> <span class="pre">-in</span> <span class="pre">in.mdi</span></code>.</p>
+</section>
 <section id="several-mpi-ranks">
 <h2>Several MPI ranks<a class="headerlink" href="#several-mpi-ranks" title="Link to this heading">¶</a></h2>
 <p>Under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code> LAMMPS spreads the atoms over its ranks, and cpmdc still
@@ -465,9 +517,10 @@ rank, which keeps the forces of the atoms it owns.</p></li>
 <li><p>The other ranks wait during the evaluation, so extra ranks speed up only
 LAMMPS’ own work.
 The traffic per step is <code class="docutils literal notranslate"><span class="pre">O(N)</span></code> doubles.</p></li>
-<li><p>Both routes order a step by increasing atom ID. Positive, unique IDs may
-have gaps, so <code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> and <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code> work
-without a <code class="docutils literal notranslate"><span class="pre">reset_atoms</span> <span class="pre">id</span></code> pass.</p></li>
+<li><p>Both routes order a step by increasing atom ID.
+Positive, unique IDs may have gaps, so
+<code class="docutils literal notranslate"><span class="pre">delete_atoms</span> <span class="pre">...</span> <span class="pre">compress</span> <span class="pre">no</span></code> and <code class="docutils literal notranslate"><span class="pre">fix</span> <span class="pre">evaporate</span></code> work without a <code class="docutils literal notranslate"><span class="pre">reset_atoms</span> <span class="pre">id</span></code>
+pass.</p></li>
 <li><p>A step with a new elemental composition opens a new session.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">FixExternal</span></code> needs <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> for this, and <code class="docutils literal notranslate"><span class="pre">comm=</span></code> when the <code class="docutils literal notranslate"><span class="pre">lammps</span></code> object was
@@ -494,14 +547,14 @@ and the two-rank check on the two waters.</p>
 <p>The reference well is a quadratic energy anchored at the origin.
 It collects four tests that use that shape:</p>
 <ul class="simple">
-<li><p>An unwrapped path held to the tolerances of the single steps (forces to
-rtol 1e-10), since the well’s forces are linear in the coordinates.</p></li>
-<li><p>An NVE run of 800 steps of 0.25 fs through the box corner, with etotal
-within 2e-3 of the swing of pe, the fall into the well.</p></li>
+<li><p>An unwrapped path held to the tolerances of the single steps (forces to rtol
+1e-10), since the well’s forces are linear in the coordinates.</p></li>
+<li><p>An NVE run of 800 steps of 0.25 fs through the box corner, with etotal within
+2e-3 of the swing of pe, the fall into the well.</p></li>
 <li><p>An NPT run toward -20000 bar, near the well’s own stress, with econserve
 within 5e-3 of that swing.</p></li>
-<li><p>A central difference of the energy over strains of 1e-5 on the triclinic
-cell, within 1e-6 of the largest virial component.</p></li>
+<li><p>A central difference of the energy over strains of 1e-5 on the triclinic cell,
+within 1e-6 of the largest virial component.</p></li>
 </ul>
 <p>OpenCPMD collects the constant-cutoff step and a plane-wave counterpart of each.
 The finite differences and trajectories run the periodic water deck at an
@@ -564,42 +617,43 @@ cell a strain of 1e-5 keeps all of them, and at 3e-5 the difference misses by
 At the deck’s own orbital threshold the 1e-5 difference misses by 1.1e-3, the
 SCF error over the step; at 1e-7 it meets the virial to 2.5e-7.
 With <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.01</span></code> a constant-cutoff deck keeps the plane waves of
-its setup cell through the strain, and the misses at 5e-3 and 2.5e-3, 1.3e-3
-and 3.2e-4, fall as the square of the step.</p>
+its setup cell through the strain, and the misses at 5e-3 and 2.5e-3, 1.3e-3 and
+3.2e-4, fall as the square of the step.</p>
 <p>At 0.25 fs the Verlet fluctuation of etotal on the two waters is 8.6e-4 eV RMS,
-above the 8e-4 eV that 2e-3 of their 0.4 eV swing of pe allows, so the
-reference NVE bound belongs to the well.
-At the deck’s threshold of 1e-5, etotal also falls at 2.9e-2 eV/ps, 17 times
-the 1.7e-3 eV/ps at 1e-7; over 800 steps, 200 fs, that adds 5.7e-3 eV.</p>
-<p>The NPT run uses the constant-cutoff deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.05</span></code>,
-since a plain deck sets up a new basis whenever the cell moves.
+above the 8e-4 eV that 2e-3 of their 0.4 eV swing of pe allows, so the reference
+NVE bound belongs to the well.
+At the deck’s threshold of 1e-5, etotal also falls at 2.9e-2
+eV/ps, 17 times the 1.7e-3 eV/ps at 1e-7; over 800 steps, 200 fs, that adds
+5.7e-3 eV.</p>
+<p>The NPT run uses the constant-cutoff deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE=0.05</span></code>, since
+a plain deck sets up a new basis whenever the cell moves.
 Its target, 0 bar, lies near the -135 bar the two waters average over the run.
 The pressure at the first step, +18 kbar, is the virial of the stretched O-H
-bonds, which swings by about 15 kbar each vibration; as the target it
-compressed the cube from 729 to 202 Angstrom<sup>3</sup>  in 50 fs.
+bonds, which swings by about 15 kbar each vibration; as the target it compressed
+the cube from 729 to 202 Angstrom<sup>3</sup>  in 50 fs.
 NVE on the same deck leaves its start by 5.9e-3 of the swing of pe, so the
 barostat adds no visible error to econserve.</p>
 <p><code class="docutils literal notranslate"><span class="pre">test_reference_cell_holds_the_basis</span></code> is the plain deck with <code class="docutils literal notranslate"><span class="pre">REFERENCE</span> <span class="pre">CELL</span></code>
-and <code class="docutils literal notranslate"><span class="pre">MESH</span></code> at the triclinic cell, which keeps its 10347 plane waves and its
-72 72 80 mesh through the strain.
+and <code class="docutils literal notranslate"><span class="pre">MESH</span></code> at the triclinic cell, which keeps its 10347 plane waves and its 72
+72 80 mesh through the strain.
 It is marked <code class="docutils literal notranslate"><span class="pre">xfail(strict=True)</span></code>: the strain difference is +3.28 eV where the
 virial is -32.42 eV (xx), at strains of 1e-5 and 5e-3 alike.
 A cold setup with <code class="docutils literal notranslate"><span class="pre">REFERENCE</span> <span class="pre">CELL</span></code> builds the G vectors from the reference
 lattice rather than the strained cell, which looks like a library bug.</p>
-<p>Build LAMMPS <code class="docutils literal notranslate"><span class="pre">stable_22Jul2025</span></code> as a shared library with MPI, exceptions,
-<code class="docutils literal notranslate"><span class="pre">PKG_PYTHON</span></code>, and <code class="docutils literal notranslate"><span class="pre">PKG_PLUGIN</span></code>, against the same Open MPI that cpmdc uses.
+<p>Build LAMMPS
+<code class="docutils literal notranslate"><span class="pre">stable_22Jul2025</span></code> as a shared library with MPI, exceptions, <code class="docutils literal notranslate"><span class="pre">PKG_PYTHON</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">PKG_PLUGIN</span></code>, against the same Open MPI that cpmdc uses.
 The installed include directory is missing headers the plugin includes
 (<code class="docutils literal notranslate"><span class="pre">json_fwd.h</span></code>, <code class="docutils literal notranslate"><span class="pre">version.h</span></code>, <code class="docutils literal notranslate"><span class="pre">lammpsplugin.h</span></code>), so point <code class="docutils literal notranslate"><span class="pre">-Dlammps_include</span></code> at
 that LAMMPS source <code class="docutils literal notranslate"><span class="pre">src</span></code> directory.
 Build the OpenCPMD archive with <code class="docutils literal notranslate"><span class="pre">scripts/ci/build_opencpmd.sh</span></code>, which applies
 the patches the harness needs, including the optional constant-cutoff and PCG
 patches.
-<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_omp_info.sh</span></code>,
-<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_pcg_step.sh</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_constant_cutoff.sh</span></code> rebuild those members when the
+<code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_embed.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_omp_info.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_pcg_step.sh</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">tools/rebuild_opencpmd_constant_cutoff.sh</span></code> rebuild those members when the
 tree was already compiled.
-Then point meson at that archive and at the LAMMPS headers, and run the
-harness with the pseudopotentials the deck names:</p>
+Then point meson at that archive and at the LAMMPS headers, and run the harness
+with the pseudopotentials the deck names:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># OpenCPMD library, plugin, and the LAMMPS harness.</span>
 </span><span data-line="2">meson<span class="w"> </span>setup<span class="w"> </span>build-cpmd<span class="w"> </span>-Dwith_cpmd<span class="o">=</span><span class="nb">true</span><span class="w"> </span>-Dcpmd_root<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CPMD_ROOT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">  </span>-Dwith_lammps_plugin<span class="o">=</span>enabled<span class="w"> </span>-Dlammps_include<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$LAMMPS_SRC</span><span class="s2">/src&quot;</span>
@@ -727,7 +781,7 @@ reports zero skips.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

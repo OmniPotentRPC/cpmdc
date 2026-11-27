@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Architecture - cpmdc 0.7.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="File, in-process, RPC, and protocol routes" href="routes.html" /><link rel="prev" title="struct cpmdc_pwscale_stats" href="../api/struct_cpmdc_pwscale_stats.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Architecture - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="File, in-process, RPC, and protocol routes" href="routes.html" /><link rel="prev" title="struct cpmdc_pwscale_stats" href="../api/struct_cpmdc_pwscale_stats.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/explanation/architecture.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -152,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCErrorCode.html">enum CPMDCErrorCode</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
 </ul>
@@ -331,12 +332,12 @@ data-aria-dark="Switch to auto color mode">
 <section id="why-a-c-abi-around-cpmd">
 <h2>Why a C ABI around CPMD<a class="headerlink" href="#why-a-c-abi-around-cpmd" title="Link to this heading">¶</a></h2>
 <p>OpenCPMD is a Fortran program.
-Its state lives in module variables, its input is a deck of <code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span></code>
-blocks read from a file, and its normal life is one run per process.
+Its state lives in module variables, its input is a deck of <code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span></code> blocks
+read from a file, and its normal life is one run per process.
 A host that wants many energies and forces, such as a minimiser, a saddle
-search, or a nudged elastic band, needs something else: a library it can
-call repeatedly, from C, C++, Rust, or Python, without writing decks or
-starting processes.
+search, or a nudged elastic band, needs something else: a library it can call
+repeatedly, from C, C++, Rust, or Python, without writing decks or starting
+processes.
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> is that library.
 It follows the pattern of <code class="docutils literal notranslate"><span class="pre">nwchemc</span></code>: Cap’n Proto messages on the boundary, a
 small C ABI, and a Fortran <code class="docutils literal notranslate"><span class="pre">iso_c_binding</span></code> layer that drives the engine as a
@@ -400,8 +401,8 @@ library.</p>
 </tbody>
 </table>
 </div>
-<p>The C side never includes CPMD headers, and the Fortran side never sees a
-Cap’n Proto type it did not decode itself.
+<p>The C side never includes CPMD headers, and the Fortran side never sees a Cap’n
+Proto type it did not decode itself.
 Everything that crosses between them is a C array, a scalar, or a
 null-terminated string.</p>
 </section>
@@ -410,8 +411,8 @@ null-terminated string.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> carries the method: functional, cutoff, the typed deck sections,
 and literal blocks.
 A host builds it once per session.
-<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> carries one geometry: positions, atomic numbers, an optional
-cell, and the units the host wants back.
+<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> carries one geometry: positions, atomic numbers, an optional cell,
+and the units the host wants back.
 A host builds one per step.
 Keeping them apart is what lets a warm step skip CPMD’s setup.</p>
 </section>
@@ -425,54 +426,57 @@ multiplicity with <code class="docutils literal notranslate"><span class="pre">c
 <li><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> decodes the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, converts
 positions and the cell to Angstrom, and sizes the result buffer.
 <code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology after that call passes its
-argument checks and collective orbital preflight. A rejected preflight
-leaves it configurable. All of that is before any CPMD work.</p></li>
-<li><p>On a cold evaluation, the bridge composes the full deck from the method
-deck and the step geometry, writes it to an anonymous <code class="docutils literal notranslate"><span class="pre">memfd</span></code> exposed as
-<code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code>, and runs OpenCPMD’s own setup on it (<code class="docutils literal notranslate"><span class="pre">control</span></code>,
-<code class="docutils literal notranslate"><span class="pre">dftin</span></code>, <code class="docutils literal notranslate"><span class="pre">sysin</span></code>, <code class="docutils literal notranslate"><span class="pre">ratom</span></code>, <code class="docutils literal notranslate"><span class="pre">setsys</span></code>, <code class="docutils literal notranslate"><span class="pre">rinit</span></code>, and the rest), then the SCF
-through <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>.</p></li>
+argument checks and collective orbital preflight.
+A rejected preflight leaves it configurable.
+All of that is before any CPMD work.</p></li>
+<li><p>On a cold evaluation, the bridge composes the full deck from the method deck
+and the step geometry, writes it to an anonymous <code class="docutils literal notranslate"><span class="pre">memfd</span></code> exposed as
+<code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code>, and runs OpenCPMD’s own setup on it (<code class="docutils literal notranslate"><span class="pre">control</span></code>, <code class="docutils literal notranslate"><span class="pre">dftin</span></code>,
+<code class="docutils literal notranslate"><span class="pre">sysin</span></code>, <code class="docutils literal notranslate"><span class="pre">ratom</span></code>, <code class="docutils literal notranslate"><span class="pre">setsys</span></code>, <code class="docutils literal notranslate"><span class="pre">rinit</span></code>, and the rest), then the SCF through
+<code class="docutils literal notranslate"><span class="pre">wfopts</span></code>.</p></li>
 <li><p>On a warm step, the bridge writes the new positions into <code class="docutils literal notranslate"><span class="pre">coor%tau0</span></code>
-(Angstrom to Bohr), recomputes the structure factors with <code class="docutils literal notranslate"><span class="pre">phfac</span></code>,
-restores the saved orbitals, and runs <code class="docutils literal notranslate"><span class="pre">wfopts</span></code> again.</p></li>
-<li><p>After the SCF, the bridge reads <code class="docutils literal notranslate"><span class="pre">ener_com%etot</span></code> and <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, copies
-the energy components, charges, dipole, and stress into the session, and
-reports failure when the orbitals did not converge.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc.c</span></code> negates the gradient into forces, scales energy and forces to
-the requested units, and writes the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>.</p></li>
+(Angstrom to Bohr), recomputes the structure factors with <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, restores
+the saved orbitals, and runs <code class="docutils literal notranslate"><span class="pre">wfopts</span></code> again.</p></li>
+<li><p>After the SCF, the bridge reads <code class="docutils literal notranslate"><span class="pre">ener_com%etot</span></code> and <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, copies the
+energy components, charges, dipole, and stress into the session, and reports
+failure when the orbitals did not converge.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpmdc.c</span></code> negates the gradient into forces, scales energy and forces to the
+requested units, and writes the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>.</p></li>
 </ol>
 <p>No deck is written to disk unless <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> names a file.
-The only input file CPMD opens is the in-memory deck, and a library force
-call writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>;
-<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> on the same deck writes them.</p>
+The only input file CPMD opens is the in-memory deck, and a library force call
+writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>; <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> on the
+same deck writes them.</p>
 </section>
 <section id="where-the-deck-comes-from">
 <h2>Where the deck comes from<a class="headerlink" href="#where-the-deck-comes-from" title="Link to this heading">¶</a></h2>
 <p>The deck is rendered from <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> for three reasons: CPMD’s own parsers
 already turn every keyword into module state, so no C setter per keyword is
-needed; the rendered deck is what <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> would read; and <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>
-can show it to a person.
+needed; the rendered deck is what <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> would read; and <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> can
+show it to a person.
 Typed fields render the keywords the schema models, <code class="docutils literal notranslate"><span class="pre">directives</span></code> carry keywords
-without a typed field, and <code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, and <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> carry
-text that must pass through unchanged.
+without a typed field, and <code class="docutils literal notranslate"><span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, and <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> carry text
+that must pass through unchanged.
 The geometry never goes into <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>: the bridge writes <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> from the
 step on a cold evaluation and moves atoms through <code class="docutils literal notranslate"><span class="pre">tau0</span></code> on a warm step.</p>
 </section>
 <section id="sessions-topology-and-state">
 <h2>Sessions, topology, and state<a class="headerlink" href="#sessions-topology-and-state" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology after an evaluation call passes
-its argument checks and collective orbital preflight, because the species
-tables, the plane-wave setup, and the stored orbitals are sized for one
-composition. A rejected preflight leaves it configurable.
+<p><code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology after an evaluation call passes its
+argument checks and collective orbital preflight, because the species tables,
+the plane-wave setup, and the stored orbitals are sized for one composition.
+A rejected preflight leaves it configurable.
 A reordering of those elements stays on the session.
-Coordinates may change freely. A changed cell runs setup again, except a
-constant-cutoff cell that stays within <code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code>.
+Coordinates may change freely.
+A changed cell runs setup again, except a constant-cutoff cell that stays within
+<code class="docutils literal notranslate"><span class="pre">CPMDC_CELL_IN_PLACE</span></code>.
 OpenCPMD’s module state is one per process, so one session at a time owns it.
 A different session with the same functional, deck, cutoff, cell, charge,
 multiplicity, and elemental composition reuses the stored orbitals.
 A different method or composition runs setup again on the next evaluation.
-<a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a> follows the orbitals from call to call,
-and <a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and calculator groups.</p>
+<a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a> follows the orbitals from
+call to call, and <a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and
+calculator groups.</p>
 </section>
 <section id="three-builds-one-abi">
 <h2>Three builds, one ABI<a class="headerlink" href="#three-builds-one-abi" title="Link to this heading">¶</a></h2>
@@ -504,16 +508,16 @@ and <a class="reference internal" href="mpi-model.html"><span class="doc">the MP
 </tbody>
 </table>
 </div>
-<p>The reference build exists so the ABI, the parser, sessions, units, and
-result sizing can be tested on any machine.
+<p>The reference build exists so the ABI, the parser, sessions, units, and result
+sizing can be tested on any machine.
 Its energies are deterministic and have no physical meaning.</p>
 </section>
 <section id="the-file-route-it-replaces">
 <h2>The file route it replaces<a class="headerlink" href="#the-file-route-it-replaces" title="Link to this heading">¶</a></h2>
-<p>Before the library, a host ran <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> once per force call and exchanged
-decks, restart files, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> through the file system.
-<a class="reference internal" href="routes.html"><span class="doc">The route comparison</span></a> measures what each approach costs and what each one
-has to guard against.</p>
+<p>Before the library, a host ran <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> once per force call and exchanged decks,
+restart files, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> through the file system.
+<a class="reference internal" href="routes.html"><span class="doc">The route comparison</span></a> measures what each approach costs and
+what each one has to guard against.</p>
 </section>
 </section>
 
@@ -624,7 +628,7 @@ has to guard against.</p>
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=fe7df9b0"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>
