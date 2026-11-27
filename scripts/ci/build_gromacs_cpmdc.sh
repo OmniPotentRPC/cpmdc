@@ -10,6 +10,10 @@
 #   thread-mpi (default) installs gmx_d; mpi builds against the MPI of
 #   mpicc, mpicxx and mpifort on PATH and installs gmx_mpi_d. That MPI must
 #   be the one libcpmdc_gromacs links.
+#   GMX_SIMD, when set, is passed as -DGMX_SIMD. CMake's default is the
+#   CPU that runs the configure step, and those flags cover the whole
+#   binary. CI sets AVX2_256 so a cached binary still runs on a hosted
+#   x86_64 runner that has no AVX-512.
 # GROMACS links the BLAS libcpmdc links, when it links one (an OpenCPMD
 # build): GROMACS' bundled BLAS and LAPACK export dgemm_ and the rest, and
 # would take the place of OpenCPMD's in the process.
@@ -55,6 +59,11 @@ case $mpi in
   *) echo "the fourth argument is thread-mpi or mpi, not $mpi" >&2; exit 2 ;;
 esac
 
+simd_args=()
+if [ -n "${GMX_SIMD:-}" ]; then
+  simd_args=(-DGMX_SIMD="$GMX_SIMD")
+fi
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 tarball="$work/gromacs-$version.tar.gz"
@@ -68,6 +77,7 @@ cmake -S "$work/gromacs-$version" -B "$work/build" -G Ninja \
   -DCMAKE_INSTALL_PREFIX="$prefix" \
   -DGMX_DOUBLE=ON \
   "${mpi_args[@]}" \
+  "${simd_args[@]}" \
   -DGMX_GPU=OFF \
   -DGMX_FFT_LIBRARY=fftpack \
   "${blas_args[@]}" \
