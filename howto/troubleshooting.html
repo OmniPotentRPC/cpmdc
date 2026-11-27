@@ -475,11 +475,24 @@ otherwise stay blocked in the call <code class="docutils literal notranslate"><s
 <h3><code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code><a class="headerlink" href="#topology-change-requires-a-new-session" title="Link to this heading">¶</a></h3>
 <p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">session_accept_topology</span></code> fixes the topology after an evaluation call
 passes its argument checks and collective orbital preflight.
-A later step with a different count or composition is refused before CPMD runs.
+<code class="docutils literal notranslate"><span class="pre">session_check_topology</span></code> then refuses a later step whose atom count or elemental
+composition differs, before CPMD runs.
+No orbital store, no density from the previous setup, and no extrapolation
+history survives that change.
 A reordering of the same elements stays on the session.</p>
-<p><strong>Fix:</strong> create a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> for a different composition.
-A reordering of the same elements keeps the stored orbitals.
-A different elemental composition runs setup.</p>
+<p><strong>Fix:</strong> destroy the session with <code class="docutils literal notranslate"><span class="pre">cpmdc_session_destroy()</span></code>, create a new
+<code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>, and expect a cold SCF.
+A moved geometry that keeps the same atoms can reuse what the session stored.
+A repeated geometry returns the stored forces when each atom matches the stored
+element, lies within 1e-8 Angstrom, and the cell matches within 1e-8 Angstrom.
+A geometry within <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> (default 0.15 Angstrom) warm-starts the SCF
+from the stored orbitals.
+<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> with <code class="docutils literal notranslate"><span class="pre">ASPC</span></code> or <code class="docutils literal notranslate"><span class="pre">POLY</span></code> uses the extrapolation ring when the
+OpenCPMD archive carries <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> links <code class="docutils literal notranslate"><span class="pre">embed_extrapolation_used</span></code> from that patch.
+A cold SCF on those atoms seeds <code class="docutils literal notranslate"><span class="pre">c0</span></code> from <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code> when the deck
+asks for it.
+See <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state between calls</span></a>.</p>
 </section>
 <section id="potentialresult-buffer-too-small">
 <h3><code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code><a class="headerlink" href="#potentialresult-buffer-too-small" title="Link to this heading">¶</a></h3>

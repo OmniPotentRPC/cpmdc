@@ -135,12 +135,25 @@ otherwise stay blocked in the call ``stopgm`` returned from.
 
 **Cause:** ``session_accept_topology`` fixes the topology after an evaluation call
 passes its argument checks and collective orbital preflight.
-A later step with a different count or composition is refused before CPMD runs.
+``session_check_topology`` then refuses a later step whose atom count or elemental
+composition differs, before CPMD runs.
+No orbital store, no density from the previous setup, and no extrapolation
+history survives that change.
 A reordering of the same elements stays on the session.
 
-**Fix:** create a new ``CPMDCSession`` for a different composition.
-A reordering of the same elements keeps the stored orbitals.
-A different elemental composition runs setup.
+**Fix:** destroy the session with ``cpmdc_session_destroy()``, create a new
+``CPMDCSession``, and expect a cold SCF.
+A moved geometry that keeps the same atoms can reuse what the session stored.
+A repeated geometry returns the stored forces when each atom matches the stored
+element, lies within 1e-8 Angstrom, and the cell matches within 1e-8 Angstrom.
+A geometry within ``CPMDC_WARM_RMSD`` (default 0.15 Angstrom) warm-starts the SCF
+from the stored orbitals.
+``EXTRAPOLATE WFN`` with ``ASPC`` or ``POLY`` uses the extrapolation ring when the
+OpenCPMD archive carries ``tools/opencpmd_embed_extrapolate.patch``.
+``libcpmdc`` links ``embed_extrapolation_used`` from that patch.
+A cold SCF on those atoms seeds ``c0`` from ``RESTART WAVEFUNCTION`` when the deck
+asks for it.
+See :doc:`wavefunction state between calls <../explanation/wavefunction-state>`.
 
 ``PotentialResult buffer too small``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
