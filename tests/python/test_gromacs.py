@@ -184,6 +184,12 @@ def test_a_percent_in_the_params_path_survives_mdrun(path: str):
     assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
 
 
+@pytest.mark.parametrize("path", ["gromacs.pdb", "dir/gromacs.pdb", "pre.gromacs.pdb"])
+def test_coord_file_name_does_not_rewrite_the_params_path(path: str):
+    rewritten = _after_mdrun(qmi_input(path), "/tmp/sys.pdb")
+    assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
+
+
 def test_write_qmi_passes_the_mm_width_through(tmp_path):
     target = cpmdc_gromacs.write_qmi(
         tmp_path / "sys.qmi",
