@@ -443,6 +443,10 @@ Any other call runs full CPMD setup and starts from a cold SCF.
 | ~CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang, const int *atomic_numbers, const void *params, size_t size, double *forces_h_bohr)~ | energy and forces |
 
 The output array holds ~3 * n_atoms~ doubles.
+A coordinate that is not finite is rejected before the evaluation.
+~ok~ is 0, ~energy_h~ is 0, and ~cpmdc_last_error_code()~ is
+~CPMDC_ERROR_INVALID_ARGUMENT~.
+The message is ~positions contain a non-finite component~.
 
 * Sessions
 
@@ -640,6 +644,10 @@ A one-shot call reuses the stored orbitals when its basis matches the previous
 call in the process.
 The first call of the process is cold.
 Use a session for more than one step.
+A position that is not finite fails with
+~positions contain a non-finite component~.
+A cell that is not finite fails with ~cell contains a non-finite component~.
+Both leave ~energy_h~ at 0 and set ~CPMDC_ERROR_INVALID_ARGUMENT~.
 
 * Results of the last evaluation
 Each getter copies a snapshot into ~*out~ and returns 0 when ~out->valid~ is

@@ -3030,6 +3030,23 @@ if get_option('with_tests')
     suite: ['params', 'capnp'],
     timeout: has_cpmd or has_sanitize ? 300 : 30,
   )
+  test(
+    'oneshot-nonfinite',
+    executable(
+      'test_oneshot_nonfinite',
+      'tests/test_oneshot_nonfinite.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      water_params_bin.full_path(),
+      potential_config_common_cpmd_bin.full_path(),
+    ],
+    depends: [water_params_bin, potential_config_common_cpmd_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
 
   meson_prog = find_program('meson', required: false)
   pkg_config_prog = find_program('pkgconf', 'pkg-config', required: false)

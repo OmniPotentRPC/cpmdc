@@ -230,7 +230,7 @@ and warm when the basis matches.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes; ~grad_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. |
 | Ownership | The caller owns every buffer and may reuse or free all of them on return; the library keeps nothing. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is non-zero on success. Otherwise ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ (a failed message parse, a missing pseudopotential directory, a failed SCF). An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is non-zero on success. Otherwise ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ (a failed message parse, a missing pseudopotential directory, a failed SCF). An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | not wrapped. |
 | Defaults | none: the gradient is ~dE/dR~, the negative of the force |
 
@@ -242,7 +242,7 @@ and warm when the basis matches.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes. |
 | Ownership | The caller owns every buffer; the library keeps nothing. It evaluates the gradient into a temporary array that it frees before returning. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -254,7 +254,7 @@ and warm when the basis matches.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. |
 | Ownership | The caller owns every buffer and may free all of them on return. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | not wrapped. |
 | Defaults | none: forces are the negative nuclear gradient |
 
@@ -402,7 +402,7 @@ of the atom limit.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~grad_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. No cell is passed: the deck's ~CELL~ applies, or a 12 Angstrom cube. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~, ~atomic_numbers~ and ~grad_h_bohr~, and the library copies the geometry into the session. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | not wrapped; ~cpmdc.Session.energy_forces~ calls ~cpmdc_session_energy_forces()~ and raises ~cpmdc.CPMDCError~. |
 | Defaults | none |
 
@@ -414,7 +414,7 @@ of the atom limit.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118. No cell is passed. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~ and ~atomic_numbers~. A temporary gradient array is allocated and freed inside the call. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -426,7 +426,7 @@ of the atom limit.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. No cell is passed. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~, ~atomic_numbers~ and ~forces_h_bohr~. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. A position that is not finite fails before evaluation with ~positions contain a non-finite component~ and ~CPMDC_ERROR_INVALID_ARGUMENT~, and ~energy_h~ stays 0. |
 | Python | ~cpmdc.Session.energy_forces~ without a cell raises ~cpmdc.CPMDCError~; the sizes, the range of the atomic numbers and the finiteness are checked first and raise ~ValueError~. |
 | Defaults | none |
 
@@ -478,7 +478,7 @@ Each call creates a session, evaluates one step and destroys the session.
 | Layout | ~params_capnp~ is ~params_capnp_size_bytes~ bytes of ~CPMDParams~; ~force_input_capnp~ is ~force_input_capnp_size_bytes~ bytes of ~ForceInput~; ~potential_result_capnp~ has room for ~potential_result_capnp_capacity_bytes~ bytes; ~potential_result_capnp_size_bytes~ is one ~size_t~. |
 | Ownership | The caller owns every buffer; the session the call creates is destroyed before it returns. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is 0 with ~message~ and ~cpmdc_last_error()~ naming the reason for a NULL or empty input, an invalid message, a buffer that is too small (~PotentialResult buffer too small~, with the required size in ~*potential_result_capnp_size_bytes~) or a failed step. |
+| Returns and errors | ~ok~ is 0 with ~message~ and ~cpmdc_last_error()~ naming the reason for a NULL or empty input, an invalid message, a buffer that is too small (~PotentialResult buffer too small~, with the required size in ~*potential_result_capnp_size_bytes~) or a failed step. A position that is not finite fails with ~positions contain a non-finite component~, and a cell that is not finite fails with ~cell contains a non-finite component~. Both set ~CPMDC_ERROR_INVALID_ARGUMENT~ and leave ~energy_h~ at 0. |
 | Python | not wrapped. |
 | Defaults | none |
 

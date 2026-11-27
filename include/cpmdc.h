@@ -402,6 +402,10 @@ CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size
  * geometry, and from the deck's guess without full setup beyond that limit. Any
  * other call runs full CPMD setup and starts from a cold SCF. On failure `ok`
  * is 0, `message` holds the reason, and `cpmdc_last_error()` repeats it.
+ * A coordinate that is not finite fails before evaluation. `energy_h` is 0,
+ * `message` is `positions contain a non-finite component`, and
+ * `cpmdc_last_error_code()` is `CPMDC_ERROR_INVALID_ARGUMENT`.
+ * `cpmdc_energy()` and `cpmdc_energy_forces()` apply the same check.
  */
 CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                             const int *atomic_numbers,
@@ -857,6 +861,11 @@ CPMDC_API int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
  *
  * Multi-step callers should create one session and call
  * `cpmdc_session_calculate_result()` per step.
+ * A position that is not finite fails with
+ * `positions contain a non-finite component`. A cell that is not finite
+ * fails with `cell contains a non-finite component`. `ok` is 0,
+ * `energy_h` is 0, and `cpmdc_last_error_code()` is
+ * `CPMDC_ERROR_INVALID_ARGUMENT`.
  */
 CPMDC_API CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                              size_t params_capnp_size_bytes,
@@ -873,6 +882,8 @@ CPMDC_API CPMDCResult cpmdc_calculate_result(const void *params_capnp,
  * Multi-step callers should create one session via
  * `cpmdc_session_create_from_config()` and call
  * `cpmdc_session_calculate_result()` per step.
+ * A non-finite position or cell is refused the same way as
+ * `cpmdc_calculate_result()`.
  */
 CPMDC_API CPMDCResult cpmdc_calculate_result_from_config(
     const void *config_capnp, size_t config_capnp_size_bytes,

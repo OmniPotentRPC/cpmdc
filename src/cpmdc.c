@@ -2495,6 +2495,27 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
     err = "invalid arguments";
   else if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
+  /* The reference evaluator folds a non-finite coordinate or cell into
+   * the energy and still reports success. Refuse that input here, with
+   * the same text the session preflight uses, before any rank evaluates. */
+  if (!err && has_cell) {
+    int cell_state = cpmdc_cell_rank3_state(cell_ang);
+    if (cell_state == CPMDC_CELL_NONFINITE)
+      err = "cell contains a non-finite component";
+    else if (cell_state == CPMDC_CELL_RANK_DEFICIENT)
+      err = "cell does not have three independent vectors";
+    else if (cell_state == CPMDC_CELL_VOLUME_UNDERFLOW)
+      err = "cell volume is too small for binary64";
+  }
+  if (!err) {
+    int ncomp = n_atoms * 3;
+    for (int i = 0; i < ncomp; ++i) {
+      if (!isfinite(positions_ang[i])) {
+        err = "positions contain a non-finite component";
+        break;
+      }
+    }
+  }
   err = orbital_limit_gate(err);
   if (err) {
     image_invalidate_results(&g_image);
