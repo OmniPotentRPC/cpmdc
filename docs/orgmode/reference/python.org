@@ -40,7 +40,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~CPMDCError~ | ~RuntimeError~ subclass raised when the library cannot be found or loaded, or when a library call fails; ~CPMDCError.code~ is the ~CPMDCErrorCode~ of a library failure and ~0~ when Python rejected the call or the library predates ~cpmdc_last_error_code()~ |
 | ~CPMDCInvalidArgument~ | ~CPMDCError~ subclass for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below ~1e-12~ Angstrom; ~CPMDCInvalidArgument.code~ is ~1~ |
 | ~CPMDCUnavailable~ | ~CPMDCError~ subclass for a backend that is not linked or a link stub; ~CPMDCUnavailable.code~ is ~2~ |
-| ~CPMDCUnsupportedPeriodicEmbedding~ | ~CPMDCError~ subclass for external charges with a periodic cell or a periodic deck; ~CPMDCUnsupportedPeriodicEmbedding.code~ is ~3~ |
+| ~CPMDCUnsupportedPeriodicEmbedding~ | ~CPMDCError~ subclass for external charges with a periodic cell or a periodic deck, unless ~CPMDC_PERIODIC_EMBEDDING~ is ~1~ on a reference build and the call passes a cell; a periodic deck with no cell still raises it; an OpenCPMD build still raises it; ~CPMDCUnsupportedPeriodicEmbedding.code~ is ~3~ |
 | ~CPMDCEvaluationFailed~ | ~CPMDCError~ subclass for an evaluation that ran and produced no result; ~CPMDCEvaluationFailed.code~ is ~4~ |
 | ~CPMDCDeckExternalPotential~ | ~CPMDCError~ subclass for session charges combined with a deck ~EXTERNAL POTENTIAL~ or ~EXTERNAL POTENTIAL ADD~; ~CPMDCDeckExternalPotential.code~ is ~5~ |
 | ~CpmdcError~ | deprecated alias of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
@@ -132,7 +132,7 @@ covers ~cpmdc.lammps~.
 | a ~constant_cutoff~ whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw ~&SYSTEM~ block or with ~system.constantCutoff~, or on a library without ~cpmdc_session_set_constant_cutoff~ | ~CPMDCError~ |
 | ~Session.copy_orbitals~ on a library without ~cpmdc_session_copy_orbitals~, before any evaluation, or from a key without converged orbitals | ~CPMDCError~ |
 | ~Session.set_external_charges~ with a width below ~1e-12~ Angstrom, a null buffer, or a failed charge copy; ~Session.external_charge_forces_au~ before a successful step, after a failed step, or with the wrong count | ~CPMDCInvalidArgument~ |
-| session charges with a periodic cell, or with a periodic deck on a call that passes no cell | ~CPMDCUnsupportedPeriodicEmbedding~ |
+| session charges with a periodic cell or a periodic deck, unless ~CPMDC_PERIODIC_EMBEDDING~ is ~1~ on a reference build and the call passes a cell; a periodic deck with no cell still raises this | ~CPMDCUnsupportedPeriodicEmbedding~ |
 | session charges with a deck ~EXTERNAL POTENTIAL~ or ~EXTERNAL POTENTIAL ADD~ | ~CPMDCDeckExternalPotential~ |
 | ~Session.set_external_charges~ or ~Session.external_charge_forces_au~ on a library without ~cpmdc_session_set_external_charges~ or ~cpmdc_session_last_external_charge_forces~ | ~CPMDCError~ with code ~0~ |
 | a ~CPMDCCalculator~ step that the library rejects | ~cpmdc.ase.CalculationFailed~, which is a ~CPMDCError~ and ASE's ~CalculationFailed~ |
