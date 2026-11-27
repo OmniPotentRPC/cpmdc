@@ -71,6 +71,11 @@ MODULE cpmdc_embed_host_iface
       INTEGER(c_int), VALUE :: path_cap
       INTEGER(c_int) :: cpmdc_memfd_write
     END FUNCTION
+    FUNCTION cpmdc_memfd_close(fd) BIND(C, NAME='cpmdc_memfd_close')
+      IMPORT :: c_int
+      INTEGER(c_int), VALUE :: fd
+      INTEGER(c_int) :: cpmdc_memfd_close
+    END FUNCTION
     FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
@@ -3749,7 +3754,7 @@ CONTAINS
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, &
       grad, n_external, external_pos, external_q, external_width, &
       external_force, ok)
-    USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, cpmdc_memfd_close, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure, &
         cpmdc_note_deck_external_potential, &
@@ -3895,11 +3900,13 @@ CONTAINS
     ! The process leaves that directory again once the files are read.
     IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure(pp_c)
+      CALL close_cold_deck()
       RETURN
     END IF
     IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure( &
            'cannot enter the pseudopotential directory'//c_null_char)
+      CALL close_cold_deck()
       RETURN
     END IF
     ! A stopgm returns to the caller the hook is armed for. The next
@@ -3948,6 +3955,7 @@ CONTAINS
     IF (.NOT. embed_use_output_dir(image)) THEN
       ierr = cpmdc_restore_host_cwd()
       ierr = cpmdc_embed_teardown()
+      CALL close_cold_deck()
       RETURN
     END IF
     IF (cold_setup_stopped()) RETURN
@@ -3989,6 +3997,8 @@ CONTAINS
     IF (cold_setup_stopped()) RETURN
     CALL vdw_wf_alloc
     IF (cold_setup_stopped()) RETURN
+    ! The parsers have read the deck. Drop the anonymous fd before the SCF.
+    CALL close_cold_deck()
     cpmd_set_up = .TRUE.
     cpmd_setup_started = .FALSE.
     embed_setup_ht = metr_com%ht
@@ -4010,6 +4020,14 @@ CONTAINS
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
   CONTAINS
+    SUBROUTINE close_cold_deck()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTEGER(c_int) :: rc
+      IF (mfd < 0) RETURN
+      rc = cpmdc_memfd_close(INT(mfd, KIND=c_int))
+      mfd = -1
+    END SUBROUTINE close_cold_deck
+
     LOGICAL FUNCTION cold_setup_stopped()
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int
       INTERFACE
@@ -4022,9 +4040,10 @@ CONTAINS
       cold_setup_stopped = cpmdc_stop_code() /= 0_c_int
       IF (.NOT. cold_setup_stopped) RETURN
       ! Partial module state is undefined. Free it and leave cpmd_set_up
-      ! false so the C handler reports the stop.
+      ! false so the C handler reports the stop. The deck fd goes too.
       rc = cpmdc_restore_host_cwd()
       ierr = cpmdc_embed_teardown()
+      CALL close_cold_deck()
     END FUNCTION cold_setup_stopped
   END SUBROUTINE
 

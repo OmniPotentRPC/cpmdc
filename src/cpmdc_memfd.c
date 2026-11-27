@@ -8,8 +8,9 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-/* Returns fd (>=0) and fills path as /proc/self/fd/N. Caller keeps fd open.
- * memfd_create and /proc/self/fd are Linux only; elsewhere this returns -1. */
+/* Returns fd (>=0) and fills path as /proc/self/fd/N. The caller closes
+ * the fd once the deck has been read. memfd_create and /proc/self/fd are
+ * Linux only; elsewhere this returns -1. */
 int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_cap) {
 #ifndef __linux__
   (void)bytes;
@@ -37,6 +38,15 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
   snprintf(path_out, (size_t)path_cap, "/proc/self/fd/%d", fd);
   return fd;
 #endif
+}
+
+/* Close the fd from cpmdc_memfd_write. 0 when it closes, -1 otherwise. */
+int cpmdc_memfd_close(int fd) {
+  if (fd < 0)
+    return -1;
+  if (close(fd) != 0)
+    return -1;
+  return 0;
 }
 
 /* Host CWD saved before leaving it for the pseudopotential library.

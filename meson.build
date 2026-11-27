@@ -1829,6 +1829,20 @@ if get_option('with_tests')
     timeout: has_cpmd ? 300 : 30,
   )
   test(
+    'cold-deck-fd',
+    executable(
+      'test_cold_deck_fd',
+      'tests/test_cold_deck_fd.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path(), meson.current_source_dir()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
+  )
+  test(
     'stress-isolated',
     executable(
       'test_stress_isolated',
