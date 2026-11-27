@@ -1,0 +1,8 @@
+# Harmonic water stand-in. Forces ignore the electronic residual.
+# The drift is the nuclear Verlet energy.
+# Surrogate SCF totals over 12 steps. XL-BOMD does not beat ASPC.
+scf_none 705
+scf_aspc 653
+scf_xlbomd 700
+drift -3.0973710134425333e-05
+max_abs 9.6440296003232062e-05

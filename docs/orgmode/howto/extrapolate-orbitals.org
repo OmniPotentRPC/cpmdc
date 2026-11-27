@@ -9,7 +9,8 @@ molecular dynamics (BO-MD) with ~EXTRAPOLATE WFN~.
 Use it when the host takes equal time steps, as a molecular dynamics (MD)
 integrator does.
 An optimiser or a saddle search moves by unequal steps, and the plain warm start
-of [[file:../explanation/wavefunction-state.org][wavefunction state between calls]]
+of
+[[file:../explanation/wavefunction-state.org][wavefunction state between calls]]
 suits them.
 A band or ring polymer whose images or beads each advance at equal intervals can
 name every trajectory with ~cpmdc_session_select_orbitals()~; each key then
@@ -17,7 +18,8 @@ extrapolates from its own earlier converged orbitals.
 
 * Apply the patch
 ~tools/opencpmd_embed_extrapolate.patch~ goes onto the OpenCPMD tree after
-~opencpmd_embed_teardown.patch~, as the [[file:opencpmd-archive.org][archive how-to]]
+~opencpmd_embed_teardown.patch~, as the
+[[file:opencpmd-archive.org][archive how-to]]
 lists.
 Without it, OpenCPMD prints
 ~WARNING! WAVEFUNCTION EXTRAPOLATION ONLY SUPPORTED FOR BO-MD. DISABLING...~.
@@ -110,3 +112,55 @@ A library call writes no ~RESTART~ file, and every call converges its SCF to
 ~CONVERGENCE ORBITALS~.
 The energy and forces are those of a converged SCF, so only the number of
 iterations changes.
+
+* Propagate with the extended Lagrangian
+Set ~extrapolateWfnOptions~ to exactly ~XLBOMD~.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100, 123004
+(2008)
+([[https://doi.org/10.1103/PhysRevLett.100.123004][doi:10.1103/PhysRevLett.100.123004]]),
+with kappa equal to 2.
+Orders 3 through 9 use the dissipative coefficients in Table I of Niklasson,
+Steneteg, Odell, Bock, Challacombe, Tymczak, Holmström, Zheng, and Weber, J.
+Chem. Phys. 130, 214109 (2009)
+([[https://doi.org/10.1063/1.3148075][doi:10.1063/1.3148075]]).
+The printed alpha in that table is alpha times 10^3.
+Any other order is refused, and the previous successful parameters stay.
+The rendered deck omits ~EXTRAPOLATE WFN~ for that section, so the deck does not
+also request the ASPC predictor.
+~ASPC~, ~POLY~, an empty option, and any other token keep the deck line they
+have now.
+A build that links OpenCPMD refuses these parameters when they are applied.
+The embed API cannot export the converged plane-wave coefficients and cannot
+install an external orbital guess.
+~cpmdc_session_create()~ and ~cpmdc_set_params()~ report that refusal.
+The reference evaluator, used when OpenCPMD is not linked, does run the step.
+On that evaluator a successful ~cpmdc_session_calculate_au()~ call, and the
+other session energy and force calls, mixes the caller coordinates in Bohr.
+The mix starts from the auxiliary guess of that session and orbital key.
+The first call for a key starts from zeros.
+Beta is 0.35, and the step fails when the residual stays at or above 1.0e-12
+after 400 mixes.
+The converged vector is stored, and the propagated vector is the next start.
+The published energy and forces stay those of the reference evaluator.
+A repeat of a stored geometry comes from the session cache and does not advance
+the history.
+A call with no session fails when ~XLBOMD~ is configured.
+Each session keeps its own samples.
+Orbital keys on one session stay apart, and the unkeyed trajectory is not key 0.
+The samples do not count toward ~CPMDC_ORBITAL_SLOT_LIMIT~.
+~cpmdc_session_copy_orbitals()~ drops the destination samples when the keys
+differ and leaves them when the keys are the same.
+Destroying a session drops only that session's samples.
+Replacing a session's parameters clears that session's samples.
+~cpmdc_finalize()~ leaves a live session's samples in place.
+~cpmdc_session_xlbomd_export()~ and ~cpmdc_session_xlbomd_import()~ copy the
+history.
+~cpmdc_restart_set_xlbomd()~ stores those bytes after the CPMD sections, and ~cpmdc_restart_xlbomd()~
+reads them back.
+A file with no trailer is unchanged, and the trailer is not a CPMD section.
+~tests/test_xlbomd.c~ checks the coefficient table, the time reversal of the
+reversible step, and a session trajectory on the reference evaluator.
+The harmonic water drift in that test is the nuclear Verlet energy.
+The same 12 steps print the surrogate SCF totals.
+No extrapolation is 705, ASPC is 653, and XL-BOMD is 700.
+XL-BOMD does not beat ASPC on this stand-in.

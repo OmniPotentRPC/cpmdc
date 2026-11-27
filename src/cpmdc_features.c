@@ -1348,6 +1348,15 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_feature_count", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_table", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_find", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_classify", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_coefficients", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_propagate", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_observe", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_clear_key", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_xlbomd_configured_order", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_xlbomd_last", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_xlbomd_export", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_xlbomd_import", CPMDC_FEATURE_ABI, 1, 1},
 };
 
 #undef CPMDC_PARAM_FEATURE

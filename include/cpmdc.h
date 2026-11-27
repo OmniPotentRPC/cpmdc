@@ -62,6 +62,18 @@ typedef enum CPMDCErrorCode {
 } CPMDCErrorCode;
 
 /**
+ * @brief Which wavefunction guess an extrapolateWfnOptions token selects.
+ *
+ * CPMDC_WFN_EXTRAP_DECK leaves the rendered EXTRAPOLATE WFN line unchanged.
+ * CPMDC_WFN_EXTRAP_XLBOMD selects extended Lagrangian propagation and omits
+ * that line.
+ */
+typedef enum CPMDCWfnExtrap {
+  CPMDC_WFN_EXTRAP_DECK = 0,
+  CPMDC_WFN_EXTRAP_XLBOMD = 1
+} CPMDCWfnExtrap;
+
+/**
  * @brief In-process snapshot of OpenCPMD `ener_com` scalars (Hartree a.u.).
  *
  * Filled after a successful embed SCF (`wfopts`) or reference PEF evaluation.
@@ -663,6 +675,9 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
  * key that is named and then replaced before an evaluation does not park
  * orbitals. A key also keeps its own `EXTRAPOLATE WFN` ring, so switching
  * keys preserves each trajectory's predictor history.
+ * An extended Lagrangian guess, selected when extrapolateWfnOptions is
+ * exactly XLBOMD, keeps a separate auxiliary vector per key. That vector
+ * is not an orbital copy and does not count toward CPMDC_ORBITAL_SLOT_LIMIT.
  * CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked orbital
  * copies plus populated extrapolation-ring entries, including the selected
  * key's entries, on an OpenCPMD build. The reference build stores neither
@@ -695,6 +710,8 @@ CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key
  * not a positive integer, which fails the call. The link stub returns -1,
  * including a same key copy. Every rank of a calculator names the same
  * keys, the same rule `cpmdc_session_select_orbitals()` has.
+ * An extended Lagrangian auxiliary vector on `to_key` is cleared when
+ * `from_key` differs. A copy onto the same key leaves that vector in place.
  *
  * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet,
  * `from_key` has no converged orbitals, or the copy cannot be completed.
@@ -1112,6 +1129,118 @@ CPMDC_API int cpmdc_session_last_stress(const CPMDCSession *session,
  * write `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_last_rank_spread(CPMDCRankSpread *out);
+
+/**
+ * @brief Classify an EXTRAPOLATE WFN options token.
+ *
+ * The token XLBOMD with order 0 or 3 through 9 selects extended Lagrangian
+ * propagation and writes that order. Any other token, including a different
+ * length or a trailing space, selects the unchanged deck path. XLBOMD with
+ * any other order is refused.
+ *
+ * @return CPMDC_WFN_EXTRAP_XLBOMD, CPMDC_WFN_EXTRAP_DECK, or -1.
+ */
+CPMDC_API int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                                    int *order_out);
+
+/**
+ * @brief Copy kappa, alpha, and the c_k row for one propagation order.
+ *
+ * Order 0 is the reversible Verlet step, kappa 2 and alpha 0. Orders 3
+ * through 9 are Table I of Niklasson et al., J. Chem. Phys. 130, 214109
+ * (2009). The table prints alpha times 10^3. This call writes the unscaled
+ * alpha. `c` may be NULL. When it is set, `c_len` must hold c_0 through c_K.
+ *
+ * @return 0, or -1 for another order, a NULL kappa, or a short c buffer.
+ */
+CPMDC_API int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                                        double *c, int c_len);
+
+/**
+ * @brief Take one extended Lagrangian step.
+ *
+ * `history` is most recent first: n doubles of P_n, then P_{n-1}, and so on.
+ * Order 0 needs two samples. Order K needs K + 1. n == 0 writes nothing.
+ *
+ * @return 0, or -1 when the order, pointers, or history length are unusable.
+ */
+CPMDC_API int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                                     const double *history, int nhist,
+                                     double *p_next);
+
+/**
+ * @brief Record one converged vector and write the next guess.
+ *
+ * The samples belong to `session`. `has_key` zero is the unkeyed trajectory
+ * and does not share storage with key 0. The first sample is stored and
+ * copied into `p_next`. The reversible second call propagates. A dissipative
+ * order copies the converged vector until K + 1 samples are stored, then
+ * propagates. A new order or length on that key starts again.
+ *
+ * @return 1 when `p_next` was propagated, 0 on a startup copy, or -1.
+ */
+CPMDC_API int cpmdc_xlbomd_observe(CPMDCSession *session, int order,
+                                   long long key, int has_key,
+                                   const double *density, int n,
+                                   double *p_next);
+
+/**
+ * @brief Drop the auxiliary samples stored for one key of this session.
+ *
+ * `has_key` zero drops the unkeyed trajectory. Another session is left as
+ * it was.
+ */
+CPMDC_API void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key,
+                                      int has_key);
+
+/**
+ * @brief Order selected by the last successful CPMDParams apply.
+ *
+ * The last &CPMD section decides. A successful apply that does not select
+ * XLBOMD returns -1. A failed apply leaves the previous value. This record
+ * is process global. Each session keeps the order of its own apply.
+ */
+CPMDC_API int cpmdc_xlbomd_configured_order(void);
+
+/**
+ * @brief Read the extended Lagrangian state of the last real evaluation.
+ *
+ * `order` is the session order, or -1 when the session is not XLBOMD.
+ * `scf_steps` is the surrogate mixing count of the last evaluation that
+ * updated the history. `propagated` is 1 when that step propagated, 0 when
+ * it stored a startup copy, and -1 before any such step. A cached repeat
+ * does not change these values. Any of the three pointers may be NULL.
+ * A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session` is NULL.
+ */
+CPMDC_API int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order,
+                                        int *scf_steps, int *propagated);
+
+/**
+ * @brief Copy this session's auxiliary history into a new buffer.
+ *
+ * An empty history sets `*bytes` to NULL and `*nbytes` to 0. Otherwise
+ * `*bytes` is one malloc buffer and the caller releases it with free.
+ * A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session`, `bytes`, or `nbytes` is NULL.
+ */
+CPMDC_API int cpmdc_session_xlbomd_export(const CPMDCSession *session,
+                                          void **bytes, size_t *nbytes);
+
+/**
+ * @brief Replace this session's auxiliary history.
+ *
+ * `bytes` is a buffer from `cpmdc_session_xlbomd_export()` or from
+ * `cpmdc_restart_xlbomd()`. A NULL buffer of length 0 clears the history.
+ * A bad buffer leaves the history as it was. The session order is not
+ * changed. A failure writes `cpmdc_last_error()`.
+ *
+ * @return 0, or -1 when `session` is NULL or the buffer is unusable.
+ */
+CPMDC_API int cpmdc_session_xlbomd_import(CPMDCSession *session,
+                                          const void *bytes, size_t nbytes);
 
 #ifdef __cplusplus
 }

@@ -7,6 +7,7 @@
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
 #include "cpmdc_scf_report.h"
+#include "cpmdc_xlbomd.h"
 
 #ifndef CPMDC_VERSION_STRING
 #define CPMDC_VERSION_STRING "unknown"
@@ -197,6 +198,14 @@ struct CPMDCSession {
   long long orbital_key;
   /** Result of the last evaluation of this session. */
   CPMDCEmbedImage image;
+  /** Auxiliary samples for this session. Not shared with another session. */
+  XlStore *xl;
+  /** Order from the last successful parameter apply, or -1. */
+  int xl_order;
+  /** Surrogate mixing steps of the last real evaluation. */
+  int xl_scf_steps;
+  /** 1 after a propagated step, 0 after a startup copy, -1 before any. */
+  int xl_propagated;
 };
 
 static CPMDCSession *g_active_session = NULL;
@@ -327,6 +336,13 @@ static const char k_deck_external_potential_msg[] =
 static const char k_periodic_embedding_msg[] =
     "periodic electrostatic embedding is unsupported; use an isolated "
     "QM cell or clear the external charges";
+#if defined(CPMDC_HAS_CPMD)
+static const char k_xlbomd_refused[] =
+    "EXTRAPOLATE WFN XLBOMD is refused: the embed API cannot export "
+    "the converged plane-wave coefficients or install a propagated guess";
+#endif
+static const char k_xlbomd_needs_session[] =
+    "EXTRAPOLATE WFN XLBOMD requires a session";
 
 /* Reasons that the evaluation preflight and its collective gates hand on as
  * plain text, so that every rank reports the same code for the same text. */
@@ -481,8 +497,29 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     cpmdc_store_error(msg);
     return -1;
   }
-  cpmdc_params_release(&arena);
-  *input_deck = deck;
+  {
+    int xl_order = -1;
+    int xl = cpmdc_params_xlbomd_order(root, &xl_order);
+    if (xl < 0) {
+      free(deck);
+      cpmdc_params_release(&arena);
+      cpmdc_store_error(
+          "CPMDParams deck render failed: EXTRAPOLATE WFN XLBOMD order "
+          "must be 0 or 3 through 9");
+      return -1;
+    }
+#if defined(CPMDC_HAS_CPMD)
+    if (xl) {
+      free(deck);
+      cpmdc_params_release(&arena);
+      cpmdc_store_error(k_xlbomd_refused);
+      return -1;
+    }
+#endif
+    cpmdc_params_release(&arena);
+    *input_deck = deck;
+    xlbomd_set_configured(xl ? xl_order : -1);
+  }
   return 0;
 }
 
@@ -1976,6 +2013,8 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   (void)cpmd_root;
   g_active_session = NULL;
   g_orbital_owner = NULL;
+  /* The process-global ledger must not drop another session's samples. */
+  xlbomd_bind(NULL);
   cpmdc_orbital_clear_key(0);
   cpmdc_store_error("");
   return 0;
@@ -2342,6 +2381,91 @@ static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
   return fail_msg(msg);
 }
 
+#if !defined(CPMDC_HAS_CPMD)
+/* The reference evaluator has no plane-wave orbitals. This stand-in mixes
+ * the Cartesian coordinates, in Bohr and caller atom order, from the stored
+ * guess to that target. The published energy and forces stay the reference
+ * potential. A warm start is the newest auxiliary sample of this key. */
+static int xlbomd_reference_step(CPMDCSession *session, int n_atoms,
+                                 const double *positions_ang) {
+  const double beta = 0.35;
+  const double tol = 1.0e-12;
+  const int limit = 400;
+  int n;
+  int i;
+  int steps;
+  int has_key;
+  long long key;
+  int newest;
+  int rc;
+  double err = 0.0;
+  double *target;
+  double *mixed;
+  double *next;
+  if (!session || session->xl_order < 0 || !session->xl)
+    return -1;
+  n = n_atoms * 3;
+  target = (double *)calloc((size_t)n, sizeof(double));
+  mixed = (double *)calloc((size_t)n, sizeof(double));
+  next = (double *)calloc((size_t)n, sizeof(double));
+  if (!target || !mixed || !next) {
+    free(target);
+    free(mixed);
+    free(next);
+    cpmdc_store_error("out of memory");
+    return -1;
+  }
+  for (i = 0; i < n; ++i)
+    target[i] = positions_ang[i] / CPMDC_BOHR_TO_ANGSTROM;
+  has_key = session->has_orbital_key ? 1 : 0;
+  key = has_key ? session->orbital_key : 0;
+  newest = xlbomd_store_newest(session->xl, session->xl_order, key, has_key, n,
+                               mixed);
+  if (newest < 0) {
+    free(target);
+    free(mixed);
+    free(next);
+    cpmdc_store_error("EXTRAPOLATE WFN XLBOMD guess is unavailable");
+    return -1;
+  }
+  if (newest == 0)
+    memset(mixed, 0, (size_t)n * sizeof(double));
+  steps = 0;
+  for (;;) {
+    double sum = 0.0;
+    ++steps;
+    for (i = 0; i < n; ++i) {
+      double d = mixed[i] - target[i];
+      sum += d * d;
+    }
+    err = sqrt(sum);
+    if (err < tol || steps >= limit)
+      break;
+    for (i = 0; i < n; ++i)
+      mixed[i] = (1.0 - beta) * mixed[i] + beta * target[i];
+  }
+  if (!(err < tol)) {
+    free(target);
+    free(mixed);
+    free(next);
+    cpmdc_store_error("EXTRAPOLATE WFN XLBOMD surrogate SCF did not converge");
+    return -1;
+  }
+  rc = xlbomd_store_observe(session->xl, session->xl_order, key, has_key, mixed,
+                            n, next);
+  free(target);
+  free(mixed);
+  free(next);
+  if (rc < 0) {
+    cpmdc_store_error("EXTRAPOLATE WFN XLBOMD history update failed");
+    return -1;
+  }
+  session->xl_scf_steps = steps;
+  session->xl_propagated = rc;
+  return 0;
+}
+#endif
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -2370,6 +2494,12 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
     if (unavailable)
       return fail_image(image, "CPMD embed not available");
   }
+  if (!session && xlbomd_configured() >= 0)
+    return fail_image(image, k_xlbomd_needs_session);
+#if defined(CPMDC_HAS_CPMD)
+  if (session && session->xl_order >= 0)
+    return fail_image(image, k_xlbomd_refused);
+#endif
   double cell[9] = {0};
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
@@ -2443,6 +2573,18 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
       image->prop.dipole_count = 3;
     }
   }
+#if !defined(CPMDC_HAS_CPMD)
+  if (session && session->xl_order >= 0) {
+    char why[512];
+    if (xlbomd_reference_step(session, n_atoms, positions_ang) != 0) {
+      snprintf(why, sizeof(why), "%s",
+               g_last_error[0]
+                   ? g_last_error
+                   : "EXTRAPOLATE WFN XLBOMD history update failed");
+      return fail_image(image, why);
+    }
+  }
+#endif
   cpmdc_orbital_note_stored();
   r.ok = 1;
   r.energy_h = energy;
@@ -2838,8 +2980,17 @@ static CPMDCSession *cpmdc_session_create_ov(
     cpmdc_store_error("out of memory");
     return NULL;
   }
+  session->xl_order = -1;
+  session->xl_propagated = -1;
+  session->xl = xlbomd_store_new();
+  if (!session->xl) {
+    free(session);
+    cpmdc_store_error("out of memory");
+    return NULL;
+  }
   session->params_bytes = (unsigned char *)malloc(params_capnp_size_bytes);
   if (!session->params_bytes) {
+    xlbomd_store_free(session->xl);
     free(session);
     cpmdc_store_error("out of memory");
     return NULL;
@@ -2864,9 +3015,11 @@ static CPMDCSession *cpmdc_session_create_ov(
                           session->cpmd_root, sizeof(session->cpmd_root)) != 0) {
     free(session->input_deck);
     free(session->params_bytes);
+    xlbomd_store_free(session->xl);
     free(session);
     return NULL;
   }
+  session->xl_order = xlbomd_configured();
   (void)configure_embed_from_session(session);
   cpmdc_store_error("");
   g_live_sessions++;
@@ -2964,6 +3117,10 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
   }
   free(before.params_bytes);
   free(before.input_deck);
+  xlbomd_store_reset(session->xl);
+  session->xl_order = xlbomd_configured();
+  session->xl_scf_steps = 0;
+  session->xl_propagated = -1;
   cpmdc_store_error("");
   return 0;
 }
@@ -3149,8 +3306,10 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   if (session->evaluated && g_evaluated_sessions > 0)
     g_evaluated_sessions--;
   if (g_orbital_owner == session) {
+    xlbomd_bind(session->xl);
     cpmdc_orbital_clear_key(1);
     cpmdc_orbital_ledger_reset();
+    xlbomd_bind(NULL);
     g_orbital_owner = NULL;
   }
   if (g_active_session == session)
@@ -3167,6 +3326,8 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   free(session->external_widths_ang);
   free(session->external_forces_h_bohr);
   session_drop_cache(session);
+  xlbomd_store_free(session->xl);
+  session->xl = NULL;
   free(session);
 }
 
@@ -3281,8 +3442,10 @@ static CPMDCResult session_energy_gradient_cell(
   {
     int has_orbital_key = session->has_orbital_key;
     const char *slot_err = NULL;
+    xlbomd_bind(session->xl);
     if (cpmdc_orbital_key_agree(&has_orbital_key, session->orbital_key,
                                 &slot_err) != 0) {
+      xlbomd_bind(NULL);
       free(pending_topology);
       session_drop_results(session);
       return fail_msg(slot_err);
@@ -3299,16 +3462,19 @@ static CPMDCResult session_energy_gradient_cell(
       if (test_fault("drop-stale"))
         stale_failed = 1;
       if (cpmdc_orbital_allreduce(&stale_failed, 1) != 0) {
+        xlbomd_bind(NULL);
         free(pending_topology);
         session_drop_results(session);
         return fail_msg("MPI collective failed");
       }
       if (stale_failed) {
+        xlbomd_bind(NULL);
         free(pending_topology);
         session_drop_results(session);
         return fail_msg("failed to discard stale orbitals");
       }
       if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0) {
+        xlbomd_bind(NULL);
         free(pending_topology);
         session_drop_results(session);
         return fail_msg(slot_err);
@@ -3344,6 +3510,9 @@ static CPMDCResult session_energy_gradient_cell(
     } else {
       session_drop_cache(session);
     }
+    /* Leave unbound so another session's configure does not reset this
+     * session's samples. A basis reset during this call already ran. */
+    xlbomd_bind(NULL);
     return evaluated;
   }
 }
@@ -3414,6 +3583,7 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
       return -1;
     }
   }
+  xlbomd_store_note_copy(session->xl, from_key, to_key);
   cpmdc_store_error("");
   return 0;
 }
@@ -4084,12 +4254,89 @@ int cpmdc_available(void) {
 #endif
 }
 
+int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                          int *order_out) {
+  return xlbomd_classify(text, len, order, order_out);
+}
+
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                              double *c, int c_len) {
+  return xlbomd_coefficients(order, kappa, alpha, c, c_len);
+}
+
+int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                           const double *history, int nhist, double *p_next) {
+  return xlbomd_propagate(order, density, n, history, nhist, p_next);
+}
+
+int cpmdc_xlbomd_observe(CPMDCSession *session, int order, long long key,
+                         int has_key, const double *density, int n,
+                         double *p_next) {
+  if (!session || !session->xl)
+    return -1;
+  return xlbomd_store_observe(session->xl, order, key, has_key, density, n,
+                              p_next);
+}
+
+void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key, int has_key) {
+  if (!session)
+    return;
+  xlbomd_store_clear_key(session->xl, key, has_key);
+}
+
+int cpmdc_xlbomd_configured_order(void) { return xlbomd_configured(); }
+
+int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order,
+                              int *scf_steps, int *propagated) {
+  if (!session || !session->xl) {
+    cpmdc_store_error("invalid session");
+    return -1;
+  }
+  if (order)
+    *order = session->xl_order;
+  if (scf_steps)
+    *scf_steps = session->xl_scf_steps;
+  if (propagated)
+    *propagated = session->xl_propagated;
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_xlbomd_export(const CPMDCSession *session, void **bytes,
+                                size_t *nbytes) {
+  if (!session || !session->xl || !bytes || !nbytes) {
+    cpmdc_store_error("invalid session");
+    return -1;
+  }
+  if (xlbomd_store_export(session->xl, bytes, nbytes) != 0) {
+    cpmdc_store_error("out of memory");
+    return -1;
+  }
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_xlbomd_import(CPMDCSession *session, const void *bytes,
+                                size_t nbytes) {
+  if (!session || !session->xl || (nbytes > 0 && !bytes)) {
+    cpmdc_store_error("invalid session");
+    return -1;
+  }
+  if (xlbomd_store_import(session->xl, bytes, nbytes) != 0) {
+    cpmdc_store_error("EXTRAPOLATE WFN XLBOMD history is unusable");
+    return -1;
+  }
+  cpmdc_store_error("");
+  return 0;
+}
+
 void cpmdc_finalize(void) {
   g_active_session = NULL;
-  g_orbital_owner = NULL;
   free(g_image.input_deck);
   g_image.input_deck = NULL;
   g_image.input_deck_len = 0;
   cpmdc_orbital_ledger_finalize();
+  xlbomd_bind(NULL);
+  g_orbital_owner = NULL;
   cpmdc_embed_finalize();
 }

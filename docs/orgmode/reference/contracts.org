@@ -230,7 +230,7 @@ and warm when the basis matches.
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes; ~grad_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. |
 | Ownership | The caller owns every buffer and may reuse or free all of them on return; the library keeps nothing. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | ~ok~ is non-zero on success. Otherwise ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ (a failed message parse, a missing pseudopotential directory, a failed SCF). An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
+| Returns and errors | ~ok~ is non-zero on success. Otherwise ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ (a failed message parse, a missing pseudopotential directory, a failed SCF). An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. When the applied parameters select ~XLBOMD~, the call fails before the evaluator and ~cpmdc_last_error()~ says a session is required. |
 | Python | not wrapped. |
 | Defaults | none: the gradient is ~dE/dR~, the negative of the force |
 
@@ -379,9 +379,127 @@ A session is created by one of two functions and released by
 | Layout | none: ~from_key~ and ~to_key~ are ~long long~ keys chosen by the host. |
 | Ownership | ~session~ stays owned by the caller; the copy lives in the process store until a basis change clears it. |
 | Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
-| Returns and errors | Returns 0 on success and -1 for a NULL session, before any evaluation, when ~from_key~ has no converged orbitals, or when the backend copy fails; the text is ~cpmdc_last_error()~. The reference build has no orbital store: it returns 0 after any evaluation and copies nothing. |
+| Returns and errors | Returns 0 on success and -1 for a NULL session, before any evaluation, when ~from_key~ has no converged orbitals, or when the backend copy fails; the text is ~cpmdc_last_error()~. The reference build has no orbital store: it returns 0 after any evaluation and copies nothing. The destination key's extended Lagrangian samples on that session are dropped when the keys differ and kept when they are the same. |
 | Python | ~cpmdc.Session.copy_orbitals~ raises ~cpmdc.CPMDCError~, also for a library that lacks the symbol. |
 | Defaults | none |
+
+* Extended Lagrangian propagation
+
+The auxiliary vector is dimensionless.
+Order 0 is the reversible Verlet step.
+Orders 3 through 9 are the dissipative rows.
+Each session keeps its own samples.
+The samples of one key are not shared with another key, and the unkeyed
+trajectory is not key 0.
+The order recorded by the last successful parameter apply is process global.
+
+*** ~cpmdc_xlbomd_classify~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~text~ is the options bytes, length ~len~, and need not be NUL terminated. ~order_out~ may be NULL; otherwise it receives the accepted order. |
+| Ownership | The caller owns ~text~ and ~order_out~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns ~CPMDC_WFN_EXTRAP_XLBOMD~, ~CPMDC_WFN_EXTRAP_DECK~, or -1 when the token is exactly ~XLBOMD~ and the order is not 0 or 3 through 9. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | none |
+
+*** ~cpmdc_xlbomd_coefficients~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless: ~kappa~, ~alpha~, and ~c~ are the Table I numbers, with ~alpha~ unscaled. |
+| Layout | ~kappa~ is required. ~alpha~ may be NULL. ~c~ may be NULL; when it is set, ~c_len~ must hold c_0 through c_K. |
+| Ownership | The caller owns ~kappa~, ~alpha~, and ~c~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, or -1 for another order, a NULL ~kappa~, or a short ~c~ buffer. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | order 0 writes kappa 2 and alpha 0 and ignores ~c~. |
+
+*** ~cpmdc_xlbomd_propagate~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | ~density~ and ~history~ hold ~n~ components per sample. ~history~ is most recent first: P_n, then P_{n-1}, and so on. Order 0 needs two samples. Order K needs K + 1. ~p_next~ receives ~n~ components. |
+| Ownership | The caller owns ~density~, ~history~, and ~p_next~. The call does not retain them. |
+| Threads and MPI | Safe from any thread: it reads only its arguments. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0, including ~n == 0~, or -1 when the order, a pointer, or the history length cannot be used. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | none |
+
+*** ~cpmdc_xlbomd_observe~
+
+| Item | Description |
+|--------+--------|
+| Units | dimensionless auxiliary components. |
+| Layout | ~density~ and ~p_next~ each hold ~n~ components. ~has_key~ zero selects the unkeyed trajectory, which is not key 0. |
+| Ownership | ~session~ stays owned by the caller. The caller owns ~density~ and ~p_next~. The session keeps its own copy of the samples. |
+| Threads and MPI | Not thread-safe: one session is used by one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 1 when ~p_next~ was propagated, 0 when it is a startup copy, and -1 for a NULL ~session~, a bad order, a negative ~n~, or a NULL buffer when ~n~ is positive. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | the first sample is stored and copied; a dissipative order copies until K + 1 samples exist. |
+
+*** ~cpmdc_xlbomd_clear_key~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none: ~key~ and ~has_key~ select the store, and ~has_key~ zero is the unkeyed trajectory. |
+| Ownership | ~session~ stays owned by the caller. The call drops samples only in that session. |
+| Threads and MPI | Not thread-safe: one session is used by one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | none: the call cannot fail and does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | a missing key is left absent. |
+
+*** ~cpmdc_xlbomd_configured_order~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none |
+| Ownership | none |
+| Threads and MPI | Not thread-safe: the recorded order is process global, so one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns the order of the last successful ~CPMDParams~ apply whose last ~&CPMD~ section selected ~XLBOMD~, or -1 when that apply did not. A failed apply leaves the value. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | -1 before any successful apply. |
+
+*** ~cpmdc_session_xlbomd_last~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~order~, ~scf_steps~, and ~propagated~ are caller-owned ~int~ outputs. Any of them may be NULL. |
+| Ownership | ~session~ is borrowed. The caller owns ~order~, ~scf_steps~, and ~propagated~, which the call only writes. |
+| Threads and MPI | Not thread-safe: one session is used by one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0 and clears ~cpmdc_last_error()~, or -1 for a NULL ~session~. A failure writes ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | ~propagated~ is -1 and ~scf_steps~ is 0 before a real evaluation. A cached repeat leaves them. |
+
+*** ~cpmdc_session_xlbomd_export~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~bytes~ receives one ~void *~. ~nbytes~ receives the length of that buffer. |
+| Ownership | ~session~ is borrowed. On success the caller owns ~*bytes~ and releases a non-NULL buffer with ~free~. The caller owns ~nbytes~. |
+| Threads and MPI | Not thread-safe: one session is used by one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0 and clears ~cpmdc_last_error()~. An empty history sets ~*bytes~ to NULL and ~*nbytes~ to 0. Returns -1 for a NULL ~session~, ~bytes~, or ~nbytes~, and writes ~cpmdc_last_error()~. |
+| Python | not wrapped. |
+| Defaults | an empty store exports no bytes. |
+
+*** ~cpmdc_session_xlbomd_import~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~bytes~ is ~nbytes~ bytes from ~cpmdc_session_xlbomd_export()~ or ~cpmdc_restart_xlbomd()~, or NULL when ~nbytes~ is 0. |
+| Ownership | ~session~ stays owned by the caller. The caller owns ~bytes~. The call copies them and does not retain the pointer. |
+| Threads and MPI | Not thread-safe: one session is used by one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0 and clears ~cpmdc_last_error()~. Returns -1 for a NULL ~session~ or an unusable buffer, and writes ~cpmdc_last_error()~. A bad buffer leaves the stored samples as they were. |
+| Python | not wrapped. |
+| Defaults | NULL and a length of 0 clear the samples. The session order is not changed. |
 
 ** Session evaluation
 
@@ -1011,6 +1129,30 @@ state.
 | Python | not wrapped. |
 | Defaults | an output NULL skips that value |
 
+*** ~cpmdc_restart_set_xlbomd~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~bytes~ is ~nbytes~ opaque payload bytes, or NULL when ~nbytes~ is 0. |
+| Ownership | ~file~ stays owned by the caller. The caller owns ~bytes~. The image keeps its own copy. |
+| Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
+| Returns and errors | Returns 0 on success and -1 when ~file~ is NULL or ~bytes~ is NULL and ~nbytes~ is not 0. |
+| Python | not wrapped. |
+| Defaults | NULL and a length of 0 remove the trailer. |
+
+*** ~cpmdc_restart_xlbomd~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | ~bytes~ receives one ~void *~. ~nbytes~ receives the payload length. |
+| Ownership | ~file~ is borrowed. The caller owns ~*bytes~ and releases a non-NULL buffer with ~free~. The caller owns ~nbytes~. |
+| Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
+| Returns and errors | Returns 0 on success and -1 when ~file~, ~bytes~, or ~nbytes~ is NULL. An image with no trailer sets ~*bytes~ to NULL and ~*nbytes~ to 0. |
+| Python | not wrapped. |
+| Defaults | a classic image has no trailer. |
+
 *** ~cpmdc_restart_write_mem~
 
 | Item | Description |
@@ -1258,6 +1400,15 @@ Python.
 | Ownership | Scalar value returned by value; nothing to free. |
 | Python | Exposed as ~cpmdc.CPMDCError.code~ and mapped to ~CPMDCInvalidArgument~, ~CPMDCUnavailable~, ~CPMDCUnsupportedPeriodicEmbedding~, ~CPMDCEvaluationFailed~, and ~CPMDCDeckExternalPotential~. |
 
+** ~CPMDCWfnExtrap~
+
+| Item | Description |
+|--------+--------|
+| Layout | An ~enum~ returned by ~cpmdc_xlbomd_classify()~, with ~CPMDC_WFN_EXTRAP_DECK~ and ~CPMDC_WFN_EXTRAP_XLBOMD~. |
+| Units | none |
+| Ownership | Scalar value returned by value; nothing to free. |
+| Python | not wrapped. |
+
 ** ~CPMDCResult~
 
 | Item | Description |
@@ -1416,6 +1567,8 @@ Every macro and enum constant of the installed headers.
 | CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | ~CPMDCErrorCode~: external charges paired with a periodic cell. | ~cpmdc.CPMDCUnsupportedPeriodicEmbedding~ |
 | CPMDC_ERROR_EVALUATION_FAILED | 4 | ~CPMDCErrorCode~: SCF or backend evaluation did not produce a valid result. | ~cpmdc.CPMDCEvaluationFailed~ |
 | CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | ~CPMDCErrorCode~: session external charges paired with a deck ~EXTERNAL POTENTIAL~ block. | ~cpmdc.CPMDCDeckExternalPotential~ |
+| CPMDC_WFN_EXTRAP_DECK | 0 | ~CPMDCWfnExtrap~: render the extrapolate token as written. | none |
+| CPMDC_WFN_EXTRAP_XLBOMD | 1 | ~CPMDCWfnExtrap~: the options are exactly XLBOMD and the order is 0 or 3 through 9. | none |
 | CPMDC_FEATURE_SECTION | 1 | ~CPMDCFeatureKind~: a CPMD input section, such as ~catalog.section.PIMD~. | none |
 | CPMDC_FEATURE_PARAMS | 2 | ~CPMDCFeatureKind~: a ~CPMDParams~ field. | none |
 | CPMDC_FEATURE_ABI | 3 | ~CPMDCFeatureKind~: an exported C function. | none |

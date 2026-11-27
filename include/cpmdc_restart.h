@@ -32,6 +32,13 @@ extern "C" {
  * other record, including plane-wave coefficients, byte for byte. The host
  * endianness must match the Fortran file (little endian on x86_64 gfortran).
  *
+ * An image may end with two extra records that are not CPMD sections. The
+ * first is 16 bytes: magic 0x31424C58, version 1, the payload length, and
+ * the CRC-32 of the payload. The second is that payload, the auxiliary
+ * history from cpmdc_session_xlbomd_export(). A file without those records
+ * is unchanged. A trailer whose magic, version, length, or CRC does not
+ * match is left in place, so the section index then fails.
+ *
  * Every `int` function returns 0 on success and -1 on failure, except
  * cpmdc_restart_is_stream() and cpmdc_restart_ncoords(), which return a
  * value. The library keeps no error state: the readers and writers write a
@@ -267,6 +274,36 @@ int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual,
  */
 int cpmdc_restart_states(const CPMDCRestart *file, int *n, int *nkpts,
                         int *ngw, int *ngwl, int *nhg, int *nhgl);
+
+/**
+ * @brief Store or clear the auxiliary-history trailer.
+ *
+ * `bytes` is copied. A NULL `bytes` with `nbytes` 0 removes the trailer, so
+ * a later write matches an image that never had one. The CPMD sections are
+ * not changed.
+ *
+ * @param file Image to update.
+ * @param bytes Payload bytes. NULL only when `nbytes` is 0.
+ * @param nbytes Number of bytes in `bytes`.
+ * @return 0 on success, -1 when `file` is NULL or `bytes` is NULL and
+ *         `nbytes` is not 0.
+ */
+int cpmdc_restart_set_xlbomd(CPMDCRestart *file, const void *bytes,
+                             size_t nbytes);
+
+/**
+ * @brief Copy the auxiliary-history trailer.
+ *
+ * When the image has no trailer, `*bytes` is NULL and `*nbytes` is 0.
+ * Otherwise `*bytes` comes from malloc and the caller releases it with free.
+ *
+ * @param file Image to query.
+ * @param bytes Receives the payload, or NULL when there is none.
+ * @param nbytes Receives the payload length.
+ * @return 0 on success, -1 when `file`, `bytes`, or `nbytes` is NULL.
+ */
+int cpmdc_restart_xlbomd(const CPMDCRestart *file, void **bytes,
+                         size_t *nbytes);
 
 /**
  * @brief Write the image to a newly allocated buffer.

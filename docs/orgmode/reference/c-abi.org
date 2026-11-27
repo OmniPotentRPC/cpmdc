@@ -9,7 +9,7 @@ part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 57 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 66 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -787,6 +787,8 @@ Its functions are not marked
 | ~int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6])~ | replace the six lattice parameters; -1 without a cell section |
 | ~int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual, int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s)~ | the section 7 cutoff, real dual factor ~cdual~, logical ~dual_flag~ (0 or 1), ~nel~, and grid sizes; each output may be ~NULL~; -1 without the section |
 | ~int cpmdc_restart_states(const CPMDCRestart *file, int *n, int *nkpts, int *ngw, int *ngwl, int *nhg, int *nhgl)~ | the state, k-point and plane-wave counts; each output may be ~NULL~; -1 without the section |
+| ~int cpmdc_restart_set_xlbomd(CPMDCRestart *file, const void *bytes, size_t nbytes)~ | copy an auxiliary-history payload onto the image, or clear it when ~nbytes~ is 0 |
+| ~int cpmdc_restart_xlbomd(const CPMDCRestart *file, void **bytes, size_t *nbytes)~ | copy that payload into a ~malloc~ buffer the caller releases with ~free~; an image with no trailer sets ~*bytes~ to NULL |
 | ~int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbytes, char *err, size_t err_cap)~ | serialize the image into a ~malloc~ buffer the caller releases with ~free~ |
 | ~int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path, char *err, size_t err_cap)~ | write the image to ~path~ |
 
@@ -798,3 +800,50 @@ The ~cpmdc-restart~ command exposes ~info~, ~positions~, ~velocities~,
 ~patch-positions~, and ~patch-velocities~, with ~--angstrom~ for Angstrom input
 and output (Angstrom per atomic unit of time for velocities), and, in a
 ~-Dwith_readcon=true~ build, ~export-con~ and ~import-con~.
+
+* Extended Lagrangian orbital propagation
+
+~CPMDCWfnExtrap~ says whether an ~extrapolateWfnOptions~ token stays on the deck
+path.
+The token must be exactly ~XLBOMD~.
+Order 0 is the reversible Verlet step of Niklasson, Phys. Rev. Lett. 100, 123004
+(2008).
+Orders 3 through 9 are Table I of Niklasson, Steneteg, Odell, Bock, Challacombe,
+Tymczak, Holmström, Zheng, and Weber, J. Chem. Phys. 130, 214109 (2009), with
+alpha stored unscaled.
+The last successful ~CPMDParams~ apply records the order of its last ~&CPMD~
+section.
+A failed apply leaves that record unchanged.
+Each session keeps its own samples, per orbital key, and the unkeyed trajectory
+does not share storage with key 0.
+They do not count toward ~CPMDC_ORBITAL_SLOT_LIMIT~.
+~cpmdc_session_copy_orbitals()~ drops the destination samples when the keys
+differ and leaves them when the keys are the same.
+Destroying a session drops only that session's samples.
+A build that links OpenCPMD refuses ~XLBOMD~ when the parameters are applied.
+The embed API cannot export the converged plane-wave coefficients or install a
+propagated guess, so the option would otherwise run with no extrapolation.
+The reference evaluator mixes the caller coordinates in Bohr from the stored
+guess and records the converged vector on that session.
+The published energy and forces stay the reference potential.
+A repeat of a stored geometry does not take another step.
+A call with no session fails when ~XLBOMD~ is configured.
+~cpmdc_session_xlbomd_export()~ copies the samples, and ~cpmdc_restart_set_xlbomd()~
+stores that blob after the CPMD sections.
+
+| ~CPMDCWfnExtrap~ constant | Value | Meaning |
+|---------------------------+-------+---------|
+| ~CPMDC_WFN_EXTRAP_DECK~ | 0 | render the token as written |
+| ~CPMDC_WFN_EXTRAP_XLBOMD~ | 1 | options are exactly ~XLBOMD~ and the order is 0 or 3 through 9; the deck omits the line |
+
+| Function | Behaviour |
+|----------+-----------|
+| ~int cpmdc_xlbomd_classify(const char *text, int len, int order, int *order_out)~ | ~CPMDC_WFN_EXTRAP_XLBOMD~ and the order when the token is exactly ~XLBOMD~ and the order is 0 or 3 through 9; ~CPMDC_WFN_EXTRAP_DECK~ for any other token; -1 when the token is ~XLBOMD~ and the order is not one of those values |
+| ~int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha, double *c, int c_len)~ | write kappa, alpha when the pointer is set, and c_0 through c_K when ~c~ is set; order 0 is kappa 2 and alpha 0; orders 3 through 9 are the 2009 table; -1 for another order, a NULL kappa, or a short ~c~ buffer |
+| ~int cpmdc_xlbomd_propagate(int order, const double *density, int n, const double *history, int nhist, double *p_next)~ | one step; ~history~ is most recent first and holds two samples for order 0 or K + 1 samples otherwise; ~n == 0~ writes nothing and returns 0; -1 when the order or the history cannot be used |
+| ~int cpmdc_xlbomd_observe(CPMDCSession *session, int order, long long key, int has_key, const double *density, int n, double *p_next)~ | store one converged vector for that key of ~session~ and write the next guess; 1 when the guess was propagated, 0 when it is a startup copy, -1 on a NULL session, a bad order, or a missing buffer; ~has_key~ zero is the unkeyed trajectory; a new order or length on that key starts again |
+| ~void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key, int has_key)~ | drop that key's samples on ~session~; ~has_key~ zero drops the unkeyed trajectory |
+| ~int cpmdc_xlbomd_configured_order(void)~ | the order recorded by the last successful ~CPMDParams~ apply, or -1 when that apply did not select ~XLBOMD~ |
+| ~int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order, int *scf_steps, int *propagated)~ | copy the session order, the last surrogate step count, and whether that step propagated; a cached repeat leaves them; -1 for a NULL session |
+| ~int cpmdc_session_xlbomd_export(const CPMDCSession *session, void **bytes, size_t *nbytes)~ | copy this session's auxiliary history into a ~malloc~ buffer the caller releases with ~free~; an empty history sets ~*bytes~ to NULL |
+| ~int cpmdc_session_xlbomd_import(CPMDCSession *session, const void *bytes, size_t nbytes)~ | replace this session's auxiliary history; NULL and a length of 0 clear it; a bad buffer leaves the samples |

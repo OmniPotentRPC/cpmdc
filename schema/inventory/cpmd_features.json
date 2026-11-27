@@ -342,7 +342,16 @@
   "cpmdc_session_last_stress",
   "cpmdc_feature_count",
   "cpmdc_feature_table",
-  "cpmdc_feature_find"
+  "cpmdc_feature_find",
+  "cpmdc_xlbomd_classify",
+  "cpmdc_xlbomd_clear_key",
+  "cpmdc_xlbomd_coefficients",
+  "cpmdc_xlbomd_configured_order",
+  "cpmdc_xlbomd_observe",
+  "cpmdc_xlbomd_propagate",
+  "cpmdc_session_xlbomd_last",
+  "cpmdc_session_xlbomd_export",
+  "cpmdc_session_xlbomd_import"
  ],
  "cpmd_sections": [
   "ATOM",
@@ -11196,6 +11205,69 @@
    "feature_id": "abi.cpmdc_session_last_stress",
    "kind": "abi",
    "name": "cpmdc_session_last_stress",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_classify",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_classify",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_coefficients",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_coefficients",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_propagate",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_propagate",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_observe",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_observe",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_clear_key",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_clear_key",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_xlbomd_configured_order",
+   "kind": "abi",
+   "name": "cpmdc_xlbomd_configured_order",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_last",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_last",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_export",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_export",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_xlbomd_import",
+   "kind": "abi",
+   "name": "cpmdc_session_xlbomd_import",
    "stub_applicable": true,
    "embed_applicable": true
   }

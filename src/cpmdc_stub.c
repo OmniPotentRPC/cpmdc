@@ -1,5 +1,6 @@
 #include "cpmdc.h"
 #include "cpmdc_adopt.h"
+#include "cpmdc_xlbomd.h"
 
 #include <stdio.h>
 
@@ -455,5 +456,71 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
   (void)session;
   if (out)
     memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_xlbomd_classify(const char *text, int len, int order,
+                          int *order_out) {
+  return xlbomd_classify(text, len, order, order_out);
+}
+
+int cpmdc_xlbomd_coefficients(int order, double *kappa, double *alpha,
+                              double *c, int c_len) {
+  return xlbomd_coefficients(order, kappa, alpha, c, c_len);
+}
+
+int cpmdc_xlbomd_propagate(int order, const double *density, int n,
+                           const double *history, int nhist, double *p_next) {
+  return xlbomd_propagate(order, density, n, history, nhist, p_next);
+}
+
+int cpmdc_xlbomd_observe(CPMDCSession *session, int order, long long key,
+                         int has_key, const double *density, int n,
+                         double *p_next) {
+  (void)session;
+  (void)order;
+  (void)key;
+  (void)has_key;
+  (void)density;
+  (void)n;
+  (void)p_next;
+  return -1;
+}
+
+void cpmdc_xlbomd_clear_key(CPMDCSession *session, long long key, int has_key) {
+  (void)session;
+  (void)key;
+  (void)has_key;
+}
+
+int cpmdc_xlbomd_configured_order(void) { return xlbomd_configured(); }
+
+int cpmdc_session_xlbomd_last(const CPMDCSession *session, int *order,
+                              int *scf_steps, int *propagated) {
+  (void)session;
+  (void)order;
+  (void)scf_steps;
+  (void)propagated;
+  stub_store_error("cpmdc_session_xlbomd_last");
+  return -1;
+}
+
+int cpmdc_session_xlbomd_export(const CPMDCSession *session, void **bytes,
+                                size_t *nbytes) {
+  (void)session;
+  if (bytes)
+    *bytes = NULL;
+  if (nbytes)
+    *nbytes = 0;
+  stub_store_error("cpmdc_session_xlbomd_export");
+  return -1;
+}
+
+int cpmdc_session_xlbomd_import(CPMDCSession *session, const void *bytes,
+                                size_t nbytes) {
+  (void)session;
+  (void)bytes;
+  (void)nbytes;
+  stub_store_error("cpmdc_session_xlbomd_import");
   return -1;
 }

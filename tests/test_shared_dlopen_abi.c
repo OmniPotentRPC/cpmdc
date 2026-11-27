@@ -93,6 +93,15 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_feature_count",
     "cpmdc_feature_table",
     "cpmdc_feature_find",
+    "cpmdc_xlbomd_classify",
+    "cpmdc_xlbomd_clear_key",
+    "cpmdc_xlbomd_coefficients",
+    "cpmdc_xlbomd_configured_order",
+    "cpmdc_xlbomd_observe",
+    "cpmdc_xlbomd_propagate",
+    "cpmdc_session_xlbomd_last",
+    "cpmdc_session_xlbomd_export",
+    "cpmdc_session_xlbomd_import",
 };
 
 /* Internal glue from each kind of source: C in libcpmdc, Fortran BIND(C) in
