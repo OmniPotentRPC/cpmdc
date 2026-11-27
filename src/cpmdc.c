@@ -339,6 +339,7 @@ static CPMDCErrorCode code_for_gate_message(const char *msg) {
       {"invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT},
       {"atomic numbers must be", CPMDC_ERROR_INVALID_ARGUMENT},
       {"cell ", CPMDC_ERROR_INVALID_ARGUMENT},
+      {"positions contain a non-finite", CPMDC_ERROR_INVALID_ARGUMENT},
       {"topology change requires", CPMDC_ERROR_INVALID_ARGUMENT},
       {"property gradient snapshot supports", CPMDC_ERROR_INVALID_ARGUMENT},
       {"CPMD embed not available", CPMDC_ERROR_UNAVAILABLE},
@@ -2625,7 +2626,12 @@ static int element_counts_match(size_t n_atoms, const int *left,
 
 static int coords_differ(const double *left, const double *right) {
   for (int k = 0; k < 3; ++k) {
-    double delta = left[k] - right[k];
+    double delta;
+    /* NaN minus anything is not ordered, so a magnitude test would
+     * treat a non-finite coordinate as equal. */
+    if (!isfinite(left[k]) || !isfinite(right[k]))
+      return 1;
+    delta = left[k] - right[k];
     if (delta < 0.0)
       delta = -delta;
     if (delta > 1.0e-8)
@@ -2676,6 +2682,12 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
                                int has_cell) {
   if (!session || !positions_ang || !atomic_numbers || !grad || n_atoms == 0)
     return -1;
+  if (!isfinite(energy_h))
+    return -1;
+  for (size_t i = 0; i < n_atoms * 3u; ++i) {
+    if (!isfinite(positions_ang[i]) || !isfinite(grad[i]))
+      return -1;
+  }
   if (session->cached_n_atoms != n_atoms) {
     double *pos = (double *)malloc(n_atoms * 3u * sizeof(double));
     int *z = (int *)malloc(n_atoms * sizeof(int));
@@ -3213,6 +3225,15 @@ static CPMDCResult session_energy_gradient_cell(
       err = "cell does not have three independent vectors";
     else if (cell_state == CPMDC_CELL_VOLUME_UNDERFLOW)
       err = "cell volume is too small for binary64";
+  }
+  if (!err) {
+    int ncomp = n_atoms * 3;
+    for (int i = 0; i < ncomp; ++i) {
+      if (!isfinite(positions_ang[i])) {
+        err = "positions contain a non-finite component";
+        break;
+      }
+    }
   }
   if (!err &&
       session_check_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
