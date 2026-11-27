@@ -4,7 +4,7 @@
 [[file:constant-cutoff-npt.org][Density of water at a constant cutoff]] gives 826.1 +- 5.7 kg/m^3 for 32 PBE waters at 350 K and 1 bar from the 0.65 ps that ~cc100~ averages, and its standard error still grew with the block length.
 Miceli, de Gironcoli, and Pasquarello found about 870 kg/m^3 at 349 K (reference 1).
 This page makes a step cheaper, runs the 32 waters for longer, and measures what the statistics, the basis, and the pseudopotentials contribute to the 44 kg/m^3 between the two.
-It does not measure the thermostat, the barostat, or the number of waters.
+It does not measure the thermostat or the barostat. The water count and the 349 K of Miceli et al. are the two settings a longer pair of runs changes, one at a time.
 Every number comes from a record in ~bench/results~ that the text names, from the paper, or from arithmetic on those.
 
 * What Miceli et al. ran
@@ -304,6 +304,34 @@ Not measured here:
 The two changes of setup that this page measures move the density by 28.0 and 50.5 kg/m^3, each more than the gap, and together they overshoot it by 57.8 kg/m^3, 2.8 times the 21.0 kg/m^3 of the combined uncertainty.
 The linear response over the 1.6 kbar of the last row, a change of 9% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
 These numbers do not resolve a physical difference between the two PBE densities: the gap itself is 2.1 times a blocking error that is still a lower bound, since the blocking curve of ~long32~ has not levelled off.
+
+* Protocol for the longer runs
+The 11.0 ps of ~long32~ leave the blocking curve of the density still rising.
+The longer runs do not choose a new discard, a new block length, or a new basis after their trajectories are known.
+
+The equilibration start is the one ~bench/npt_block_average.py~ already computes (reference 4).
+For each of the volume, the density and the pressure, it is the frame in the first half that maximises the number of uncorrelated frames after it.
+The statistical inefficiency is summed until the autocorrelation first drops to zero or below, and the search takes at most 2000 candidates.
+The discarded time is the later of 0.5 ps, the floor ~table~ uses for a run that starts from a box, and the latest of those three frames.
+No ~--discard-ps~ override replaces it.
+The same rule on the prefix that ends at half the run, and on the prefix that ends at three quarters of it, has to land within 1 ps of that time.
+If either misses, the start has not settled, and the mean is not an equilibrium density.
+
+The error is the Flyvbjerg-Petersen standard error (reference 3) of the frames after that start.
+It is taken at the first blocking level, among those with at least 8 blocks, whose blocks outlast the correlation by the criterion of Lee et al. (reference 5).
+If no level meets the criterion, the error is that of the coarsest level with at least 8 blocks, and it is a lower bound.
+The statistical inefficiency of the production density is reported with the mean.
+
+~long32~ keeps every setting of the 11.0 ps run and continues from its last state when that file is at hand.
+Without the state, the same settings start again from a box written by ~start~, which is a new trajectory and is not spliced onto the 11.0 ps.
+The second run is 64 waters at 349 K and otherwise those settings, including the Langevin thermostat, the MTK barostat at 1 bar, the constant cutoff and the pseudopotentials.
+Both aim at 40 ps after the start above, and continue past that while the blocking curve of the density has not levelled off.
+
+These runs keep the differences from Miceli et al. listed under *What Miceli et al. ran*.
+The Langevin thermostat and the MTK barostat at 1 bar stand against Parrinello-Rahman at zero pressure in NpH, the 1 fs steps and the deuterium masses against 0.48 fs and classical protons, the constant cutoff E0 = 85 Ry on the 100 Ry deck against a fixed number of plane waves near 85 Ry, and ~O_MT_PBE~ and ~H_MT_PBE~ against the Troullier-Martins files the paper cites and does not name.
+The 64-water run matches their water count and their 349 K.
+The masses and the timestep do not change the classical configurational distribution, and 1 bar against 0 bar is about 0.05 kg/m^3 at the compressibility of the 11.0 ps.
+The basis and the pseudopotentials are the differences *Where the gap goes* already estimates, and this protocol does not refit that estimate.
 
 * Tests
 - ~test_plateau_of_ar1_lies_past_its_correlation_time~ and the other ~plateau~ tests in ~tests/python/test_npt_block_average.py~ check the level that the criterion of Lee et al. finds on series whose correlation is known: an AR(1) process, white noise, and a drift.
