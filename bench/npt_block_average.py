@@ -92,11 +92,15 @@ def blocking(x: np.ndarray) -> list[tuple[int, float, float]]:
 def plateau(levels: list[tuple[int, float, float]], min_blocks: int) -> int | None:
     """The first blocking level, of those with at least min_blocks blocks, whose blocks outlast the correlation.
 
-    Lee et al. (Phys. Rev. E 83, 066706 (2011), Eq. 14) take the first block
-    of B frames with B^3 > 2 n (SE_B / SE_1)^4, n frames in all, where
-    (SE_B / SE_1)^2 is the correlation length that blocks of B frames show.
-    None means that no level with enough blocks meets it: the run is too short
-    for the blocking curve to level off.
+    Blocks of B frames, of n, outlast it when B^3 > 2 n (SE_B / SE_1)^4, where
+    (SE_B / SE_1)^2 is the correlation length that they show (Lee et al.,
+    Phys. Rev. E 83, 066706 (2011), Eq. 14 and the text after it). Lee et al.
+    scan down from the longest block, take the last B that meets it, and ask
+    for B < n/50, which gives the error to 10%. Scanning up gives the same
+    level while every longer block meets it too, and a coarse level of few
+    blocks, whose error is uncertain, cannot hide it. None means that no level
+    with enough blocks meets it: the run is too short for the blocking curve
+    to level off.
     """
     n, first = levels[0][0], levels[0][1]
     for k, (blocks, sem, _) in enumerate(levels):
