@@ -3382,9 +3382,11 @@ static CPMDCResult session_energy_gradient_cell(
   /* After the topology check, so a session that already holds another
    * system reports the topology change. The topology is latched only
    * after this preflight, so a first call that is too large leaves the
-   * session without a topology and a valid call can follow. */
-  else if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
-                           (3u * sizeof(session->image.prop.hessian[0]))))
+   * session without a topology and a valid call can follow. A non-finite
+   * position was recorded above and must not be replaced by this limit. */
+  if (!err &&
+      n_atoms > (int)(sizeof(session->image.prop.hessian) /
+                      (3u * sizeof(session->image.prop.hessian[0]))))
     err = "property gradient snapshot supports at most 1365 atoms";
   /* Decided before the collective gates, from state every rank holds. */
   if (!err && session->external_count > 0) {
