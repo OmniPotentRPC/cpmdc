@@ -2540,8 +2540,9 @@ calculators for GPAW, ORCA, NWChem, and Psi4 do, so a charged or spin-polarised
 
 The total charge is `Q = sum(atoms.get_initial_charges())` and the total moment
 is `M = sum(atoms.get_initial_magnetic_moments())`.
-The moments are collinear, one per atom: an array of shape `(N, 3)` with a
-nonzero entry raises `ValueError`.
+The moments are collinear, one per atom.
+A column of shape `(N, 1)` is that one moment.
+An array of shape `(N, 3)` with a nonzero entry raises `ValueError`.
 `Q` and `M` must be integers.
 A sum counts as an integer when it lies within `n * eps * sum(|x|)` of one, the
 bound on the rounding error of adding `n` float64 terms `x`, where `eps` is the
