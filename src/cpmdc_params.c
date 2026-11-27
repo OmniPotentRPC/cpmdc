@@ -1631,6 +1631,40 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
                                          cluster_hfx, sets, 1, 0, cc);
 }
 
+/* The renderer names the scheme explicitly, matching CPMD's own
+ * default. control_def sets cntl%taspc before keyword parsing, so a
+ * line that names none of ASPC, POLY, and POLYNOMIAL already selects
+ * the ASPC coefficients. OpenCPMD matches POLY, POLYNOMIAL, and ASPC
+ * by presence, not position. POLY or POLYNOMIAL clears the flag, and
+ * ASPC then sets it, so ASPC wins wherever it appears. Writing the
+ * token leaves them unchanged. */
+static int extrap_token_eq(const char *s, int n, const char *tok) {
+  int m = (int)strlen(tok);
+  return n == m && memcmp(s, tok, (size_t)m) == 0;
+}
+
+static int extrap_options_name_scheme(capn_text options) {
+  const char *s = options.str;
+  int i = 0;
+  if (!s || options.len <= 0)
+    return 0;
+  while (i < options.len) {
+    int start;
+    while (i < options.len &&
+           (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r'))
+      i++;
+    start = i;
+    while (i < options.len && s[i] != ' ' && s[i] != '\t' && s[i] != '\n' &&
+           s[i] != '\r')
+      i++;
+    if (extrap_token_eq(s + start, i - start, "ASPC") ||
+        extrap_token_eq(s + start, i - start, "POLY") ||
+        extrap_token_eq(s + start, i - start, "POLYNOMIAL"))
+      return 1;
+  }
+  return 0;
+}
+
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                                const struct CPMDCpmdSection *sec,
                                const char *task, capn_text file_path,
@@ -2208,6 +2242,10 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
       if (append_capn_text(dst, dst_size, used,
                            sec->extrapolateWfnOptions) != 0)
+        return -1;
+    }
+    if (!extrap_options_name_scheme(sec->extrapolateWfnOptions)) {
+      if (append_text(dst, dst_size, used, " ASPC") != 0)
         return -1;
     }
     if (append_text(dst, dst_size, used, "\n") != 0)
