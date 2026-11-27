@@ -1,0 +1,71 @@
+#+TITLE: A constant number of plane waves from the constant-cutoff functional
+
+With a height A so small that its penalty vanishes, the constant-cutoff
+functional gives the energy and stress of the plain deck, and with
+~CPMDC_CELL_IN_PLACE~ above the strain, a cell keeps the plane waves of the
+setup it moves from.
+Together they give a basis of a constant number of plane waves, whose
+effective cutoff falls as the cell grows.
+The program below checks both on the one-water deck
+~tests/water_blyp_periodic_params.capnp.txt~ (BLYP, 40 Ry) in a 10 Angstrom
+cube and in the same cube stretched by 5%, at E0 = 20 Ry, A = 1e-6 Ry and
+sigma = 1 Ry against plain setups at 40 Ry and at 40/1.05^2 = 36.281179138322
+Ry.
+
+#+begin_src python
+"""One water: CONSTANT CUTOFF with A = 1e-6 against a fixed cutoff, at the setup cell and 5% stretched."""
+import sys
+
+import numpy as np
+from ase import Atoms
+
+from cpmdc import ConstantCutoff
+from cpmdc.ase import CPMDCCalculator
+
+WATER = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+params, mode = sys.argv[1], sys.argv[2]
+scales = [float(s) for s in sys.argv[3:]]
+cc = ConstantCutoff(cutoff_ry=20.0, height_ry=1e-6, width_ry=1.0) if mode == "tiny" else None
+with CPMDCCalculator(params, constant_cutoff=cc) as calc:
+    for s in scales:
+        atoms = Atoms("OHH", positions=WATER, cell=np.diag([10.0] * 3), pbc=True)
+        atoms.set_cell(np.diag([10.0 * s] * 3), scale_atoms=True)
+        atoms.calc = calc
+        e = atoms.get_potential_energy()
+        p = -np.trace(atoms.get_stress(voigt=False)) / 3.0 * 1602.1766208
+        print(f"RESULT {mode} scale {s:g} energy {e:.6f} eV pressure {p:.4f} kbar", flush=True)
+#+end_src
+
+Run on one rank of the OpenCPMD build on FFTW that ran the PBE water
+records, with ~python/~ on ~PYTHONPATH~, the CPMD pseudopotentials in
+~CPMDC_PSEUDO_DIR~, and ~CPMDC_LIBRARY~ naming that build:
+
+#+begin_src bash
+capnp encode schema/Potentials.capnp CPMDParams < tests/water_blyp_periodic_params.capnp.txt > periodic40.bin
+sed 's/cutOffRy = 40.0/cutOffRy = 36.281179138322/g' tests/water_blyp_periodic_params.capnp.txt |
+  capnp encode schema/Potentials.capnp CPMDParams > periodic36.bin
+CPMDC_CELL_IN_PLACE=0 python fixedpw.py periodic40.bin fixed 1.0 1.05
+CPMDC_CELL_IN_PLACE=0 python fixedpw.py periodic40.bin tiny 1.0 1.05
+CPMDC_CELL_IN_PLACE=0.25 python fixedpw.py periodic40.bin tiny 1.0 1.05
+CPMDC_CELL_IN_PLACE=0 python fixedpw.py periodic36.bin fixed 1.05
+#+end_src
+
+Every evaluation ran on an 80^3 real-space mesh.
+The plane waves are those that CPMD reports for each setup; the in-place
+evaluation makes no setup and keeps those of the one before it:
+
+| Deck | Basis | CPMDC_CELL_IN_PLACE | Scale | Plane waves | Energy, eV | Pressure, kbar |
+|------+-------+---------------------+-------+-------------+------------+----------------|
+| 40 Ry | fixed | 0 | 1 | 14336 | -459.240469 | -25.4200 |
+| 40 Ry | fixed | 0 | 1.05 | 16686 | -459.405051 | -23.5794 |
+| 40 Ry | E0 20 Ry, A 1e-6 Ry | 0 | 1 | 14336 | -459.240467 | -25.4200 |
+| 40 Ry | E0 20 Ry, A 1e-6 Ry | 0 | 1.05 | 16686 | -459.405048 | -23.5793 |
+| 40 Ry | E0 20 Ry, A 1e-6 Ry | 0.25 | 1 | 14336 | -459.240467 | -25.4200 |
+| 40 Ry | E0 20 Ry, A 1e-6 Ry | 0.25 | 1.05, in place | 14336 | -456.690914 | -26.1092 |
+| 36.281179138322 Ry | fixed | 0 | 1.05 | 14336 | -456.690917 | -26.1094 |
+
+With new setups, the functional at A = 1e-6 Ry gives the energy of the plain
+40 Ry setup within 3e-6 eV and its pressure within 1e-4 kbar in both cells.
+Moved in place to the stretched cell, it keeps the 14336 plane waves of the
+first cell, which a new setup there holds at 36.28 Ry, and gives the energy of
+that setup within 3e-6 eV and its pressure within 2e-4 kbar.
