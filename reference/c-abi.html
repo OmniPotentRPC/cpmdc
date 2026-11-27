@@ -688,7 +688,9 @@ On a session the check is part of the evaluation preflight, after the topology
 check and before the topology is fixed.
 A first call that is too large leaves the session without a topology.
 A session that already holds another system reports
-<code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code> instead of the atom limit.</p>
+<code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code> instead of the atom limit.
+A position that is not finite fails before that atom limit, with
+<code class="docutils literal notranslate"><span class="pre">positions</span> <span class="pre">contain</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_INVALID_ARGUMENT</span></code>.</p>
 <p>Fields of <code class="docutils literal notranslate"><span class="pre">CPMDCEnergyComponents</span></code>; <code class="docutils literal notranslate"><span class="pre">valid</span></code> is an <code class="docutils literal notranslate"><span class="pre">int</span></code>, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
 <code class="docutils literal notranslate"><span class="pre">double</span></code>:</p>
@@ -1005,7 +1007,7 @@ a call filled.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING</span></code></p></td>
 <td><p>3</p></td>
-<td><p>session charges with a periodic cell or a periodic deck</p></td>
+<td><p>session charges with a periodic cell or a periodic deck, unless <code class="docutils literal notranslate"><span class="pre">CPMDC_PERIODIC_EMBEDDING</span></code> is <code class="docutils literal notranslate"><span class="pre">1</span></code> on a reference build and the call passes a cell; a periodic deck with no cell still returns this; an OpenCPMD build always returns this</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_EVALUATION_FAILED</span></code></p></td>
 <td><p>4</p></td>
@@ -1202,7 +1204,17 @@ Any other call runs full CPMD setup and starts from a cold SCF.</p>
 </tbody>
 </table>
 </div>
-<p>The output array holds <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">n_atoms</span></code> doubles.</p>
+<p>The output array holds <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">n_atoms</span></code> doubles.
+A coordinate that is not finite is rejected before the evaluation.
+<code class="docutils literal notranslate"><span class="pre">ok</span></code> is 0, <code class="docutils literal notranslate"><span class="pre">energy_h</span></code> is 0, and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error_code()</span></code> is
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_INVALID_ARGUMENT</span></code>.
+The message is <code class="docutils literal notranslate"><span class="pre">positions</span> <span class="pre">contain</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>.
+A call rejected before <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code> does not install the parameter
+message.
+The active session, the selected orbitals, and the previous result stay as they
+were.
+Once parameters are installed, a failed SCF or a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> clears the stored
+result, as a failed cold call does.</p>
 </section>
 <section id="sessions">
 <h2>Sessions<a class="headerlink" href="#sessions" title="Link to this heading">¶</a></h2>
@@ -1284,13 +1296,58 @@ A narrower width fails <code class="docutils literal notranslate"><span class="p
 <span class="math notranslate nohighlight">\(1/\sigma^4\)</span> force terms overflow to NaN for much narrower Gaussians.
 The total energy includes electron–MM and ion–MM coupling; QM and MM force
 arrays are both <code class="docutils literal notranslate"><span class="pre">-dE/dR</span></code>.
-External charges are supported on an isolated system only, because periodic
-images are not implemented.
-A step with a periodic cell (a non-zero cell on a deck that leaves periodicity
-unset), or a step on a deck that is not an isolated system (a <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> above
-0, a <code class="docutils literal notranslate"><span class="pre">SURFACE</span></code> or <code class="docutils literal notranslate"><span class="pre">POLYMER</span></code> deck, or <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without an isolated
-keyword), fails with <code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING</span></code> on every
-evaluation path, including <code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient()</span></code>.
+External charges use the isolated Gaussian kernel unless
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PERIODIC_EMBEDDING</span></code> is <code class="docutils literal notranslate"><span class="pre">1</span></code> on a reference build.
+With the variable unset, or set to any other value, a step with a periodic cell
+(a non-zero cell on a deck that leaves periodicity unset), or a step on a deck
+that is not an isolated system (a <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> above 0, a <code class="docutils literal notranslate"><span class="pre">SURFACE</span></code> or <code class="docutils literal notranslate"><span class="pre">POLYMER</span></code>
+deck, or <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> without an isolated keyword), fails with
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING</span></code> on every evaluation path, including
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient()</span></code>.
+An OpenCPMD build ignores the variable and still fails, because the real-space
+grid kernel sums no lattice images.
+On a reference build, <code class="docutils literal notranslate"><span class="pre">1</span></code> keeps the call when that call passes a cell and adds
+the conducting-boundary Ewald field of the same Gaussians.
+A periodic deck on a call that passes no cell still fails with
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING</span></code>, because the sum has no lattice
+vectors.
+The cell is the row-major evaluation argument, in Angstrom, converted to Bohr.
+Reciprocal vectors satisfy <span class="math notranslate nohighlight">\(a_i \cdot b_j = 2\pi \delta_{ij}\)</span>, and the Coulomb
+factor uses the absolute cell volume.
+The <span class="math notranslate nohighlight">\(G = 0\)</span> term is omitted.
+A reciprocal vector is kept when <span class="math notranslate nohighlight">\(\sigma_{\min}^2 |G|^2 / 2\)</span> is at most 36.
+<span class="math notranslate nohighlight">\(\sigma_{\min}\)</span> is the narrowest Gaussian, in Bohr, and
+<span class="math notranslate nohighlight">\(|G|_{\mathrm{cut}} = \sqrt{72} / \sigma_{\min}\)</span>.
+Each Miller index is bounded on its own axis by
+<span class="math notranslate nohighlight">\(|h_i| \le \lceil |G|_{\mathrm{cut}} \, |a_i| / (2\pi) \rceil\)</span>.
+That is the largest index that can still meet the decay test, including on a
+sheared cell.
+The ratio is clamped in double precision to 48 before it is converted to an
+index, so a narrow width cannot overflow the conversion.
+When an axis bound would exceed 48, the same field is split.
+The screening parameter <span class="math notranslate nohighlight">\(\beta\)</span> is the largest value whose reciprocal shell
+still lies inside that cap, and no larger than <span class="math notranslate nohighlight">\(1/(\sigma \sqrt{2})\)</span> for each
+charge.
+The reciprocal piece is the sum above with <span class="math notranslate nohighlight">\(\sigma\)</span> replaced by
+<span class="math notranslate nohighlight">\(1/(\beta \sqrt{2})\)</span>.
+The real-space piece adds the field of
+<span class="math notranslate nohighlight">\([\mathrm{erf}(\alpha r) - \mathrm{erf}(\beta r)] / r\)</span> over every lattice
+image inside the same decay of 36, with <span class="math notranslate nohighlight">\(\alpha = 1/(\sigma \sqrt{2})\)</span>.
+Images past that decay are left out.
+If those images do not fit in Miller indices <span class="math notranslate nohighlight">\(-48\)</span> through <span class="math notranslate nohighlight">\(48\)</span>, the
+evaluation fails with <code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_EVALUATION_FAILED</span></code> and
+<code class="docutils literal notranslate"><span class="pre">periodic</span> <span class="pre">embedding</span> <span class="pre">did</span> <span class="pre">not</span> <span class="pre">converge</span></code>, and it does not drop the tail.
+The field at a QM centre is that sum over the MM charges.
+Inside the cap, with no split, it is
+<span class="math notranslate nohighlight">\((4\pi q / V) \exp(-\sigma^2 |G|^2 / 2) \, G \sin(G \cdot d) / |G|^2\)</span>, with
+<span class="math notranslate nohighlight">\(d\)</span> the Bohr vector from the charge to the centre.
+The induction energy is <span class="math notranslate nohighlight">\(-\frac{1}{2} \alpha |E|^2\)</span> with <span class="math notranslate nohighlight">\(\alpha = 0.20 Z\)</span>.
+The QM forces and the MM forces from that energy are both <code class="docutils literal notranslate"><span class="pre">-dE/dR</span></code>.
+The reference stress snapshot stays invalid on these steps, because that tensor
+is the strain derivative of the harmonic reference energy and does not include
+this induction.
+GROMACS and LAMMPS still refuse a periodic electrostatic embedding before they
+reach this path.
 An isolated or cluster deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">ISOLATED</span></code>,
 <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code>, <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, or <code class="docutils literal notranslate"><span class="pre">ISOLATED</span> <span class="pre">MOLECULE</span></code>) with an isolated cell, and
 an all-zero cell, are accepted.
@@ -1359,6 +1416,10 @@ non-zero box fails with <code class="docutils literal notranslate"><span class="
 reference evaluator when a non-zero periodic cell cannot represent a finite
 positive stress volume (<code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">large</span> <span class="pre">for</span> <span class="pre">binary64</span></code> or
 <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">representable</span> <span class="pre">for</span> <span class="pre">stress</span></code>).
+A position that is not finite fails before evaluation with
+<code class="docutils literal notranslate"><span class="pre">positions</span> <span class="pre">contain</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_INVALID_ARGUMENT</span></code>, and <code class="docutils literal notranslate"><span class="pre">energy_h</span></code> stays 0.
+That failure is reported before the property gradient snapshot limit.
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code> writes the required byte count to <code class="docutils literal notranslate"><span class="pre">\*out_size</span></code>
 before it checks <code class="docutils literal notranslate"><span class="pre">capacity</span></code>.
 When <code class="docutils literal notranslate"><span class="pre">capacity</span></code> is too small, or <code class="docutils literal notranslate"><span class="pre">out</span></code> is <code class="docutils literal notranslate"><span class="pre">NULL</span></code>, it returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code> with
@@ -1446,7 +1507,9 @@ and the session’s cache.
 The topology and repeat-step rules of the session apply.</p>
 <p>It returns -1 and sets <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> for a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> session
 (<code class="docutils literal notranslate"><span class="pre">null</span> <span class="pre">session</span></code>), <code class="docutils literal notranslate"><span class="pre">n_atoms</span></code> outside 1 to <code class="docutils literal notranslate"><span class="pre">INT_MAX</span> <span class="pre">/</span> <span class="pre">3</span></code> or a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> required
-pointer (<code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">arguments</span></code>), a topology change, and a failed evaluation.
+pointer (<code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">arguments</span></code>), a position that is not finite
+(<code class="docutils literal notranslate"><span class="pre">positions</span> <span class="pre">contain</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>), a topology change, and a failed
+evaluation.
 For a non-zero
 <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code>, it fails before fixing the session topology with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>, <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">have</span> <span class="pre">three</span> <span class="pre">independent</span> <span class="pre">vectors</span></code>, or <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">volume</span> <span class="pre">is</span> <span class="pre">too</span> <span class="pre">small</span> <span class="pre">for</span> <span class="pre">binary64</span></code> judged on the converted Angstrom cell; when <code class="docutils literal notranslate"><span class="pre">virial_h</span></code>
 is not <code class="docutils literal notranslate"><span class="pre">NULL</span></code> and <code class="docutils literal notranslate"><span class="pre">cell_bohr</span></code> is finite, a Bohr volume above <code class="docutils literal notranslate"><span class="pre">DBL_MAX</span></code> fails
@@ -1493,7 +1556,11 @@ QM/MM interface (see <a class="reference internal" href="../howto/gromacs.html">
 <p>A one-shot call reuses the stored orbitals when its basis matches the previous
 call in the process.
 The first call of the process is cold.
-Use a session for more than one step.</p>
+Use a session for more than one step.
+A position that is not finite fails with
+<code class="docutils literal notranslate"><span class="pre">positions</span> <span class="pre">contain</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>.
+A cell that is not finite fails with <code class="docutils literal notranslate"><span class="pre">cell</span> <span class="pre">contains</span> <span class="pre">a</span> <span class="pre">non-finite</span> <span class="pre">component</span></code>.
+Both leave <code class="docutils literal notranslate"><span class="pre">energy_h</span></code> at 0 and set <code class="docutils literal notranslate"><span class="pre">CPMDC_ERROR_INVALID_ARGUMENT</span></code>.</p>
 </section>
 <section id="results-of-the-last-evaluation">
 <h2>Results of the last evaluation<a class="headerlink" href="#results-of-the-last-evaluation" title="Link to this heading">¶</a></h2>

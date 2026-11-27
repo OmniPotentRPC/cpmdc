@@ -468,8 +468,11 @@ the host working directory.</p>
 The wavefunction, forces, and module state of that call are undefined.
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and the warm cell, and the next call on the
 same session sets CPMD up again.
-With more than one MPI rank, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> aborts the other ranks, which would
-otherwise stay blocked in the call <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returned from.</p>
+With more than one MPI rank, a stop that has returned to the setup list is
+agreed before the next setup collective.
+Every rank then drops the partial setup and reports the stop.
+A rank that is already waiting in a different collective is not reached by that
+agreement.</p>
 </section>
 <section id="topology-change-requires-a-new-session">
 <h3><code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code><a class="headerlink" href="#topology-change-requires-a-new-session" title="Link to this heading">¶</a></h3>

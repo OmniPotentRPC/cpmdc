@@ -86,10 +86,16 @@ What one evaluation does
    ``/proc/self/fd/N``, and runs OpenCPMD's own setup on it (``control``, ``dftin``,
    ``sysin``, ``ratom``, ``setsys``, ``rinit``, and the rest), then the SCF through
    ``wfopts``.
+   A failure in that composition, the memfd, or the pseudopotential directory is
+   agreed by every rank before setup begins, and every rank reports the same
+   text.
+   A deck that already defines an external potential is one of those failures.
 
 4. On a warm step, the bridge writes the new positions into ``coor%tau0``
    (Angstrom to Bohr), recomputes the structure factors with ``phfac``, restores
    the saved orbitals, and runs ``wfopts`` again.
+   An output directory that is not a directory is agreed before that evaluation,
+   and the setup stays in place.
 
 5. After the SCF, the bridge reads ``ener_com%etot`` and ``coor%fion``, copies the
    energy components, charges, dipole, and stress into the session, and reports

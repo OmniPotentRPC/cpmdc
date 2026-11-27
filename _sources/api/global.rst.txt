@@ -504,7 +504,7 @@ Compute energy and nuclear gradient for an atomic configuration.
 
 Positions are Angstrom, ``3 * n_atoms`` doubles, atom-major. The gradient buffer holds ``3 * n_atoms`` doubles and receives Hartree/Bohr (CPMD ionic forces are negated into a nuclear gradient for API symmetry with nwchemc). Atomic numbers must be in 1..118.
 
-Each call applies ``params_capnp`` like ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>``` and then evaluates. ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>``` detaches the process image without clearing the stored orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom count, and elemental composition match the latched basis, and whose step without a cell matches a latched state that also has no cell (``CPMDC_CELL_IN_PLACE`` does not apply without a cell, because ``embed_cell_moves_in_place`` returns false when ``has_cell`` is 0), skips full CPMD setup. It then starts the SCF from the stored orbitals when the geometry is within ``CPMDC_WARM_RMSD`` (default 0.15 Angstrom) of a stored geometry, and from the deck's guess without full setup beyond that limit. Any other call runs full CPMD setup and starts from a cold SCF. On failure ``ok`` is 0, ``message`` holds the reason, and ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>``` repeats it.
+Each call applies ``params_capnp`` like ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>``` and then evaluates. ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>``` detaches the process image without clearing the stored orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom count, and elemental composition match the latched basis, and whose step without a cell matches a latched state that also has no cell (``CPMDC_CELL_IN_PLACE`` does not apply without a cell, because ``embed_cell_moves_in_place`` returns false when ``has_cell`` is 0), skips full CPMD setup. It then starts the SCF from the stored orbitals when the geometry is within ``CPMDC_WARM_RMSD`` (default 0.15 Angstrom) of a stored geometry, and from the deck's guess without full setup beyond that limit. Any other call runs full CPMD setup and starts from a cold SCF. On failure ``ok`` is 0, ``message`` holds the reason, and ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>``` repeats it. A coordinate that is not finite fails before evaluation. ``energy_h`` is 0, ``message`` is ``positions contain a non-finite component``, and ``:ref:`cpmdc_last_error_code() <doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a>``` is ``CPMDC_ERROR_INVALID_ARGUMENT``. ``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1aa75a9ff4660e780e32a8fcca0d57074d>``` and ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1a61e3c6a4a0da4621b9d71778b330570f>``` apply the same check. A call rejected before ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a478a6c96ceae691bfa28d71a33a21b12>``` does not install ``params_capnp``. The active session, the selected orbitals, and the previous result stay as they were. Once parameters are installed, a failed SCF or a stopgm clears the stored result, as a failed cold call does.
 
 .. index:: pair: function; cpmdc_energy
 .. _doxid-cpmdc_8h_1aa75a9ff4660e780e32a8fcca0d57074d:
@@ -634,7 +634,7 @@ Positions and Gaussian standard deviations are Angstrom; charges are in units of
 
 Every charge and position must be finite, and every width must be finite and at least 1e-12 Angstrom. A narrower width is refused with ``CPMDC_ERROR_INVALID_ARGUMENT`` and leaves the previous charge set in place, because the force terms scale as ``1 / sigma^4`` and overflow to NaN for much narrower Gaussians. The same lower bound applies to ``CPMDC_EXTERNAL_CHARGE_WIDTH_ANG``.
 
-The interaction kernel is ``erf(r / (sqrt(2) sigma)) / r``, evaluated from its closed form for ``r / sigma`` above 1/8 and from a Taylor series in ``(r / sigma)^2`` through ``(r / sigma)^14`` below it, so a charge at an ion position gives a finite energy and force. Only isolated systems are supported. A periodic cell, or a deck that is not an isolated system, fails with ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`` on every evaluation path.
+The interaction kernel is ``erf(r / (sqrt(2) sigma)) / r``, evaluated from its closed form for ``r / sigma`` above 1/8 and from a Taylor series in ``(r / sigma)^2`` through ``(r / sigma)^14`` below it, so a charge at an ion position gives a finite energy and force. Unless ``CPMDC_PERIODIC_EMBEDDING`` is ``1`` on a reference build, only an isolated system is supported. A periodic cell, or a deck that is not an isolated system, then fails with ``CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`` on every evaluation path. With the variable set to ``1``, a reference build evaluates the conducting-boundary Ewald field when the call passes a cell. A periodic deck on a call that passes no cell still fails with that code. An OpenCPMD build ignores the variable and still fails.
 
 .. index:: pair: function; cpmdc_session_last_external_charge_forces
 .. _doxid-cpmdc_8h_1a3c8f6bb4736b856034472e8b0d24f51a:
@@ -790,7 +790,7 @@ Compute forces for one ``ForceInput`` step and write ``PotentialResult``.
 
 Direct-call socket entry point: method state in the session, geometry in ``ForceInput``, output energy/forces converted to ``ForceInput.energyUnit`` and ``energyUnit / lengthUnit``.
 
-When ``potential_result_capnp_capacity_bytes`` is too small, or ``potential_result_capnp`` is ``NULL``, returns ``ok == 0``, writes the required byte count to ``potential_result_capnp_size_bytes``, and does not evaluate CPMD. ``potential_result_capnp_size_bytes`` is required: a ``NULL`` there fails with ``ok == 0``. It is set to 0 when the ``ForceInput`` does not parse or its geometry is invalid. Size the buffer with ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3>```.
+When ``potential_result_capnp_capacity_bytes`` is too small, or ``potential_result_capnp`` is ``NULL``, returns ``ok == 0``, writes the required byte count to ``potential_result_capnp_size_bytes``, and does not evaluate CPMD. ``potential_result_capnp_size_bytes`` is required: a ``NULL`` there fails with ``ok == 0``. It is set to 0 when the ``ForceInput`` does not parse or its geometry is invalid. Size the buffer with ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3>```. A position that is not finite fails before evaluation. ``energy_h`` is 0, ``message`` is ``positions contain a non-finite component``, and ``:ref:`cpmdc_last_error_code() <doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a>``` is ``CPMDC_ERROR_INVALID_ARGUMENT``. That failure is reported before the property gradient snapshot limit.
 
 .. index:: pair: function; cpmdc_session_calculate_au
 .. _doxid-cpmdc_8h_1a091584d601b5f5d8a5586278921f507c:
@@ -826,7 +826,7 @@ A repeat matches the stored step atom by atom, in any atom order, when the eleme
 
 .. rubric:: Returns:
 
-0 on success; -1 on a ``NULL`` ``session``, ``positions_bohr``, ``atomic_numbers``, ``energy_h``, or ``forces_h_bohr``; ``n_atoms`` outside 1.. ``INT_MAX / 3``; an atomic number outside 1..118; a change of the atom count or of the element counts after the topology is fixed; an allocation failure; or a failed evaluation. Failure text is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```, empty after a success. On -1 ``energy_h`` and ``virial_h`` are not written, and the contents of ``forces_h_bohr`` are unspecified.
+0 on success; -1 on a ``NULL`` ``session``, ``positions_bohr``, ``atomic_numbers``, ``energy_h``, or ``forces_h_bohr``; ``n_atoms`` outside 1.. ``INT_MAX / 3``; an atomic number outside 1..118; a position that is not finite (``positions contain a non-finite component``); a change of the atom count or of the element counts after the topology is fixed; an allocation failure; or a failed evaluation. Failure text is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```, empty after a success. On -1 ``energy_h`` and ``virial_h`` are not written, and the contents of ``forces_h_bohr`` are unspecified.
 
 .. index:: pair: function; cpmdc_calculate_result
 .. _doxid-cpmdc_8h_1a6593b7d0a1dfe139b549c79a36a283a2:
@@ -838,7 +838,7 @@ A repeat matches the stored step atom by atom, in any atom order, when the eleme
 
 One-shot Cap'n Proto entry point (params + ForceInput -> PotentialResult).
 
-Multi-step callers should create one session and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1a6981f28db92bd13bbb72da827b4beb79>``` per step.
+Multi-step callers should create one session and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1a6981f28db92bd13bbb72da827b4beb79>``` per step. A position that is not finite fails with ``positions contain a non-finite component``. A cell that is not finite fails with ``cell contains a non-finite component``. ``ok`` is 0, ``energy_h`` is 0, and ``:ref:`cpmdc_last_error_code() <doxid-cpmdc_8h_1a32d6b7bee5276b4bbafdce4b83faf40a>``` is ``CPMDC_ERROR_INVALID_ARGUMENT``.
 
 .. index:: pair: function; cpmdc_calculate_result_from_config
 .. _doxid-cpmdc_8h_1a8d9484b04ab3dd2ec72a40429e4f6721:
@@ -850,7 +850,7 @@ Multi-step callers should create one session and call ``:ref:`cpmdc_session_calc
 
 One-shot Cap'n Proto entry point resolving a full ``PotentialConfig`` (native arm plus common overlay, exactly like ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a4ead93418d798f0efa78201ee139a78e>```).
 
-Multi-step callers should create one session via ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>``` and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1a6981f28db92bd13bbb72da827b4beb79>``` per step.
+Multi-step callers should create one session via ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a65402554e1821ffb4c432d96455ef16c>``` and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1a6981f28db92bd13bbb72da827b4beb79>``` per step. A non-finite position or cell is refused the same way as ``:ref:`cpmdc_calculate_result() <doxid-cpmdc_8h_1a6593b7d0a1dfe139b549c79a36a283a2>```.
 
 .. index:: pair: function; cpmdc_potential_result_size_for_force_input
 .. _doxid-cpmdc_8h_1a1761e5bac8d880d8752e94479ba635a3:

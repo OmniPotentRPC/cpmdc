@@ -56,8 +56,10 @@ The caller then continues past the failed check.
 The wavefunction, ``fion``, and module state of that call are undefined, so
 ``cpmdc`` discards the result and sets CPMD up again before the next call.
 ``stopgm`` runs only on the ranks that hit the error.
-A host with more than one rank aborts the others, because a rank that returns
-while the rest wait in an MPI call leaves them waiting.
+A stop that has returned to the setup list is agreed by every calculator rank
+before the next collective, and every rank reports that stop.
+A rank already waiting in a different collective is not reached by that
+agreement.
 A standalone ``cpmd.x`` leaves the pointer null and links without ``libcpmdc``.
 While an evaluation is armed, ``libcpmdc`` stores a catch in the pointer.
 The catch records the code and returns 1, and ``cpmdc`` reports the stop as a

@@ -384,6 +384,10 @@ data-aria-dark="Switch to auto color mode">
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code> on each evaluation and orbital copy, <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_rwfopt.patch</span></code> when the host has not already agreed a value, and <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>, which adds the extrapolation history to the count</p></td>
 <td><p>unset leaves keyed orbital storage unbounded; on an OpenCPMD build a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key’s history; the reference build stores neither and counts parked keys only; empty, zero, negative, and non-integer values fail the call</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_PERIODIC_EMBEDDING</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code> and <code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each evaluation that has external charges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> on a reference build uses the conducting-boundary Ewald field of those Gaussians instead of refusing a periodic cell; any other value, or unset, keeps the refusal; an OpenCPMD build ignores the variable</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -408,6 +412,15 @@ The pseudopotential directory is left unchanged.</p>
 and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_PERIODIC_EMBEDDING=1</span></code> is read on each evaluation that has external
+charges.
+On a reference build it selects the conducting-boundary Ewald field described in
+the C ABI reference, instead of refusing a periodic cell.
+Any other value, or an unset variable, keeps that refusal.
+A periodic deck on a call that passes no cell keeps the refusal as well, because
+the field has no lattice vectors.
+An OpenCPMD build ignores the variable.
+The reference stress snapshot stays invalid on a step that takes this field.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_RECENTER</span></code> acts on an isolated deck (<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, a Poisson solver,
 <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, <code class="docutils literal notranslate"><span class="pre">SURFACE</span></code> or <code class="docutils literal notranslate"><span class="pre">POLYMER</span></code>); a periodic deck is not moved.
 A slab (<code class="docutils literal notranslate"><span class="pre">SURFACE</span></code>) moves only along its normal and a wire (<code class="docutils literal notranslate"><span class="pre">POLYMER</span></code>) only

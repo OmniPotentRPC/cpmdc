@@ -36,6 +36,8 @@ Read by libcpmdc at run time
     +------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
     | ``CPMDC_ORBITAL_SLOT_LIMIT`` | ``src/cpmdc.c`` on each evaluation and orbital copy, ``tools/opencpmd_embed_rwfopt.patch`` when the host has not already agreed a value, and ``tools/opencpmd_embed_extrapolate.patch``, which adds the extrapolation history to the count | unset leaves keyed orbital storage unbounded; on an OpenCPMD build a positive integer is the most parked orbital copies plus populated extrapolation-history entries, including the selected key's history; the reference build stores neither and counts parked keys only; empty, zero, negative, and non-integer values fail the call |
     +------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``CPMDC_PERIODIC_EMBEDDING`` | ``src/cpmdc.c`` and ``src/cpmd_embed_c_api.F90``, each evaluation that has external charges                                                                                                                                                | ``1`` on a reference build uses the conducting-boundary Ewald field of those Gaussians instead of refusing a periodic cell; any other value, or unset, keeps the refusal; an OpenCPMD build ignores the variable                                                                                                                        |
+    +------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 A cold OpenCPMD evaluation fails when neither ``CPMDC_PSEUDO_DIR`` nor
 ``CPMD_PP_LIBRARY_PATH`` names an existing directory.
@@ -59,6 +61,16 @@ The pseudopotential directory is left unchanged.
 and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.
+
+``CPMDC_PERIODIC_EMBEDDING=1`` is read on each evaluation that has external
+charges.
+On a reference build it selects the conducting-boundary Ewald field described in
+the C ABI reference, instead of refusing a periodic cell.
+Any other value, or an unset variable, keeps that refusal.
+A periodic deck on a call that passes no cell keeps the refusal as well, because
+the field has no lattice vectors.
+An OpenCPMD build ignores the variable.
+The reference stress snapshot stays invalid on a step that takes this field.
 
 ``CPMDC_RECENTER`` acts on an isolated deck (``SYMMETRY 0``, a Poisson solver,
 ``CLUSTER``, ``SURFACE`` or ``POLYMER``); a periodic deck is not moved.

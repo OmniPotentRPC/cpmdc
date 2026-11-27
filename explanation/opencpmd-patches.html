@@ -377,8 +377,10 @@ The caller then continues past the failed check.
 The wavefunction, <code class="docutils literal notranslate"><span class="pre">fion</span></code>, and module state of that call are undefined, so
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> discards the result and sets CPMD up again before the next call.
 <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> runs only on the ranks that hit the error.
-A host with more than one rank aborts the others, because a rank that returns
-while the rest wait in an MPI call leaves them waiting.
+A stop that has returned to the setup list is agreed by every calculator rank
+before the next collective, and every rank reports that stop.
+A rank already waiting in a different collective is not reached by that
+agreement.
 A standalone <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the pointer null and links without <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.
 While an evaluation is armed, <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> stores a catch in the pointer.
 The catch records the code and returns 1, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reports the stop as a

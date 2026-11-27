@@ -419,7 +419,10 @@ shows these fields unchanged.
 A <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> during the call is not that failure: the wavefunction, forces, and
 module state of the call are undefined, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and
 the warm cell, and the next call runs setup again.
-With more than one MPI rank, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> aborts the other ranks.</p>
+With more than one MPI rank, a stop that has returned to the setup list is
+agreed before the next collective, and every rank reports it.
+A rank already waiting in a different collective is not reached by that
+agreement.</p>
 </section>
 <section id="where-the-orbitals-are-kept">
 <h2>Where the orbitals are kept<a class="headerlink" href="#where-the-orbitals-are-kept" title="Link to this heading">¶</a></h2>

@@ -759,6 +759,12 @@ OpenCPMD path adds before CPMD parses it.</p>
 <p>On a cold OpenCPMD evaluation the Fortran bridge in
 <code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code> composes the full deck, and <code class="docutils literal notranslate"><span class="pre">src/cpmdc_memfd.c</span></code> puts it in an anonymous Linux <code class="docutils literal notranslate"><span class="pre">memfd_create</span></code>
 file that CPMD reads as <code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code>, so no <code class="docutils literal notranslate"><span class="pre">INPUT</span></code> file reaches the disk.
+A failure while composing that deck, creating the memfd, or entering the
+pseudopotential directory is agreed by every calculator rank before OpenCPMD
+setup begins, and every rank reports the same text.
+A deck that already defines an external potential is one of those failures.
+A warm step whose output directory is not a directory is agreed before the
+energy evaluation, and that setup stays in place.
 <code class="docutils literal notranslate"><span class="pre">src/cpmdc_embed_host.c</span></code> resolves the pseudopotential directory and maps
 species-block gradients back to atom order.
 <a class="reference internal" href="../explanation/architecture.html"><span class="doc">Architecture</span></a> walks the layer list.</p>

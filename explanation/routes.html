@@ -476,7 +476,7 @@ by side, and ODIIS instead of <code class="docutils literal notranslate"><span c
 </tr>
 <tr class="row-even"><td><p>a CPMD stop</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> ends and the wrapper sees a failed run</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code> returns nonzero, the call’s wavefunction and forces are undefined, and the next call sets CPMD up again. More than one rank aborts the others</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code> returns nonzero, the call’s wavefunction and forces are undefined, and the next call sets CPMD up again. A stop that has returned to the setup list is agreed before the next collective. A rank already waiting in a different collective is not reached by that agreement</p></td>
 </tr>
 <tr class="row-odd"><td><p>rank consistency under <code class="docutils literal notranslate"><span class="pre">mpirun</span></code></p></td>
 <td><p>none: the host runs as one process</p></td>

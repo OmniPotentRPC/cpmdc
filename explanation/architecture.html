@@ -433,10 +433,16 @@ All of that is before any CPMD work.</p></li>
 and the step geometry, writes it to an anonymous <code class="docutils literal notranslate"><span class="pre">memfd</span></code> exposed as
 <code class="docutils literal notranslate"><span class="pre">/proc/self/fd/N</span></code>, and runs OpenCPMD’s own setup on it (<code class="docutils literal notranslate"><span class="pre">control</span></code>, <code class="docutils literal notranslate"><span class="pre">dftin</span></code>,
 <code class="docutils literal notranslate"><span class="pre">sysin</span></code>, <code class="docutils literal notranslate"><span class="pre">ratom</span></code>, <code class="docutils literal notranslate"><span class="pre">setsys</span></code>, <code class="docutils literal notranslate"><span class="pre">rinit</span></code>, and the rest), then the SCF through
-<code class="docutils literal notranslate"><span class="pre">wfopts</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">wfopts</span></code>.
+A failure in that composition, the memfd, or the pseudopotential directory is
+agreed by every rank before setup begins, and every rank reports the same
+text.
+A deck that already defines an external potential is one of those failures.</p></li>
 <li><p>On a warm step, the bridge writes the new positions into <code class="docutils literal notranslate"><span class="pre">coor%tau0</span></code>
 (Angstrom to Bohr), recomputes the structure factors with <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, restores
-the saved orbitals, and runs <code class="docutils literal notranslate"><span class="pre">wfopts</span></code> again.</p></li>
+the saved orbitals, and runs <code class="docutils literal notranslate"><span class="pre">wfopts</span></code> again.
+An output directory that is not a directory is agreed before that evaluation,
+and the setup stays in place.</p></li>
 <li><p>After the SCF, the bridge reads <code class="docutils literal notranslate"><span class="pre">ener_com%etot</span></code> and <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, copies the
 energy components, charges, dipole, and stress into the session, and reports
 failure when the orbitals did not converge.</p></li>
