@@ -419,7 +419,7 @@ The CPMD files O_MT_PBE.psp and H_MT_PBE.psp come from the OpenCPMD extended pse
 ~bench/results/pbe_pseudopotential_headers.org~ records their headers, and the runs used the files with these SHA-256 sums:
 
 #+begin_src bash
-scripts/ci/fetch_pseudopotentials.sh pp
+scripts/ci/fetch_pseudopotentials.sh --pbe pp
 for f in O.pbe-mt_fhi.UPF H.pbe-mt_fhi.UPF; do
   curl -fsSL -o pp/$f https://pseudopotentials.quantum-espresso.org/upf_files/$f
 done
