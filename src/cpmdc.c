@@ -2407,15 +2407,18 @@ int cpmdc_agree_cold_stop(void) {
 
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
 /* The reference build has no setup list. One collective stands in for
- * the step that just returned, rank 1 notes a stop, and then every rank
- * either frees the stand-in group or enters the next collective. */
+ * the step that just returned. Rank 1 notes a stop, a cold deck close
+ * failure, or an output directory failure. Every rank then either frees
+ * the stand-in group or enters the next collective. */
 static int cpmdc_cold_setup_stop_drill(void) {
 #if defined(CPMDC_HAVE_MPI)
   MPI_Comm world = MPI_COMM_WORLD;
   MPI_Comm setup = MPI_COMM_NULL;
+  const char *fault = getenv("CPMDC_TEST_FAULT");
   int rank = 0;
   int inited = 0;
   int agreed;
+  int local_failure = 0;
   if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
     return -1;
   if (cpmdc_adopted_comm(&world, sizeof(world)) != 0)
@@ -2428,10 +2431,24 @@ static int cpmdc_cold_setup_stop_drill(void) {
     MPI_Comm_free(&setup);
     return -1;
   }
-  if (rank == 1)
+  if (rank == 1 && fault && strcmp(fault, "cold-deck-close") == 0) {
+    cpmdc_note_embed_failure("cannot close the cold deck");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-output-dir") == 0) {
+    cpmdc_note_embed_failure("CPMD output directory is not a directory");
+    local_failure = 1;
+  } else if (rank == 1) {
     cpmdc_note_stop(1);
+  }
   agreed = cpmdc_agree_cold_stop();
   if (agreed != 0) {
+    if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+      return -1;
+    return 1;
+  }
+  /* This rank failed on its own. Leaving here frees the group while
+   * the others enter the next collective and the job waits. */
+  if (local_failure) {
     if (MPI_Comm_free(&setup) != MPI_SUCCESS)
       return -1;
     return 1;
@@ -2489,7 +2506,8 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)overrides;
   cpmdc_stop_arm();
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
-  if (test_fault("cold-setup-stop")) {
+  if (test_fault("cold-setup-stop") || test_fault("cold-deck-close") ||
+      test_fault("cold-output-dir")) {
     int drill = cpmdc_cold_setup_stop_drill();
     if (drill < 0) {
       cpmdc_stop_disarm();
@@ -2497,12 +2515,17 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
     }
     if (drill > 0) {
       int stop = cpmdc_stop_code();
+      char detail[sizeof(g_embed_detail)];
+      memcpy(detail, g_embed_detail, sizeof(detail));
       cpmdc_stop_disarm();
-      if (stop == 0)
-        cpmdc_note_stop(1);
       (void)cpmdc_embed_reset_state(image);
       image_invalidate_results(image);
-      return fail_msg("CPMD stopgm during embed SCF");
+      if (stop != 0 || detail[0] == '\0') {
+        if (stop == 0)
+          cpmdc_note_stop(1);
+        return fail_msg("CPMD stopgm during embed SCF");
+      }
+      return fail_msg(detail);
     }
   }
 #endif

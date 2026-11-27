@@ -251,6 +251,58 @@ static void test_all_results_through_c_and_wire(void **state) {
   free(step);
 }
 
+static void water_step(double *positions, int *numbers);
+
+static void test_nonfinite_position_beats_gradient_snapshot_limit(void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *session = cpmdc_session_create(params, ps);
+  assert_non_null(session);
+  double *positions = calloc((size_t)components, sizeof(*positions));
+  double *gradient = calloc((size_t)components, sizeof(*gradient));
+  int *numbers = malloc((size_t)atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+  positions[4] = nan("");
+
+  CPMDCResult shot =
+      cpmdc_energy_gradient(atoms, positions, numbers, params, ps, gradient);
+  assert_int_equal(shot.ok, 0);
+  assert_string_equal(shot.message, "positions contain a non-finite component");
+  assert_string_equal(cpmdc_last_error(), shot.message);
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_INVALID_ARGUMENT);
+  assert_true(shot.energy_h == 0.0);
+
+  CPMDCResult result = cpmdc_session_energy_gradient(session, atoms, positions,
+                                                    numbers, gradient);
+  assert_int_equal(result.ok, 0);
+  assert_string_equal(result.message, "positions contain a non-finite component");
+  assert_string_equal(cpmdc_last_error(), result.message);
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_INVALID_ARGUMENT);
+  assert_true(result.energy_h == 0.0);
+  assert_null(strstr(result.message, "1365"));
+
+  double water_positions[9];
+  int water_numbers[3];
+  water_step(water_positions, water_numbers);
+  CPMDCResult water = cpmdc_session_energy_gradient(
+      session, 3, water_positions, water_numbers, gradient);
+  assert_int_equal(water.ok, 1);
+  assert_string_equal(water.message, "ok");
+
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
 static void test_gradient_limit_fails_before_evaluation(void **state) {
   (void)state;
   enum { atoms = 1366, components = atoms * 3 };
@@ -426,6 +478,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_dipole_dynamics_with_kpoints_rejected),
       cmocka_unit_test(test_commented_dipole_dynamics_is_not_a_conflict),
       cmocka_unit_test(test_all_results_through_c_and_wire),
+      cmocka_unit_test(test_nonfinite_position_beats_gradient_snapshot_limit),
       cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
       cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
       cmocka_unit_test(

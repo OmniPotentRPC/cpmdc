@@ -5,6 +5,7 @@
 #include "cpmdc.h"
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -15,6 +16,9 @@
 
 static const char *g_params = NULL;
 static const char *g_root = NULL;
+
+int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_cap);
+int cpmdc_memfd_close(int fd);
 
 static const double k_pos[9] = {
     0.0, 0.0, 0.1173, 0.0, 0.7572, -0.4692, 0.0, -0.7572, -0.4692,
@@ -65,6 +69,21 @@ static int count_fds(void) {
   }
   closedir(dir);
   return n;
+}
+
+static void test_failed_close_reports_whether_the_descriptor_remains(void **state) {
+  char path[64];
+  int fd;
+  (void)state;
+
+  assert_int_equal(cpmdc_memfd_close(-1), -1);
+  fd = cpmdc_memfd_write("deck", 4, path, (int)sizeof(path));
+  assert_true(fd >= 0);
+  assert_int_equal(cpmdc_memfd_close(fd), 0);
+  assert_int_equal(fcntl(fd, F_GETFD), -1);
+  /* The number was released. A second close must not be reported as
+   * a descriptor that is still open, or the caller would close it again. */
+  assert_int_equal(cpmdc_memfd_close(fd), -2);
 }
 
 static void test_deck_is_closed_and_fds_stay_flat(void **state) {
@@ -121,6 +140,7 @@ int main(int argc, char **argv) {
   g_params = argv[1];
   g_root = argv[2];
   const struct CMUnitTest tests[] = {
+      cmocka_unit_test(test_failed_close_reports_whether_the_descriptor_remains),
       cmocka_unit_test(test_deck_is_closed_and_fds_stay_flat),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

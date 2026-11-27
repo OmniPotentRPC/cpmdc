@@ -93,6 +93,121 @@ def stop_checked(lines: list[str]) -> bool:
     )
 
 
+def find_line(lines: list[str], pattern: str, start: int = 0) -> int:
+    rx = re.compile(pattern, re.I)
+    for i in range(start, len(lines)):
+        if rx.search(lines[i]):
+            return i
+    raise SystemExit(f"missing {pattern}")
+
+
+def leaves_before_agree(lines: list[str]) -> bool:
+    agree_at = None
+    for i, line in enumerate(lines):
+        lowered = line.lower()
+        if "cold_setup_stopped" in lowered or "cpmdc_agree_cold_stop" in lowered:
+            agree_at = i
+            break
+    if agree_at is None:
+        return True
+    for line in lines[:agree_at]:
+        if "cpmdc_embed_teardown" in line.lower() or re.search(r"\bRETURN\b", line):
+            return True
+    return False
+
+
+def c_function(source: str, signature: str) -> str:
+    start = 0
+    while True:
+        start = source.find(signature, start)
+        if start < 0:
+            raise SystemExit(f"{signature} not found")
+        brace = source.find("{", start)
+        semi = source.find(";", start)
+        if brace >= 0 and (semi < 0 or brace < semi):
+            break
+        start += len(signature)
+    depth = 0
+    for i in range(brace, len(source)):
+        if source[i] == "{":
+            depth += 1
+        elif source[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[brace : i + 1]
+    raise SystemExit(f"{signature} has no closing brace")
+
+
+def descriptor_problems(source: str) -> list[str]:
+    problems = []
+    match = re.search(
+        r"INTEGER FUNCTION close_cold_deck\(\).*?END FUNCTION close_cold_deck",
+        source,
+        re.I | re.S,
+    )
+    if not match:
+        return ["close_cold_deck is missing"]
+    body = code_lines(match.group(0))
+    seen_result = False
+    cleared = False
+    for line in body:
+        if re.search(r"\brc\b", line) and re.search(r"==|/=", line):
+            seen_result = True
+        if re.search(r"\bmfd\s*=\s*-1\b", line):
+            cleared = True
+            if not seen_result:
+                problems.append(
+                    "close_cold_deck clears the descriptor before the close result is tested"
+                )
+    if not cleared:
+        problems.append("close_cold_deck never clears the descriptor")
+    if "-2" not in " ".join(body):
+        problems.append(
+            "close_cold_deck keeps a descriptor number that close has already released"
+        )
+    return problems
+
+
+def memfd_problems(source: str) -> list[str]:
+    body = c_function(source, "int cpmdc_memfd_close")
+    problems = []
+    if "-2" not in body:
+        problems.append(
+            "cpmdc_memfd_close does not report a descriptor that close released"
+        )
+    if "return -1" not in body:
+        problems.append(
+            "cpmdc_memfd_close does not report a descriptor that is still open"
+        )
+    return problems
+
+
+def agreement_problems(fortran: str, library: str, lines: list[str]) -> list[str]:
+    problems = []
+    ratom = find_line(lines, r"^CALL ratom$")
+    vdwin = find_line(lines, r"^CALL vdwin$", ratom)
+    output_dir = find_line(lines, r"embed_use_output_dir", ratom)
+    if output_dir > vdwin or leaves_before_agree(lines[output_dir:vdwin]):
+        problems.append(
+            "output directory failure tears down or returns before every rank agrees"
+        )
+    vdw = find_line(lines, r"^CALL vdw_wf_alloc$")
+    closed = find_line(lines, r"close_cold_deck", vdw)
+    setup = find_line(lines, r"cpmd_set_up\s*=\s*\.TRUE\.", closed)
+    if leaves_before_agree(lines[closed:setup]):
+        problems.append(
+            "cold deck close failure tears down or returns before every rank agrees"
+        )
+    agree = c_function(library, "int cpmdc_agree_cold_stop")
+    if "g_embed_detail" not in agree or "MPI_Bcast" not in agree:
+        problems.append(
+            "cold stop agreement does not publish the pending failure to every rank"
+        )
+    if "cpmdc_agree_cold_stop" not in fortran:
+        problems.append("cold setup does not agree the stop across ranks")
+    return problems
+
+
 def main() -> int:
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parents[1]
     source = (root / "src" / "cpmd_embed_c_api.F90").read_text(encoding="utf-8")
@@ -141,6 +256,15 @@ def main() -> int:
         raise SystemExit(
             "cold setup leaves the list or frees the group before the stop is agreed"
         )
+    library = (root / "src" / "cpmdc.c").read_text(encoding="utf-8")
+    memfd = (root / "src" / "cpmdc_memfd.c").read_text(encoding="utf-8")
+    problems = (
+        agreement_problems(source, library, lines)
+        + descriptor_problems(source)
+        + memfd_problems(memfd)
+    )
+    if problems:
+        raise SystemExit("\n".join(problems))
     print("cold setup reports stopgm before the next init")
     return 0
 
