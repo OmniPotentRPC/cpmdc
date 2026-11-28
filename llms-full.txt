@@ -2307,8 +2307,9 @@ pseudopotential library, and the FHI files from the Quantum ESPRESSO table.
 runs used the files with these SHA-256 sums:
 
 scripts/ci/fetch_pseudopotentials.sh --pbe pp
+site=https://pseudopotentials.quantum-espresso.org
 for f in O.pbe-mt_fhi.UPF H.pbe-mt_fhi.UPF; do
-  curl -fsSL -o pp/$f https://pseudopotentials.quantum-espresso.org/upf_files/$f
+  curl -fsSL -o "pp/$f" "$site/upf_files/$f"
 done
 sha256sum pp/O_MT_PBE.psp pp/H_MT_PBE.psp pp/O.pbe-mt_fhi.UPF pp/H.pbe-mt_fhi.UPF
 
