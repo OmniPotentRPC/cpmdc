@@ -22,7 +22,7 @@ The tests use it to check the ABI without a working evaluator.
 | ~libcpmdc.so~ | ~lib/libcpmdc.so.MAJOR~, or an unversioned ~lib/libcpmdc.so~ when ~with_python~ is on | the C ABI from ~include/cpmdc.h~ |
 | public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | declarations for hosts |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
-| ~libcpmdc_csvr~ | ~lib/libcpmdc_csvr.so~ and ~lib/libcpmdc_csvr.a~ | canonical sampling thermostat, not called by a session |
+| ~libcpmdc_csvr~ | ~lib/libcpmdc_csvr.so.0~ and ~lib/libcpmdc_csvr.a~, or an unversioned ~lib/libcpmdc_csvr.so~ when ~with_python~ is on | canonical sampling thermostat, not called by a session |
 | ~cpmdc_csvr.h~ | ~include/cpmdc/cpmdc_csvr.h~ | declarations for that thermostat |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
@@ -33,6 +33,9 @@ are listed with the options that build them in the [[file:../reference/build-opt
 
 ~MAJOR~ is the soversion, the first field of ~version.txt~.
 A ~with_python~ build sets no soversion, because a wheel stores no symlinks.
+~libcpmdc_csvr~ keeps its own soversion, 0, so a later change of the generator
+layout can bump it without following that major.
+A ~with_python~ build leaves that library unversioned for the same reason.
 
 * Requirements
 The checked-in Pixi manifest pins every build dependency.

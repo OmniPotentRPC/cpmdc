@@ -46,7 +46,7 @@ Repository = "https://github.com/OmniPotentRPC/cpmdc"
 Issues = "https://github.com/OmniPotentRPC/cpmdc/issues"
 Changelog = "https://github.com/OmniPotentRPC/cpmdc/blob/main/CHANGELOG.md"
 
-# The wheel holds the package, libcpmdc, and schema/Potentials.capnp.
+# The wheel holds the package, libcpmdc, libcpmdc_csvr, and schema/Potentials.capnp.
 # Headers, pkg-config files, cpmdc-restart, and subproject installs stay
 # with `meson install`. MPI is off so the wheel needs no MPI runtime.
 [tool.meson-python.args]

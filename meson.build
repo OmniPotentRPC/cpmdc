@@ -602,7 +602,25 @@ cpmdc_restart_dep = declare_dependency(
   include_directories: inc,
 )
 # Opt-in ionic CSVR thermostat. The session does not call it.
-cpmdc_csvr_lib = both_libraries(
+# The shared library keeps its own soversion so a later change of the
+# generator layout can bump it without following version.txt. A wheel
+# stores no symlinks, so the with_python build leaves it unversioned
+# and tags it python-runtime, which is where the loader looks beside
+# the package.
+cpmdc_csvr_static = static_library(
+  'cpmdc_csvr',
+  'src/cpmdc_csvr.c',
+  include_directories: inc,
+  c_args: common_c_args,
+  dependencies: math_dep,
+  install: true,
+)
+if get_option('with_python')
+  cpmdc_csvr_shared_install = {'install_tag': 'python-runtime'}
+else
+  cpmdc_csvr_shared_install = {'soversion': '0'}
+endif
+cpmdc_csvr_shared = shared_library(
   'cpmdc_csvr',
   'src/cpmdc_csvr.c',
   include_directories: inc,
@@ -610,6 +628,7 @@ cpmdc_csvr_lib = both_libraries(
   dependencies: math_dep,
   install: true,
   install_rpath: '',
+  kwargs: cpmdc_csvr_shared_install,
 )
 restart_tool_sources = ['tools/cpmdc_restart.c']
 restart_tool_deps = [cpmdc_restart_dep]
@@ -899,7 +918,7 @@ if get_option('with_tests')
     include_directories: inc,
     c_args: common_c_args,
     dependencies: math_dep,
-    link_with: cpmdc_csvr_lib.get_static_lib(),
+    link_with: cpmdc_csvr_static,
   )
   test('csvr', csvr_test, suite: 'csvr')
   csvr_bench_lib = static_library(
@@ -2280,13 +2299,13 @@ if get_option('with_tests')
     'OMP_NUM_THREADS': '1',
     'MKL_NUM_THREADS': '1',
     'CPMDC_LIBRARY': cpmdc_shared.full_path(),
-    'CPMDC_CSVR_LIBRARY': cpmdc_csvr_lib.get_shared_lib().full_path(),
+    'CPMDC_CSVR_LIBRARY': cpmdc_csvr_shared.full_path(),
     'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
   }
   pytest_depends = [
     cpmdc_shared,
-    cpmdc_csvr_lib.get_shared_lib(),
+    cpmdc_csvr_shared,
     water_params_bin,
     water_periodic_params_bin,
   ]
