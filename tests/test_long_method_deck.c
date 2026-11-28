@@ -177,9 +177,162 @@ static void test_long_method_deck_is_kept(void **state) {
   free(raw);
 }
 
+static int compose_raw_atoms(const char *body, char *cold, int cold_cap) {
+  char *raw = NULL;
+  unsigned char *msg = NULL;
+  size_t msg_n = 0;
+  size_t body_n = strlen(body);
+  double pos[3] = {0.0, 0.0, 0.0};
+  int z[1] = {8};
+  double cell[9] = {0};
+  int cold_len = 0;
+  int rc;
+  const char *prefix = "&CPMD\n OPTIMIZE WAVEFUNCTION\n&END\n&ATOMS\n";
+  size_t prefix_n = strlen(prefix);
+  raw = (char *)malloc(prefix_n + body_n + 8);
+  if (!raw)
+    return -1;
+  memcpy(raw, prefix, prefix_n);
+  memcpy(raw + prefix_n, body, body_n);
+  memcpy(raw + prefix_n + body_n, "\n&END\n", 7);
+  if (pack_raw_params(raw, &msg, &msg_n) != 0) {
+    free(raw);
+    return -1;
+  }
+  if (cpmdc_set_params(msg, msg_n) != 0) {
+    free(msg);
+    free(raw);
+    return -1;
+  }
+  memset(cold, 0, (size_t)cold_cap);
+  rc = cpmdc_embed_compose_cold_deck(1, pos, z, cell, 0, cold, cold_cap, &cold_len);
+  free(msg);
+  free(raw);
+  return rc;
+}
+
+/* A *file line that does not fit the 192, 512 or 600 character buffer fails
+ * the deck. The tail token is not kept on a shortened line. */
+static void test_a_pseudopotential_line_that_does_not_fit_fails(void **state) {
+  char *cold;
+  char *body;
+  int rc;
+  (void)state;
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
+  cold = (char *)calloc(8192, 1);
+  body = (char *)calloc(800, 1);
+  assert_non_null(cold);
+  assert_non_null(body);
+
+  rc = compose_raw_atoms("!SPECIES O\n*O.pbe-mt_fhi.UPF UPF\n LMAX=P", cold, 8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*O.pbe-mt_fhi.UPF UPF"));
+
+  /* Options after the path exceed the 192-character buffer. */
+  {
+    char opts[240];
+    memset(opts, 'X', 200);
+    memcpy(opts + 200, " UPFTAIL", 8);
+    opts[208] = '\0';
+    snprintf(body, 800, "!SPECIES O\n*O.pbe-mt_fhi.UPF %s", opts);
+  }
+  rc = compose_raw_atoms(body, cold, 8192);
+  assert_int_equal(rc, 0);
+  assert_null(strstr(cold, "UPFTAIL"));
+
+  /* The physical line exceeds the 512-character line buffer. */
+  {
+    char line[540];
+    memset(line, 'Y', 520);
+    line[0] = '*';
+    memcpy(line + 513, "UPFTAIL", 7);
+    line[520] = '\0';
+    snprintf(body, 800, "!SPECIES O\n%s", line);
+  }
+  rc = compose_raw_atoms(body, cold, 8192);
+  assert_int_equal(rc, 0);
+  assert_null(strstr(cold, "UPFTAIL"));
+
+  /* Path plus options exceed the 600-character rebuilt *file line. */
+  {
+    char line[640];
+    line[0] = '*';
+    memset(line + 1, 'P', 500);
+    line[501] = ' ';
+    memset(line + 502, 'Q', 112);
+    memcpy(line + 614, "UPFTAIL", 7);
+    line[621] = '\0';
+    snprintf(body, 800, "!SPECIES O\n%s", line);
+  }
+  rc = compose_raw_atoms(body, cold, 8192);
+  assert_int_equal(rc, 0);
+  assert_null(strstr(cold, "UPFTAIL"));
+
+  free(body);
+  free(cold);
+}
+
+/* A .upf path gains UPF on the rebuilt *file line when the raw deck omitted
+ * the token. The suffix match is case insensitive. A token already present
+ * stays once. A .psp path and a name that merely contains those letters do
+ * not gain it. */
+static void test_a_upf_path_gains_upf_on_the_rebuilt_line(void **state) {
+  char *cold;
+  int rc;
+  (void)state;
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
+  cold = (char *)calloc(8192, 1);
+  assert_non_null(cold);
+
+  rc = compose_raw_atoms("!SPECIES O\n*O.pbe-mt_fhi.UPF\n LMAX=P", cold, 8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*O.pbe-mt_fhi.UPF UPF"));
+  assert_null(strstr(cold, " UPF UPF"));
+  assert_non_null(strstr(cold, " LMAX=P"));
+
+  rc = compose_raw_atoms(
+      "!SPECIES O\n*O.pbe-mt_fhi.upf RAGGIO=1.200000 NLCC\n LMAX=P", cold,
+      8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(
+      strstr(cold, "*O.pbe-mt_fhi.upf RAGGIO=1.200000 NLCC UPF"));
+  assert_null(strstr(cold, " UPF UPF"));
+
+  rc = compose_raw_atoms("!SPECIES O\n*water.Upf NLCC\n LMAX=D", cold, 8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*water.Upf NLCC UPF"));
+
+  rc = compose_raw_atoms("!SPECIES O\n*O.pbe-mt_fhi.UPF UPF\n LMAX=P", cold,
+                         8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*O.pbe-mt_fhi.UPF UPF"));
+  assert_null(strstr(cold, " UPF UPF"));
+
+  rc = compose_raw_atoms("!SPECIES O\n*O.pbe-mt_fhi.UPF upf\n LMAX=P", cold,
+                         8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*O.pbe-mt_fhi.UPF upf"));
+  assert_null(strstr(cold, "upf UPF"));
+
+  rc = compose_raw_atoms("!SPECIES O\n*O_MT_PBE.psp\n LMAX=P", cold, 8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*O_MT_PBE.psp"));
+  assert_null(strstr(cold, "*O_MT_PBE.psp UPF"));
+  assert_null(strstr(cold, "UPF"));
+
+  rc = compose_raw_atoms("!SPECIES O\n*notupf.upfbackup\n LMAX=P", cold, 8192);
+  assert_int_equal(rc, 1);
+  assert_non_null(strstr(cold, "*notupf.upfbackup"));
+  assert_null(strstr(cold, "UPF"));
+
+  free(cold);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_long_method_deck_is_kept),
+      cmocka_unit_test(test_a_pseudopotential_line_that_does_not_fit_fails),
+      cmocka_unit_test(test_a_upf_path_gains_upf_on_the_rebuilt_line),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

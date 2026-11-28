@@ -105,19 +105,21 @@ host owns them.
 | Field | Default | Deck |
 |-------+---------+------|
 | ~element~ | | element symbol, such as ~"Si"~ |
-| ~path~ | | the ~*file~ line, a library name or a path |
+| ~path~ | | the ~*file~ line, a library name or a path; a name ending in ~.upf~, in any case, adds ~UPF~ |
 | ~lmax~, ~loc~, ~skip~ | -1, omitted | ~LMAX=~, ~LOC=~, ~SKIP=~; 0 is ~S~, 1 ~P~, 2 ~D~, 3 ~F~ |
 | ~kleinmanBylander~ | ~false~ | ~KLEINMAN-BYLANDER~ on the ~*file~ line |
-| ~raggio~ | 0, omitted | ~RAGGIO=~ |
-| ~nonlinearCore~ | ~false~ | ~NLCC~ |
+| ~raggio~ | 0, omitted | ~RAGGIO=~ on the ~*file~ line |
+| ~nonlinearCore~ | ~false~ | ~NLCC~ on the ~*file~ line |
 
 The ~atoms~ section also carries ~constraints~, ~isotopes~, ~velocities~,
 ~dummyAtoms~, ~changeBonds~, ~generate~, and ~directives~.
 Coordinates never go here.
 On the OpenCPMD path, the ~&ATOMS~ block CPMD reads is rebuilt from each step's
 geometry.
-Entries in ~pseudopotentials~ supply the file, ~LMAX~, ~LOC~, and
-~KLEINMAN-BYLANDER~ for the elements they name.
+Entries in ~pseudopotentials~ supply the ~*file~ line with its options and the
+~LMAX~ line for the elements they name.
+CPMD reads a UPF file's projectors and local part from the file, so it ignores
+~lmax~ and ~loc~ for one; it reads norm-conserving UPF only.
 Elements left out of that list use a built-in table for H, C, N, O, Si, and Ge;
 see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 

@@ -12,9 +12,11 @@
 #include "cpmdc.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <math.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -534,4 +536,96 @@ void cpmdc_orbital_note_stored(void) {
   if (g_have_selected)
     g_selected_has_store = 1;
 #endif
+}
+
+/* CPMDC_TIPRI_EVERY is read on calculator rank 0 and broadcast before
+ * tipri. gfortran's GET_ENVIRONMENT_VARIABLE into a 16-character buffer
+ * reports status -1 and drops the value when it does not fit; that used
+ * to leave the interval unset on that rank alone, so the collective
+ * print waited. A value longer than 16 characters fails every rank. */
+static const char k_tipri_long[] =
+    "CPMDC_TIPRI_EVERY is longer than 16 characters";
+static const char k_tipri_mpi[] = "CPMDC_TIPRI_EVERY could not be broadcast";
+
+static void parse_tipri_every(int *every, int *too_long) {
+  const char *raw = getenv("CPMDC_TIPRI_EVERY");
+  const char *begin;
+  char *end = NULL;
+  long value;
+  *every = 0;
+  *too_long = 0;
+  if (!raw || raw[0] == '\0')
+    return;
+  if (strlen(raw) > 16) {
+    *too_long = 1;
+    return;
+  }
+  begin = raw;
+  while (*begin && isspace((unsigned char)*begin))
+    begin++;
+  if (*begin == '+')
+    begin++;
+  if (*begin == '\0')
+    return;
+  errno = 0;
+  value = strtol(begin, &end, 10);
+  if (end == begin || errno == ERANGE)
+    return;
+  while (*end && isspace((unsigned char)*end))
+    end++;
+  if (*end || value <= 0 || value > INT_MAX)
+    return;
+  *every = (int)value;
+}
+
+int cpmdc_agree_tipri_every(int *every, const char **err) {
+  int pair[2] = {0, 0};
+  int rank = 0;
+  *every = 0;
+  *err = NULL;
+#if defined(CPMDC_HAVE_MPI)
+  {
+    int inited = 0;
+    int finalized = 0;
+    MPI_Comm comm;
+    if (MPI_Initialized(&inited) != MPI_SUCCESS) {
+      *err = k_tipri_mpi;
+      return -1;
+    }
+    if (inited) {
+      if (MPI_Finalized(&finalized) != MPI_SUCCESS) {
+        *err = k_tipri_mpi;
+        return -1;
+      }
+      if (!finalized) {
+        if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+          comm = MPI_COMM_WORLD;
+        if (MPI_Comm_rank(comm, &rank) != MPI_SUCCESS) {
+          *err = k_tipri_mpi;
+          return -1;
+        }
+        if (rank == 0)
+          parse_tipri_every(&pair[0], &pair[1]);
+        if (MPI_Bcast(pair, 2, MPI_INT, 0, comm) != MPI_SUCCESS) {
+          *err = k_tipri_mpi;
+          return -1;
+        }
+      } else {
+        parse_tipri_every(&pair[0], &pair[1]);
+      }
+    } else {
+      parse_tipri_every(&pair[0], &pair[1]);
+    }
+  }
+#else
+  parse_tipri_every(&pair[0], &pair[1]);
+#endif
+  if (pair[1]) {
+    *err = k_tipri_long;
+    if (rank == 0)
+      fprintf(stderr, "cpmdc: %s\n", k_tipri_long);
+    return -1;
+  }
+  *every = pair[0];
+  return 0;
 }

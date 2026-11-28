@@ -1,0 +1,93 @@
+#+TITLE: Cost of an FFTW plan for each CPMD transform
+
+OpenCPMD built on FFTW 3 (~-D__HAS_FFT_FFTW3~) calls ~mltfft_fftw~ with
+~use_wisdom~ false for every batched 1-D transform: it creates an
+~FFTW_ESTIMATE~ plan with ~fftw_plan_many_dft~, executes it once, and destroys
+it.
+The program below times that plan and its execution, and a plan made once with
+~FFTW_MEASURE~, for N points and M transforms, contiguous (stride 1, distance N)
+or strided (stride M, distance 1) on input, over 200 repetitions.
+It ran on one core of the Intel Xeon virtual machine with 8 vCPUs that ran
+the NPT records, with FFTW 3.3.11 from conda-forge and no other job.
+The sizes are the 120, 126 and 128 point meshes that 32 waters took at a
+100 Ry cutoff.
+The numbers of transforms, 150, 900 and 1800, were picked by hand and not read
+from CPMD.
+
+#+begin_src c
+/* Time FFTW plan creation and execution for batched 1-D transforms of the
+   shapes CPMD's mltfft_fftw makes: n points, m transforms, contiguous or
+   strided. */
+#include <complex.h>
+#include <fftw3.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static double now(void) {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t.tv_sec + 1e-9 * t.tv_nsec;
+}
+
+int main(int argc, char **argv) {
+  int n = argc > 1 ? atoi(argv[1]) : 120;
+  int m = argc > 2 ? atoi(argv[2]) : 1800;
+  int strided = argc > 3 ? atoi(argv[3]) : 0;
+  int reps = argc > 4 ? atoi(argv[4]) : 200;
+  fftw_complex *a = fftw_malloc(sizeof(fftw_complex) * (size_t)n * m);
+  fftw_complex *b = fftw_malloc(sizeof(fftw_complex) * (size_t)n * m);
+  for (long i = 0; i < (long)n * m; i++) a[i] = (double)(i % 17) + I * (double)(i % 5);
+  int istride = strided ? m : 1, idist = strided ? 1 : n;
+  double t0 = now();
+  for (int r = 0; r < reps; r++) {
+    fftw_plan p = fftw_plan_many_dft(1, &n, m, a, &n, istride, idist, b, &n, 1, n, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftw_destroy_plan(p);
+  }
+  double plan_est = (now() - t0) / reps;
+  fftw_plan pe = fftw_plan_many_dft(1, &n, m, a, &n, istride, idist, b, &n, 1, n, FFTW_FORWARD, FFTW_ESTIMATE);
+  t0 = now();
+  for (int r = 0; r < reps; r++) fftw_execute_dft(pe, a, b);
+  double exec_est = (now() - t0) / reps;
+  fftw_complex *sa = fftw_malloc(sizeof(fftw_complex) * (size_t)n * m);
+  fftw_complex *sb = fftw_malloc(sizeof(fftw_complex) * (size_t)n * m);
+  t0 = now();
+  fftw_plan pm = fftw_plan_many_dft(1, &n, m, sa, &n, istride, idist, sb, &n, 1, n, FFTW_FORWARD, FFTW_MEASURE);
+  double plan_meas = now() - t0;
+  t0 = now();
+  for (int r = 0; r < reps; r++) fftw_execute_dft(pm, a, b);
+  double exec_meas = (now() - t0) / reps;
+  printf("n %d m %d %s: ESTIMATE plan %.1f us exec %.1f us; MEASURE plan %.3f s exec %.1f us\n", n, m,
+         strided ? "strided" : "contiguous", 1e6 * plan_est, 1e6 * exec_est, plan_meas, 1e6 * exec_meas);
+  return 0;
+}
+#+end_src
+
+Built with ~gcc -O2 -o plan plan.c -lfftw3 -lm~, with the include and library
+directories of that FFTW, and run as ~./plan N M STRIDED 200~:
+
+| N | M | Input | ESTIMATE plan, us | ESTIMATE execution, us | MEASURE plan, s | MEASURE execution, us |
+|---+---+-------+-------------------+------------------------+-----------------+-----------------------|
+| 120 | 150 | contiguous | 6.3 | 24.0 | 0.073 | 20.9 |
+| 120 | 150 | strided | 6.3 | 23.9 | 0.079 | 20.6 |
+| 120 | 900 | contiguous | 6.2 | 194.0 | 0.073 | 174.4 |
+| 120 | 900 | strided | 6.3 | 209.5 | 0.086 | 191.1 |
+| 120 | 1800 | contiguous | 6.2 | 388.2 | 0.072 | 354.5 |
+| 120 | 1800 | strided | 5.6 | 577.5 | 0.097 | 547.0 |
+| 126 | 150 | contiguous | 6.3 | 29.1 | 0.026 | 28.2 |
+| 126 | 150 | strided | 6.3 | 28.6 | 0.029 | 28.4 |
+| 126 | 900 | contiguous | 6.5 | 229.4 | 0.026 | 223.1 |
+| 126 | 900 | strided | 6.6 | 248.4 | 0.037 | 246.9 |
+| 126 | 1800 | contiguous | 6.5 | 449.2 | 0.026 | 444.4 |
+| 126 | 1800 | strided | 6.9 | 630.0 | 0.049 | 626.6 |
+| 128 | 150 | contiguous | 2.8 | 17.3 | 0.027 | 18.1 |
+| 128 | 150 | strided | 2.7 | 17.4 | 0.036 | 21.2 |
+| 128 | 900 | contiguous | 2.8 | 198.7 | 0.030 | 167.2 |
+| 128 | 900 | strided | 2.7 | 242.4 | 0.056 | 196.3 |
+| 128 | 1800 | contiguous | 2.6 | 419.5 | 0.034 | 353.0 |
+| 128 | 1800 | strided | 2.6 | 543.7 | 0.083 | 574.9 |
+
+The ~FFTW_ESTIMATE~ plan of each call costs 2.6 to 6.9 us against 17.3 to
+630.0 us for its execution.
+A ~FFTW_MEASURE~ plan executes from 19% faster (128 points, 900 strided) to
+22% slower (128 points, 150 strided), and takes 0.026 to 0.097 s to make.

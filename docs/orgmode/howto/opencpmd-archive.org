@@ -193,6 +193,34 @@ afterwards.
 An isolated cell does not set the snapshot.
 The box has a volume, and CPMD does not compute the tensor.
 
+* Build on FFTW
+~scripts/ci/build_opencpmd.sh SRC BUILD~ builds on the FFT that ships with CPMD.
+With ~CPMDC_OPENCPMD_FFT=fftw3~ in the environment it configures from a copy of
+the shipped file that defines ~__HAS_FFT_FFTW3~ in place of ~__HAS_FFT_DEFAULT~
+and adds ~-lfftw3~ to ~LIBS~, and it stops when the shipped file no longer has
+the lines that copy replaces.
+FFTW 3 has to be on ~LIBRARY_PATH~ when the tree links and on the loader path
+when ~libcpmdc~ runs.
+Link ~libcpmdc~ against that tree as in the section above.
+
+The two FFTs accept different mesh lengths:
+~fftchk_def~ takes lengths whose prime factors are 2, 3, and 5, and ~fftchk_fftw~
+also takes 7.
+The same deck can then run on a different real-space mesh with the same plane
+waves.
+~bench/cpmd_pwcount.py~ reads the 1139.60 Angstrom^3 cell at 840 kg/m^3 in
+~bench/results/pbe_water_pressure.org~ and at 100 Ry prints 65002 plane waves, a
+mesh of 128 on the shipped FFT, and a mesh of 126 on FFTW.
+The energies differed by 0.9 meV at the constant cutoff E0 = 85 Ry and by 1.2
+meV at a fixed 100 Ry, and the molecular pressures by less than 0.01 kbar, in
+~bench/results/pbe_water_pressure.org~.
+OpenCPMD creates an
+~FFTW_ESTIMATE~ plan for every transform and destroys it afterwards; ~bench/results/fftw_plan.org~
+times such a plan at 2.6 to 6.9 us, against 17.3 to 630.0 us for the transform
+it serves.
+[[file:../explanation/pbe-water-density.org][The PBE density of water against Miceli et al.]]
+gives the time per step of each build.
+
 * Building OpenCPMD for mixed clusters
 A binary that runs on more than one CPU type must not be built with ~-xHost~,
 ~-march=native~, or ~-axCORE-AVX512~.

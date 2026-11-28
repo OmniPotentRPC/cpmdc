@@ -67,6 +67,7 @@ Full plain text of every page: https://cpmdc.rgoswami.me/llms-full.txt (committe
 - [Atoms in an isolated cell](https://cpmdc.rgoswami.me/explanation/isolated-cells)
 - [cpmdc inside MD engines](https://cpmdc.rgoswami.me/explanation/md-engines)
 - [Density of water at a constant cutoff](https://cpmdc.rgoswami.me/explanation/constant-cutoff-npt)
+- [The PBE density of water against Miceli et al.](https://cpmdc.rgoswami.me/explanation/pbe-water-density)
 - [How the OpenCPMD patches work](https://cpmdc.rgoswami.me/explanation/opencpmd-patches)
 - [SIMD paths and dispatch](https://cpmdc.rgoswami.me/explanation/simd-paths)
 
