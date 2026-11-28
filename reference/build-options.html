@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
@@ -185,6 +187,9 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
@@ -450,6 +455,14 @@ linked image, but wildcard entries match only symbols that are present.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_restart.a</span></code></p></td>
 <td><p>always</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.so.0</span></code> and <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.a</span></code> for <code class="docutils literal notranslate"><span class="pre">default_library=shared</span></code> and for <code class="docutils literal notranslate"><span class="pre">default_library=static</span></code>. A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build installs <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.a</span></code> and an unversioned <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.so</span></code></p></td>
+<td><p>always</p></td>
+</tr>
+<tr class="row-even"><td><p>CSVR header</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc/cpmdc_csvr.h</span></code></p></td>
+<td><p>always</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bin/cpmdc-restart</span></code></p></td>
 <td><p>always</p></td>
@@ -483,6 +496,9 @@ linked image, but wildcard entries match only symbols that are present.</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
 A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets no soversion, because a wheel stores no symlinks.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code> keeps its own soversion, 0, so a later change of the generator
+layout can bump it without following that major.
+A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build leaves that library unversioned for the same reason.
 The stub archive <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> is built for the tests and not installed.</p>
 </section>
 <section id="meson-test-suites">
@@ -528,10 +544,13 @@ These suites group the tests of the default build by layer.
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">restart</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code> binary <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> reader/writer and header macro checks</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">packaging</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">csvr</span></code></p></td>
+<td><p>finite time-constant scale, a copied generator, and the positive square root</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">packaging</span></code></p></td>
 <td><p>installed <code class="docutils literal notranslate"><span class="pre">RUNPATH</span></code>, relocatable <code class="docutils literal notranslate"><span class="pre">pkg-config</span></code> layouts, and CMake/pkg-config consumer build</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code>, <code class="docutils literal notranslate"><span class="pre">examples</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code>, <code class="docutils literal notranslate"><span class="pre">examples</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">example-host-step</span></code>, runnable documentation blocks, <code class="docutils literal notranslate"><span class="pre">llms.txt</span></code> freshness, and API reference contracts</p></td>
 </tr>
 </tbody>

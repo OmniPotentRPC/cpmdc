@@ -1,0 +1,36 @@
+.. index:: pair: struct; cpmdc_csvr_rng
+.. _doxid-structcpmdc__csvr__rng:
+
+struct cpmdc_csvr_rng
+=====================
+
+.. toctree::
+	:hidden:
+
+Overview
+~~~~~~~~
+
+Caller-owned generator for one CSVR trajectory. :ref:`More...<details-structcpmdc__csvr__rng>`
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	#include <cpmdc_csvr.h>
+	
+	struct cpmdc_csvr_rng {
+		// fields
+	
+		uint64_t :target:`state<doxid-structcpmdc__csvr__rng_1ae3160a514cac3d17329e0dd0481d5029>`[4];
+		double :target:`spare_normal<doxid-structcpmdc__csvr__rng_1a84e01b555654f2fe047a68d075c7777b>`;
+		int :target:`spare_ready<doxid-structcpmdc__csvr__rng_1afe2c2c8f562b777976cc25210e05048d>`;
+	};
+.. _details-structcpmdc__csvr__rng:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Caller-owned generator for one CSVR trajectory.
+
+The four state words are a xoshiro256\*\* generator. spare_normal and spare_ready hold one unused normal from the Box-Muller pair. Seed the object before a scale call. An all-zero object is rejected. The host owns the memory and may copy the bytes to replay a trajectory.
+

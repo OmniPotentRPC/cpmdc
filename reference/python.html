@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Python API - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GROMACS interface reference" href="gromacs.html" /><link rel="prev" title="Plane-wave scaffold reference" href="pwscale.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Python API - cpmdc 0.8.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="GROMACS interface reference" href="gromacs.html" /><link rel="prev" title="CSVR thermostat reference" href="csvr.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/python.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
@@ -187,6 +189,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
 </ul>
 </li>
@@ -232,6 +237,7 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#names">Names</a></li>
+<li><a class="reference internal" href="#csvr-thermostat">CSVR thermostat</a></li>
 <li><a class="reference internal" href="#errors">Errors</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
@@ -614,6 +620,16 @@ sessions.
 covers <code class="docutils literal notranslate"><span class="pre">cpmdc-ipi</span></code>, and <a class="reference internal" href="../howto/lammps.html"><span class="doc">Run LAMMPS on cpmdc forces</span></a>
 covers <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps</span></code>.</p>
 </section>
+<section id="csvr-thermostat">
+<h2>CSVR thermostat<a class="headerlink" href="#csvr-thermostat" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.Rng</span></code> holds the generator for one trajectory.
+<code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.scale</span></code> returns the velocity scale and the thermostat work.
+<code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.HARTREE_PER_KELVIN</span></code> converts one kelvin into Hartree.
+The keywords are <code class="docutils literal notranslate"><span class="pre">temperature_K</span></code> and <code class="docutils literal notranslate"><span class="pre">taut</span></code>, plus <code class="docutils literal notranslate"><span class="pre">timestep</span></code> and <code class="docutils literal notranslate"><span class="pre">kB</span></code>.
+<a class="reference internal" href="csvr.html"><span class="doc">The CSVR reference</span></a> has the update, and <a class="reference internal" href="../howto/csvr.html"><span class="doc">the CSVR how-to</span></a>
+shows a call.
+A session does not call this thermostat.</p>
+</section>
 <section id="errors">
 <h2>Errors<a class="headerlink" href="#errors" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
@@ -702,10 +718,10 @@ covers <code class="docutils literal notranslate"><span class="pre">cpmdc.lammps
   </svg>
   <span>Back to top</span>
 </button><div class="navigation flex print:hidden"><div class="navigation-prev">
-    <a href="pwscale.html">
+    <a href="csvr.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">Plane-wave scaffold reference</div></div>
+        <span>Previous</span><div class="title">CSVR thermostat reference</div></div>
     </a>
   </div><div class="navigation-next">
     <a href="gromacs.html">

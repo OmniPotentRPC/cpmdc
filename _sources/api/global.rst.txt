@@ -20,6 +20,7 @@ Global Namespace
 	struct_CPMDCRankSpread.rst
 	struct_CPMDCResult.rst
 	struct_CPMDCStressTensor.rst
+	struct_cpmdc_csvr_rng.rst
 	struct_cpmdc_pwscale_problem.rst
 	struct_cpmdc_pwscale_stats.rst
 
@@ -47,6 +48,7 @@ Overview
 	typedef struct CPMDCRankSpread :ref:`CPMDCRankSpread<doxid-cpmdc_8h_1a9da10067c6b6f8600a794799d2361dce>`;
 	typedef struct CPMDCMethodInfo :ref:`CPMDCMethodInfo<doxid-cpmdc_8h_1aa86d09bfa3f52974f5d62edce9c3eba1>`;
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
+	typedef struct cpmdc_csvr_rng :ref:`cpmdc_csvr_rng<doxid-cpmdc__csvr_8h_1adf7ad01aa7b699176946397a8e6b76fd>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
 	typedef struct cpmdc_pwscale_problem :ref:`cpmdc_pwscale_problem<doxid-cpmdc__pwscale_8h_1af2e92a3b53cdffae89ca1df1fb56b008>`;
@@ -73,6 +75,7 @@ Overview
 	struct :ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`;
 	struct :ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>`;
 	struct :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`;
+	struct :ref:`cpmdc_csvr_rng<doxid-structcpmdc__csvr__rng>`;
 	struct :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`;
 	struct :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`;
 
@@ -132,6 +135,8 @@ Overview
 	CPMDC_API int :ref:`cpmdc_last_stress<doxid-cpmdc_8h_1a635aba34d208f35ec69ac9f6f61aee0f>`(:ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	CPMDC_API int :ref:`cpmdc_session_last_stress<doxid-cpmdc_8h_1a2c30dd4c1719f0957c5befefa668d98d>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	CPMDC_API int :ref:`cpmdc_last_rank_spread<doxid-cpmdc_8h_1ae23c55812ac6c2d03fb6489951732fc3>`(:ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`* out);
+	int :ref:`cpmdc_csvr_rng_seed<doxid-cpmdc__csvr_8h_1a3e14ba44949d4c245c4b41481ed7e60a>`(:ref:`cpmdc_csvr_rng<doxid-structcpmdc__csvr__rng>`* rng, uint64_t seed);
+	int :ref:`cpmdc_csvr_scale<doxid-cpmdc__csvr_8h_1a42dfc65805c2d749e00cc00ba8f6d1e4>`(double kinetic, int ndof, double temperature, double time_step, double time_constant, :ref:`cpmdc_csvr_rng<doxid-structcpmdc__csvr__rng>`* rng, double* scale, double* work);
 	size_t :ref:`cpmdc_feature_count<doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_table<doxid-cpmdc__features_8h_1ae40eb0e96927dc5f3feacc20c3869315>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_find<doxid-cpmdc__features_8h_1a4d2414cdfa87d867cf1ab1e708dfb4ca>`(const char* feature_id);
@@ -335,6 +340,18 @@ Structured section values take precedence over top-level values, as they do when
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` CPMDCSession
 
 Opaque handle for repeated evaluations with one Cap'n Proto parameter set.
+
+.. index:: pair: typedef; cpmdc_csvr_rng
+.. _doxid-cpmdc__csvr_8h_1adf7ad01aa7b699176946397a8e6b76fd:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct cpmdc_csvr_rng cpmdc_csvr_rng
+
+Caller-owned generator for one CSVR trajectory.
+
+The four state words are a xoshiro256\*\* generator. spare_normal and spare_ready hold one unused normal from the Box-Muller pair. Seed the object before a scale call. An all-zero object is rejected. The host owns the memory and may copy the bytes to replay a trajectory.
 
 .. index:: pair: typedef; CPMDCFeatureKind
 .. _doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd:
@@ -1161,6 +1178,32 @@ Copy the last stress tensor stored on ``session``.
 Copy the rank spread of the last evaluation in this process.
 
 Returns 0 when ``out->valid`` is set: the last evaluation ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI. A repeat of the stored positions keeps the spread of the evaluation that stored them. Does not write ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1abf8f88d4c6678f3f621b272e46d0b24c>```.
+
+.. index:: pair: function; cpmdc_csvr_rng_seed
+.. _doxid-cpmdc__csvr_8h_1a3e14ba44949d4c245c4b41481ed7e60a:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_csvr_rng_seed(:ref:`cpmdc_csvr_rng<doxid-structcpmdc__csvr__rng>`* rng, uint64_t seed)
+
+Fill rng from seed and clear the stored normal.
+
+Any uint64_t seed is accepted, including zero. Returns 0, or -1 when rng is NULL. A failure writes nothing.
+
+.. index:: pair: function; cpmdc_csvr_scale
+.. _doxid-cpmdc__csvr_8h_1a42dfc65805c2d749e00cc00ba8f6d1e4:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_csvr_scale(double kinetic, int ndof, double temperature, double time_step, double time_constant, :ref:`cpmdc_csvr_rng<doxid-structcpmdc__csvr__rng>`* rng, double* scale, double* work)
+
+Positive velocity scale for one Bussi CSVR step, and the thermostat work.
+
+kinetic is the kinetic energy of the degrees being thermostatted, in any energy unit. ndof is how many of those quadratic degrees the host wants in the ensemble. temperature is k_B T in that same energy unit, not a Kelvin count. time_step and time_constant share one time unit. A time_constant of positive infinity, or a zero time_step, is NVE: the scale is 1 and the work is 0. The host multiplies each velocity component by the scale. This library does not see the velocities.
+
+On success the scale is non-negative and the work is kinetic \* (1 - scale \* scale), the energy removed from the ions. Adding the work onto the Hamiltonian is the effective energy of Bussi, Donadio, and Parrinello. Returns 0 and writes scale, work, and, when a draw was required, rng. Returns -1 for a NULL pointer, an unseeded rng, a non-positive kinetic energy, a negative temperature, a negative time step, a time constant that is not positive, a degree count below 1, or a non-finite result. A failure writes nothing and does not advance rng.
 
 .. index:: pair: function; cpmdc_feature_count
 .. _doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e:

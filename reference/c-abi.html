@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
@@ -185,6 +187,9 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
@@ -350,6 +355,8 @@ data-aria-dark="Switch to auto color mode">
 <code class="docutils literal notranslate"><span class="pre">include/cpmdc_restart.h</span></code> declares the separate <code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code> (see <a class="reference internal" href="#restart-file-library">RESTART file library</a>).
 <code class="docutils literal notranslate"><span class="pre">include/cpmdc_pwscale.h</span></code> declares the opt-in plane-wave scaffold, which is not
 part of this ABI; its contract is in the <a class="reference internal" href="pwscale.html"><span class="doc">plane-wave scaffold reference</span></a>.
+<code class="docutils literal notranslate"><span class="pre">include/cpmdc_csvr.h</span></code> declares the opt-in CSVR thermostat, which is not part of
+this ABI; its contract is in the <a class="reference internal" href="csvr.html"><span class="doc">CSVR thermostat reference</span></a>.
 Installed headers live under <code class="docutils literal notranslate"><span class="pre">include/cpmdc/</span></code>; include them as
 <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;cpmdc.h&gt;</span></code> with the flags of <code class="docutils literal notranslate"><span class="pre">pkg-config</span> <span class="pre">--cflags</span> <span class="pre">cpmdc</span></code>.
 Every function has C linkage, and the header compiles as C and as C++.

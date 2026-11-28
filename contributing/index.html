@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
@@ -185,6 +187,9 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
@@ -482,6 +487,8 @@ paths, work-loop labels, and current wording.
 each function with its parameter list in a table row, an
 <code class="docutils literal notranslate"><span class="pre">__all__</span></code> in every <code class="docutils literal notranslate"><span class="pre">python/cpmdc</span></code> module that lists its public functions and classes, each of those names and each public member of an exported class in the <a class="reference internal" href="../reference/python.html"><span class="doc">Python reference</span></a>, and no <code class="docutils literal notranslate"><span class="pre">cpmdc_</span></code>
 name in the README or the Org pages that no public header declares.
+<code class="docutils literal notranslate"><span class="pre">include/cpmdc_csvr.h</span></code> is not on the C ABI page.
+Its contract is <a class="reference internal" href="../reference/csvr.html"><span class="doc">the CSVR reference</span></a>.
 <code class="docutils literal notranslate"><span class="pre">docs-examples</span></code> classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
 <code class="docutils literal notranslate"><span class="pre">include/</span></code>, and lists the rest in <code class="docutils literal notranslate"><span class="pre">tests/test_docs_examples.py</span></code>: blocks that
@@ -734,16 +741,19 @@ the schema field renders the accepted deck form, such as
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc_restart.h</span></code>, <code class="docutils literal notranslate"><span class="pre">src/cpmdc_restart.c</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code>, the RESTART file reader and writer</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_params.c</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc_csvr.h</span></code>, <code class="docutils literal notranslate"><span class="pre">src/cpmdc_csvr.c</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code>, the opt-in CSVR thermostat</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_params.c</span></code></p></td>
 <td><p>Cap’n Proto decode, effective config, CPMD deck rendering</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code></p></td>
 <td><p>session lifecycle, topology guard, unit conversion, result writing</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code></p></td>
 <td><p>Fortran <code class="docutils literal notranslate"><span class="pre">iso_c_binding</span></code> bridge and OpenCPMD archive path</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tests/</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tests/</span></code></p></td>
 <td><p>encoded fixtures and C/cmocka contract tests</p></td>
 </tr>
 </tbody>

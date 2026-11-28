@@ -131,6 +131,8 @@ paths, work-loop labels, and current wording.
 each function with its parameter list in a table row, an
 ``__all__`` in every ``python/cpmdc`` module that lists its public functions and classes, each of those names and each public member of an exported class in the :doc:`Python reference <../reference/python>`, and no ``cpmdc_``
 name in the README or the Org pages that no public header declares.
+``include/cpmdc_csvr.h`` is not on the C ABI page.
+Its contract is :doc:`the CSVR reference <../reference/csvr>`.
 ``docs-examples`` classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
 ``include/``, and lists the rest in ``tests/test_docs_examples.py``: blocks that
@@ -374,6 +376,8 @@ Source Layout
     | ``include/cpmdc_export.h``                           | ``CPMDC_API``, the mark on every exported function                 |
     +------------------------------------------------------+--------------------------------------------------------------------+
     | ``include/cpmdc_restart.h``, ``src/cpmdc_restart.c`` | ``libcpmdc_restart``, the RESTART file reader and writer           |
+    +------------------------------------------------------+--------------------------------------------------------------------+
+    | ``include/cpmdc_csvr.h``, ``src/cpmdc_csvr.c``       | ``libcpmdc_csvr``, the opt-in CSVR thermostat                      |
     +------------------------------------------------------+--------------------------------------------------------------------+
     | ``src/cpmdc_params.c``                               | Cap'n Proto decode, effective config, CPMD deck rendering          |
     +------------------------------------------------------+--------------------------------------------------------------------+

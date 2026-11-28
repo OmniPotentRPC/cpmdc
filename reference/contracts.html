@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="lammps.html">LAMMPS interface reference</a></li>
@@ -185,6 +187,9 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
@@ -501,6 +506,9 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#cpmdc-lammps-box-rows"><code class="docutils literal notranslate">lammps.box_rows</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-lammps-type-numbers"><code class="docutils literal notranslate">lammps.type_numbers</span></code></a></li>
 <li><a class="reference internal" href="#cpmdc-lammps-unit-factors"><code class="docutils literal notranslate">lammps.unit_factors</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-csvr-hartree-per-kelvin"><code class="docutils literal notranslate">csvr.HARTREE_PER_KELVIN</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-csvr-rng"><code class="docutils literal notranslate">csvr.Rng</span></code></a></li>
+<li><a class="reference internal" href="#cpmdc-csvr-scale"><code class="docutils literal notranslate">csvr.scale</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -7971,6 +7979,102 @@ Importing it imports ASE.</p>
 </tr>
 <tr class="row-even"><td><p>Raises</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for a unit style other than <code class="docutils literal notranslate"><span class="pre">metal</span></code>, <code class="docutils literal notranslate"><span class="pre">real</span></code> and <code class="docutils literal notranslate"><span class="pre">electron</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-csvr-hartree-per-kelvin">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.HARTREE_PER_KELVIN</span></code><a class="headerlink" href="#cpmdc-csvr-hartree-per-kelvin" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HARTREE_PER_KELVIN</span> <span class="pre">=</span> <span class="pre">3.166811563455608e-06</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>Hartree per kelvin.</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p>scalar <code class="docutils literal notranslate"><span class="pre">float</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>Immutable module constant, readable from any thread.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>The SI Boltzmann constant divided by the Hartree joule value used for <code class="docutils literal notranslate"><span class="pre">HARTREE_TO_KCAL_PER_MOL</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-csvr-rng">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.Rng</span></code><a class="headerlink" href="#cpmdc-csvr-rng" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Rng(seed)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> is an integer. The object holds the generator bytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p>The caller owns the object. Do not share one generator across threads.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TypeError</span></code> when <code class="docutils literal notranslate"><span class="pre">seed</span></code> is a boolean or not an integer. <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when <code class="docutils literal notranslate"><span class="pre">seed</span></code> does not fit in an unsigned 64-bit integer. <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> when the shared library is missing, lacks the CSVR symbols, or the seed call fails.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Defaults</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cpmdc-csvr-scale">
+<h4><code class="docutils literal notranslate"><span class="pre">cpmdc.csvr.scale</span></code><a class="headerlink" href="#cpmdc-csvr-scale" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Signature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scale(kinetic,</span> <span class="pre">ndof,</span> <span class="pre">rng,</span> <span class="pre">*,</span> <span class="pre">temperature_K,</span> <span class="pre">taut,</span> <span class="pre">timestep,</span> <span class="pre">kB)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Units</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kinetic</span></code> and the returned work share one energy unit. <code class="docutils literal notranslate"><span class="pre">temperature_K</span></code> is kelvin. <code class="docutils literal notranslate"><span class="pre">kB</span></code> converts one kelvin into that energy unit, for example Hartree. <code class="docutils literal notranslate"><span class="pre">taut</span></code> and <code class="docutils literal notranslate"><span class="pre">timestep</span></code> share one time unit. The scale is dimensionless.</p></td>
+</tr>
+<tr class="row-even"><td><p>Shape and dtype</p></td>
+<td><p>Scalar inputs. Returns a pair of <code class="docutils literal notranslate"><span class="pre">float</span></code> values, the scale and the work.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ownership and threads</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rng</span></code> is caller-owned and must not be shared across threads. The function keeps no other state. The first load of the shared library is process global.</p></td>
+</tr>
+<tr class="row-even"><td><p>Raises</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TypeError</span></code> for a boolean or non-numeric <code class="docutils literal notranslate"><span class="pre">kinetic</span></code>, <code class="docutils literal notranslate"><span class="pre">temperature_K</span></code>, <code class="docutils literal notranslate"><span class="pre">taut</span></code>, <code class="docutils literal notranslate"><span class="pre">timestep</span></code>, or <code class="docutils literal notranslate"><span class="pre">kB</span></code>, for an <code class="docutils literal notranslate"><span class="pre">ndof</span></code> that is not an integer, or for an <code class="docutils literal notranslate"><span class="pre">rng</span></code> that is not an <code class="docutils literal notranslate"><span class="pre">Rng</span></code>. <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when <code class="docutils literal notranslate"><span class="pre">ndof</span></code> is below 1 or does not fit in a C int, <code class="docutils literal notranslate"><span class="pre">kinetic</span></code> is not finite and positive, <code class="docutils literal notranslate"><span class="pre">temperature_K</span></code> or <code class="docutils literal notranslate"><span class="pre">timestep</span></code> is negative or not finite, <code class="docutils literal notranslate"><span class="pre">taut</span></code> is not positive, <code class="docutils literal notranslate"><span class="pre">kB</span></code> is negative or not finite, or <code class="docutils literal notranslate"><span class="pre">kB</span></code> times <code class="docutils literal notranslate"><span class="pre">temperature_K</span></code> is not finite. <code class="docutils literal notranslate"><span class="pre">CPMDCError</span></code> when the shared library is missing, lacks the CSVR symbols, or the C call returns -1.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Defaults</p></td>
 <td><p>none</p></td>

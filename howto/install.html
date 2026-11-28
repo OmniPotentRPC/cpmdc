@@ -133,12 +133,14 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub>  <sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="check-forces.html">Check forces and stress by finite differences</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="csvr.html">Thermostat ions with CSVR</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/pwscale.html">Plane-wave scaffold reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/csvr.html">CSVR thermostat reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/gromacs.html">GROMACS interface reference</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/lammps.html">LAMMPS interface reference</a></li>
@@ -185,6 +187,9 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_csvr_rng.html">struct cpmdc_csvr_rng</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
@@ -330,8 +335,10 @@ data-aria-dark="Switch to auto color mode">
 <h1>Install and build<a class="headerlink" href="#install-and-build" title="Link to this heading">¶</a></h1>
 <section id="what-gets-built">
 <h2>What gets built<a class="headerlink" href="#what-gets-built" title="Link to this heading">¶</a></h2>
-<p>A <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> build produces one shared library, <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code>, and a few helpers
-around it.
+<p>A <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> build produces the shared libraries <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> and <code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code>,
+and a few helpers around them.
+Outside a <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build, <code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code> records SONAME
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr.so.0</span></code>.
 The build has two modes, selected by the Meson option <code class="docutils literal notranslate"><span class="pre">with_cpmd</span></code>:</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -382,6 +389,14 @@ The tests use it to check the ABI without a working evaluator.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_restart.a</span></code></p></td>
 <td><p>reader and writer for CPMD <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> files</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.so.0</span></code> and <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.a</span></code> for <code class="docutils literal notranslate"><span class="pre">default_library=shared</span></code> and for <code class="docutils literal notranslate"><span class="pre">default_library=static</span></code>. A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build installs <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.a</span></code> and an unversioned <code class="docutils literal notranslate"><span class="pre">lib/libcpmdc_csvr.so</span></code></p></td>
+<td><p>canonical sampling thermostat, not called by a session</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_csvr.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc/cpmdc_csvr.h</span></code></p></td>
+<td><p>declarations for that thermostat</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc-restart</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bin/cpmdc-restart</span></code></p></td>
 <td><p>command-line front end to <code class="docutils literal notranslate"><span class="pre">libcpmdc_restart</span></code></p></td>
@@ -400,7 +415,10 @@ The tests use it to check the ABI without a working evaluator.</p>
 <p>The optional tools (<code class="docutils literal notranslate"><span class="pre">cpmdc-ipi-c</span></code>, the LAMMPS plugin, and <code class="docutils literal notranslate"><span class="pre">libcpmdc_gromacs</span></code>)
 are listed with the options that build them in the <a class="reference internal" href="../reference/build-options.html"><span class="doc">build reference</span></a>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
-A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets no soversion, because a wheel stores no symlinks.</p>
+A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build sets no soversion, because a wheel stores no symlinks.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc_csvr</span></code> keeps its own soversion, 0, so a later change of the generator
+layout can bump it without following that major.
+A <code class="docutils literal notranslate"><span class="pre">with_python</span></code> build leaves that library unversioned for the same reason.</p>
 </section>
 <section id="requirements">
 <h2>Requirements<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h2>

@@ -212,6 +212,17 @@ sessions.
 covers ``cpmdc-ipi``, and :doc:`Run LAMMPS on cpmdc forces <../howto/lammps>`
 covers ``cpmdc.lammps``.
 
+CSVR thermostat
+---------------
+
+``cpmdc.csvr.Rng`` holds the generator for one trajectory.
+``cpmdc.csvr.scale`` returns the velocity scale and the thermostat work.
+``cpmdc.csvr.HARTREE_PER_KELVIN`` converts one kelvin into Hartree.
+The keywords are ``temperature_K`` and ``taut``, plus ``timestep`` and ``kB``.
+:doc:`The CSVR reference <csvr>` has the update, and :doc:`the CSVR how-to <../howto/csvr>`
+shows a call.
+A session does not call this thermostat.
+
 Errors
 ------
 
