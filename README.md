@@ -86,6 +86,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `include/cpmdc.h` | public C ABI, sessions, one-shot calls, result sizing |
 | `include/cpmdc_restart.h` | C reader and writer for a CPMD `RESTART` file |
 | `include/cpmdc_csvr.h` | opt-in CSVR thermostat, not part of `libcpmdc` |
+| `include/cpmdc_damp.h` | opt-in damped electronic step, not part of `libcpmdc` |
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `tools/lammps/` | `cpmdcplugin.so`, the LAMMPS plugin with `pair_style cpmdc` |
@@ -262,6 +263,7 @@ Read the docs in this order:
   [run under mpirun](docs/orgmode/howto/mpi.org),
   [choose the wavefunction optimiser](docs/orgmode/howto/wavefunction-optimiser.org),
   [extrapolate the orbitals](docs/orgmode/howto/extrapolate-orbitals.org),
+  [step fictitious orbitals with damping](docs/orgmode/howto/damp.org),
   [debug a deck](docs/orgmode/howto/debug-deck.org),
   [check forces and stress](docs/orgmode/howto/check-forces.org),
   [time the plane-wave scaffold](docs/orgmode/howto/pwscale-ranks.org),
@@ -270,6 +272,7 @@ Read the docs in this order:
 - Reference: [C ABI](docs/orgmode/reference/c-abi.org),
   [plane-wave scaffold](docs/orgmode/reference/pwscale.org),
   [CSVR thermostat](docs/orgmode/reference/csvr.org),
+  [damped electronic dynamics](docs/orgmode/reference/damp.org),
   [Python API](docs/orgmode/reference/python.org),
   [GROMACS interface](docs/orgmode/reference/gromacs.org),
   [LAMMPS interface](docs/orgmode/reference/lammps.org),

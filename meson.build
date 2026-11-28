@@ -587,6 +587,7 @@ install_headers(
   'include/cpmdc_features.h',
   'include/cpmdc_restart.h',
   'include/cpmdc_csvr.h',
+  'include/cpmdc_damp.h',
   subdir: 'cpmdc',
 )
 
@@ -629,6 +630,27 @@ cpmdc_csvr_shared = shared_library(
   install: true,
   install_rpath: '',
   kwargs: cpmdc_csvr_shared_install,
+)
+cpmdc_damp_lib = static_library(
+  'cpmdc_damp',
+  'src/cpmdc_damp.c',
+  include_directories: inc,
+  c_args: common_c_args,
+  dependencies: [math_dep],
+  install: true,
+)
+cpmdc_damp_dep = declare_dependency(
+  link_with: cpmdc_damp_lib,
+  include_directories: inc,
+  dependencies: [math_dep],
+)
+damp_bench = executable(
+  'cpmdc-damp-bench',
+  'bench/damp_electrons.c',
+  include_directories: inc,
+  c_args: common_c_args,
+  dependencies: [cpmdc_damp_dep],
+  install: false,
 )
 restart_tool_sources = ['tools/cpmdc_restart.c']
 restart_tool_deps = [cpmdc_restart_dep]
@@ -854,6 +876,11 @@ foreach pc_spec : [
     'C reader and writer for CPMD RESTART files',
   ],
   [
+    'cpmdc-damp',
+    'cpmdc_damp',
+    'Opt-in damped electronic dynamics',
+  ],
+  [
     'cpmdc',
     'cpmdc',
     'Stable C ABI for embedding CPMD',
@@ -946,6 +973,20 @@ if get_option('with_tests')
     dependencies: [minimage_dep, math_dep],
   )
   test('geometry-rmsd', geometry_test)
+  damp_electrons_test = executable(
+    'test_damp_electrons',
+    'tests/test_damp_electrons.c',
+    include_directories: inc,
+    c_args: common_c_args,
+    dependencies: [cpmdc_damp_dep],
+  )
+  test(
+    'damp-electrons',
+    damp_electrons_test,
+    args: [cpmdc_shared.full_path()],
+    depends: cpmdc_shared,
+    suite: ['damp'],
+  )
   warm_selector_source = custom_target(
     'warm-selector-source',
     input: 'tools/opencpmd_embed_rwfopt.patch',

@@ -22,12 +22,13 @@ The tests use it to check the ABI without a working evaluator.
 | Artifact | Installed as | Purpose |
 |----------+--------------+---------|
 | ~libcpmdc.so~ | ~lib/libcpmdc.so.MAJOR~, or an unversioned ~lib/libcpmdc.so~ when ~with_python~ is on | the C ABI from ~include/cpmdc.h~ |
-| public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | declarations for hosts |
+| public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~, ~cpmdc_damp.h~ | declarations for hosts |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
 | ~libcpmdc_csvr~ | ~lib/libcpmdc_csvr.so.0~ and ~lib/libcpmdc_csvr.a~ for ~default_library=shared~ and for ~default_library=static~. A ~with_python~ build installs ~lib/libcpmdc_csvr.a~ and an unversioned ~lib/libcpmdc_csvr.so~ | canonical sampling thermostat, not called by a session |
 | ~cpmdc_csvr.h~ | ~include/cpmdc/cpmdc_csvr.h~ | declarations for that thermostat |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
-| pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
+| ~libcpmdc_damp.a~ | ~lib/libcpmdc_damp.a~ | damped electronic step; a session does not call it |
+| pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~, ~cpmdc-damp.pc~ | compiler and linker flags |
 | CMake package | ~lib/cmake/cpmdc/cpmdcConfig.cmake~, ~cpmdcConfigVersion.cmake~ | imported target ~cpmdc::cpmdc~; the version file accepts any release with the same major version |
 
 The optional tools (~cpmdc-ipi-c~, the LAMMPS plugin, and ~libcpmdc_gromacs~)
@@ -160,9 +161,9 @@ After ~meson install~, an installed ~.so~ or ~.dylib~ does not point at the
 build tree or at the prefix path used for that install, so the tree can be moved
 and ~libcpmdc_gromacs~ still opens ~libcpmdc~.
 
-The installed ~cpmdc.pc~, ~cpmdc-restart.pc~, and ~libcp2k.pc~ files derive
-~prefix~ and ~includedir~ from ~${pcfiledir}~, using the relative path from the
-pkg-config directory to those locations.
+The installed ~cpmdc.pc~, ~cpmdc-restart.pc~, ~cpmdc-damp.pc~, and ~libcp2k.pc~
+files derive ~prefix~ and ~includedir~ from ~${pcfiledir}~, using the relative
+path from the pkg-config directory to those locations.
 ~-Dlibdir=.~, a nested ~libdir~, a ~libdir~ that contains ~..~, and an absolute
 ~includedir~ under the prefix stay inside the prefix.
 A directory that cannot be expressed as one relative path fails at configure

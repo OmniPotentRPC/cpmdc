@@ -1,0 +1,78 @@
+#+TITLE: Damped electronic dynamics
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+The damped electronic step is declared in
+~include/cpmdc_damp.h~ and implemented in ~src/cpmdc_damp.c~.
+It is a separate static library,
+~libcpmdc_damp~, installed as ~lib/libcpmdc_damp.a~ with ~cpmdc-damp.pc~.
+It is not part of the C ABI of ~libcpmdc~ (see the [[file:c-abi.org][C ABI reference]]).
+A session evaluation does not call it, and ~libcpmdc~ does not export its
+symbols.
+The [[file:../howto/damp.org][how-to]] shows when a host calls it.
+All functions have C linkage, and the header compiles as C and as C++.
+None of them writes ~cpmdc_last_error()~.
+The return code is the whole report.
+A return of 0 writes every output.
+A return of -1 writes nothing.
+
+* Source of the update
+The update is the damped Verlet step of Quantum ESPRESSO's CP code.
+~CPV/src/input.f90~ copies
+~electron_damping~ into ~frice~ when ~electron_dynamics~ is ~damp~, and sets
+~frice~ to 0 when ~electron_dynamics~ is ~verlet~.
+~CPV/src/cpr.f90~ sets ~fccc = 1 / (1 + frice)~ on that path.
+~CPV/src/runcp.f90~ sets ~verl1 = 2 * fccc~, ~verl2 = 1 - verl1~, and
+~verl3 = fccc~, then ~emaver = (dt^2 / emass) * ema0bg * verl3~.
+~CPV/src/wave_base.f90~ ~wave_verlet~ writes
+~cm = verl1 * c0 + verl2 * cm + emaver * grad~.
+After that write, ~CPV/src/cpr.f90~ swaps the two coefficient buffers, and
+multiplies ~frice~ by ~grease~.
+Tassone, Mauri, and Car, Phys. Rev. B 50, 10561 (1994), [[https://doi.org/10.1103/PhysRevB.50.10561][doi:10.1103/PhysRevB.50.10561]],
+give the damped fictitious-orbital equation this discretization integrates.
+The library does not compute the electronic force, does not orthonormalize the
+coefficients, and does not clear a gamma-point imaginary part.
+Those steps sit outside ~wave_verlet~.
+
+* Calls
+| Call | Effect |
+|------+--------|
+| ~int cpmdc_damp_coefficients(double friction, double *fccc, double *verl1, double *verl2, double *verl3)~ | store the four weights for ~friction~ |
+| ~int cpmdc_damp_step(int n, const double *c0_re, const double *c0_im, double *cm_re, double *cm_im, const double *force_re, const double *force_im, const double *ema0bg, double friction, double dt2_over_emass)~ | write ~c(t+dt)~ into the ~cm~ arrays; ~c0~ is ~c(t)~ and is not modified; ~cm~ enters as ~c(t-dt)~ |
+| ~int cpmdc_damp_swap(int n, double *c0_re, double *c0_im, double *cm_re, double *cm_im)~ | exchange the two coefficient buffers |
+| ~int cpmdc_damp_grease(double *friction, double grease)~ | store ~friction * grease~ when the input friction and the product are finite and greater than -1; otherwise return -1 and leave the stored friction unchanged |
+| ~int cpmdc_damp_advance(int n, double *c0_re, double *c0_im, double *cm_re, double *cm_im, const double *force_re, const double *force_im, const double *ema0bg, double friction, double dt2_over_emass)~ | one ~cpmdc_damp_step~, then ~cpmdc_damp_swap~, so ~c0~ becomes ~c(t+dt)~ and ~cm~ becomes ~c(t)~ |
+
+* Conventions
+| Topic | Rule |
+|-------+------|
+| ~n~ | number of complex coefficients, at least 1 |
+| layout | real and imaginary parts in separate arrays of ~n~ doubles |
+| ~c0~ | coefficients at time t |
+| ~cm~ | coefficients at time t minus one step on entry to ~cpmdc_damp_step~; ~c(t+dt)~ on return |
+| ~force~ | the ~grad~ argument of ~wave_verlet~, one complex value per coefficient |
+| ~ema0bg~ | ~n~ real mass-preconditioner values, or ~NULL~ for all ones |
+| ~friction~ | dimensionless ~electron_damping~; finite and greater than -1; 0 is undamped Verlet |
+| ~dt2_over_emass~ | ~dt^2 / emass~, finite |
+| ~grease~ | finite multiplier applied by ~cpmdc_damp_grease~; the call stores the product only when the input friction and the product are finite and greater than -1 |
+| ownership | the caller owns every array; no call keeps a pointer |
+| state | no call keeps process state |
+| threads and MPI | a call uses only its arguments; it does not lock or communicate |
+| failure | ~cpmdc_damp_coefficients~ returns -1 and writes nothing when ~fccc~, ~verl1~, ~verl2~, or ~verl3~ is missing, when ~friction~ is not finite or is not greater than -1, or when a computed weight is not finite. ~cpmdc_damp_step~ returns -1 and writes nothing when ~n < 1~, when ~c0_re~, ~c0_im~, ~cm_re~, ~cm_im~, ~force_re~, or ~force_im~ is missing, when ~n~ is too large to size both output buffers, when ~dt2_over_emass~ is not finite, when ~friction~ is not finite or is not greater than -1, when a computed weight is not finite, when an entry of ~c0~, ~cm~, or ~force~ is not finite, when ~ema0bg~ is not null and an entry is not finite, when allocation fails, or when a computed component is not finite. ~cpmdc_damp_advance~ returns -1 and writes nothing when ~cpmdc_damp_step~ returns -1, and it does not swap on that failure. ~cpmdc_damp_grease~ returns -1 and leaves the stored friction unchanged when the pointer is null, the input friction or ~grease~ is not finite, the input friction is not greater than -1, or ~friction * grease~ is not finite or is not greater than -1. ~cpmdc_damp_swap~ returns -1 and writes nothing only when ~n < 1~ or a pointer is missing; it exchanges the values it is given, including non-finite ones |
+| ~CPMDC_ABI_VERSION~ | unchanged; these symbols are not in ~libcpmdc~ |
+
+The weights are ~fccc = verl3 = 1 / (1 + friction)~, ~verl1 = 2 * fccc~, and
+~verl2 = 1 - verl1~.
+One coefficient of ~cpmdc_damp_step~ is
+
+#+begin_example
+scale = fccc * dt2_over_emass * ema0bg
+cm    = verl1 * c0 + verl2 * cm + scale * force
+#+end_example
+
+~cpmdc_damp_advance~ is that write followed by the swap.
+A failed ~cpmdc_damp_advance~ does not swap.
+~cpmdc_damp_grease~ returns -1 and leaves the stored friction unchanged when the
+pointer is null, when the input friction or ~grease~ is not finite, when the
+input friction is not greater than -1, or when the product ~friction * grease~
+is not finite or is not greater than -1.
+A return of 0 stores that product.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install odd directory layouts and check pkg-config paths stay in the prefix.
 
-`cpmdc.pc`, `cpmdc-restart.pc`, and `libcp2k.pc` derive `prefix` and
+`cpmdc.pc`, `cpmdc-restart.pc`, `cpmdc-damp.pc`, and `libcp2k.pc` derive `prefix` and
 `includedir` from `${pcfiledir}`. `-Dlibdir=.`, a nested `libdir`, and an
 absolute `includedir` under the prefix must resolve inside that prefix, and
 the installed file must not record the absolute prefix path.
@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PC_NAMES = ("cpmdc.pc", "cpmdc-restart.pc", "libcp2k.pc")
+PC_NAMES = ("cpmdc.pc", "cpmdc-restart.pc", "cpmdc-damp.pc", "libcp2k.pc")
 _VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 

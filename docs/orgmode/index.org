@@ -106,6 +106,9 @@ composition requires a new session.
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
      - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
+   * - Step fictitious electronic coefficients with damping
+     - Link ``libcpmdc_damp``; a session evaluation does not call it
+     - :doc:`Damped electronic dynamics <howto/damp>`
    * - Inspect the rendered CPMD ``INPUT`` deck
      - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections
      - :doc:`Inspect the rendered CPMD deck <howto/debug-deck>`
@@ -157,7 +160,9 @@ feature table, sessions, result sizing, and unit conversion.
 * Reference at a glance
 [[file:reference/c-abi.org][The C ABI reference]] lists every public call with
 its contract, [[file:reference/pwscale.org][the plane-wave scaffold reference]]
-does the same for the opt-in scaffold, and [[file:reference/cpmd-options.org][CPMD option mapping]]
+does the same for the opt-in scaffold,
+[[file:reference/damp.org][the damped electronic dynamics reference]]
+does the same for that opt-in step, and [[file:reference/cpmd-options.org][CPMD option mapping]]
 says which ~CPMDParams~ field or feature ID carries each line of the CPMD
 manual.
 [[file:reference/csvr.org][The CSVR reference]] is the opt-in ionic thermostat.
@@ -191,6 +196,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals
+   howto/damp
    howto/debug-deck
    howto/check-forces
    howto/pwscale-ranks
@@ -204,6 +210,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    reference/c-abi
    reference/pwscale
    reference/csvr
+   reference/damp
    reference/python
    reference/gromacs
    reference/lammps

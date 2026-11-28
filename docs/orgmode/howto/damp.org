@@ -1,0 +1,43 @@
+#+TITLE: Step fictitious orbitals with damping
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Goal
+Move fictitious electronic coefficients with the damped Verlet step that Quantum
+ESPRESSO uses when ~electron_dynamics~ is ~damp~.
+Use it when the host integrates those coefficients itself.
+A session evaluation does not call the step.
+Default energies and forces stay the ones that evaluation already returns.
+
+* Link the library
+The default build installs three files for this step.
+
+| File | Installed as |
+|------+--------------|
+| ~libcpmdc_damp.a~ | ~lib/libcpmdc_damp.a~ |
+| ~cpmdc_damp.h~ | ~include/cpmdc/cpmdc_damp.h~ |
+| ~cpmdc-damp.pc~ | ~lib/pkgconfig/cpmdc-damp.pc~ |
+
+~pkg-config --cflags --libs cpmdc-damp~ is the compile and link line.
+The archive is not linked into ~libcpmdc.so~.
+The catalog lines ~DAMPING ELECTRONS~ and ~ANNEALING ELECTRONS~ are still only
+rendered deck text.
+This library does not read them.
+
+* Take one step
+Keep two copies of each coefficient: ~c0~ at time t, and ~cm~ at the previous
+time.
+Pass the electronic force in the same layout.
+~cpmdc_damp_advance~ replaces ~c0~ with ~c(t+dt)~ and ~cm~ with ~c(t)~.
+~friction~ is the dimensionless ~electron_damping~ copied into ~frice~.
+~friction~ 0 is the undamped Verlet update, the ~verlet~ setting of
+~electron_dynamics~.
+~dt2_over_emass~ is the time step squared, divided by the fictitious mass.
+Pass ~NULL~ for ~ema0bg~ when every coefficient uses a unit preconditioner.
+The call does not form the force, does not orthonormalize, and does not clear a
+gamma-point imaginary part.
+Do those around the call when the basis needs them.
+~cpmdc_damp_grease~ multiplies ~friction~ by ~grease~ after a successful step.
+~grease~ 1 leaves the friction unchanged, which is the usual choice.
+A rejected call leaves the buffers it was given unchanged.
+The [[file:../reference/damp.org][reference]] lists every argument and the
+weights.

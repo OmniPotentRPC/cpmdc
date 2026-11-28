@@ -19,6 +19,7 @@ DOC_PAGES = {
     "embedding": ROOT / "docs/orgmode/howto/embedding.org",
     "pwscale": ROOT / "docs/orgmode/reference/pwscale.org",
     "csvr": ROOT / "docs/orgmode/reference/csvr.org",
+    "damp": ROOT / "docs/orgmode/reference/damp.org",
 }
 
 
@@ -37,6 +38,10 @@ def load_headers() -> set[str]:
     if csvr.is_file():
         text = re.sub(r"/\*.*?\*/", " ", csvr.read_text(encoding="utf-8"), flags=re.S)
         names |= set(re.findall(r"\b(cpmdc_csvr_\w+)\s*\(", text))
+    damp = ROOT / "include/cpmdc_damp.h"
+    if damp.is_file():
+        text = re.sub(r"/\*.*?\*/", " ", damp.read_text(encoding="utf-8"), flags=re.S)
+        names |= set(re.findall(r"\b(cpmdc_damp_\w+)\s*\(", text))
     return names
 
 
@@ -81,6 +86,7 @@ def report() -> dict[str, object]:
         + DOC_PAGES["contracts"].read_text(encoding="utf-8")
         + DOC_PAGES["pwscale"].read_text(encoding="utf-8")
         + DOC_PAGES["csvr"].read_text(encoding="utf-8")
+        + DOC_PAGES["damp"].read_text(encoding="utf-8")
     )
     py_docs = (
         DOC_PAGES["python"].read_text(encoding="utf-8")

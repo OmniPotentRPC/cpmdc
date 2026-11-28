@@ -13,6 +13,7 @@ cpmdc connects to rgpot.
 | `include/cpmdc_restart.h` | RESTART file library (`libcpmdc_restart`) |
 | `include/cpmdc_pwscale.h` | Opt-in plane-wave scaling scaffold, not part of `libcpmdc` |
 | `include/cpmdc_csvr.h` | Opt-in CSVR thermostat for ionic velocities, not part of `libcpmdc` |
+| `include/cpmdc_damp.h` | Opt-in damped electronic step (`libcpmdc_damp`), not part of `libcpmdc` |
 | `schema/Potentials.capnp` | Wire schema: `CPMDParams`, `ForceInput`, `PotentialResult` |
 | `schema/inventory/cpmd_features.json` | Feature inventory mirrored in `src/cpmdc_features.c` |
 | `src/cpmdc.c` | Sessions, topology guard, unit conversion, result encoding |

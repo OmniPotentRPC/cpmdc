@@ -8,6 +8,8 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold reference]].
 ~include/cpmdc_csvr.h~ declares the opt-in CSVR thermostat, which is not part of
 this ABI; its contract is in the [[file:csvr.org][CSVR thermostat reference]].
+~include/cpmdc_damp.h~ declares the opt-in damped electronic step, which is not
+part of this ABI; its contract is in the [[file:damp.org][damped electronic dynamics reference]].
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.

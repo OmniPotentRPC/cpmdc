@@ -44,7 +44,7 @@ C_PAGE = "docs/orgmode/reference/c-abi.org"
 
 C_PREFIXES = ("cpmdc_", "cp2k_")
 FALLBACK_HEADERS = ("include/*.h", "tools/gromacs/libcp2k.h")
-SKIPPED_HEADERS = {"cpmdc_pwscale.h", "cpmdc_csvr.h"}
+SKIPPED_HEADERS = {"cpmdc_pwscale.h", "cpmdc_csvr.h", "cpmdc_damp.h"}
 
 C_FUNCTION_ROWS = (
     "Units",

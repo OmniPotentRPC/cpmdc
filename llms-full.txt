@@ -332,6 +332,7 @@ the schema field renders the accepted deck form, such as
 | `include/cpmdc_export.h` | `CPMDC_API`, the mark on every exported function |
 | `include/cpmdc_restart.h`, `src/cpmdc_restart.c` | `libcpmdc_restart`, the RESTART file reader and writer |
 | `include/cpmdc_csvr.h`, `src/cpmdc_csvr.c` | `libcpmdc_csvr`, the opt-in CSVR thermostat |
+| `include/cpmdc_damp.h`, `src/cpmdc_damp.c` | `libcpmdc_damp`, the opt-in damped electronic step |
 | `src/cpmdc_params.c` | Cap'n Proto decode, effective config, CPMD deck rendering |
 | `src/cpmdc.c` | session lifecycle, topology guard, unit conversion, result writing |
 | `src/cpmd_embed_c_api.F90` | Fortran `iso_c_binding` bridge and OpenCPMD archive path |
@@ -3087,6 +3088,50 @@ Set `CPMDC_CSVR_LIBRARY` to the shared library if it is not already on the
 search path.
 
 
+## File: docs/orgmode/howto/damp.org
+
+# Goal
+Move fictitious electronic coefficients with the damped Verlet step that Quantum
+ESPRESSO uses when `electron_dynamics` is `damp`.
+Use it when the host integrates those coefficients itself.
+A session evaluation does not call the step.
+Default energies and forces stay the ones that evaluation already returns.
+
+# Link the library
+The default build installs three files for this step.
+
+| File | Installed as |
+|------+--------------|
+| `libcpmdc_damp.a` | `lib/libcpmdc_damp.a` |
+| `cpmdc_damp.h` | `include/cpmdc/cpmdc_damp.h` |
+| `cpmdc-damp.pc` | `lib/pkgconfig/cpmdc-damp.pc` |
+
+`pkg-config --cflags --libs cpmdc-damp` is the compile and link line.
+The archive is not linked into `libcpmdc.so`.
+The catalog lines `DAMPING ELECTRONS` and `ANNEALING ELECTRONS` are still only
+rendered deck text.
+This library does not read them.
+
+# Take one step
+Keep two copies of each coefficient: `c0` at time t, and `cm` at the previous
+time.
+Pass the electronic force in the same layout.
+`cpmdc_damp_advance` replaces `c0` with `c(t+dt)` and `cm` with `c(t)`.
+`friction` is the dimensionless `electron_damping` copied into `frice`.
+`friction` 0 is the undamped Verlet update, the `verlet` setting of
+`electron_dynamics`.
+`dt2_over_emass` is the time step squared, divided by the fictitious mass.
+Pass `NULL` for `ema0bg` when every coefficient uses a unit preconditioner.
+The call does not form the force, does not orthonormalize, and does not clear a
+gamma-point imaginary part.
+Do those around the call when the basis needs them.
+`cpmdc_damp_grease` multiplies `friction` by `grease` after a successful step.
+`grease` 1 leaves the friction unchanged, which is the usual choice.
+A rejected call leaves the buffers it was given unchanged.
+The reference (file:../reference/damp.org) lists every argument and the
+weights.
+
+
 ## File: docs/orgmode/howto/debug-deck.org
 
 # Goal
@@ -3944,12 +3989,13 @@ The tests use it to check the ABI without a working evaluator.
 | Artifact | Installed as | Purpose |
 |----------+--------------+---------|
 | `libcpmdc.so` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | the C ABI from `include/cpmdc.h` |
-| public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | declarations for hosts |
+| public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h`, `cpmdc_damp.h` | declarations for hosts |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | reader and writer for CPMD `RESTART` files |
 | `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a` for `default_library=shared` and for `default_library=static`. A `with_python` build installs `lib/libcpmdc_csvr.a` and an unversioned `lib/libcpmdc_csvr.so` | canonical sampling thermostat, not called by a session |
 | `cpmdc_csvr.h` | `include/cpmdc/cpmdc_csvr.h` | declarations for that thermostat |
 | `cpmdc-restart` | `bin/cpmdc-restart` | command-line front end to `libcpmdc_restart` |
-| pkg-config files | `cpmdc.pc`, `cpmdc-restart.pc` | compiler and linker flags |
+| `libcpmdc_damp.a` | `lib/libcpmdc_damp.a` | damped electronic step; a session does not call it |
+| pkg-config files | `cpmdc.pc`, `cpmdc-restart.pc`, `cpmdc-damp.pc` | compiler and linker flags |
 | CMake package | `lib/cmake/cpmdc/cpmdcConfig.cmake`, `cpmdcConfigVersion.cmake` | imported target `cpmdc::cpmdc`; the version file accepts any release with the same major version |
 
 The optional tools (`cpmdc-ipi-c`, the LAMMPS plugin, and `libcpmdc_gromacs`)
@@ -4070,9 +4116,9 @@ After `meson install`, an installed `.so` or `.dylib` does not point at the
 build tree or at the prefix path used for that install, so the tree can be moved
 and `libcpmdc_gromacs` still opens `libcpmdc`.
 
-The installed `cpmdc.pc`, `cpmdc-restart.pc`, and `libcp2k.pc` files derive
-`prefix` and `includedir` from `${pcfiledir}`, using the relative path from the
-pkg-config directory to those locations.
+The installed `cpmdc.pc`, `cpmdc-restart.pc`, `cpmdc-damp.pc`, and `libcp2k.pc`
+files derive `prefix` and `includedir` from `${pcfiledir}`, using the relative
+path from the pkg-config directory to those locations.
 `-Dlibdir=.`, a nested `libdir`, a `libdir` that contains `..`, and an absolute
 `includedir` under the prefix stay inside the prefix.
 A directory that cannot be expressed as one relative path fails at configure
@@ -6271,6 +6317,9 @@ composition requires a new session.
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
      - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
+   * - Step fictitious electronic coefficients with damping
+     - Link ``libcpmdc_damp``; a session evaluation does not call it
+     - :doc:`Damped electronic dynamics <howto/damp>`
    * - Inspect the rendered CPMD ``INPUT`` deck
      - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections
      - :doc:`Inspect the rendered CPMD deck <howto/debug-deck>`
@@ -6319,7 +6368,9 @@ feature table, sessions, result sizing, and unit conversion.
 # Reference at a glance
 The C ABI reference (file:reference/c-abi.org) lists every public call with
 its contract, the plane-wave scaffold reference (file:reference/pwscale.org)
-does the same for the opt-in scaffold, and CPMD option mapping (file:reference/cpmd-options.org)
+does the same for the opt-in scaffold,
+the damped electronic dynamics reference (file:reference/damp.org)
+does the same for that opt-in step, and CPMD option mapping (file:reference/cpmd-options.org)
 says which `CPMDParams` field or feature ID carries each line of the CPMD
 manual.
 The CSVR reference (file:reference/csvr.org) is the opt-in ionic thermostat.
@@ -6352,6 +6403,7 @@ An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals
+   howto/damp
    howto/debug-deck
    howto/check-forces
    howto/pwscale-ranks
@@ -6365,6 +6417,7 @@ An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
    reference/c-abi
    reference/pwscale
    reference/csvr
+   reference/damp
    reference/python
    reference/gromacs
    reference/lammps
@@ -6490,12 +6543,13 @@ linked image, but wildcard entries match only symbols that are present.
 | Artifact | Installed as | Built when |
 |----------+--------------+------------|
 | `libcpmdc` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | always |
-| public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | always |
+| public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h`, `cpmdc_damp.h` | always |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | always |
 | `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a` for `default_library=shared` and for `default_library=static`. A `with_python` build installs `lib/libcpmdc_csvr.a` and an unversioned `lib/libcpmdc_csvr.so` | always |
 | CSVR header | `include/cpmdc/cpmdc_csvr.h` | always |
+| `libcpmdc_damp.a` | `lib/libcpmdc_damp.a` | always; not linked into `libcpmdc` |
 | `cpmdc-restart` | `bin/cpmdc-restart` | always |
-| pkg-config files | `lib/pkgconfig/cpmdc.pc`, `cpmdc-restart.pc` | always |
+| pkg-config files | `lib/pkgconfig/cpmdc.pc`, `cpmdc-restart.pc`, `cpmdc-damp.pc` | always |
 | CMake package | `lib/cmake/cpmdc/cpmdcConfig.cmake`, `cpmdcConfigVersion.cmake`, imported target `cpmdc::cpmdc` | always; Meson writes `cpmdcConfig.cmake` from `cmake/cpmdcConfig.cmake.in`, and the version file needs `cmake` at configure time |
 | `cpmdc-ipi-c` | `bin/cpmdc-ipi-c` | the platform has `sys/un.h` and `with_python` is off |
 | `cpmdcplugin.so` | `lib/cpmdc/cpmdcplugin.so` | `with_lammps_plugin` is not disabled, `with_python` is off, and the build finds a C++ compiler, MPI for C++, and the LAMMPS headers |
@@ -6527,6 +6581,7 @@ These suites group the tests of the default build by layer.
 | `python` | Python bindings, `pytest` suite, `mypy` strict check (skips without `mypy`), and Python reference audit |
 | `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
 | `csvr` | finite time-constant scale, a copied generator, and the positive square root |
+| `damp` | `damp-electrons`, the opt-in damped electronic step |
 | `packaging` | installed `RUNPATH`, relocatable `pkg-config` layouts, and CMake/pkg-config consumer build |
 | `docs`, `examples` | `example-host-step`, runnable documentation blocks, `llms.txt` freshness, and API reference contracts |
 
@@ -6542,6 +6597,9 @@ when one is on `PATH`, and otherwise exits 77 so Meson marks the test skipped.
 Opt-in options add `restart-con`
 (`-Dwith_readcon=true`), `pwscale` (`-Dwith_pwscale=true`), and `opencpmd` plus
 `water` (`-Dwith_cpmd=true` with a non-empty `cpmd_root`).
+The default build also compiles `libcpmdc_damp.a` and the `damp` suite.
+A session does not link that archive, so default energies and forces stay the
+same.
 
 In the `e2e` suite, `e2e-single-point` runs `cpmdc_calculate_result` and a
 session force call on one `ForceInput`, then `cpmdc_energy_forces` on bare
@@ -6607,6 +6665,8 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 part of this ABI; its contract is in the plane-wave scaffold reference (file:pwscale.org).
 `include/cpmdc_csvr.h` declares the opt-in CSVR thermostat, which is not part of
 this ABI; its contract is in the CSVR thermostat reference (file:csvr.org).
+`include/cpmdc_damp.h` declares the opt-in damped electronic step, which is not
+part of this ABI; its contract is in the damped electronic dynamics reference (file:damp.org).
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
@@ -11662,6 +11722,83 @@ It has no CSVR keyword.
 This library does not render a deck line and does not add a feature id.
 The host applies the scale between force evaluations.
 The session path is unchanged.
+
+
+## File: docs/orgmode/reference/damp.org
+
+The damped electronic step is declared in
+`include/cpmdc_damp.h` and implemented in `src/cpmdc_damp.c`.
+It is a separate static library,
+`libcpmdc_damp`, installed as `lib/libcpmdc_damp.a` with `cpmdc-damp.pc`.
+It is not part of the C ABI of `libcpmdc` (see the C ABI reference (file:c-abi.org)).
+A session evaluation does not call it, and `libcpmdc` does not export its
+symbols.
+The how-to (file:../howto/damp.org) shows when a host calls it.
+All functions have C linkage, and the header compiles as C and as C++.
+None of them writes `cpmdc_last_error()`.
+The return code is the whole report.
+A return of 0 writes every output.
+A return of -1 writes nothing.
+
+# Source of the update
+The update is the damped Verlet step of Quantum ESPRESSO's CP code.
+`CPV/src/input.f90` copies
+`electron_damping` into `frice` when `electron_dynamics` is `damp`, and sets
+`frice` to 0 when `electron_dynamics` is `verlet`.
+`CPV/src/cpr.f90` sets `fccc = 1 / (1 + frice)` on that path.
+`CPV/src/runcp.f90` sets `verl1 = 2 * fccc`, `verl2 = 1 - verl1`, and
+`verl3 = fccc`, then `emaver = (dt^2 / emass) * ema0bg * verl3`.
+`CPV/src/wave_base.f90` `wave_verlet` writes
+`cm = verl1 * c0 + verl2 * cm + emaver * grad`.
+After that write, `CPV/src/cpr.f90` swaps the two coefficient buffers, and
+multiplies `frice` by `grease`.
+Tassone, Mauri, and Car, Phys. Rev. B 50, 10561 (1994), doi:10.1103/PhysRevB.50.10561 (https://doi.org/10.1103/PhysRevB.50.10561),
+give the damped fictitious-orbital equation this discretization integrates.
+The library does not compute the electronic force, does not orthonormalize the
+coefficients, and does not clear a gamma-point imaginary part.
+Those steps sit outside `wave_verlet`.
+
+# Calls
+| Call | Effect |
+|------+--------|
+| `int cpmdc_damp_coefficients(double friction, double *fccc, double *verl1, double *verl2, double *verl3)` | store the four weights for `friction` |
+| `int cpmdc_damp_step(int n, const double *c0_re, const double *c0_im, double *cm_re, double *cm_im, const double *force_re, const double *force_im, const double *ema0bg, double friction, double dt2_over_emass)` | write `c(t+dt)` into the `cm` arrays; `c0` is `c(t)` and is not modified; `cm` enters as `c(t-dt)` |
+| `int cpmdc_damp_swap(int n, double *c0_re, double *c0_im, double *cm_re, double *cm_im)` | exchange the two coefficient buffers |
+| `int cpmdc_damp_grease(double *friction, double grease)` | store `friction * grease` when the input friction and the product are finite and greater than -1; otherwise return -1 and leave the stored friction unchanged |
+| `int cpmdc_damp_advance(int n, double *c0_re, double *c0_im, double *cm_re, double *cm_im, const double *force_re, const double *force_im, const double *ema0bg, double friction, double dt2_over_emass)` | one `cpmdc_damp_step`, then `cpmdc_damp_swap`, so `c0` becomes `c(t+dt)` and `cm` becomes `c(t)` |
+
+# Conventions
+| Topic | Rule |
+|-------+------|
+| `n` | number of complex coefficients, at least 1 |
+| layout | real and imaginary parts in separate arrays of `n` doubles |
+| `c0` | coefficients at time t |
+| `cm` | coefficients at time t minus one step on entry to `cpmdc_damp_step`; `c(t+dt)` on return |
+| `force` | the `grad` argument of `wave_verlet`, one complex value per coefficient |
+| `ema0bg` | `n` real mass-preconditioner values, or `NULL` for all ones |
+| `friction` | dimensionless `electron_damping`; finite and greater than -1; 0 is undamped Verlet |
+| `dt2_over_emass` | `dt^2 / emass`, finite |
+| `grease` | finite multiplier applied by `cpmdc_damp_grease`; the call stores the product only when the input friction and the product are finite and greater than -1 |
+| ownership | the caller owns every array; no call keeps a pointer |
+| state | no call keeps process state |
+| threads and MPI | a call uses only its arguments; it does not lock or communicate |
+| failure | `cpmdc_damp_coefficients` returns -1 and writes nothing when `fccc`, `verl1`, `verl2`, or `verl3` is missing, when `friction` is not finite or is not greater than -1, or when a computed weight is not finite. `cpmdc_damp_step` returns -1 and writes nothing when `n < 1`, when `c0_re`, `c0_im`, `cm_re`, `cm_im`, `force_re`, or `force_im` is missing, when `n` is too large to size both output buffers, when `dt2_over_emass` is not finite, when `friction` is not finite or is not greater than -1, when a computed weight is not finite, when an entry of `c0`, `cm`, or `force` is not finite, when `ema0bg` is not null and an entry is not finite, when allocation fails, or when a computed component is not finite. `cpmdc_damp_advance` returns -1 and writes nothing when `cpmdc_damp_step` returns -1, and it does not swap on that failure. `cpmdc_damp_grease` returns -1 and leaves the stored friction unchanged when the pointer is null, the input friction or `grease` is not finite, the input friction is not greater than -1, or `friction * grease` is not finite or is not greater than -1. `cpmdc_damp_swap` returns -1 and writes nothing only when `n < 1` or a pointer is missing; it exchanges the values it is given, including non-finite ones |
+| `CPMDC_ABI_VERSION` | unchanged; these symbols are not in `libcpmdc` |
+
+The weights are `fccc = verl3 = 1 / (1 + friction)`, `verl1 = 2 * fccc`, and
+`verl2 = 1 - verl1`.
+One coefficient of `cpmdc_damp_step` is
+
+scale = fccc * dt2_over_emass * ema0bg
+cm    = verl1 * c0 + verl2 * cm + scale * force
+
+`cpmdc_damp_advance` is that write followed by the swap.
+A failed `cpmdc_damp_advance` does not swap.
+`cpmdc_damp_grease` returns -1 and leaves the stored friction unchanged when the
+pointer is null, when the input friction or `grease` is not finite, when the
+input friction is not greater than -1, or when the product `friction * grease`
+is not finite or is not greater than -1.
+A return of 0 stores that product.
 
 
 ## File: docs/orgmode/reference/environment.org

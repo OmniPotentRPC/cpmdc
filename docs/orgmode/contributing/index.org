@@ -290,6 +290,7 @@ the schema field renders the accepted deck form, such as
 | ~include/cpmdc_export.h~ | ~CPMDC_API~, the mark on every exported function |
 | ~include/cpmdc_restart.h~, ~src/cpmdc_restart.c~ | ~libcpmdc_restart~, the RESTART file reader and writer |
 | ~include/cpmdc_csvr.h~, ~src/cpmdc_csvr.c~ | ~libcpmdc_csvr~, the opt-in CSVR thermostat |
+| ~include/cpmdc_damp.h~, ~src/cpmdc_damp.c~ | ~libcpmdc_damp~, the opt-in damped electronic step |
 | ~src/cpmdc_params.c~ | Cap'n Proto decode, effective config, CPMD deck rendering |
 | ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result writing |
 | ~src/cpmd_embed_c_api.F90~ | Fortran ~iso_c_binding~ bridge and OpenCPMD archive path |

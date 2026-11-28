@@ -433,3 +433,24 @@ related papers) were checked as written; excluded from lychee HTTP checks
 because publishers block automated HEAD.
 No cpmdc-specific method paper is cited beyond `CITATION.cff` and third-party
 CPMD references.
+
+## Damped electronic dynamics
+
+The documentation gaps ranked above are closed.
+Method work already built or still in flight is left out of this choice: the
+CSVR ionic thermostat, Nose-Hoover chains, NPT water, XL-BOMD, restart
+extrapolation, the GROMACS-style hunt, ASE charge precedence, and ASE calculator
+parity.
+Periodic Gaussian embedding is already in this tree.
+The highest remaining gap that stays off unless a host calls it is damped
+electronic dynamics.
+This change builds that step as `libcpmdc_damp`.
+A session evaluation does not call it, so default energies and forces stay the
+same.
+The update is the damped Verlet step Quantum ESPRESSO uses when
+`electron_dynamics` is `damp`.
+`friction` is `electron_damping`.
+Friction 0 is the undamped Verlet update.
+`docs/orgmode/howto/damp.org` says when to call the step, and `docs/orgmode/reference/damp.org`
+states the contract.
+Status: built.

@@ -33,6 +33,7 @@ PAGES = {
     "include/cpmdc_restart.h": "c-abi",
     "include/cpmdc_pwscale.h": "pwscale",
     "include/cpmdc_csvr.h": "csvr",
+    "include/cpmdc_damp.h": "damp",
 }
 # Written to stderr under CPMDC_SCF_STEPS=1; see reference/environment.org.
 LOG_TOKENS = {"cpmdc_scf_steps", "cpmdc_warm_start", "cpmdc_wfn_extrapolated"}
