@@ -39,6 +39,8 @@ static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code);
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
 int cpmdc_stop_code(void);
+void cpmdc_note_stop(int code);
+int cpmdc_agree_cold_stop(void);
 
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
@@ -339,6 +341,7 @@ static CPMDCErrorCode code_for_gate_message(const char *msg) {
       {"invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT},
       {"atomic numbers must be", CPMDC_ERROR_INVALID_ARGUMENT},
       {"cell ", CPMDC_ERROR_INVALID_ARGUMENT},
+      {"positions contain a non-finite", CPMDC_ERROR_INVALID_ARGUMENT},
       {"topology change requires", CPMDC_ERROR_INVALID_ARGUMENT},
       {"property gradient snapshot supports", CPMDC_ERROR_INVALID_ARGUMENT},
       {"CPMD embed not available", CPMDC_ERROR_UNAVAILABLE},
@@ -588,6 +591,8 @@ void cpmdc_note_embed_failure(const char *msg) {
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
   g_embed_code = CPMDC_ERROR_EVALUATION_FAILED;
 }
+
+int cpmdc_embed_failure_pending(void) { return g_embed_detail[0] != '\0'; }
 
 void cpmdc_note_deck_external_potential(void) {
   cpmdc_note_embed_failure(k_deck_external_potential_msg);
@@ -2354,6 +2359,164 @@ static CPMDCResult fail_image(CPMDCEmbedImage *image, const char *msg) {
   return fail_msg(msg);
 }
 
+/* Every rank of the calculator calls this after each cold-setup step
+ * and after a failure noticed before that list. stopgm can return on
+ * one rank only, and a compose, memfd, directory, chdir, or warm output
+ * failure is noted on one rank only. The flag is agreed before that
+ * rank frees the group or the others enter the next collective. A
+ * pending embed failure is copied to every rank so each reports the
+ * same text. */
+int cpmdc_agree_cold_stop(void) {
+  int flags[2];
+  flags[0] = cpmdc_stop_code() != 0 ? 1 : 0;
+  flags[1] = g_embed_detail[0] != '\0' ? 1 : 0;
+  if (cpmdc_orbital_allreduce(flags, 2) != 0) {
+    cpmdc_note_stop(1);
+    return 1;
+  }
+  if (flags[0] && cpmdc_stop_code() == 0)
+    cpmdc_note_stop(1);
+#if defined(CPMDC_HAVE_MPI)
+  if (flags[1]) {
+    int inited = 0;
+    int finalized = 0;
+    int rank = 0;
+    int owner;
+    int code;
+    char detail[sizeof(g_embed_detail)];
+    MPI_Comm comm;
+    if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+      return 1;
+    if (MPI_Finalized(&finalized) != MPI_SUCCESS || finalized)
+      return 1;
+    if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+      comm = MPI_COMM_WORLD;
+    if (MPI_Comm_rank(comm, &rank) != MPI_SUCCESS) {
+      cpmdc_note_stop(1);
+      return 1;
+    }
+    owner = g_embed_detail[0] != '\0' ? rank : INT_MAX;
+    if (MPI_Allreduce(MPI_IN_PLACE, &owner, 1, MPI_INT, MPI_MIN, comm) !=
+        MPI_SUCCESS) {
+      cpmdc_note_stop(1);
+      return 1;
+    }
+    memcpy(detail, g_embed_detail, sizeof(detail));
+    code = (int)g_embed_code;
+    if (owner != INT_MAX) {
+      if (MPI_Bcast(&code, 1, MPI_INT, owner, comm) != MPI_SUCCESS ||
+          MPI_Bcast(detail, (int)sizeof(detail), MPI_CHAR, owner, comm) !=
+              MPI_SUCCESS) {
+        cpmdc_note_stop(1);
+        return 1;
+      }
+      detail[sizeof(detail) - 1] = '\0';
+      memcpy(g_embed_detail, detail, sizeof(g_embed_detail));
+      g_embed_code = (CPMDCErrorCode)code;
+    }
+  }
+#endif
+  return flags[0] || flags[1];
+}
+
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+static int cold_setup_fault(const char *fault) {
+  return fault &&
+         (strcmp(fault, "cold-setup-stop") == 0 ||
+          strcmp(fault, "cold-deck-close") == 0 ||
+          strcmp(fault, "cold-output-dir") == 0 ||
+          strcmp(fault, "cold-deck-compose") == 0 ||
+          strcmp(fault, "cold-deck-external") == 0 ||
+          strcmp(fault, "cold-memfd") == 0 ||
+          strcmp(fault, "cold-pp-dir") == 0 ||
+          strcmp(fault, "cold-pp-chdir") == 0 ||
+          strcmp(fault, "cold-pp-cwd") == 0 ||
+          strcmp(fault, "warm-output-dir") == 0);
+}
+
+/* The reference build has no setup list. One collective stands in for
+ * the step that just returned. Rank 1 notes a stop or one setup
+ * failure. Every rank agrees, then either frees the stand-in group or
+ * enters the next collective. Leaving before that agreement is what
+ * makes the other rank wait. */
+static int cpmdc_cold_setup_stop_drill(void) {
+#if defined(CPMDC_HAVE_MPI)
+  MPI_Comm world = MPI_COMM_WORLD;
+  MPI_Comm setup = MPI_COMM_NULL;
+  const char *fault = getenv("CPMDC_TEST_FAULT");
+  int rank = 0;
+  int inited = 0;
+  int agreed;
+  int local_failure = 0;
+  if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+    return -1;
+  if (cpmdc_adopted_comm(&world, sizeof(world)) != 0)
+    world = MPI_COMM_WORLD;
+  if (MPI_Comm_rank(world, &rank) != MPI_SUCCESS)
+    return -1;
+  if (MPI_Comm_dup(world, &setup) != MPI_SUCCESS)
+    return -1;
+  if (MPI_Barrier(setup) != MPI_SUCCESS) {
+    MPI_Comm_free(&setup);
+    return -1;
+  }
+  if (rank == 1 && fault && strcmp(fault, "cold-deck-close") == 0) {
+    cpmdc_note_embed_failure("cannot close the cold deck");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-output-dir") == 0) {
+    cpmdc_note_embed_failure("CPMD output directory is not a directory");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-deck-compose") == 0) {
+    cpmdc_note_embed_failure("cold deck composition failed");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-deck-external") == 0) {
+    cpmdc_note_deck_external_potential();
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-memfd") == 0) {
+    cpmdc_note_embed_failure("cannot create the cold deck");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "cold-pp-dir") == 0) {
+    cpmdc_note_embed_failure(
+        "pseudopotential directory is not set: set CPMDC_PSEUDO_DIR or "
+        "CPMD_PP_LIBRARY_PATH");
+    local_failure = 1;
+  } else if (rank == 1 && fault &&
+             (strcmp(fault, "cold-pp-chdir") == 0 ||
+              strcmp(fault, "cold-pp-cwd") == 0)) {
+    cpmdc_note_embed_failure("cannot enter the pseudopotential directory");
+    local_failure = 1;
+  } else if (rank == 1 && fault && strcmp(fault, "warm-output-dir") == 0) {
+    cpmdc_note_embed_failure("CPMD output directory is not a directory");
+    local_failure = 1;
+  } else if (rank == 1) {
+    cpmdc_note_stop(1);
+  }
+  agreed = cpmdc_agree_cold_stop();
+  if (agreed != 0) {
+    if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+      return -1;
+    return 1;
+  }
+  /* This rank failed on its own. Leaving here frees the group while
+   * the others enter the next collective and the job waits. */
+  if (local_failure) {
+    if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+      return -1;
+    return 1;
+  }
+  if (MPI_Barrier(setup) != MPI_SUCCESS) {
+    MPI_Comm_free(&setup);
+    return -1;
+  }
+  if (MPI_Comm_free(&setup) != MPI_SUCCESS)
+    return -1;
+  return 0;
+#else
+  return 0;
+#endif
+}
+#endif
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -2393,6 +2556,29 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+  if (cold_setup_fault(getenv("CPMDC_TEST_FAULT"))) {
+    int drill = cpmdc_cold_setup_stop_drill();
+    if (drill < 0) {
+      cpmdc_stop_disarm();
+      return fail_image(image, "CPMDC_RANK_CONSENSUS: an MPI collective failed");
+    }
+    if (drill > 0) {
+      int stop = cpmdc_stop_code();
+      char detail[sizeof(g_embed_detail)];
+      memcpy(detail, g_embed_detail, sizeof(detail));
+      cpmdc_stop_disarm();
+      (void)cpmdc_embed_reset_state(image);
+      image_invalidate_results(image);
+      if (stop != 0 || detail[0] == '\0') {
+        if (stop == 0)
+          cpmdc_note_stop(1);
+        return fail_msg("CPMD stopgm during embed SCF");
+      }
+      return fail_msg(detail);
+    }
+  }
+#endif
   int n_external =
       session && session->external_count <= (size_t)INT_MAX
           ? (int)session->external_count
@@ -2494,29 +2680,32 @@ static const char *orbital_limit_gate(const char *local_err) {
   return limit_err ? limit_err : "CPMDC_ORBITAL_SLOT_LIMIT could not be agreed";
 }
 
-static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
+/* Geometry the array one-shots can reject before cpmdc_set_params().
+ * Nothing here installs parameters, detaches the active session, clears
+ * the orbital key, or drops a stored result. The reference evaluator
+ * folds a non-finite coordinate into the energy and still reports
+ * success, so that input is refused with the session preflight text.
+ * These wrappers do not take a cell. */
+static const char *array_geometry_error(int n_atoms, const double *positions_ang,
                                         const int *atomic_numbers,
-                                        const double *cell_ang, int has_cell,
-                                        double *grad_h_bohr,
-                                        const char *params_err) {
-  const char *err = params_err;
-  if (!err &&
-      (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang)))
-    err = "invalid arguments";
-  else if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
-    err = "atomic numbers must be in 1..118";
-  err = orbital_limit_gate(err);
-  if (err) {
-    image_invalidate_results(&g_image);
-    return fail_msg(err);
+                                        const double *grad_h_bohr) {
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr)
+    return "invalid arguments";
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return "atomic numbers must be in 1..118";
+  {
+    int ncomp = n_atoms * 3;
+    int i;
+    for (i = 0; i < ncomp; ++i) {
+      if (!isfinite(positions_ang[i]))
+        return "positions contain a non-finite component";
+    }
   }
-  return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
-                                          g_has_overrides ? &g_overrides : NULL,
-                                          n_atoms,
-                                          positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr,
-                                          &g_image, NULL);
+  if (n_atoms > (int)(sizeof(g_image.prop.hessian) /
+                      (3u * sizeof(g_image.prop.hessian[0]))))
+    return "property gradient snapshot supports at most 1365 atoms";
+  return NULL;
 }
 
 CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
@@ -2524,17 +2713,26 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                   const void *params_capnp,
                                   size_t params_capnp_size_bytes,
                                   double *grad_h_bohr) {
-  const char *params_err = NULL;
-  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr)
-    params_err = "invalid arguments";
-  else if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
-    params_err = cpmdc_last_error();
-    if (!params_err || params_err[0] == '\0')
-      params_err = "embed config failed";
+  const char *err = array_geometry_error(n_atoms, positions_ang, atomic_numbers,
+                                         grad_h_bohr);
+  /* Agree the geometry before installing parameters. A rank that rejects
+   * the input must not leave the others inside cpmdc_set_params(), and a
+   * refusal must not detach the session or drop a stored result. */
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
+  if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
+    err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "embed config failed";
   }
-  return energy_gradient_cell(n_atoms, positions_ang, atomic_numbers, NULL, 0,
-                              grad_h_bohr, params_err);
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
+  return energy_gradient_cell_with_params(
+      g_params_bytes, g_params_size, g_has_overrides ? &g_overrides : NULL,
+      n_atoms, positions_ang, atomic_numbers, NULL, 0, grad_h_bohr, &g_image,
+      NULL);
 }
 
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
@@ -2555,7 +2753,7 @@ CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
   err = collective_call_gate(err);
   if (err) {
     free(grad);
-    image_invalidate_results(&g_image);
+    /* The gradient was never evaluated, so the previous result stays. */
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,
@@ -2637,7 +2835,12 @@ static int element_counts_match(size_t n_atoms, const int *left,
 
 static int coords_differ(const double *left, const double *right) {
   for (int k = 0; k < 3; ++k) {
-    double delta = left[k] - right[k];
+    double delta;
+    /* NaN minus anything is not ordered, so a magnitude test would
+     * treat a non-finite coordinate as equal. */
+    if (!isfinite(left[k]) || !isfinite(right[k]))
+      return 1;
+    delta = left[k] - right[k];
     if (delta < 0.0)
       delta = -delta;
     if (delta > 1.0e-8)
@@ -2655,7 +2858,12 @@ static int cell_differs(int left_has, const double *left, int right_has,
   if (!left || !right)
     return 1;
   for (int i = 0; i < 9; ++i) {
-    double delta = left[i] - right[i];
+    double delta;
+    /* NaN minus anything is not ordered, so a magnitude test would
+     * treat a non-finite component as equal. */
+    if (!isfinite(left[i]) || !isfinite(right[i]))
+      return 1;
+    delta = left[i] - right[i];
     if (delta < 0.0)
       delta = -delta;
     if (delta > 1.0e-8)
@@ -2688,6 +2896,12 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
                                int has_cell) {
   if (!session || !positions_ang || !atomic_numbers || !grad || n_atoms == 0)
     return -1;
+  if (!isfinite(energy_h))
+    return -1;
+  for (size_t i = 0; i < n_atoms * 3u; ++i) {
+    if (!isfinite(positions_ang[i]) || !isfinite(grad[i]))
+      return -1;
+  }
   if (session->cached_n_atoms != n_atoms) {
     double *pos = (double *)malloc(n_atoms * 3u * sizeof(double));
     int *z = (int *)malloc(n_atoms * sizeof(int));
@@ -2735,7 +2949,8 @@ static int session_store_cache(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
-/* The stored gradient is copied into the caller's atom order. Two atoms
+/* The stored gradient is copied into the caller's atom order, including
+ * the property snapshot read by cpmdc_session_last_gradient. Two atoms
  * match when the element and the position agree within 1e-8 Angstrom. */
 static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
                                         const double *positions,
@@ -2790,6 +3005,21 @@ static int session_copy_cached_gradient(CPMDCSession *session, size_t n_atoms,
   } else {
     session->image.charges.valid = 0;
     session->image.charges.count = 0;
+  }
+  /* The snapshot is the gradient in the order of the call that stored
+   * it. Rewrite it from that stored gradient so a later hit, which
+   * still matches against the stored order, does not permute twice. */
+  if (session->image.prop.valid &&
+      session->image.prop.hessian_count == n_atoms * 3u) {
+    for (size_t i = 0; i < n_atoms; ++i) {
+      size_t src = map[i];
+      session->image.prop.hessian[3u * i] =
+          session->cached_grad_h_bohr[3u * src];
+      session->image.prop.hessian[3u * i + 1u] =
+          session->cached_grad_h_bohr[3u * src + 1u];
+      session->image.prop.hessian[3u * i + 2u] =
+          session->cached_grad_h_bohr[3u * src + 2u];
+    }
   }
   free(used);
   free(map);
@@ -3210,15 +3440,26 @@ static CPMDCResult session_energy_gradient_cell(
     else if (cell_state == CPMDC_CELL_VOLUME_UNDERFLOW)
       err = "cell volume is too small for binary64";
   }
+  if (!err) {
+    int ncomp = n_atoms * 3;
+    for (int i = 0; i < ncomp; ++i) {
+      if (!isfinite(positions_ang[i])) {
+        err = "positions contain a non-finite component";
+        break;
+      }
+    }
+  }
   if (!err &&
       session_check_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     err = "topology change requires a new session";
   /* After the topology check, so a session that already holds another
    * system reports the topology change. The topology is latched only
    * after this preflight, so a first call that is too large leaves the
-   * session without a topology and a valid call can follow. */
-  else if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
-                           (3u * sizeof(session->image.prop.hessian[0]))))
+   * session without a topology and a valid call can follow. A non-finite
+   * position was recorded above and must not be replaced by this limit. */
+  if (!err &&
+      n_atoms > (int)(sizeof(session->image.prop.hessian) /
+                      (3u * sizeof(session->image.prop.hessian[0]))))
     err = "property gradient snapshot supports at most 1365 atoms";
   /* Decided before the collective gates, from state every rank holds. */
   if (!err && session->external_count > 0) {

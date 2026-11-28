@@ -77,6 +77,38 @@ static int same(double e, const double *g, const double *e_ref,
          memcmp(g, g_ref, N3 * sizeof(*g)) == 0;
 }
 
+/* Rank 3 sends one non-finite coordinate. Every rank must report the
+ * same invalid-argument failure, and none may return a NaN energy. */
+static void reject_nonfinite(CPMDCSession *session, MPI_Comm world, double bad,
+                             const char *label) {
+  double pos[N3];
+  double grad[N3];
+  int local_ok;
+  int oks[4];
+  char messages[4][512];
+  int agreed = 1;
+  CPMDCResult r;
+  positions(pos, 2.0e-3);
+  if (g_world == 3)
+    pos[0] = bad;
+  r = cpmdc_session_energy_gradient(session, NATOMS, pos, k_z, grad);
+  check(r.ok == 0, label);
+  check(strcmp(r.message, "positions contain a non-finite component") == 0,
+        label);
+  check(strcmp(cpmdc_last_error(), r.message) == 0, label);
+  check(cpmdc_last_error_code() == CPMDC_ERROR_INVALID_ARGUMENT, label);
+  check(r.energy_h == 0.0, label);
+  local_ok = r.ok;
+  MPI_Allgather(&local_ok, 1, MPI_INT, oks, 1, MPI_INT, world);
+  MPI_Allgather(r.message, 512, MPI_CHAR, messages, 512, MPI_CHAR, world);
+  for (int i = 0; i < 4; ++i) {
+    if (oks[i] != 0 ||
+        strcmp(messages[i], "positions contain a non-finite component") != 0)
+      agreed = 0;
+  }
+  check(agreed, label);
+}
+
 int main(int argc, char **argv) {
   MPI_Comm world = MPI_COMM_WORLD;
   MPI_Comm pair = MPI_COMM_NULL;
@@ -137,22 +169,38 @@ int main(int argc, char **argv) {
   check(same(e, g, &e_all[0], g_all), "rank 0's stored positions win");
   mark("a cache hit on one rank does not split the calculator");
 
+  /* A non-finite position is an invalid argument. The gate agrees that
+   * failure, so one rank's NaN does not leave the others evaluating, and
+   * the spread stays the one from the last evaluation. The next finite
+   * step still gives every rank rank 0's result and that step's spread. */
+  check(cpmdc_last_rank_spread(&spread) == 0 && spread.ranks == 4 &&
+            isfinite(spread.energy_h) && spread.energy_h > 0.0,
+        "the partial cache miss still recorded a spread");
+  {
+    CPMDCRankSpread kept = spread;
+    reject_nonfinite(on, world, NAN, "NaN");
+    reject_nonfinite(on, world, INFINITY, "Inf");
+    check(cpmdc_last_rank_spread(&spread) == 0 &&
+              spread.energy_h == kept.energy_h &&
+              spread.gradient_h_bohr == kept.gradient_h_bohr &&
+              spread.ranks == kept.ranks,
+          "a rejected input leaves the spread of the last evaluation");
+  }
   positions(pos, 2.0e-3);
-  if (g_world == 3)
-    pos[0] = NAN;
-  eval(on, pos, &e, g, "evaluation with a NaN on rank 3");
+  eval(on, pos, &e, g, "finite evaluation after a one-rank non-finite input");
   {
     double root[N3 + 1];
     root[0] = e;
     memcpy(root + 1, g, sizeof(g));
     MPI_Bcast(root, N3 + 1, MPI_DOUBLE, 0, world);
     check(same(e, g, &root[0], root + 1) && isfinite(e),
-          "rank 3 holds rank 0's finite result");
+          "after a rejected input every rank holds rank 0's finite result");
   }
-  check(cpmdc_last_rank_spread(&spread) == 0 && isinf(spread.energy_h) &&
-            isinf(spread.gradient_h_bohr),
-        "a NaN difference is an infinite spread");
-  mark("a NaN on one rank is reported as an infinite spread");
+  check(cpmdc_last_rank_spread(&spread) == 0 && spread.ranks == 4 &&
+            isfinite(spread.energy_h) && spread.energy_h > 0.0 &&
+            isfinite(spread.gradient_h_bohr) && spread.gradient_h_bohr > 0.0,
+        "the finite step after a rejection still records the spread");
+  mark("a non-finite input on one rank fails every rank together");
 
   cpmdc_session_destroy(off);
   cpmdc_session_destroy(on);

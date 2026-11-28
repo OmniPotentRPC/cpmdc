@@ -328,6 +328,10 @@ jobs:
     env:
       # Four ranks on a runner that may count fewer cores.
       CPMDC_MPIEXEC: mpiexec --oversubscribe
+      # CMake would otherwise record the build runner's SIMD in the binary.
+      # AVX2_256 is the baseline of the hosted x86_64 runners. The cache key
+      # includes env.GMX_SIMD, so a restored binary matches this setting.
+      GMX_SIMD: AVX2_256
     steps:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.3
@@ -358,7 +362,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/gromacs-2025.5-${{ matrix.route }}
-          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{
+          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{ runner.os }}-${{ runner.arch }}-${{ env.GMX_SIMD }}-${{
             hashFiles('scripts/ci/build_gromacs_cpmdc.sh',
             'tools/gromacs/libcp2k.h', 'tools/gromacs/patches/*',
             'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
@@ -370,7 +374,10 @@ jobs:
           else
             mode=thread-mpi gmx="$prefix/bin/gmx_d" var=CPMDC_GMX
           fi
-          if [ ! -x "$gmx" ]; then
+          # A restored file can be executable and still exit from the version
+          # command with no output when this CPU cannot run it. Build again.
+          if ! "$gmx" --version; then
+            rm -rf "$prefix"
             pixi run scripts/ci/build_gromacs_cpmdc.sh 2025.5 "$prefix" "$CP2K_DIR" "$mode"
           fi
           echo "$var=$gmx" >> "$GITHUB_ENV"

@@ -29,6 +29,11 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_char
       CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
     END SUBROUTINE
+    FUNCTION cpmdc_embed_failure_pending() &
+        BIND(C, NAME='cpmdc_embed_failure_pending') RESULT(pending)
+      IMPORT :: c_int
+      INTEGER(c_int) :: pending
+    END FUNCTION
     SUBROUTINE cpmdc_note_scf_unconverged(minimizer, iterations, maxiter, gemax, &
         tolog, first_minimizer, first_iterations) &
         BIND(C, NAME='cpmdc_note_scf_unconverged')
@@ -71,6 +76,11 @@ MODULE cpmdc_embed_host_iface
       INTEGER(c_int), VALUE :: path_cap
       INTEGER(c_int) :: cpmdc_memfd_write
     END FUNCTION
+    FUNCTION cpmdc_memfd_close(fd) BIND(C, NAME='cpmdc_memfd_close')
+      IMPORT :: c_int
+      INTEGER(c_int), VALUE :: fd
+      INTEGER(c_int) :: cpmdc_memfd_close
+    END FUNCTION
     FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
@@ -112,9 +122,14 @@ MODULE cpmd_embed_c_api
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
-  ! True from the start of a cold setup until cpmdc_embed_teardown frees
-  ! what that setup allocated. A second cold setup tears the first down.
+  ! True after a cold setup list finishes without a stopgm, until
+  ! cpmdc_embed_teardown frees what that setup allocated. A second cold
+  ! setup tears the first down.
   LOGICAL, SAVE :: cpmd_set_up = .FALSE.
+  ! True from the first call of a cold setup list until that list
+  ! finishes or teardown frees the partial state. cpmd_set_up stays
+  ! false while this is set.
+  LOGICAL, SAVE :: cpmd_setup_started = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
@@ -669,7 +684,7 @@ CONTAINS
       IF (own_potential) textfld = .FALSE.
     END IF
     CALL set_cpmdc_external_force_hook()
-    IF (.NOT. cpmd_set_up) RETURN
+    IF (.NOT. cpmd_set_up .AND. .NOT. cpmd_setup_started) RETURN
     CALL embed_teardown_state()
     ! The pseudopotential readers set a species mass only while it is zero,
     ! so the next deck's species would keep this deck's masses, and the
@@ -683,6 +698,7 @@ CONTAINS
     CALL clear_embed_basis_latch()
     embed_setup_ht_set = .FALSE.
     cpmd_set_up = .FALSE.
+    cpmd_setup_started = .FALSE.
 #endif
   END FUNCTION
 
@@ -3108,10 +3124,6 @@ CONTAINS
     END DO
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
-    ! A stopgm in the deck setup of this call returned here with the CPMD
-    ! state undefined (HF_INIT, for one, leaves the HFX arrays unset), and
-    ! an SCF on that state can fault. The caller reports the stop.
-    IF (cpmdc_stop_code() /= 0_c_int) RETURN
     ALLOCATE(origin(n_atoms), species_grad(nmax), warm_geo(nmax), STAT=astat)
     IF (astat /= 0) THEN
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
@@ -3791,9 +3803,10 @@ CONTAINS
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, &
       grad, n_external, external_pos, external_q, external_width, &
       external_force, ok)
-    USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, cpmdc_memfd_close, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure, &
+        cpmdc_embed_failure_pending, &
         cpmdc_note_deck_external_potential, &
         cpmdc_deck_defines_external_potential
     USE fileopen_utils, ONLY: init_fileopen
@@ -3849,7 +3862,14 @@ CONTAINS
     CHARACTER(KIND=c_char) :: pp_c(1024)
     ok = 0_c_int
     energy_h = 0.0_c_double
-    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
+    ! Close ignores a descriptor that was never opened.
+    mfd = -1
+    ! The count is checked before any collective. A rank that rejects it
+    ! still agrees, or the others enter the warm evaluation or startpa.
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) THEN
+      CALL cpmdc_note_embed_failure('invalid arguments'//c_null_char)
+    END IF
+    IF (ranks_agree_failure()) RETURN
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
@@ -3870,10 +3890,11 @@ CONTAINS
       END IF
     END IF
     IF (warm) THEN
-      IF (.NOT. embed_use_output_dir(image)) THEN
-        ierr = cpmdc_restore_host_cwd()
-        RETURN
-      END IF
+      ! embed_use_output_dir notes the directory failure on this rank.
+      ! Agree before embed_eval_energy_grad, then return to the host
+      ! directory. The setup stays; a warm failure does not tear it down.
+      IF (.NOT. embed_use_output_dir(image)) ierr = 1
+      IF (ranks_agree_failure()) RETURN
       ! The latched cell is the one metr_com%ht holds, even when the SCF
       ! that follows fails.
       IF (in_place) THEN
@@ -3905,93 +3926,161 @@ CONTAINS
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
     ! A basis change or a call after a CPMD stop: free the first setup
     ! before this one allocates the same module arrays again.
-    IF (cpmd_set_up) THEN
-      IF (cpmdc_embed_teardown() == 0_c_int) RETURN
-    END IF
-    CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
-         ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
-    IF (nlen > HUGE(0_c_int)) RETURN
-    IF (n_external > 0 .AND. &
-        cpmdc_deck_defines_external_potential(deck, INT(nlen, KIND=c_size_t)) /= 0_c_int) THEN
-      CALL cpmdc_note_deck_external_potential()
-      RETURN
-    END IF
-    mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
-         INT(LEN(mempath), KIND=c_int)))
-    IF (mfd < 0) RETURN
-    paral%io_parent = .TRUE.
-    ! (compose path above honors method-only Cap'n decks.)
-    ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
-    DO idx = 1, LEN(mempath)
-      IF (IACHAR(mempath(idx:idx)) == 0) THEN
-        cnts%inputfile = mempath(1:idx-1)
-        EXIT
+    IF (cpmd_set_up .OR. cpmd_setup_started) THEN
+      IF (cpmdc_embed_teardown() == 0_c_int) THEN
+        CALL cpmdc_note_embed_failure( &
+             'cannot tear down the previous setup'//c_null_char)
       END IF
-    END DO
-    ! OpenCPMD get_pplib uses argv[2] as the PP library whenever argc>1,
-    ! ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn always pass filters
-    ! so argc>1; relative *PP basenames then only resolve via recpnew's
-    ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
-    ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
-    ! The process leaves that directory again once the files are read.
-    IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure(pp_c)
-      RETURN
     END IF
-    IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure( &
-           'cannot enter the pseudopotential directory'//c_null_char)
-      RETURN
+    ! Compose, the memfd, and the pseudopotential directory are local.
+    ! A rank that fails one of them skips the later local steps and
+    ! meets the others at the agreement below. None of those steps is
+    ! a collective, so the ranks still enter that agreement together.
+    ! The deck is closed and the host directory restored only then.
+    IF (cpmdc_embed_failure_pending() == 0_c_int) THEN
+      CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, &
+           nlen, ierr, knobs)
+      IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck) .OR. &
+          nlen > HUGE(0_c_int)) THEN
+        IF (cpmdc_embed_failure_pending() == 0_c_int) THEN
+          CALL cpmdc_note_embed_failure( &
+               'cold deck composition failed'//c_null_char)
+        END IF
+      ELSE IF (n_external > 0 .AND. &
+          cpmdc_deck_defines_external_potential(deck, &
+          INT(nlen, KIND=c_size_t)) /= 0_c_int) THEN
+        CALL cpmdc_note_deck_external_potential()
+      ELSE
+        mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
+             INT(LEN(mempath), KIND=c_int)))
+        IF (mfd < 0) THEN
+          CALL cpmdc_note_embed_failure( &
+               'cannot create the cold deck'//c_null_char)
+        ELSE
+          paral%io_parent = .TRUE.
+          ! (compose path above honors method-only Cap'n decks.)
+          ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
+          DO idx = 1, LEN(mempath)
+            IF (IACHAR(mempath(idx:idx)) == 0) THEN
+              cnts%inputfile = mempath(1:idx-1)
+              EXIT
+            END IF
+          END DO
+          ! OpenCPMD get_pplib uses argv[2] as the PP library whenever
+          ! argc>1, ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn
+          ! always pass filters so argc>1; relative *PP basenames then
+          ! only resolve via recpnew's second-chance CWD lookup.
+          ! cpmdc_prepare_pp_cwd chdirs to the library and also exports
+          ! CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
+          ! The process leaves that directory again once the files are
+          ! read. A failed getcwd and a failed chdir both fail that call.
+          IF (cpmdc_pseudopotential_directory(pp_c, &
+              INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
+            CALL cpmdc_note_embed_failure(pp_c)
+          ELSE IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
+            CALL cpmdc_note_embed_failure( &
+                 'cannot enter the pseudopotential directory'//c_null_char)
+          END IF
+        END IF
+      END IF
     END IF
-    cpmd_set_up = .TRUE.
+    IF (cold_setup_stopped()) RETURN
+    ! A stopgm returns to the caller the hook is armed for. The next
+    ! init in this list would run on undefined module state and can
+    ! fault, and that fault never reaches the C handler. Check after
+    ! every call. cpmd_set_up stays false until the list finishes.
+    cpmd_setup_started = .TRUE.
     IF (.NOT. timer_started) THEN
       CALL tistart(tcpu0, twall0)
       timer_started = .TRUE.
     END IF
+    IF (cold_setup_stopped()) RETURN
     CALL init_fileopen
+    IF (cold_setup_stopped()) RETURN
     CALL startpa
+    IF (cold_setup_stopped()) RETURN
     CALL New(bicanonicalCpmdInputConfig)
+    IF (cold_setup_stopped()) RETURN
     tinfo = .TRUE.
     CALL init_pinf_pointers()
+    IF (cold_setup_stopped()) RETURN
     CALL envir
+    IF (cold_setup_stopped()) RETURN
     CALL setcnst
+    IF (cold_setup_stopped()) RETURN
     CALL control
+    IF (cold_setup_stopped()) RETURN
     CALL dftin
+    IF (cold_setup_stopped()) RETURN
     CALL sysin
+    IF (cold_setup_stopped()) RETURN
     ! PEF stress needs cntl%tpres before dqgalloc. Isolated/Hockney (tclust)
     ! must not set tpres: rinitwf→newcell→gf_periodic needs scg, which
     ! initclust only allocates for periodic cells.
     IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
     CALL setsc
+    IF (cold_setup_stopped()) RETURN
     CALL detsp
+    IF (cold_setup_stopped()) RETURN
     CALL mm_init
+    IF (cold_setup_stopped()) RETURN
     CALL ratom
+    IF (cold_setup_stopped()) RETURN
     ! Pseudopotential files are in memory. Leave that directory before the
     ! SCF so a stray write cannot land on the library.
+    ! A directory failure is already noted. Agree it before this rank
+    ! frees the group and the others enter the next setup call.
     IF (.NOT. embed_use_output_dir(image)) THEN
-      ierr = cpmdc_restore_host_cwd()
-      RETURN
+      ierr = 1
     END IF
+    IF (cold_setup_stopped()) RETURN
     CALL vdwin
+    IF (cold_setup_stopped()) RETURN
     CALL propin(tinfo)
+    IF (cold_setup_stopped()) RETURN
     CALL setsys
+    IF (cold_setup_stopped()) RETURN
     CALL New(bicanonicalCpmdConfig, bicanonicalCpmdInputConfig)
+    IF (cold_setup_stopped()) RETURN
     CALL genxc
+    IF (cold_setup_stopped()) RETURN
     CALL numpw
+    IF (cold_setup_stopped()) RETURN
     CALL rinit
+    IF (cold_setup_stopped()) RETURN
     CALL rinforce
+    IF (cold_setup_stopped()) RETURN
     CALL fft_init()
+    IF (cold_setup_stopped()) RETURN
     CALL ortho_init()
+    IF (cold_setup_stopped()) RETURN
     CALL initclust
+    IF (cold_setup_stopped()) RETURN
     CALL dg_init
+    IF (cold_setup_stopped()) RETURN
     CALL nosalloc
+    IF (cold_setup_stopped()) RETURN
     CALL exterp
+    IF (cold_setup_stopped()) RETURN
     CALL setbasis
+    IF (cold_setup_stopped()) RETURN
     CALL dqgalloc
+    IF (cold_setup_stopped()) RETURN
     CALL prnginit
+    IF (cold_setup_stopped()) RETURN
     CALL gle_alloc
+    IF (cold_setup_stopped()) RETURN
     CALL vdw_wf_alloc
+    IF (cold_setup_stopped()) RETURN
+    ! The parsers have read the deck. Drop the anonymous fd before the SCF.
+    ! A failed close is already noted. Agree it before any rank treats
+    ! the setup as finished and enters the SCF.
+    IF (close_cold_deck() /= 0) THEN
+      ierr = 1
+    END IF
+    IF (cold_setup_stopped()) RETURN
+    cpmd_set_up = .TRUE.
+    cpmd_setup_started = .FALSE.
     embed_setup_ht = metr_com%ht
     embed_setup_ht_set = .TRUE.
     ! First and later forces: positions only from C arrays (nwchemc geom pattern).
@@ -4010,6 +4099,70 @@ CONTAINS
     IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
+  CONTAINS
+    INTEGER FUNCTION close_cold_deck()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTEGER(c_int) :: rc
+      close_cold_deck = 0
+      IF (mfd < 0) RETURN
+      rc = cpmdc_memfd_close(INT(mfd, KIND=c_int))
+      ! 0 closed. -2 released after an error: drop the number so a
+      ! later close does not hit a reused descriptor. -1 still open:
+      ! keep the number. mfd is local and the next run_embed_scf
+      ! resets it, so only the same-call retry in cold_setup_stopped
+      ! can close it.
+      IF (rc == 0_c_int .OR. rc == -2_c_int) mfd = -1
+      IF (rc == 0_c_int) RETURN
+      close_cold_deck = 1
+      ! Keep a failure that was already noted. This one is the reason
+      ! only when the setup had not failed yet.
+      IF (cpmdc_embed_failure_pending() /= 0_c_int) RETURN
+      CALL cpmdc_note_embed_failure( &
+           'cannot close the cold deck'//c_null_char)
+    END FUNCTION close_cold_deck
+
+    ! A noted failure with no partial setup to free. Every rank calls
+    ! this, the text is copied, and only then does this rank return to
+    ! the host directory. The cold setup list is not torn down.
+    LOGICAL FUNCTION ranks_agree_failure()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTERFACE
+        FUNCTION cpmdc_agree_cold_stop() BIND(C, NAME='cpmdc_agree_cold_stop') &
+            RESULT(flag)
+          IMPORT :: c_int
+          INTEGER(c_int) :: flag
+        END FUNCTION cpmdc_agree_cold_stop
+      END INTERFACE
+      INTEGER(c_int) :: agreed, rc
+      agreed = cpmdc_agree_cold_stop()
+      ranks_agree_failure = agreed /= 0_c_int
+      IF (.NOT. ranks_agree_failure) RETURN
+      rc = cpmdc_restore_host_cwd()
+    END FUNCTION ranks_agree_failure
+
+    LOGICAL FUNCTION cold_setup_stopped()
+      USE, INTRINSIC :: iso_c_binding, ONLY: c_int
+      INTERFACE
+        FUNCTION cpmdc_agree_cold_stop() BIND(C, NAME='cpmdc_agree_cold_stop') &
+            RESULT(flag)
+          IMPORT :: c_int
+          INTEGER(c_int) :: flag
+        END FUNCTION cpmdc_agree_cold_stop
+      END INTERFACE
+      INTEGER(c_int) :: agreed, rc
+      ! stopgm may return on one rank only. Agree before this rank
+      ! leaves the list or frees the group, or the others enter the
+      ! next setup collective and the job waits.
+      agreed = cpmdc_agree_cold_stop()
+      cold_setup_stopped = agreed /= 0_c_int
+      IF (.NOT. cold_setup_stopped) RETURN
+      ! Partial module state is undefined. Free it and leave cpmd_set_up
+      ! false so the C handler reports the stop. The deck fd goes too.
+      ! Every rank takes this path once the stop has been agreed.
+      rc = cpmdc_restore_host_cwd()
+      ierr = cpmdc_embed_teardown()
+      ierr = close_cold_deck()
+    END FUNCTION cold_setup_stopped
   END SUBROUTINE
 
 #endif
