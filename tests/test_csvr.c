@@ -144,6 +144,257 @@ static int same_trajectory(uint64_t seed_a, uint64_t seed_b, double *max_diff, i
     return 0;
 }
 
+static uint64_t replay_rotl(uint64_t x, int k) {
+    return (x << k) | (x >> (64 - k));
+}
+
+static uint64_t replay_xoshiro(uint64_t s[4]) {
+    const uint64_t result = replay_rotl(s[1] * 5, 7) * 9;
+    const uint64_t t = s[1] << 17;
+    s[2] ^= s[0];
+    s[3] ^= s[1];
+    s[1] ^= s[2];
+    s[0] ^= s[3];
+    s[2] ^= t;
+    s[3] = replay_rotl(s[3], 45);
+    return result;
+}
+
+static int replay_unit(cpmdc_csvr_rng *rng, double *out) {
+    for (int attempt = 0; attempt < 64; ++attempt) {
+        const uint64_t bits = replay_xoshiro(rng->state) >> 11;
+        const double u = ldexp((double)bits, -53);
+        if (u > 0.0) {
+            *out = u;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static int replay_normal(cpmdc_csvr_rng *rng, double *out) {
+    if (rng->spare_ready) {
+        rng->spare_ready = 0;
+        *out = rng->spare_normal;
+        return 0;
+    }
+    double u1 = 0.0;
+    double u2 = 0.0;
+    if (replay_unit(rng, &u1) != 0 || replay_unit(rng, &u2) != 0) {
+        return -1;
+    }
+    const double mag = sqrt(-2.0 * log(u1));
+    const double ang = 2.0 * acos(-1.0) * u2;
+    rng->spare_normal = mag * sin(ang);
+    rng->spare_ready = 1;
+    *out = mag * cos(ang);
+    if (!isfinite(*out) || !isfinite(rng->spare_normal)) {
+        return -1;
+    }
+    return 0;
+}
+
+/* Unit-scale gamma, copied so the test can replay the library draws. */
+static int replay_gamma(cpmdc_csvr_rng *rng, double shape, double *out) {
+    if (!(shape > 0.0) || !isfinite(shape)) {
+        return -1;
+    }
+    if (shape < 1.0) {
+        double boosted = 0.0;
+        double u = 0.0;
+        if (replay_gamma(rng, shape + 1.0, &boosted) != 0 || replay_unit(rng, &u) != 0) {
+            return -1;
+        }
+        const double value = boosted * pow(u, 1.0 / shape);
+        if (!isfinite(value) || value < 0.0) {
+            return -1;
+        }
+        *out = value;
+        return 0;
+    }
+    const double d = shape - (1.0 / 3.0);
+    const double c = 1.0 / sqrt(9.0 * d);
+    for (int draw = 0; draw < 1000000; ++draw) {
+        double x = 0.0;
+        double v = 0.0;
+        int accepted_v = 0;
+        for (int inner = 0; inner < 1000000; ++inner) {
+            if (replay_normal(rng, &x) != 0) {
+                return -1;
+            }
+            v = 1.0 + c * x;
+            if (v > 0.0) {
+                accepted_v = 1;
+                break;
+            }
+        }
+        if (!accepted_v) {
+            return -1;
+        }
+        v = v * v * v;
+        double u = 0.0;
+        if (replay_unit(rng, &u) != 0 || !isfinite(v) || v <= 0.0) {
+            return -1;
+        }
+        const double x2 = x * x;
+        if (u < 1.0 - 0.0331 * x2 * x2 || log(u) < 0.5 * x2 + d * (1.0 - v + log(v))) {
+            const double value = d * v;
+            if (!isfinite(value) || value < 0.0) {
+                return -1;
+            }
+            *out = value;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static int replay_sum(cpmdc_csvr_rng *rng, int count, double *out) {
+    if (count <= 0) {
+        *out = 0.0;
+        return 0;
+    }
+    double unit = 0.0;
+    if (replay_gamma(rng, 0.5 * (double)count, &unit) != 0) {
+        return -1;
+    }
+    const double value = 2.0 * unit;
+    if (!isfinite(value) || value < 0.0) {
+        return -1;
+    }
+    *out = value;
+    return 0;
+}
+
+/* Equation (22) of the arXiv HTML, (A7) in the arXiv PDF and the journal. */
+static int paper_scale(const cpmdc_csvr_rng *seeded, double kinetic, int ndof, double temperature,
+                        double time_step, double time_constant, double *scale, double *cross) {
+    cpmdc_csvr_rng rng = *seeded;
+    const double c = exp(-time_step / time_constant);
+    const double ratio = (0.5 * temperature) / kinetic;
+    double normal = 0.0;
+    double rest = 0.0;
+    if (replay_normal(&rng, &normal) != 0 || replay_sum(&rng, ndof - 1, &rest) != 0) {
+        return -1;
+    }
+    const double one_c = 1.0 - c;
+    *cross = 2.0 * exp(-0.5 * time_step / time_constant) * sqrt(ratio * one_c) * normal;
+    const double alpha2 =
+        c + ratio * one_c * (normal * normal + rest) + *cross;
+    if (!(alpha2 >= 0.0) || !isfinite(alpha2)) {
+        return -1;
+    }
+    *scale = sqrt(alpha2);
+    return 0;
+}
+
+static int finite_tau(int ndof) {
+    const double dt = 1.0;
+    const double tau = 10.0;
+    const double kinetic = 1.25;
+    const double temperature = 0.8;
+    const double c = exp(-dt / tau);
+    if (!(c > 0.5)) {
+        return fail("finite tau decayed");
+    }
+    for (uint64_t seed = 1; seed < 64; ++seed) {
+        cpmdc_csvr_rng rng;
+        if (cpmdc_csvr_rng_seed(&rng, seed) != 0) {
+            return fail("finite seed");
+        }
+        double expected = 0.0;
+        double cross = 0.0;
+        if (paper_scale(&rng, kinetic, ndof, temperature, dt, tau, &expected, &cross) != 0) {
+            return fail("finite paper");
+        }
+        if (!(fabs(cross) > 1e-3)) {
+            continue;
+        }
+        double scale = 0.0;
+        double work = 0.0;
+        if (cpmdc_csvr_scale(kinetic, ndof, temperature, dt, tau, &rng, &scale, &work) != 0) {
+            return fail("finite library");
+        }
+        const double diff = fabs(scale - expected);
+        printf("csvr_stat finite_tau ndof %d diff %.9e cross %.9e c %.9e\n", ndof, diff, cross, c);
+        if (diff > 1e-12) {
+            return fail("finite tau mismatch");
+        }
+        return 0;
+    }
+    return fail("finite tau found no cross term");
+}
+
+static int copied_generator(void) {
+    cpmdc_csvr_rng rng;
+    if (cpmdc_csvr_rng_seed(&rng, 17) != 0) {
+        return fail("copy seed");
+    }
+    double kinetic = 1.5;
+    for (int step = 0; step < 4; ++step) {
+        double scale = 0.0;
+        double work = 0.0;
+        if (cpmdc_csvr_scale(kinetic, 3, 1.0, 1.0, 10.0, &rng, &scale, &work) != 0) {
+            return fail("copy warmup");
+        }
+        kinetic *= scale * scale;
+    }
+    cpmdc_csvr_rng copy;
+    memcpy(&copy, &rng, sizeof copy);
+    for (int step = 0; step < 6; ++step) {
+        double left = 0.0;
+        double right = 0.0;
+        double left_work = 0.0;
+        double right_work = 0.0;
+        if (cpmdc_csvr_scale(kinetic, 3, 1.0, 1.0, 10.0, &rng, &left, &left_work) != 0 ||
+            cpmdc_csvr_scale(kinetic, 3, 1.0, 1.0, 10.0, &copy, &right, &right_work) != 0) {
+            return fail("copy step");
+        }
+        if (left != right || left_work != right_work) {
+            return fail("copy diverged");
+        }
+        kinetic *= left * left;
+    }
+    printf("csvr_stat copy_replay ok\n");
+    return 0;
+}
+
+static int positive_root(void) {
+    const double dt = 1.0;
+    const double tau = 10.0;
+    const double kinetic = 0.05;
+    const double temperature = 1.0;
+    const double c = exp(-dt / tau);
+    const double s = (1.0 - c) * (0.5 * temperature) / kinetic;
+    for (uint64_t seed = 1; seed < 10000; ++seed) {
+        cpmdc_csvr_rng rng;
+        if (cpmdc_csvr_rng_seed(&rng, seed) != 0) {
+            return fail("root seed");
+        }
+        cpmdc_csvr_rng draw = rng;
+        double normal = 0.0;
+        if (replay_normal(&draw, &normal) != 0) {
+            return fail("root draw");
+        }
+        const double signed_term = sqrt(c) + normal * sqrt(s);
+        if (!(signed_term < 0.0)) {
+            continue;
+        }
+        double scale = 0.0;
+        double work = 0.0;
+        if (cpmdc_csvr_scale(kinetic, 1, temperature, dt, tau, &rng, &scale, &work) != 0) {
+            return fail("root library");
+        }
+        const double positive = fabs(signed_term);
+        printf("csvr_stat positive_root signed %.9e scale %.9e\n", signed_term, scale);
+        if (!(scale > 0.0) || fabs(scale - positive) > 1e-12 || scale == signed_term) {
+            return fail("root was not the positive square root");
+        }
+        return 0;
+    }
+    return fail("no negative root");
+}
+
 static int rejected(cpmdc_csvr_rng *rng, double kinetic, int ndof, double temperature,
                     double time_step, double time_constant) {
     cpmdc_csvr_rng copy = *rng;
@@ -274,6 +525,9 @@ int main(void) {
         return fail("bad time constant");
     }
 
+    if (finite_tau(1) != 0 || finite_tau(4) != 0 || copied_generator() != 0 || positive_root() != 0) {
+        return 1;
+    }
     if (ideal_gas(1, 7) != 0 || ideal_gas(2, 9) != 0 || ideal_gas(3, 11) != 0 ||
         ideal_gas(6, 13) != 0 || harmonic() != 0) {
         return 1;
