@@ -3924,8 +3924,10 @@ shares each step across the ranks.
 ## File: docs/orgmode/howto/install.org
 
 # What gets built
-A `cpmdc` build produces one shared library, `libcpmdc.so`, and a few helpers
-around it.
+A `cpmdc` build produces the shared libraries `libcpmdc.so` and `libcpmdc_csvr`,
+and a few helpers around them.
+Outside a `with_python` build, `libcpmdc_csvr` records SONAME
+`libcpmdc_csvr.so.0`.
 The build has two modes, selected by the Meson option `with_cpmd`:
 
 | Mode | Option | Evaluator behind the C ABI | `cpmdc_available()` |
@@ -3944,7 +3946,7 @@ The tests use it to check the ABI without a working evaluator.
 | `libcpmdc.so` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | the C ABI from `include/cpmdc.h` |
 | public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | declarations for hosts |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | reader and writer for CPMD `RESTART` files |
-| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a`, or an unversioned `lib/libcpmdc_csvr.so` when `with_python` is on | canonical sampling thermostat, not called by a session |
+| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a` for `default_library=shared` and for `default_library=static`. A `with_python` build installs `lib/libcpmdc_csvr.a` and an unversioned `lib/libcpmdc_csvr.so` | canonical sampling thermostat, not called by a session |
 | `cpmdc_csvr.h` | `include/cpmdc/cpmdc_csvr.h` | declarations for that thermostat |
 | `cpmdc-restart` | `bin/cpmdc-restart` | command-line front end to `libcpmdc_restart` |
 | pkg-config files | `cpmdc.pc`, `cpmdc-restart.pc` | compiler and linker flags |
@@ -6490,7 +6492,7 @@ linked image, but wildcard entries match only symbols that are present.
 | `libcpmdc` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | always |
 | public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | always |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | always |
-| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a`, or an unversioned `lib/libcpmdc_csvr.so` when `with_python` is on | always |
+| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so.0` and `lib/libcpmdc_csvr.a` for `default_library=shared` and for `default_library=static`. A `with_python` build installs `lib/libcpmdc_csvr.a` and an unversioned `lib/libcpmdc_csvr.so` | always |
 | CSVR header | `include/cpmdc/cpmdc_csvr.h` | always |
 | `cpmdc-restart` | `bin/cpmdc-restart` | always |
 | pkg-config files | `lib/pkgconfig/cpmdc.pc`, `cpmdc-restart.pc` | always |
@@ -6524,6 +6526,7 @@ These suites group the tests of the default build by layer.
 | `e2e`, `fd-check` | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
 | `python` | Python bindings, `pytest` suite, `mypy` strict check (skips without `mypy`), and Python reference audit |
 | `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
+| `csvr` | finite time-constant scale, a copied generator, and the positive square root |
 | `packaging` | installed `RUNPATH`, relocatable `pkg-config` layouts, and CMake/pkg-config consumer build |
 | `docs`, `examples` | `example-host-step`, runnable documentation blocks, `llms.txt` freshness, and API reference contracts |
 
