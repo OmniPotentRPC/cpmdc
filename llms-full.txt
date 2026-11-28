@@ -11522,8 +11522,10 @@ A session never calls it.
 Leaving it out of a calculation leaves energies and forces unchanged.
 The update is the canonical velocity rescaling of Bussi, Donadio, and
 Parrinello, J. Chem. Phys. 126, 014101 (2007), arXiv:0803.4060 (https://arxiv.org/abs/0803.4060).
-The journal prints the rescaling factor as equation (A7).
-The arXiv HTML numbers the same factor as equation (22).
+The finite-time propagator for `y(t)` is equation (21) in the arXiv HTML and
+equation (A6) in the arXiv PDF and the journal.
+The rescaling factor `alpha^2` is equation (22) in the arXiv HTML and equation
+(A7) in the arXiv PDF and the journal.
 
 # Update
 The host supplies the kinetic energy of the degrees it wants to thermostat.
@@ -11541,9 +11543,10 @@ work = kinetic * (1 - scale^2)
 
 `S` is drawn as twice a unit-scale gamma sample of shape `(ndof - 1) / 2`.
 That factor of two is the scale of a chi-squared draw.
-Equation (21) of the arXiv text is a sum of squares of standard normals.
-The gamma density printed beside equation (22) is the unit-scale density, whose
-mean is the shape, so the sum of squares is twice that draw.
+The paragraph after the rescaling factor says the other `N_f - 1` squares can be
+drawn from the gamma density printed there.
+That density is the unit-scale density, whose mean is the shape, so the sum of
+squares is twice that draw.
 ASE does the same with `2 * standard_gamma`.
 One degree of freedom has no remaining squares, so `S` is 0 and no gamma sample
 is drawn.
@@ -11604,13 +11607,18 @@ The search then checks a wheel copy, the dynamic linker, and `build/`.
 # Other codes
 CP2K selects this thermostat with `MOTION/MD/THERMOSTAT TYPE CSVR`.
 The default type on that keyword is `NOSE`.
-`CSVR/TIMECON` defaults to 1.00000000E+003 fs.
-CP2K counts the time constant in units of the call interval, so a host that
-calls the thermostat once per step passes `time_constant / time_step` there.
+`CSVR/TIMECON` is the time constant in femtoseconds.
+Its default is 1000 fs.
+`csvr_init` reads that value and divides it by half the integration time step,
+because the thermostat is applied on both velocity-Verlet half steps.
+`do_csvr` passes `taut = tau_csvr / dt_fact` to `rescaling_factor`.
+`dt_fact` starts at 1.
+`rescaling_factor` takes `taut` in units of how often it is called, so a host
+that calls that routine once per step passes the time constant divided by the
+time step.
 The CP2K routine `rescaling_factor` in `csvr_system_utils` follows equation
 (A7).
-It sets the propagation factor to 0 when that call-interval time constant is 0.1
-or smaller.
+It sets the propagation factor to 0 when `taut` is 0.1 or smaller.
 This library does not.
 It keeps `exp(-time_step / time_constant)` for every positive finite constant.
 CP2K also flips the sign of the scale for a single degree of freedom when the
@@ -11623,8 +11631,12 @@ increments, which is the sum of `work`.
 When the thermostat covers a system whose center of mass is fixed, CP2K tells
 the caller to omit those degrees from the count and to keep the center-of-mass
 momentum at zero.
+Each holonomic constraint also comes off that count.
+`compute_nfree` subtracts intramolecular constraints and intermolecular
+constraints that are not restraints, then the rotational and translational
+degrees.
 This library does not adjust the count.
-The host passes the degrees it wants and applies the scale to those velocities.
+The host passes `ndof` and applies the scale to those velocities.
 
 The CPMD 4.3.0 manual thermostats ions with `NOSE`, `BERENDSEN`, `LANGEVIN`, and
 `TEMPCONTROL`.
