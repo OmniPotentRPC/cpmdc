@@ -2629,6 +2629,39 @@ The ~fix external~ driver for LAMMPS.
 | Raises | ~ValueError~ for a unit style other than ~metal~, ~real~ and ~electron~. |
 | Defaults | none |
 
+*** ~cpmdc.csvr.HARTREE_PER_KELVIN~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~HARTREE_PER_KELVIN = 3.166811563455608e-06~ |
+| Units | Hartree per kelvin. |
+| Shape and dtype | scalar ~float~. |
+| Ownership and threads | Immutable module constant, readable from any thread. |
+| Raises | none |
+| Defaults | The SI Boltzmann constant divided by the Hartree joule value used for ~HARTREE_TO_KCAL_PER_MOL~. |
+
+*** ~cpmdc.csvr.Rng~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~Rng(seed)~ |
+| Units | none |
+| Shape and dtype | ~seed~ is an integer. The object holds the generator bytes. |
+| Ownership and threads | The caller owns the object. Do not share one generator across threads. |
+| Raises | ~TypeError~ when ~seed~ is a boolean or not an integer. ~ValueError~ when ~seed~ does not fit in an unsigned 64-bit integer. ~CPMDCError~ when the shared library is missing or the seed call fails. |
+| Defaults | none |
+
+*** ~cpmdc.csvr.scale~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~scale(kinetic, ndof, rng, *, temperature_K, taut, timestep, kB)~ |
+| Units | ~kinetic~ and the returned work share one energy unit. ~temperature_K~ is kelvin. ~kB~ converts one kelvin into that energy unit, for example Hartree. ~taut~ and ~timestep~ share one time unit. The scale is dimensionless. |
+| Shape and dtype | Scalar inputs. Returns a pair of ~float~ values, the scale and the work. |
+| Ownership and threads | ~rng~ is caller-owned and must not be shared across threads. The function keeps no other state. The first load of the shared library is process global. |
+| Raises | ~TypeError~ for a boolean or non-numeric ~kinetic~, ~temperature_K~, ~taut~, ~timestep~, or ~kB~, for an ~ndof~ that is not an integer, or for an ~rng~ that is not an ~Rng~. ~ValueError~ when ~ndof~ is below 1 or does not fit in a C int, ~kinetic~ is not finite and positive, ~temperature_K~ or ~timestep~ is negative or not finite, ~taut~ is not positive, ~kB~ is negative or not finite, or ~kB~ times ~temperature_K~ is not finite. ~CPMDCError~ when the shared library is missing or the C call returns -1. |
+| Defaults | none |
+
 * ASE properties
 
 The properties ~CPMDCCalculator~ implements, in ASE units.

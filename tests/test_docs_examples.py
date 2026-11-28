@@ -172,6 +172,7 @@ COMPILE = {
     "howto/mpi.org:2",
     "howto/mpi.org:4",
     "reference/feature-inventory.org:0",
+    "howto/csvr.org:0",
 }
 
 # The names the fragments take from the host program around them.

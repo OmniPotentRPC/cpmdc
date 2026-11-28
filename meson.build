@@ -559,6 +559,7 @@ if get_option('with_python')
     'python/cpmdc/gromacs.py',
     'python/cpmdc/ipi.py',
     'python/cpmdc/lammps.py',
+    'python/cpmdc/csvr.py',
     'python/cpmdc/py.typed',
     subdir: 'cpmdc',
   )
@@ -585,6 +586,7 @@ install_headers(
   'include/cpmdc_export.h',
   'include/cpmdc_features.h',
   'include/cpmdc_restart.h',
+  'include/cpmdc_csvr.h',
   subdir: 'cpmdc',
 )
 
@@ -598,6 +600,16 @@ cpmdc_restart_lib = static_library(
 cpmdc_restart_dep = declare_dependency(
   link_with: cpmdc_restart_lib,
   include_directories: inc,
+)
+# Opt-in ionic CSVR thermostat. The session does not call it.
+cpmdc_csvr_lib = both_libraries(
+  'cpmdc_csvr',
+  'src/cpmdc_csvr.c',
+  include_directories: inc,
+  c_args: common_c_args,
+  dependencies: math_dep,
+  install: true,
+  install_rpath: '',
 )
 restart_tool_sources = ['tools/cpmdc_restart.c']
 restart_tool_deps = [cpmdc_restart_dep]
@@ -880,6 +892,33 @@ if get_option('with_tests')
     args: [files('tests/test_no_fault_hooks.py'), cpmdc_shared.full_path()],
     depends: cpmdc_shared,
     suite: ['abi', 'inventory'],
+  )
+  csvr_test = executable(
+    'test_csvr',
+    'tests/test_csvr.c',
+    include_directories: inc,
+    c_args: common_c_args,
+    dependencies: math_dep,
+    link_with: cpmdc_csvr_lib.get_static_lib(),
+  )
+  test('csvr', csvr_test, suite: 'csvr')
+  csvr_bench_lib = static_library(
+    'cpmdc_csvr_bench',
+    'src/cpmdc_csvr.c',
+    include_directories: inc,
+    c_args: common_c_args,
+    dependencies: math_dep,
+    override_options: ['optimization=2'],
+  )
+  csvr_bench = executable(
+    'cpmdc-csvr-bench',
+    'bench/csvr_scale.c',
+    include_directories: inc,
+    c_args: common_c_args,
+    dependencies: math_dep,
+    link_with: csvr_bench_lib,
+    override_options: ['optimization=2'],
+    install: false,
   )
   geometry_test = executable(
     'test_geometry_rmsd',
@@ -2241,10 +2280,16 @@ if get_option('with_tests')
     'OMP_NUM_THREADS': '1',
     'MKL_NUM_THREADS': '1',
     'CPMDC_LIBRARY': cpmdc_shared.full_path(),
+    'CPMDC_CSVR_LIBRARY': cpmdc_csvr_lib.get_shared_lib().full_path(),
     'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
   }
-  pytest_depends = [cpmdc_shared, water_params_bin, water_periodic_params_bin]
+  pytest_depends = [
+    cpmdc_shared,
+    cpmdc_csvr_lib.get_shared_lib(),
+    water_params_bin,
+    water_periodic_params_bin,
+  ]
   # The C cell classifier on its own, for the Python parity tests.
   cell_rank_probe = executable(
     'cell_rank_probe',

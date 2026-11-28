@@ -1,0 +1,45 @@
+#+TITLE: Thermostat ions with CSVR
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+Use CSVR when a host wants canonical ionic velocities and wants the session
+itself left unchanged.
+~libcpmdc~ does not call the thermostat.
+The host evaluates forces as usual, then rescales the velocities it owns.
+
+Keep one ~cpmdc_csvr_rng~ for the trajectory and seed it once.
+Pass the kinetic energy of the thermostatted degrees, the degree count,
+Boltzmann's constant times the target temperature in that energy unit, the time
+step, and the time constant.
+Multiply each of those velocity components by the scale.
+Add ~work~ to a running sum if you want the effective energy.
+An infinite time constant returns a scale of 1 and a work of 0, which is an NVE
+step.
+The [[file:../reference/csvr.org][CSVR reference]] records the update and the
+comparison with CP2K, ASE, and the CPMD manual.
+
+#+begin_src c
+#include <cpmdc_csvr.h>
+
+cpmdc_csvr_rng rng;
+double scale = 0.0;
+double work = 0.0;
+if (cpmdc_csvr_rng_seed(&rng, 1) != 0) {
+  return;
+}
+if (cpmdc_csvr_scale(1.0, 3, 1.0, 1.0, 20.0, &rng, &scale, &work) != 0) {
+  return;
+}
+#+end_src
+
+Here the kinetic energy and ~temperature~ are both 1 in the host's energy unit,
+the time step is 1, and the time constant is 20 in that same time unit.
+Link the program with ~-lcpmdc_csvr~ and ~-lm~.
+
+From Python, construct ~cpmdc.csvr.Rng~ with an integer seed and call
+~cpmdc.csvr.scale~.
+The keywords ~temperature_K~ and ~taut~ match ASE.
+Also pass ~timestep~, in the same time unit as ~taut~, and ~kB~.
+Use ~ase.units.kB~ when the kinetic energy is in ASE units.
+Use ~cpmdc.csvr.HARTREE_PER_KELVIN~ when it is in Hartree.
+Set ~CPMDC_CSVR_LIBRARY~ to the shared library if it is not already on the
+search path.

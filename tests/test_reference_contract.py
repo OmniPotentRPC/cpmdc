@@ -32,6 +32,7 @@ PAGES = {
     "include/cpmdc_features.h": "c-abi",
     "include/cpmdc_restart.h": "c-abi",
     "include/cpmdc_pwscale.h": "pwscale",
+    "include/cpmdc_csvr.h": "csvr",
 }
 # Written to stderr under CPMDC_SCF_STEPS=1; see reference/environment.org.
 LOG_TOKENS = {"cpmdc_scf_steps", "cpmdc_warm_start", "cpmdc_wfn_extrapolated"}
@@ -430,7 +431,8 @@ def test_bogus_field_in_nonstandard_intro_table() -> None:
             + "\n",
             encoding="utf-8",
         )
-        (root / "docs/orgmode/reference/pwscale.org").write_text("", encoding="utf-8")
+        for stem in sorted(set(PAGES.values())):
+            (root / "docs/orgmode/reference" / f"{stem}.org").write_text("", encoding="utf-8")
         c_abi = root / "docs/orgmode/reference/c-abi.org"
         c_abi.write_text(valid_page, encoding="utf-8")
         clean_failures: list[str] = []

@@ -36,12 +36,14 @@ Full plain text of every page: https://cpmdc.rgoswami.me/llms-full.txt (committe
 - [Debug an input with CPMDC_DECK_OUT](https://cpmdc.rgoswami.me/howto/debug-deck)
 - [Check forces and stress by finite differences](https://cpmdc.rgoswami.me/howto/check-forces)
 - [Time the plane-wave scaffold on ranks](https://cpmdc.rgoswami.me/howto/pwscale-ranks)
+- [Thermostat ions with CSVR](https://cpmdc.rgoswami.me/howto/csvr)
 - [Troubleshooting](https://cpmdc.rgoswami.me/howto/troubleshooting)
 
 ## Reference
 
 - [C ABI reference](https://cpmdc.rgoswami.me/reference/c-abi)
 - [Plane-wave scaffold reference](https://cpmdc.rgoswami.me/reference/pwscale)
+- [CSVR thermostat reference](https://cpmdc.rgoswami.me/reference/csvr)
 - [Python API](https://cpmdc.rgoswami.me/reference/python)
 - [GROMACS interface reference](https://cpmdc.rgoswami.me/reference/gromacs)
 - [LAMMPS interface reference](https://cpmdc.rgoswami.me/reference/lammps)

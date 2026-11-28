@@ -18,6 +18,7 @@ DOC_PAGES = {
     "cpmd_options": ROOT / "docs/orgmode/reference/cpmd-options.org",
     "embedding": ROOT / "docs/orgmode/howto/embedding.org",
     "pwscale": ROOT / "docs/orgmode/reference/pwscale.org",
+    "csvr": ROOT / "docs/orgmode/reference/csvr.org",
 }
 
 
@@ -32,6 +33,10 @@ def load_headers() -> set[str]:
     if pw.is_file():
         text = re.sub(r"/\*.*?\*/", " ", pw.read_text(encoding="utf-8"), flags=re.S)
         names |= set(re.findall(r"\b(cpmdc_pwscale_\w+)\s*\(", text))
+    csvr = ROOT / "include/cpmdc_csvr.h"
+    if csvr.is_file():
+        text = re.sub(r"/\*.*?\*/", " ", csvr.read_text(encoding="utf-8"), flags=re.S)
+        names |= set(re.findall(r"\b(cpmdc_csvr_\w+)\s*\(", text))
     return names
 
 
@@ -75,6 +80,7 @@ def report() -> dict[str, object]:
         DOC_PAGES["c_abi"].read_text(encoding="utf-8")
         + DOC_PAGES["contracts"].read_text(encoding="utf-8")
         + DOC_PAGES["pwscale"].read_text(encoding="utf-8")
+        + DOC_PAGES["csvr"].read_text(encoding="utf-8")
     )
     py_docs = (
         DOC_PAGES["python"].read_text(encoding="utf-8")

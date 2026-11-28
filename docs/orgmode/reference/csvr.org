@@ -1,0 +1,122 @@
+#+TITLE: CSVR thermostat reference
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+The ionic CSVR thermostat is declared in
+~include/cpmdc_csvr.h~ and implemented in ~src/cpmdc_csvr.c~.
+It is a separate library, ~libcpmdc_csvr~, and it is not part of ~libcpmdc~.
+A session never calls it.
+Leaving it out of a calculation leaves energies and forces unchanged.
+The update is the canonical velocity rescaling of Bussi, Donadio, and
+Parrinello, J. Chem. Phys. 126, 014101 (2007), [[https://arxiv.org/abs/0803.4060][arXiv:0803.4060]].
+The journal prints the rescaling factor as equation (A7).
+The arXiv HTML numbers the same factor as equation (22).
+
+* Update
+The host supplies the kinetic energy of the degrees it wants to thermostat.
+~temperature~ is Boltzmann's constant times the target temperature, in that same
+energy unit.
+~time_step~ and ~time_constant~ share one time unit.
+The propagation factor is ~c = exp(-time_step / time_constant)~.
+A positive infinite time constant, or a zero time step, sets ~c~ to 1.
+The target kinetic energy is ~ndof * temperature / 2~.
+With ~s = (1 - c) * temperature / (2 * kinetic)~, one standard normal ~R1~, and
+~S~ the sum of squares of the other ~ndof - 1~ standard normals,
+
+#+begin_example
+scale^2 = (sqrt(c) + R1 * sqrt(s))^2 + s * S
+work = kinetic * (1 - scale^2)
+#+end_example
+
+~S~ is drawn as twice a unit-scale gamma sample of shape ~(ndof - 1) / 2~.
+That factor of two is the scale of a chi-squared draw.
+Equation (21) of the arXiv text is a sum of squares of standard normals.
+The gamma density printed beside equation (22) is the unit-scale density, whose
+mean is the shape, so the sum of squares is twice that draw.
+ASE does the same with ~2 * standard_gamma~.
+One degree of freedom has no remaining squares, so ~S~ is 0 and no gamma sample
+is drawn.
+The first normal is ~R1~, and the gamma draw, when there is one, comes after it.
+A zero temperature or ~c~ of 1 makes the noise terms zero.
+The scale is then ~sqrt(c)~, the work is ~kinetic * (1 - c)~, and the generator
+is not advanced.
+The returned scale is the positive square root.
+The host multiplies every thermostatted velocity component by that scale.
+~work~ is the energy removed from those degrees.
+The effective energy is the Hamiltonian plus the sum of ~work~ along the
+trajectory.
+Section II C of the 2007 paper uses that sum to see integrator error.
+The rescaling itself does not change it.
+
+* Calls
+
+| Call | Effect |
+|------+--------|
+| ~cpmdc_csvr_rng_seed(rng, seed)~ | Fill a caller-owned generator. Any 64-bit seed is accepted, including zero. Returns 0, or -1 when ~rng~ is NULL, and a failure writes nothing. |
+| ~cpmdc_csvr_scale(kinetic, ndof, temperature, time_step, time_constant, rng, scale, work)~ | Write the positive scale and the thermostat work. Returns 0, or -1 when a pointer is NULL, ~rng~ was not seeded, ~ndof~ is below 1, ~kinetic~ is not finite and positive, ~temperature~ is not finite and non-negative, ~time_step~ is not finite and non-negative, ~time_constant~ is not positive, or a result is not finite. A failure writes nothing and does not advance ~rng~. |
+
+Both functions have C linkage.
+The header compiles as C and as C++.
+Neither function writes ~cpmdc_last_error()~.
+The return code is the whole report.
+Link ~libcpmdc_csvr~ and ~libm~.
+The installed header is ~include/cpmdc/cpmdc_csvr.h~.
+
+* Generator
+The generator is a plain object the host allocates.
+Copying the bytes replays the same later draws.
+Do not share one object across threads.
+A scale call reads and writes only that object.
+
+Fields of ~cpmdc_csvr_rng~.
+
+| Field | Type | Meaning |
+|-------+------+---------|
+| ~state~ | four ~uint64_t~ words | Generator state. All zeros means the object has not been seeded. |
+| ~spare_normal~ | ~double~ | The unused value of a Box-Muller pair, in the same units as a standard normal. |
+| ~spare_ready~ | ~int~ | One when ~spare_normal~ has not been consumed, otherwise zero. |
+
+* Python
+~cpmdc.csvr.Rng~ and ~cpmdc.csvr.scale~ call this library.
+~temperature_K~ and ~taut~ are the ASE keyword names.
+~timestep~ uses the same time unit as ~taut~.
+~kB~ converts one kelvin into the energy unit of the kinetic energy.
+~cpmdc.csvr.HARTREE_PER_KELVIN~ is that conversion for Hartree.
+ASE stores ~(scale^2 - 1) * kinetic~ in ~transferred_energy~.
+~work~ is the opposite sign, so a host that wants the ASE accumulator subtracts
+~work~.
+The binding raises ~TypeError~, ~ValueError~, or ~CPMDCError~ and does not
+advance the generator when the C call returns -1.
+~CPMDC_CSVR_LIBRARY~ names the shared library.
+The search then checks a wheel copy, the dynamic linker, and ~build/~.
+
+* Other codes
+CP2K selects this thermostat with ~MOTION/MD/THERMOSTAT TYPE CSVR~.
+The default type on that keyword is ~NOSE~.
+~CSVR/TIMECON~ defaults to 1.00000000E+003 fs.
+CP2K counts the time constant in units of the call interval, so a host that
+calls the thermostat once per step passes ~time_constant / time_step~ there.
+The CP2K routine ~rescaling_factor~ in ~csvr_system_utils~ follows equation
+(A7).
+It sets the propagation factor to 0 when that call-interval time constant is 0.1
+or smaller.
+This library does not.
+It keeps ~exp(-time_step / time_constant)~ for every positive finite constant.
+CP2K also flips the sign of the scale for a single degree of freedom when the
+normal draw is negative enough.
+This library returns the positive root, as the paper's square root and ASE do.
+CP2K forms the sum of squares by repeating a normal draw.
+This library draws that sum from the gamma distribution.
+CP2K's comment on the effective energy accumulates minus the kinetic-energy
+increments, which is the sum of ~work~.
+When the thermostat covers a system whose center of mass is fixed, CP2K tells
+the caller to omit those degrees from the count and to keep the center-of-mass
+momentum at zero.
+This library does not adjust the count.
+The host passes the degrees it wants and applies the scale to those velocities.
+
+The CPMD 4.3.0 manual thermostats ions with ~NOSE~, ~BERENDSEN~, ~LANGEVIN~, and
+~TEMPCONTROL~.
+It has no CSVR keyword.
+This library does not render a deck line and does not add a feature id.
+The host applies the scale between force evaluations.
+The session path is unchanged.

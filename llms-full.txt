@@ -144,6 +144,8 @@ paths, work-loop labels, and current wording.
 each function with its parameter list in a table row, an
 `__all__` in every `python/cpmdc` module that lists its public functions and classes, each of those names and each public member of an exported class in the Python reference (file:../reference/python.org), and no `cpmdc_`
 name in the README or the Org pages that no public header declares.
+`include/cpmdc_csvr.h` is not on the C ABI page.
+Its contract is the CSVR reference (file:../reference/csvr.org).
 `docs-examples` classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
 `include/`, and lists the rest in `tests/test_docs_examples.py`: blocks that
@@ -329,6 +331,7 @@ the schema field renders the accepted deck form, such as
 | `include/cpmdc_features.h` | runtime feature discovery ABI |
 | `include/cpmdc_export.h` | `CPMDC_API`, the mark on every exported function |
 | `include/cpmdc_restart.h`, `src/cpmdc_restart.c` | `libcpmdc_restart`, the RESTART file reader and writer |
+| `include/cpmdc_csvr.h`, `src/cpmdc_csvr.c` | `libcpmdc_csvr`, the opt-in CSVR thermostat |
 | `src/cpmdc_params.c` | Cap'n Proto decode, effective config, CPMD deck rendering |
 | `src/cpmdc.c` | session lifecycle, topology guard, unit conversion, result writing |
 | `src/cpmd_embed_c_api.F90` | Fortran `iso_c_binding` bridge and OpenCPMD archive path |
@@ -3040,6 +3043,50 @@ and CPMD options (file:../reference/cpmd-options.org) references list the
 call, the keyword, and the message field.
 
 
+## File: docs/orgmode/howto/csvr.org
+
+Use CSVR when a host wants canonical ionic velocities and wants the session
+itself left unchanged.
+`libcpmdc` does not call the thermostat.
+The host evaluates forces as usual, then rescales the velocities it owns.
+
+Keep one `cpmdc_csvr_rng` for the trajectory and seed it once.
+Pass the kinetic energy of the thermostatted degrees, the degree count,
+Boltzmann's constant times the target temperature in that energy unit, the time
+step, and the time constant.
+Multiply each of those velocity components by the scale.
+Add `work` to a running sum if you want the effective energy.
+An infinite time constant returns a scale of 1 and a work of 0, which is an NVE
+step.
+The CSVR reference (file:../reference/csvr.org) records the update and the
+comparison with CP2K, ASE, and the CPMD manual.
+
+#include <cpmdc_csvr.h>
+
+cpmdc_csvr_rng rng;
+double scale = 0.0;
+double work = 0.0;
+if (cpmdc_csvr_rng_seed(&rng, 1) != 0) {
+  return;
+}
+if (cpmdc_csvr_scale(1.0, 3, 1.0, 1.0, 20.0, &rng, &scale, &work) != 0) {
+  return;
+}
+
+Here the kinetic energy and `temperature` are both 1 in the host's energy unit,
+the time step is 1, and the time constant is 20 in that same time unit.
+Link the program with `-lcpmdc_csvr` and `-lm`.
+
+From Python, construct `cpmdc.csvr.Rng` with an integer seed and call
+`cpmdc.csvr.scale`.
+The keywords `temperature_K` and `taut` match ASE.
+Also pass `timestep`, in the same time unit as `taut`, and `kB`.
+Use `ase.units.kB` when the kinetic energy is in ASE units.
+Use `cpmdc.csvr.HARTREE_PER_KELVIN` when it is in Hartree.
+Set `CPMDC_CSVR_LIBRARY` to the shared library if it is not already on the
+search path.
+
+
 ## File: docs/orgmode/howto/debug-deck.org
 
 # Goal
@@ -3897,6 +3944,8 @@ The tests use it to check the ABI without a working evaluator.
 | `libcpmdc.so` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | the C ABI from `include/cpmdc.h` |
 | public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | declarations for hosts |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | reader and writer for CPMD `RESTART` files |
+| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so` and `lib/libcpmdc_csvr.a` | canonical sampling thermostat, not called by a session |
+| `cpmdc_csvr.h` | `include/cpmdc/cpmdc_csvr.h` | declarations for that thermostat |
 | `cpmdc-restart` | `bin/cpmdc-restart` | command-line front end to `libcpmdc_restart` |
 | pkg-config files | `cpmdc.pc`, `cpmdc-restart.pc` | compiler and linker flags |
 | CMake package | `lib/cmake/cpmdc/cpmdcConfig.cmake`, `cpmdcConfigVersion.cmake` | imported target `cpmdc::cpmdc`; the version file accepts any release with the same major version |
@@ -6268,6 +6317,8 @@ its contract, the plane-wave scaffold reference (file:reference/pwscale.org)
 does the same for the opt-in scaffold, and CPMD option mapping (file:reference/cpmd-options.org)
 says which `CPMDParams` field or feature ID carries each line of the CPMD
 manual.
+The CSVR reference (file:reference/csvr.org) is the opt-in ionic thermostat.
+A session does not call it.
 An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
 
 .. toctree::
@@ -6299,6 +6350,7 @@ An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
    howto/debug-deck
    howto/check-forces
    howto/pwscale-ranks
+   howto/csvr
    howto/troubleshooting
 
 .. toctree::
@@ -6307,6 +6359,7 @@ An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
 
    reference/c-abi
    reference/pwscale
+   reference/csvr
    reference/python
    reference/gromacs
    reference/lammps
@@ -6434,6 +6487,8 @@ linked image, but wildcard entries match only symbols that are present.
 | `libcpmdc` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | always |
 | public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | always |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | always |
+| `libcpmdc_csvr` | `lib/libcpmdc_csvr.so` and `lib/libcpmdc_csvr.a` | always |
+| CSVR header | `include/cpmdc/cpmdc_csvr.h` | always |
 | `cpmdc-restart` | `bin/cpmdc-restart` | always |
 | pkg-config files | `lib/pkgconfig/cpmdc.pc`, `cpmdc-restart.pc` | always |
 | CMake package | `lib/cmake/cpmdc/cpmdcConfig.cmake`, `cpmdcConfigVersion.cmake`, imported target `cpmdc::cpmdc` | always; Meson writes `cpmdcConfig.cmake` from `cmake/cpmdcConfig.cmake.in`, and the version file needs `cmake` at configure time |
@@ -6541,6 +6596,8 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 `include/cpmdc_restart.h` declares the separate `libcpmdc_restart` (see RESTART file library (*RESTART file library)).
 `include/cpmdc_pwscale.h` declares the opt-in plane-wave scaffold, which is not
 part of this ABI; its contract is in the plane-wave scaffold reference (file:pwscale.org).
+`include/cpmdc_csvr.h` declares the opt-in CSVR thermostat, which is not part of
+this ABI; its contract is in the CSVR thermostat reference (file:csvr.org).
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
@@ -10031,6 +10088,39 @@ The `fix external` driver for LAMMPS.
 | Raises | `ValueError` for a unit style other than `metal`, `real` and `electron`. |
 | Defaults | none |
 
+### `cpmdc.csvr.HARTREE_PER_KELVIN`
+
+| Item | Description |
+|--------+--------|
+| Signature | `HARTREE_PER_KELVIN = 3.166811563455608e-06` |
+| Units | Hartree per kelvin. |
+| Shape and dtype | scalar `float`. |
+| Ownership and threads | Immutable module constant, readable from any thread. |
+| Raises | none |
+| Defaults | The SI Boltzmann constant divided by the Hartree joule value used for `HARTREE_TO_KCAL_PER_MOL`. |
+
+### `cpmdc.csvr.Rng`
+
+| Item | Description |
+|--------+--------|
+| Signature | `Rng(seed)` |
+| Units | none |
+| Shape and dtype | `seed` is an integer. The object holds the generator bytes. |
+| Ownership and threads | The caller owns the object. Do not share one generator across threads. |
+| Raises | `TypeError` when `seed` is a boolean or not an integer. `ValueError` when `seed` does not fit in an unsigned 64-bit integer. `CPMDCError` when the shared library is missing or the seed call fails. |
+| Defaults | none |
+
+### `cpmdc.csvr.scale`
+
+| Item | Description |
+|--------+--------|
+| Signature | `scale(kinetic, ndof, rng, *, temperature_K, taut, timestep, kB)` |
+| Units | `kinetic` and the returned work share one energy unit. `temperature_K` is kelvin. `kB` converts one kelvin into that energy unit, for example Hartree. `taut` and `timestep` share one time unit. The scale is dimensionless. |
+| Shape and dtype | Scalar inputs. Returns a pair of `float` values, the scale and the work. |
+| Ownership and threads | `rng` is caller-owned and must not be shared across threads. The function keeps no other state. The first load of the shared library is process global. |
+| Raises | `TypeError` for a boolean or non-numeric `kinetic`, `temperature_K`, `taut`, `timestep`, or `kB`, for an `ndof` that is not an integer, or for an `rng` that is not an `Rng`. `ValueError` when `ndof` is below 1 or does not fit in a C int, `kinetic` is not finite and positive, `temperature_K` or `timestep` is negative or not finite, `taut` is not positive, `kB` is negative or not finite, or `kB` times `temperature_K` is not finite. `CPMDCError` when the shared library is missing or the C call returns -1. |
+| Defaults | none |
+
 # ASE properties
 
 The properties `CPMDCCalculator` implements, in ASE units.
@@ -11421,6 +11511,127 @@ or non-finite scalars and conflicting or unmergeable fields (`kMesh`, SCF
 controls, `vanDerWaalsMethod`, `relativityMethod`, already-set smearing or `s6`,
 or `vanDerWaalsS6` without `vdwParams`); see the C ABI reference (file:c-abi.org)
 for the lowering rules.
+
+
+## File: docs/orgmode/reference/csvr.org
+
+The ionic CSVR thermostat is declared in
+`include/cpmdc_csvr.h` and implemented in `src/cpmdc_csvr.c`.
+It is a separate library, `libcpmdc_csvr`, and it is not part of `libcpmdc`.
+A session never calls it.
+Leaving it out of a calculation leaves energies and forces unchanged.
+The update is the canonical velocity rescaling of Bussi, Donadio, and
+Parrinello, J. Chem. Phys. 126, 014101 (2007), arXiv:0803.4060 (https://arxiv.org/abs/0803.4060).
+The journal prints the rescaling factor as equation (A7).
+The arXiv HTML numbers the same factor as equation (22).
+
+# Update
+The host supplies the kinetic energy of the degrees it wants to thermostat.
+`temperature` is Boltzmann's constant times the target temperature, in that same
+energy unit.
+`time_step` and `time_constant` share one time unit.
+The propagation factor is `c = exp(-time_step / time_constant)`.
+A positive infinite time constant, or a zero time step, sets `c` to 1.
+The target kinetic energy is `ndof * temperature / 2`.
+With `s = (1 - c) * temperature / (2 * kinetic)`, one standard normal `R1`, and
+`S` the sum of squares of the other `ndof - 1` standard normals,
+
+scale^2 = (sqrt(c) + R1 * sqrt(s))^2 + s * S
+work = kinetic * (1 - scale^2)
+
+`S` is drawn as twice a unit-scale gamma sample of shape `(ndof - 1) / 2`.
+That factor of two is the scale of a chi-squared draw.
+Equation (21) of the arXiv text is a sum of squares of standard normals.
+The gamma density printed beside equation (22) is the unit-scale density, whose
+mean is the shape, so the sum of squares is twice that draw.
+ASE does the same with `2 * standard_gamma`.
+One degree of freedom has no remaining squares, so `S` is 0 and no gamma sample
+is drawn.
+The first normal is `R1`, and the gamma draw, when there is one, comes after it.
+A zero temperature or `c` of 1 makes the noise terms zero.
+The scale is then `sqrt(c)`, the work is `kinetic * (1 - c)`, and the generator
+is not advanced.
+The returned scale is the positive square root.
+The host multiplies every thermostatted velocity component by that scale.
+`work` is the energy removed from those degrees.
+The effective energy is the Hamiltonian plus the sum of `work` along the
+trajectory.
+Section II C of the 2007 paper uses that sum to see integrator error.
+The rescaling itself does not change it.
+
+# Calls
+
+| Call | Effect |
+|------+--------|
+| `cpmdc_csvr_rng_seed(rng, seed)` | Fill a caller-owned generator. Any 64-bit seed is accepted, including zero. Returns 0, or -1 when `rng` is NULL, and a failure writes nothing. |
+| `cpmdc_csvr_scale(kinetic, ndof, temperature, time_step, time_constant, rng, scale, work)` | Write the positive scale and the thermostat work. Returns 0, or -1 when a pointer is NULL, `rng` was not seeded, `ndof` is below 1, `kinetic` is not finite and positive, `temperature` is not finite and non-negative, `time_step` is not finite and non-negative, `time_constant` is not positive, or a result is not finite. A failure writes nothing and does not advance `rng`. |
+
+Both functions have C linkage.
+The header compiles as C and as C++.
+Neither function writes `cpmdc_last_error()`.
+The return code is the whole report.
+Link `libcpmdc_csvr` and `libm`.
+The installed header is `include/cpmdc/cpmdc_csvr.h`.
+
+# Generator
+The generator is a plain object the host allocates.
+Copying the bytes replays the same later draws.
+Do not share one object across threads.
+A scale call reads and writes only that object.
+
+Fields of `cpmdc_csvr_rng`.
+
+| Field | Type | Meaning |
+|-------+------+---------|
+| `state` | four `uint64_t` words | Generator state. All zeros means the object has not been seeded. |
+| `spare_normal` | `double` | The unused value of a Box-Muller pair, in the same units as a standard normal. |
+| `spare_ready` | `int` | One when `spare_normal` has not been consumed, otherwise zero. |
+
+# Python
+`cpmdc.csvr.Rng` and `cpmdc.csvr.scale` call this library.
+`temperature_K` and `taut` are the ASE keyword names.
+`timestep` uses the same time unit as `taut`.
+`kB` converts one kelvin into the energy unit of the kinetic energy.
+`cpmdc.csvr.HARTREE_PER_KELVIN` is that conversion for Hartree.
+ASE stores `(scale^2 - 1) * kinetic` in `transferred_energy`.
+`work` is the opposite sign, so a host that wants the ASE accumulator subtracts
+`work`.
+The binding raises `TypeError`, `ValueError`, or `CPMDCError` and does not
+advance the generator when the C call returns -1.
+`CPMDC_CSVR_LIBRARY` names the shared library.
+The search then checks a wheel copy, the dynamic linker, and `build/`.
+
+# Other codes
+CP2K selects this thermostat with `MOTION/MD/THERMOSTAT TYPE CSVR`.
+The default type on that keyword is `NOSE`.
+`CSVR/TIMECON` defaults to 1.00000000E+003 fs.
+CP2K counts the time constant in units of the call interval, so a host that
+calls the thermostat once per step passes `time_constant / time_step` there.
+The CP2K routine `rescaling_factor` in `csvr_system_utils` follows equation
+(A7).
+It sets the propagation factor to 0 when that call-interval time constant is 0.1
+or smaller.
+This library does not.
+It keeps `exp(-time_step / time_constant)` for every positive finite constant.
+CP2K also flips the sign of the scale for a single degree of freedom when the
+normal draw is negative enough.
+This library returns the positive root, as the paper's square root and ASE do.
+CP2K forms the sum of squares by repeating a normal draw.
+This library draws that sum from the gamma distribution.
+CP2K's comment on the effective energy accumulates minus the kinetic-energy
+increments, which is the sum of `work`.
+When the thermostat covers a system whose center of mass is fixed, CP2K tells
+the caller to omit those degrees from the count and to keep the center-of-mass
+momentum at zero.
+This library does not adjust the count.
+The host passes the degrees it wants and applies the scale to those velocities.
+
+The CPMD 4.3.0 manual thermostats ions with `NOSE`, `BERENDSEN`, `LANGEVIN`, and
+`TEMPCONTROL`.
+It has no CSVR keyword.
+This library does not render a deck line and does not add a feature id.
+The host applies the scale between force evaluations.
+The session path is unchanged.
 
 
 ## File: docs/orgmode/reference/environment.org
@@ -12979,6 +13190,15 @@ sessions.
 Drive cpmdc over the i-PI socket protocol (file:../howto/socket-drivers.org)
 covers `cpmdc-ipi`, and Run LAMMPS on cpmdc forces (file:../howto/lammps.org)
 covers `cpmdc.lammps`.
+
+# CSVR thermostat
+`cpmdc.csvr.Rng` holds the generator for one trajectory.
+`cpmdc.csvr.scale` returns the velocity scale and the thermostat work.
+`cpmdc.csvr.HARTREE_PER_KELVIN` converts one kelvin into Hartree.
+The keywords are `temperature_K` and `taut`, plus `timestep` and `kB`.
+The CSVR reference (file:csvr.org) has the update, and the CSVR how-to (file:../howto/csvr.org)
+shows a call.
+A session does not call this thermostat.
 
 # Errors
 

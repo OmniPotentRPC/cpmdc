@@ -160,6 +160,8 @@ its contract, [[file:reference/pwscale.org][the plane-wave scaffold reference]]
 does the same for the opt-in scaffold, and [[file:reference/cpmd-options.org][CPMD option mapping]]
 says which ~CPMDParams~ field or feature ID carries each line of the CPMD
 manual.
+[[file:reference/csvr.org][The CSVR reference]] is the opt-in ionic thermostat.
+A session does not call it.
 An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 
 #+begin_export rst
@@ -192,6 +194,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    howto/debug-deck
    howto/check-forces
    howto/pwscale-ranks
+   howto/csvr
    howto/troubleshooting
 
 .. toctree::
@@ -200,6 +203,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 
    reference/c-abi
    reference/pwscale
+   reference/csvr
    reference/python
    reference/gromacs
    reference/lammps

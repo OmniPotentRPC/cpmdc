@@ -22,6 +22,8 @@ The tests use it to check the ABI without a working evaluator.
 | ~libcpmdc.so~ | ~lib/libcpmdc.so.MAJOR~, or an unversioned ~lib/libcpmdc.so~ when ~with_python~ is on | the C ABI from ~include/cpmdc.h~ |
 | public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | declarations for hosts |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
+| ~libcpmdc_csvr~ | ~lib/libcpmdc_csvr.so~ and ~lib/libcpmdc_csvr.a~ | canonical sampling thermostat, not called by a session |
+| ~cpmdc_csvr.h~ | ~include/cpmdc/cpmdc_csvr.h~ | declarations for that thermostat |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
 | CMake package | ~lib/cmake/cpmdc/cpmdcConfig.cmake~, ~cpmdcConfigVersion.cmake~ | imported target ~cpmdc::cpmdc~; the version file accepts any release with the same major version |

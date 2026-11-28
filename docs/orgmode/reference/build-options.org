@@ -51,6 +51,8 @@ linked image, but wildcard entries match only symbols that are present.
 | ~libcpmdc~ | ~lib/libcpmdc.so.MAJOR~, or an unversioned ~lib/libcpmdc.so~ when ~with_python~ is on | always |
 | public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | always |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | always |
+| ~libcpmdc_csvr~ | ~lib/libcpmdc_csvr.so~ and ~lib/libcpmdc_csvr.a~ | always |
+| CSVR header | ~include/cpmdc/cpmdc_csvr.h~ | always |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | always |
 | pkg-config files | ~lib/pkgconfig/cpmdc.pc~, ~cpmdc-restart.pc~ | always |
 | CMake package | ~lib/cmake/cpmdc/cpmdcConfig.cmake~, ~cpmdcConfigVersion.cmake~, imported target ~cpmdc::cpmdc~ | always; Meson writes ~cpmdcConfig.cmake~ from ~cmake/cpmdcConfig.cmake.in~, and the version file needs ~cmake~ at configure time |

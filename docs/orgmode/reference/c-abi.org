@@ -6,6 +6,8 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see [[*RESTART file library][RESTART file library]]).
 ~include/cpmdc_pwscale.h~ declares the opt-in plane-wave scaffold, which is not
 part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold reference]].
+~include/cpmdc_csvr.h~ declares the opt-in CSVR thermostat, which is not part of
+this ABI; its contract is in the [[file:csvr.org][CSVR thermostat reference]].
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.

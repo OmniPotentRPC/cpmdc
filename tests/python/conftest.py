@@ -31,6 +31,12 @@ if not INSTALLED:
             if candidate.is_file():
                 os.environ["CPMDC_LIBRARY"] = str(candidate)
                 break
+    if not os.environ.get("CPMDC_CSVR_LIBRARY"):
+        for name in ("libcpmdc_csvr.so", "libcpmdc_csvr.dylib"):
+            candidate = ROOT / "build" / name
+            if candidate.is_file():
+                os.environ["CPMDC_CSVR_LIBRARY"] = str(candidate)
+                break
 
 WATER = [
     [0.0, 0.0, 0.1173],

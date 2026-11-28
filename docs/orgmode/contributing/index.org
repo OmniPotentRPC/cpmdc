@@ -98,6 +98,8 @@ paths, work-loop labels, and current wording.
 each function with its parameter list in a table row, an
 ~__all__~ in every ~python/cpmdc~ module that lists its public functions and classes, each of those names and each public member of an exported class in the [[file:../reference/python.org][Python reference]], and no ~cpmdc_~
 name in the README or the Org pages that no public header declares.
+~include/cpmdc_csvr.h~ is not on the C ABI page.
+Its contract is [[file:../reference/csvr.org][the CSVR reference]].
 ~docs-examples~ classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
 ~include/~, and lists the rest in ~tests/test_docs_examples.py~: blocks that
@@ -287,6 +289,7 @@ the schema field renders the accepted deck form, such as
 | ~include/cpmdc_features.h~ | runtime feature discovery ABI |
 | ~include/cpmdc_export.h~ | ~CPMDC_API~, the mark on every exported function |
 | ~include/cpmdc_restart.h~, ~src/cpmdc_restart.c~ | ~libcpmdc_restart~, the RESTART file reader and writer |
+| ~include/cpmdc_csvr.h~, ~src/cpmdc_csvr.c~ | ~libcpmdc_csvr~, the opt-in CSVR thermostat |
 | ~src/cpmdc_params.c~ | Cap'n Proto decode, effective config, CPMD deck rendering |
 | ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result writing |
 | ~src/cpmd_embed_c_api.F90~ | Fortran ~iso_c_binding~ bridge and OpenCPMD archive path |
