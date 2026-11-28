@@ -686,8 +686,9 @@ calculators for GPAW, ORCA, NWChem, and Psi4 do, so a charged or spin-polarised
 <code class="docutils literal notranslate"><span class="pre">Atoms</span></code> needs no second source of truth.</p>
 <p>The total charge is <code class="docutils literal notranslate"><span class="pre">Q</span> <span class="pre">=</span> <span class="pre">sum(atoms.get_initial_charges())</span></code> and the total moment
 is <code class="docutils literal notranslate"><span class="pre">M</span> <span class="pre">=</span> <span class="pre">sum(atoms.get_initial_magnetic_moments())</span></code>.
-The moments are collinear, one per atom: an array of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code> with a
-nonzero entry raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
+The moments are collinear, one per atom.
+A column of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">1)</span></code> is that one moment.
+An array of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">3)</span></code> with a nonzero entry raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.
 <code class="docutils literal notranslate"><span class="pre">Q</span></code> and <code class="docutils literal notranslate"><span class="pre">M</span></code> must be integers.
 A sum counts as an integer when it lies within <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">*</span> <span class="pre">eps</span> <span class="pre">*</span> <span class="pre">sum(|x|)</span></code> of one, the
 bound on the rounding error of adding <code class="docutils literal notranslate"><span class="pre">n</span></code> float64 terms <code class="docutils literal notranslate"><span class="pre">x</span></code>, where <code class="docutils literal notranslate"><span class="pre">eps</span></code> is the

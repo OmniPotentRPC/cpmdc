@@ -362,13 +362,34 @@ A <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></
 </span></pre></div>
 </div>
 <p>The message renders <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span> <span class="pre">ASPC</span></code> with <code class="docutils literal notranslate"><span class="pre">4</span></code> on the next line.
-<code class="docutils literal notranslate"><span class="pre">ASPC</span></code> selects the always stable predictor-corrector (ASPC) coefficients of
-Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>).
-<code class="docutils literal notranslate"><span class="pre">POLY</span></code> selects the polynomial ones.
-OpenCPMD starts from the ASPC coefficients and switches only for <code class="docutils literal notranslate"><span class="pre">POLY</span></code> on the
-<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> line.
-An <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code> with an empty <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> renders
-<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> alone, and that deck uses ASPC.
+<code class="docutils literal notranslate"><span class="pre">ASPC</span></code> selects the always stable predictor-corrector (ASPC) coefficients.
+<code class="docutils literal notranslate"><span class="pre">POLY</span></code> or <code class="docutils literal notranslate"><span class="pre">POLYNOMIAL</span></code> selects the polynomial ones.
+OpenCPMD sets <code class="docutils literal notranslate"><span class="pre">cntl%taspc</span></code> before it parses the keywords, so a line that names
+no scheme already selects the ASPC coefficients.
+<code class="docutils literal notranslate"><span class="pre">POLY</span></code> or <code class="docutils literal notranslate"><span class="pre">POLYNOMIAL</span></code> clears the flag, and <code class="docutils literal notranslate"><span class="pre">ASPC</span></code> sets it.
+With the flag set, <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code> in OpenCPMD <code class="docutils literal notranslate"><span class="pre">md_driver.mod.F90</span></code> uses the ASPC
+coefficients of Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>).
+For <span class="math notranslate nohighlight">\(m\)</span> stored sets and an index <span class="math notranslate nohighlight">\(i\)</span> from 1 to <span class="math notranslate nohighlight">\(m\)</span>, the routine sets
+<span class="math notranslate nohighlight">\(f_i = (-1)^{i+1} i \binom{2m}{m-i} / \binom{2m-2}{m-1}\)</span>.
+With the flag clear, the same routine builds the polynomial coefficients.
+It starts from <span class="math notranslate nohighlight">\(f = -1\)</span> before the first index.
+For each <span class="math notranslate nohighlight">\(i\)</span> from 1 to <span class="math notranslate nohighlight">\(m\)</span> it then replaces <span class="math notranslate nohighlight">\(f\)</span> by <span class="math notranslate nohighlight">\(-f(m-i+1)/i\)</span>.
+The value after that step is coefficient <span class="math notranslate nohighlight">\(i\)</span>.
+The count <span class="math notranslate nohighlight">\(m\)</span> is how many sets the prediction combines.
+It is at most the requested order, and it equals that order once the ring is
+full.
+Substituting <span class="math notranslate nohighlight">\(m = 4\)</span> gives the polynomial values 4, -6, 4, and -1, and the
+ASPC values 2.8, -2.8, 1.2, and -0.2.
+The renderer names the scheme explicitly.
+The renderer writes <code class="docutils literal notranslate"><span class="pre">ASPC</span></code> when the order is greater than 0 or the options are
+non-empty, and the options name none of <code class="docutils literal notranslate"><span class="pre">ASPC</span></code>, <code class="docutils literal notranslate"><span class="pre">POLY</span></code>, and <code class="docutils literal notranslate"><span class="pre">POLYNOMIAL</span></code>.
+That matches CPMD’s own default and leaves the coefficients unchanged.
+At order 0 with empty options nothing is written.
+Empty options with <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code> greater than 0 render
+<code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span> <span class="pre">ASPC</span></code>.
+Empty options at order 0, the schema default, render no <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> line.
+<code class="docutils literal notranslate"><span class="pre">STORE</span></code> alone renders <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span> <span class="pre">STORE</span> <span class="pre">ASPC</span></code>.
+Options that already name one of those tokens are written unchanged.
 The order is the number of earlier converged orbital sets that the prediction
 combines.
 OpenCPMD still prints its warning, because
@@ -556,5 +577,6 @@ iterations changes.</p>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>
-      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+      <script src="../_static/shibuya.js?v=50760d75"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></body>
 </html>

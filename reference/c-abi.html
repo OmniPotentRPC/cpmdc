@@ -1811,7 +1811,7 @@ Its functions are not marked
 <td><p>copy the initial geometry of section 6, Bohr; same size rule</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_restart_set_coordinates(CPMDCRestart</span> <span class="pre">*file,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*xyz,</span> <span class="pre">int</span> <span class="pre">n3)</span></code></p></td>
-<td><p>replace the coordinate records, Bohr; another <code class="docutils literal notranslate"><span class="pre">n3</span></code> returns -1 and leaves the image unchanged</p></td>
+<td><p>replace the coordinate records, Bohr; another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, or a record that is not 24 bytes, returns -1 and leaves the image unchanged</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_restart_set_velocities(CPMDCRestart</span> <span class="pre">*file,</span> <span class="pre">const</span> <span class="pre">double</span> <span class="pre">*xyz,</span> <span class="pre">int</span> <span class="pre">n3)</span></code></p></td>
 <td><p>replace the velocity records, Bohr per atomic unit of time; same rule</p></td>

@@ -409,6 +409,20 @@ The cell and embedding defaults are the same as below.</p>
 </tbody>
 </table>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">qmi_input</span></code> writes <code class="docutils literal notranslate"><span class="pre">PARAMS</span></code> so the path is the one <code class="docutils literal notranslate"><span class="pre">mdrun</span></code> opens after GROMACS replaces every whole word equal to the <code class="docutils literal notranslate"><span class="pre">COORD_FILE_NAME</span></code>
+value and then prints the stored input as a printf format with the PDB path.
+A <code class="docutils literal notranslate"><span class="pre">%</span></code> in the path is written as <code class="docutils literal notranslate"><span class="pre">%%</span></code>, which that printf turns back into <code class="docutils literal notranslate"><span class="pre">%</span></code>.
+A path that contains a space, a tab, <code class="docutils literal notranslate"><span class="pre">#</span></code>, <code class="docutils literal notranslate"><span class="pre">!</span></code>, or a double quote is one
+double-quoted token.
+Inside the quotes a backslash escapes a backslash or a quote, and the library
+reads the token back as the path.
+Any other path is one bare token.
+A path that contains a newline is refused, because the input is one record per
+line.
+<code class="docutils literal notranslate"><span class="pre">COORD_FILE_NAME</span></code> is <code class="docutils literal notranslate"><span class="pre">gromacs.pdb</span></code> unless that whole word occurs in the written
+<code class="docutils literal notranslate"><span class="pre">PARAMS</span></code> token, in which case the name is <code class="docutils literal notranslate"><span class="pre">gromacs-1.pdb</span></code>, then <code class="docutils literal notranslate"><span class="pre">gromacs-2.pdb</span></code>,
+and so on.
+Word characters are letters, digits, <code class="docutils literal notranslate"><span class="pre">-</span></code> and <code class="docutils literal notranslate"><span class="pre">_</span></code>.</p>
 <p>On the explicit path the method is the <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> deck, not CP2K’s <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>.
 Matching GROMACS’ own input reader (<code class="docutils literal notranslate"><span class="pre">qmmmoptions.cpp</span></code>), which scans the external
 input as a stream of tokens and keeps the first <code class="docutils literal notranslate"><span class="pre">CHARGE</span></code> and <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code> it

@@ -1834,7 +1834,7 @@ Replace coordinates, leaving every other record unchanged.
 
 .. rubric:: Returns:
 
-0 on success; -1 on a NULL argument or another ``n3``, which leaves the image unchanged.
+0 on success; -1 on a NULL argument, another ``n3``, or a record that is not 24 bytes. Any of those leaves the image unchanged.
 
 .. index:: pair: function; cpmdc_restart_set_velocities
 .. _doxid-cpmdc__restart_8h_1ad69003e9852d80dd05642e566489d37c:
@@ -1872,7 +1872,7 @@ Replace velocities, leaving every other record unchanged.
 
 .. rubric:: Returns:
 
-0 on success; -1 on a NULL argument or another ``n3``, which leaves the image unchanged.
+0 on success; -1 on a NULL argument, another ``n3``, or a record that is not 24 bytes. Any of those leaves the image unchanged.
 
 .. index:: pair: function; cpmdc_restart_set_cell
 .. _doxid-cpmdc__restart_8h_1a5cdf11707dabc145181198bb18ac8b13:

@@ -1123,7 +1123,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1af8cf5a3c9d2d2c
 </table>
 </div>
 <p class="rubric">Returns:</p>
-<p>0 on success; -1 on a NULL argument or another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, which leaves the image unchanged.</p>
+<p>0 on success; -1 on a NULL argument, another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, or a record that is not 24 bytes. Any of those leaves the image unchanged.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ad69003e9852d80dd05642e566489d37c"><span id="index-102"></span>int cpmdc_restart_set_velocities(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34e3203b277ea436b77359e30d4339df"><span class="std std-ref">CPMDCRestart</span></a>* file, const double* xyz, int n3)</pre>
 <p>Replace velocities, leaving every other record unchanged.</p>
 <p class="rubric">Parameters:</p>
@@ -1147,7 +1147,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1af8cf5a3c9d2d2c
 </table>
 </div>
 <p class="rubric">Returns:</p>
-<p>0 on success; -1 on a NULL argument or another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, which leaves the image unchanged.</p>
+<p>0 on success; -1 on a NULL argument, another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, or a record that is not 24 bytes. Any of those leaves the image unchanged.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a5cdf11707dabc145181198bb18ac8b13"><span id="index-103"></span>int cpmdc_restart_set_cell(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34e3203b277ea436b77359e30d4339df"><span class="std std-ref">CPMDCRestart</span></a>* file, const double celldm[6])</pre>
 <p>Replace the cell lattice parameters.</p>
 <p class="rubric">Parameters:</p>

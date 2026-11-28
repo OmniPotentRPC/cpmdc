@@ -3177,7 +3177,7 @@ state.</p>
 <td><p>Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI.</p></td>
 </tr>
 <tr class="row-even"><td><p>Returns and errors</p></td>
-<td><p>Returns 0 on success and -1 for a NULL argument or another <code class="docutils literal notranslate"><span class="pre">n3</span></code>; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte.</p></td>
+<td><p>Returns 0 on success and -1 for a NULL argument, another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Python</p></td>
 <td><p>not wrapped.</p></td>
@@ -3212,7 +3212,7 @@ state.</p>
 <td><p>Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI.</p></td>
 </tr>
 <tr class="row-even"><td><p>Returns and errors</p></td>
-<td><p>Returns 0 on success and -1 for a NULL argument or another <code class="docutils literal notranslate"><span class="pre">n3</span></code>; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte.</p></td>
+<td><p>Returns 0 on success and -1 for a NULL argument, another <code class="docutils literal notranslate"><span class="pre">n3</span></code>, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Python</p></td>
 <td><p>not wrapped.</p></td>
