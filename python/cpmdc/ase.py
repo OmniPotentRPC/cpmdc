@@ -31,8 +31,9 @@ The CPMDParams message holds the method, including the charge and the
 multiplicity, and ``initial_charges`` and ``initial_magmoms`` of the
 ``Atoms`` are read as ASE's other calculators read them. The total charge
 is ``Q = sum(atoms.get_initial_charges())`` and the total moment is
-``M = sum(atoms.get_initial_magnetic_moments())``, collinear only: a
-non-collinear moment raises ``ValueError``. ``Q`` and ``M`` must be
+``M = sum(atoms.get_initial_magnetic_moments())``, collinear only.
+One number per atom includes a column of shape ``(N, 1)``. A wider
+array with a nonzero entry raises ``ValueError``. ``Q`` and ``M`` must be
 integers. A sum is accepted when it lies within ``n * eps * sum(|x|)`` of
 an integer, the bound on the rounding error of summing ``n`` float64
 terms ``x``, with ``eps`` the float64 unit roundoff; otherwise it raises
@@ -288,13 +289,17 @@ def _initial_charge(atoms: Atoms) -> int:
 
 def _initial_moment(atoms: Atoms) -> int:
     magmoms = np.asarray(atoms.get_initial_magnetic_moments(), dtype=float)
-    if magmoms.ndim == 2:
+    # ASE stores one number per atom as shape () and, when the caller passed
+    # a column, as shape (1,). Three components are non-collinear.
+    if magmoms.ndim == 2 and magmoms.shape[-1] != 1:
         if np.any(magmoms != 0.0):
             raise ValueError(
                 "Atoms.initial_magmoms holds non-collinear moments, shape "
                 f"{magmoms.shape}; cpmdc takes one collinear moment per atom"
             )
         return 0
+    if magmoms.ndim == 2:
+        magmoms = np.reshape(magmoms, (-1,))
     return _integral_total(magmoms, "Atoms.initial_magmoms")
 
 

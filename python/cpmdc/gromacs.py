@@ -89,6 +89,67 @@ def _number(value: Any, what: str, *, positive: bool = False) -> str:
     return repr(number)
 
 
+def _params_library_token(path: str) -> str:
+    """The PARAMS value the library reads after mdrun's printf.
+
+    A path with a space, tab, ``#``, ``!``, or double quote is one quoted
+    token. Inside the quotes, ``\\`` and ``\"`` are escapes. Any other path
+    is one bare token. A newline cannot be one line of the input.
+    """
+    if any(ch in path for ch in "\n\r"):
+        raise ValueError(f"params must be a single line, got {path!r}")
+    if any(ch in path for ch in " \t#!\""):
+        escaped = path.replace("\\", "\\\\").replace('"', '\\"')
+        return '"' + escaped + '"'
+    return path
+
+
+def _params_file_token(path: str) -> str:
+    """PARAMS text stored for grompp.
+
+    mdrun prints that file as a printf format after it substitutes the PDB
+    path, so each ``%`` is written as ``%%`` and printf restores the path
+    the library unquotes.
+    """
+    return _params_library_token(path).replace("%", "%%")
+
+
+def _gromacs_word_char(ch: str) -> bool:
+    """Word characters of GROMACS ``replaceAllWords``: alnum, ``-`` and ``_``."""
+    return ch.isalnum() or ch in "-_"
+
+
+def _gromacs_word_occurs(token: str, text: str) -> bool:
+    start = 0
+    while True:
+        found = text.find(token, start)
+        if found < 0:
+            return False
+        end = found + len(token)
+        before_ok = found == 0 or not _gromacs_word_char(text[found - 1])
+        after_ok = end == len(text) or not _gromacs_word_char(text[end])
+        if before_ok and after_ok:
+            return True
+        start = found + 1
+
+
+def _coord_file_name(params_token: str) -> str:
+    """A ``COORD_FILE_NAME`` that is not a whole word of ``params_token``.
+
+    GROMACS replaces every whole word equal to that value with ``%s``
+    before printf. ``gromacs.pdb`` is used when it does not occur.
+    """
+    number = 0
+    while number < 1000:
+        token = "gromacs.pdb" if number == 0 else f"gromacs-{number}.pdb"
+        if not _gromacs_word_occurs(token, params_token):
+            return token
+        number += 1
+    raise ValueError(
+        "params path contains every COORD_FILE_NAME token qmi_input can choose"
+    )
+
+
 def qmi_input(
     params: str | os.PathLike[str],
     *,
@@ -111,7 +172,14 @@ def qmi_input(
     ----------
     params:
         Path of the serialized ``CPMDParams`` message, as mdrun will open it
-        (relative paths are relative to mdrun's working directory).
+        (relative paths are relative to mdrun's working directory). A ``%``
+        in the path is written as ``%%`` so mdrun's printf of the input
+        restores it. ``COORD_FILE_NAME`` is ``gromacs.pdb`` unless that
+        whole word occurs in the written path, and then ``gromacs-1.pdb``,
+        ``gromacs-2.pdb``, and so on, because GROMACS replaces every whole
+        word equal to that name. A path with a space, a tab, ``#``, ``!``,
+        or a double quote is written as one double-quoted token, which the
+        library reads back as the path. A newline is refused.
     cell:
         ``"PERIODIC"`` sends the GROMACS box to cpmdc as the cell;
         ``"NONE"`` sends none, so the deck's cell applies. The library
@@ -169,7 +237,8 @@ def qmi_input(
     multiplicity_value = _integer(multiplicity, "multiplicity")
     if multiplicity_value < 1:
         raise ValueError(f"multiplicity must be 1 or more, got {multiplicity!r}")
-    lines = ["&CPMDC", f"  PARAMS {_path_text(params, 'params')}"]
+    params_token = _params_file_token(_path_text(params, "params"))
+    lines = ["&CPMDC", f"  PARAMS {params_token}"]
     if cell is not None:
         cell = cell.upper()
         if cell not in _CELLS:
@@ -253,7 +322,7 @@ def qmi_input(
         *qmmm,
         "  &SUBSYS",
         "    &TOPOLOGY",
-        "      COORD_FILE_NAME gromacs.pdb",
+        f"      COORD_FILE_NAME {_coord_file_name(params_token)}",
         "      COORD_FILE_FORMAT PDB",
         "      CHARGE_EXTENDED TRUE",
         "    &END TOPOLOGY",

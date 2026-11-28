@@ -137,6 +137,186 @@ def test_qmi_input_has_the_keys_grompp_checks(tmp_path):
             qmi_input("w.bin", embedding="ELECTROSTATIC", cell="none", mm_width=bad)
 
 
+def _gromacs_word_char(ch: str) -> bool:
+    """Word characters of GROMACS replaceAllWords: alnum, '-' and '_'."""
+    return ch.isalnum() or ch in "-_"
+
+
+def _replace_gromacs_words(text: str, old: str, new: str) -> str:
+    """Replace whole words the way GROMACS replaceAllWords does."""
+    parts: list[str] = []
+    start = 0
+    cursor = 0
+    while True:
+        found = text.find(old, cursor)
+        if found < 0:
+            parts.append(text[start:])
+            return "".join(parts)
+        end = found + len(old)
+        before_ok = found == 0 or not _gromacs_word_char(text[found - 1])
+        after_ok = end == len(text) or not _gromacs_word_char(text[end])
+        if before_ok and after_ok:
+            parts.append(text[start:found])
+            parts.append(new)
+            start = end
+            cursor = end
+        else:
+            cursor = found + 1
+
+
+def _coord_name(text: str) -> str:
+    for line in text.splitlines():
+        words = line.split()
+        if words and words[0] == "COORD_FILE_NAME":
+            return words[1]
+    raise AssertionError("COORD_FILE_NAME missing")
+
+
+def _after_mdrun(text: str, pdb: str) -> str:
+    """Text mdrun writes: replace the coord-file word, then printf `%s`."""
+    name = _coord_name(text)
+    return _replace_gromacs_words(text, name, "%s") % (pdb,)
+
+
+@pytest.mark.parametrize("path", ["calc%d.bin", "100%s.bin", "half%.bin"])
+def test_a_percent_in_the_params_path_survives_mdrun(path: str):
+    rewritten = _after_mdrun(qmi_input(path), "sys.pdb")
+    assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
+
+
+@pytest.mark.parametrize("path", ["gromacs.pdb", "dir/gromacs.pdb", "pre.gromacs.pdb"])
+def test_coord_file_name_does_not_rewrite_the_params_path(path: str):
+    rewritten = _after_mdrun(qmi_input(path), "sys.pdb")
+    assert any(line.split() == ["PARAMS", path] for line in rewritten.splitlines())
+
+
+def _library_words(line: str) -> list[str]:
+    """Tokens of one input line: cut at `#` or `!`, then split on whitespace."""
+    cut = len(line)
+    for index, ch in enumerate(line):
+        if ch in "#!":
+            cut = index
+            break
+    return line[:cut].split()
+
+
+def _unquote_params(line: str) -> str | None:
+    """The quoted PARAMS path, or None when the value is not quoted."""
+    text = line.lstrip(" \t\r")
+    if len(text) < 7 or text[:6].upper() != "PARAMS" or text[6] not in " \t":
+        return None
+    rest = text[6:].lstrip(" \t")
+    if not rest.startswith('"'):
+        return None
+    chars: list[str] = []
+    index = 1
+    while index < len(rest):
+        ch = rest[index]
+        if ch == "\\":
+            if index + 1 >= len(rest) or rest[index + 1] not in '\\"':
+                raise AssertionError(f"bad PARAMS escape in {line!r}")
+            chars.append(rest[index + 1])
+            index += 2
+            continue
+        if ch == '"':
+            return "".join(chars)
+        chars.append(ch)
+        index += 1
+    raise AssertionError(f"unclosed PARAMS quote in {line!r}")
+
+
+def _parsed_params(text: str) -> str:
+    """The PARAMS path libcpmdc_gromacs reads from mdrun's rewritten input."""
+    in_section = False
+    found = None
+    for line in text.splitlines():
+        words = _library_words(line)
+        if not in_section:
+            if words and words[0].upper() == "&CPMDC":
+                in_section = True
+            continue
+        if words and words[0].upper() == "&END":
+            break
+        quoted = _unquote_params(line)
+        if quoted is not None:
+            found = quoted
+            continue
+        if words and words[0].upper() == "PARAMS":
+            if len(words) != 2:
+                raise AssertionError(f"PARAMS tokens {words!r}")
+            found = words[1]
+    if found is None:
+        raise AssertionError("PARAMS missing")
+    return found
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "my params.bin",
+        "a#b.bin",
+        "a!b.bin",
+        "a\tb.bin",
+        'say "hi".bin',
+        "a\\b.bin",
+        "my gromacs.pdb %s.bin",
+    ],
+)
+def test_params_path_round_trips_through_mdrun(path: str):
+    assert _parsed_params(_after_mdrun(qmi_input(path), "sys.pdb")) == path
+
+
+def test_a_newline_in_the_params_path_is_refused():
+    with pytest.raises(ValueError, match="single line"):
+        qmi_input("a\nb.bin")
+
+
+@needs_lib
+def test_the_library_opens_a_params_path_with_a_space(params, tmp_path):
+    path = tmp_path / "my params.bin"
+    path.write_bytes(Path(params).read_bytes())
+    pdb = tmp_path / "sys.pdb"
+    write_pdb(
+        pdb,
+        "OHH",
+        [True, True, True],
+        [0.0, 0.0, 0.0],
+        [[0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [0.0, 0.1, 0.0]],
+    )
+    inp = tmp_path / "md_cp2k.inp"
+    inp.write_text(_after_mdrun(qmi_input(path), str(pdb)))
+    script = tmp_path / "open_env.py"
+    script.write_text(
+        "\n".join(
+            [
+                "import ctypes, sys",
+                "lib = ctypes.CDLL(sys.argv[1])",
+                "env = ctypes.c_int(-1)",
+                "lib.cp2k_init()",
+                "lib.cp2k_create_force_env(",
+                "    ctypes.byref(env), sys.argv[2].encode(), sys.argv[3].encode())",
+                "n = ctypes.c_int()",
+                "lib.cp2k_get_natom(env, ctypes.byref(n))",
+                "if n.value != 3:",
+                "    raise SystemExit('natoms %s' % n.value)",
+                "lib.cp2k_destroy_force_env(env)",
+                "lib.cp2k_finalize()",
+                "",
+            ]
+        )
+    )
+    env = os.environ.copy()
+    env["LD_LIBRARY_PATH"] = str(LIB.parent) + os.pathsep + env.get("LD_LIBRARY_PATH", "")
+    done = subprocess.run(
+        [sys.executable, str(script), str(LIB), str(inp), str(tmp_path / "md_cp2k.out")],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert done.returncode == 0, done.stderr
+
+
 def test_write_qmi_passes_the_mm_width_through(tmp_path):
     target = cpmdc_gromacs.write_qmi(
         tmp_path / "sys.qmi",
