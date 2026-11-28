@@ -10107,7 +10107,7 @@ The `fix external` driver for LAMMPS.
 | Units | none |
 | Shape and dtype | `seed` is an integer. The object holds the generator bytes. |
 | Ownership and threads | The caller owns the object. Do not share one generator across threads. |
-| Raises | `TypeError` when `seed` is a boolean or not an integer. `ValueError` when `seed` does not fit in an unsigned 64-bit integer. `CPMDCError` when the shared library is missing or the seed call fails. |
+| Raises | `TypeError` when `seed` is a boolean or not an integer. `ValueError` when `seed` does not fit in an unsigned 64-bit integer. `CPMDCError` when the shared library is missing, lacks the CSVR symbols, or the seed call fails. |
 | Defaults | none |
 
 ### `cpmdc.csvr.scale`
@@ -10118,7 +10118,7 @@ The `fix external` driver for LAMMPS.
 | Units | `kinetic` and the returned work share one energy unit. `temperature_K` is kelvin. `kB` converts one kelvin into that energy unit, for example Hartree. `taut` and `timestep` share one time unit. The scale is dimensionless. |
 | Shape and dtype | Scalar inputs. Returns a pair of `float` values, the scale and the work. |
 | Ownership and threads | `rng` is caller-owned and must not be shared across threads. The function keeps no other state. The first load of the shared library is process global. |
-| Raises | `TypeError` for a boolean or non-numeric `kinetic`, `temperature_K`, `taut`, `timestep`, or `kB`, for an `ndof` that is not an integer, or for an `rng` that is not an `Rng`. `ValueError` when `ndof` is below 1 or does not fit in a C int, `kinetic` is not finite and positive, `temperature_K` or `timestep` is negative or not finite, `taut` is not positive, `kB` is negative or not finite, or `kB` times `temperature_K` is not finite. `CPMDCError` when the shared library is missing or the C call returns -1. |
+| Raises | `TypeError` for a boolean or non-numeric `kinetic`, `temperature_K`, `taut`, `timestep`, or `kB`, for an `ndof` that is not an integer, or for an `rng` that is not an `Rng`. `ValueError` when `ndof` is below 1 or does not fit in a C int, `kinetic` is not finite and positive, `temperature_K` or `timestep` is negative or not finite, `taut` is not positive, `kB` is negative or not finite, or `kB` times `temperature_K` is not finite. `CPMDCError` when the shared library is missing, lacks the CSVR symbols, or the C call returns -1. |
 | Defaults | none |
 
 # ASE properties
@@ -11601,8 +11601,17 @@ ASE stores `(scale^2 - 1) * kinetic` in `transferred_energy`.
 `work`.
 The binding raises `TypeError`, `ValueError`, or `CPMDCError` and does not
 advance the generator when the C call returns -1.
-`CPMDC_CSVR_LIBRARY` names the shared library.
-The search then checks a wheel copy, the dynamic linker, and `build/`.
+The loader tries four places, in order.
+`CPMDC_CSVR_LIBRARY` is used when it names a file.
+Next is the copy shipped next to the package, under `.cpmdc.mesonpy.libs` beside
+the package directory.
+Next, `ctypes.util.find_library` is given `libcpmdc_csvr` without the `lib`
+prefix, and the name it returns is passed to `ctypes.CDLL` even when that name
+is not a file.
+Last, `build/` is a development fallback, in the working directory and at the
+repository root.
+A library that loads but lacks `cpmdc_csvr_rng_seed` or `cpmdc_csvr_scale`
+raises `CPMDCError`.
 
 # Other codes
 CP2K selects this thermostat with `MOTION/MD/THERMOSTAT TYPE CSVR`.

@@ -89,8 +89,17 @@ ASE stores ~(scale^2 - 1) * kinetic~ in ~transferred_energy~.
 ~work~.
 The binding raises ~TypeError~, ~ValueError~, or ~CPMDCError~ and does not
 advance the generator when the C call returns -1.
-~CPMDC_CSVR_LIBRARY~ names the shared library.
-The search then checks a wheel copy, the dynamic linker, and ~build/~.
+The loader tries four places, in order.
+~CPMDC_CSVR_LIBRARY~ is used when it names a file.
+Next is the copy shipped next to the package, under ~.cpmdc.mesonpy.libs~ beside
+the package directory.
+Next, ~ctypes.util.find_library~ is given ~libcpmdc_csvr~ without the ~lib~
+prefix, and the name it returns is passed to ~ctypes.CDLL~ even when that name
+is not a file.
+Last, ~build/~ is a development fallback, in the working directory and at the
+repository root.
+A library that loads but lacks ~cpmdc_csvr_rng_seed~ or ~cpmdc_csvr_scale~
+raises ~CPMDCError~.
 
 * Other codes
 CP2K selects this thermostat with ~MOTION/MD/THERMOSTAT TYPE CSVR~.

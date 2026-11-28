@@ -40,45 +40,14 @@ class _RngState(ctypes.Structure):
     ]
 
 
-def _candidate_paths() -> list[Path]:
-    paths: list[Path] = []
-    named = os.environ.get("CPMDC_CSVR_LIBRARY")
-    if named:
-        paths.append(Path(named))
-    for name in _SHARED_NAMES:
-        paths.append(_WHEEL_LIBS / name)
-        paths.append(_PACKAGE_DIR / ".cpmdc.mesonpy.libs" / name)
-        paths.append(Path(name))
-        paths.append(Path("build") / name)
-        paths.append(_PACKAGE_DIR.parents[1] / "build" / name)
-    found = ctypes.util.find_library("cpmdc_csvr")
-    if found:
-        paths.append(Path(found))
-    return paths
-
-
-def _library() -> ctypes.CDLL:
-    global _LIB
-    if _LIB is not None:
-        return _LIB
-    if ctypes.sizeof(_RngState) != 48:
-        raise CPMDCError("cpmdc_csvr_rng layout is not 48 bytes")
-    chosen: Path | None = None
-    for candidate in _candidate_paths():
-        if candidate.is_file():
-            chosen = candidate
-            break
-    if chosen is None:
-        raise CPMDCError(
-            "libcpmdc_csvr was not found. Set CPMDC_CSVR_LIBRARY to the shared library."
-        )
-    try:
-        lib = ctypes.CDLL(str(chosen))
-    except OSError as exc:
-        raise CPMDCError(f"libcpmdc_csvr failed to load: {chosen}") from exc
-    lib.cpmdc_csvr_rng_seed.argtypes = [ctypes.POINTER(_RngState), ctypes.c_uint64]
-    lib.cpmdc_csvr_rng_seed.restype = ctypes.c_int
-    lib.cpmdc_csvr_scale.argtypes = [
+def _bind(lib: ctypes.CDLL) -> None:
+    seed = getattr(lib, "cpmdc_csvr_rng_seed", None)
+    step = getattr(lib, "cpmdc_csvr_scale", None)
+    if seed is None or step is None:
+        raise CPMDCError("libcpmdc_csvr is missing a required symbol")
+    seed.argtypes = [ctypes.POINTER(_RngState), ctypes.c_uint64]
+    seed.restype = ctypes.c_int
+    step.argtypes = [
         ctypes.c_double,
         ctypes.c_int,
         ctypes.c_double,
@@ -88,9 +57,66 @@ def _library() -> ctypes.CDLL:
         ctypes.POINTER(ctypes.c_double),
         ctypes.POINTER(ctypes.c_double),
     ]
-    lib.cpmdc_csvr_scale.restype = ctypes.c_int
-    _LIB = lib
+    step.restype = ctypes.c_int
+
+
+def _open_file(path: Path) -> ctypes.CDLL:
+    try:
+        lib = ctypes.CDLL(str(path))
+    except OSError as exc:
+        raise CPMDCError(f"libcpmdc_csvr failed to load: {path}") from exc
+    _bind(lib)
     return lib
+
+
+def _packaged_copies() -> list[Path]:
+    copies: list[Path] = []
+    for name in _SHARED_NAMES:
+        copies.append(_WHEEL_LIBS / name)
+    return copies
+
+
+def _build_copies() -> list[Path]:
+    copies: list[Path] = []
+    for name in _SHARED_NAMES:
+        copies.append(Path("build") / name)
+        copies.append(_PACKAGE_DIR.parents[1] / "build" / name)
+    return copies
+
+
+def _library() -> ctypes.CDLL:
+    global _LIB
+    if _LIB is not None:
+        return _LIB
+    if ctypes.sizeof(_RngState) != 48:
+        raise CPMDCError("cpmdc_csvr_rng layout is not 48 bytes")
+    named = os.environ.get("CPMDC_CSVR_LIBRARY")
+    if named:
+        path = Path(named)
+        if path.is_file():
+            _LIB = _open_file(path)
+            return _LIB
+    for candidate in _packaged_copies():
+        if candidate.is_file():
+            _LIB = _open_file(candidate)
+            return _LIB
+    found = ctypes.util.find_library("cpmdc_csvr")
+    if found:
+        try:
+            loaded = ctypes.CDLL(found)
+        except OSError:
+            loaded = None
+        if loaded is not None:
+            _bind(loaded)
+            _LIB = loaded
+            return _LIB
+    for candidate in _build_copies():
+        if candidate.is_file():
+            _LIB = _open_file(candidate)
+            return _LIB
+    raise CPMDCError(
+        "libcpmdc_csvr was not found. Set CPMDC_CSVR_LIBRARY to the shared library."
+    )
 
 
 class Rng:

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import ctypes
 import math
+from pathlib import Path
 
 import pytest
 
+from cpmdc import CPMDCError
 from cpmdc.csvr import HARTREE_PER_KELVIN, Rng, scale
 from cpmdc.csvr import _RngState
 
@@ -121,6 +123,52 @@ def test_ideal_gas_mean_stays_inside_the_sampling_bound() -> None:
     )
     assert abs(mean - expected_mean) <= mean_limit
     assert abs(var - expected_var) <= 10.0 * expected_var * math.sqrt((12.0 / ndof + 2.0) / n)
+
+
+def test_find_library_soname_is_passed_to_cdll(monkeypatch: pytest.MonkeyPatch) -> None:
+    import cpmdc.csvr as csvr
+
+    soname = "libcpmdc_csvr_not_a_file.so.0"
+    opened: list[str] = []
+
+    class _Symbol:
+        def __init__(self) -> None:
+            self.argtypes = None
+            self.restype = None
+
+    class _Loaded:
+        def __init__(self) -> None:
+            self.cpmdc_csvr_rng_seed = _Symbol()
+            self.cpmdc_csvr_scale = _Symbol()
+
+    def open_name(name: str) -> _Loaded:
+        opened.append(name)
+        return _Loaded()
+
+    monkeypatch.setattr(csvr, "_LIB", None)
+    monkeypatch.delenv("CPMDC_CSVR_LIBRARY", raising=False)
+    monkeypatch.setattr(csvr, "_WHEEL_LIBS", Path("/no/such/cpmdc-csvr-wheel"))
+    monkeypatch.setattr(csvr.ctypes.util, "find_library", lambda _name: soname)
+    monkeypatch.setattr(csvr.ctypes, "CDLL", open_name)
+    loaded = csvr._library()
+    assert opened == [soname]
+    assert loaded is not None
+    assert not Path(soname).is_file()
+
+
+def test_library_missing_a_symbol_raises_cpmdc_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import cpmdc.csvr as csvr
+
+    class _Empty:
+        pass
+
+    monkeypatch.setattr(csvr, "_LIB", None)
+    monkeypatch.delenv("CPMDC_CSVR_LIBRARY", raising=False)
+    monkeypatch.setattr(csvr, "_WHEEL_LIBS", Path("/no/such/cpmdc-csvr-wheel"))
+    monkeypatch.setattr(csvr.ctypes.util, "find_library", lambda _name: "libcpmdc_csvr.so.9")
+    monkeypatch.setattr(csvr.ctypes, "CDLL", lambda _name: _Empty())
+    with pytest.raises(CPMDCError):
+        csvr._library()
 
 
 def test_rejects_bad_python_arguments() -> None:
