@@ -1047,8 +1047,8 @@ message and the check.
 
 | Part | In-process route |
 |------+------------------|
-| ~ASPC~, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
-| ~POLY~ | polynomial coefficients |
+| ~ASPC~, or no scheme token | ASPC coefficients. The renderer writes ~ASPC~ when the order is greater than 0 or the options are non-empty, and the options name none of ~ASPC~, ~POLY~, and ~POLYNOMIAL~. At order 0 with empty options nothing is written |
+| ~POLY~ or ~POLYNOMIAL~ | polynomial coefficients |
 | order | number of earlier calls in the prediction |
 | ~STORE~ | no effect, with no ~RESTART~ file from a library call |
 | ~CSTEPS~ | no effect, with converged orbitals on every call |

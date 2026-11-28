@@ -205,8 +205,9 @@ int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz,
  * @param file Image to modify.
  * @param xyz `n3` doubles, `ncoords * 3`, in Bohr.
  * @param n3 Number of doubles in `xyz`; must equal `ncoords * 3`.
- * @return 0 on success; -1 on a NULL argument or another `n3`, which
- *         leaves the image unchanged.
+ * @return 0 on success; -1 on a NULL argument, another `n3`, or a
+ *         record that is not 24 bytes. Any of those leaves the image
+ *         unchanged.
  */
 int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz,
                                  int n3);
@@ -217,8 +218,9 @@ int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz,
  * @param file Image to modify.
  * @param xyz `n3` doubles, `ncoords * 3`, in Bohr per atomic unit of time.
  * @param n3 Number of doubles in `xyz`; must equal `ncoords * 3`.
- * @return 0 on success; -1 on a NULL argument or another `n3`, which
- *         leaves the image unchanged.
+ * @return 0 on success; -1 on a NULL argument, another `n3`, or a
+ *         record that is not 24 bytes. Any of those leaves the image
+ *         unchanged.
  */
 int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz,
                                 int n3);

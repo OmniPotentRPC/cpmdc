@@ -94,8 +94,12 @@ static int add_count(unsigned char **buf, size_t *len, size_t *cap, int32_t coun
   return add_rec(buf, len, cap, raw, 12);
 }
 
-/* short_coord replaces the first coordinate record: 1 gives an empty
- * record, 2 gives one of 32 bytes. 0 keeps the regular 24 byte record. */
+/* short_coord selects a record that is not 24 bytes.
+ * 1: the first coordinate record is empty.
+ * 2: the first coordinate record is 32 bytes.
+ * 3: the last coordinate record is 32 bytes.
+ * 4: the last velocity record is 32 bytes.
+ * 0 keeps every coordinate and velocity record at 24 bytes. */
 static int build_sample(unsigned char **out, size_t *nout, int stream, int with_fpos,
                         int short_coord) {
   unsigned char *buf = NULL;
@@ -144,8 +148,14 @@ static int build_sample(unsigned char **out, size_t *nout, int stream, int with_
   if (add_count(&buf, &len, &cap, 3, with_fpos) != 0)
     return -1;
   for (int a = 0; a < 3; a++) {
-    if (short_coord && a == 0) {
+    unsigned char wide[32];
+    if ((short_coord == 1 || short_coord == 2) && a == 0) {
       if (add_rec(&buf, &len, &cap, xyz, short_coord == 1 ? 0 : 32) != 0)
+        return -1;
+    } else if (short_coord == 3 && a == 2) {
+      memset(wide, 0, sizeof wide);
+      memcpy(wide, xyz + 6, 24);
+      if (add_rec(&buf, &len, &cap, wide, 32) != 0)
         return -1;
     } else if (add_rec(&buf, &len, &cap, xyz + 3 * a, 24) != 0) {
       return -1;
@@ -154,8 +164,15 @@ static int build_sample(unsigned char **out, size_t *nout, int stream, int with_
   if (add_count(&buf, &len, &cap, 3, with_fpos) != 0)
     return -1;
   for (int a = 0; a < 3; a++) {
-    if (add_rec(&buf, &len, &cap, vel + 3 * a, 24) != 0)
+    unsigned char wide[32];
+    if (short_coord == 4 && a == 2) {
+      memset(wide, 0, sizeof wide);
+      memcpy(wide, vel + 6, 24);
+      if (add_rec(&buf, &len, &cap, wide, 32) != 0)
+        return -1;
+    } else if (add_rec(&buf, &len, &cap, vel + 3 * a, 24) != 0) {
       return -1;
+    }
   }
   if (add_count(&buf, &len, &cap, 0, with_fpos) != 0)
     return -1;
@@ -578,6 +595,54 @@ static int check_coordinate_record_sizes(void) {
   if (check_irregular_coordinate(1, "zero length record") != 0)
     return 1;
   return check_irregular_coordinate(2, "record longer than 24 bytes");
+}
+
+/* A later record of the wrong length must fail the whole write. Earlier
+ * records in that section stay as they were. */
+static int check_rejected_triple_write(int kind, int velocities) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  unsigned char *before = NULL;
+  unsigned char *after = NULL;
+  size_t nb = 0;
+  size_t na = 0;
+  char err[256];
+  double xyz[9] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
+  CPMDCRestart *file;
+  int rc;
+  if (build_sample(&bytes, &n, 0, 1, kind) != 0)
+    return fail("rejected triple build");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail(err[0] ? err : "rejected triple image was rejected");
+  if (cpmdc_restart_write_mem(file, (void **)&before, &nb, err, sizeof err) != 0) {
+    cpmdc_restart_free(file);
+    return fail(err[0] ? err : "rejected triple snapshot");
+  }
+  rc = velocities ? cpmdc_restart_set_velocities(file, xyz, 9)
+                  : cpmdc_restart_set_coordinates(file, xyz, 9);
+  if (rc == 0) {
+    free(before);
+    cpmdc_restart_free(file);
+    return fail(velocities ? "a velocity record of the wrong size was stored"
+                           : "a later coordinate record of the wrong size was stored");
+  }
+  if (cpmdc_restart_write_mem(file, (void **)&after, &na, err, sizeof err) != 0) {
+    free(before);
+    cpmdc_restart_free(file);
+    return fail(err[0] ? err : "rejected triple resnapshot");
+  }
+  cpmdc_restart_free(file);
+  if (nb != na || memcmp(before, after, nb) != 0) {
+    free(before);
+    free(after);
+    return fail(velocities ? "a rejected velocity write changed the image"
+                           : "a rejected coordinate write changed the image");
+  }
+  free(before);
+  free(after);
+  return 0;
 }
 
 static int write_sample(const char *path) {
@@ -1534,6 +1599,13 @@ int main(int argc, char **argv) {
   if (check_malformed() != 0)
     return 1;
   if (check_coordinate_record_sizes() != 0)
+    return 1;
+  if (check_rejected_triple_write(3, 0) != 0)
+    return 1;
+  if (check_rejected_triple_write(4, 1) != 0)
+    return 1;
+  /* Kind 1 stores the first coordinate record with a null payload. */
+  if (check_rejected_triple_write(1, 0) != 0)
     return 1;
   if (argc > 1 && check_geo1(argv[1]) != 0)
     return 1;

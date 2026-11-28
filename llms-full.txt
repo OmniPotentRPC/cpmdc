@@ -3532,13 +3532,34 @@ A `libcpmdc` built from this tree needs the patch: it links
            extrapolateWfnOrder = 4 ) )
 
 The message renders `EXTRAPOLATE WFN ASPC` with `4` on the next line.
-`ASPC` selects the always stable predictor-corrector (ASPC) coefficients of
-Kolafa (J. Comput. Chem. 25, 335 (2004), doi:10.1002/jcc.10385).
-`POLY` selects the polynomial ones.
-OpenCPMD starts from the ASPC coefficients and switches only for `POLY` on the
-`EXTRAPOLATE WFN` line.
-An `extrapolateWfnOrder` with an empty `extrapolateWfnOptions` renders
-`EXTRAPOLATE WFN` alone, and that deck uses ASPC.
+`ASPC` selects the always stable predictor-corrector (ASPC) coefficients.
+`POLY` or `POLYNOMIAL` selects the polynomial ones.
+OpenCPMD sets `cntl%taspc` before it parses the keywords, so a line that names
+no scheme already selects the ASPC coefficients.
+`POLY` or `POLYNOMIAL` clears the flag, and `ASPC` sets it.
+With the flag set, `extrapwf` in OpenCPMD `md_driver.mod.F90` uses the ASPC
+coefficients of Kolafa (J. Comput. Chem. 25, 335 (2004), doi:10.1002/jcc.10385).
+For \(m\) stored sets and an index \(i\) from 1 to \(m\), the routine sets
+\(f_i = (-1)^{i+1} i \binom{2m}{m-i} / \binom{2m-2}{m-1}\).
+With the flag clear, the same routine builds the polynomial coefficients.
+It starts from \(f = -1\) before the first index.
+For each \(i\) from 1 to \(m\) it then replaces \(f\) by \(-f(m-i+1)/i\).
+The value after that step is coefficient \(i\).
+The count \(m\) is how many sets the prediction combines.
+It is at most the requested order, and it equals that order once the ring is
+full.
+Substituting \(m = 4\) gives the polynomial values 4, -6, 4, and -1, and the
+ASPC values 2.8, -2.8, 1.2, and -0.2.
+The renderer names the scheme explicitly.
+The renderer writes `ASPC` when the order is greater than 0 or the options are
+non-empty, and the options name none of `ASPC`, `POLY`, and `POLYNOMIAL`.
+That matches CPMD's own default and leaves the coefficients unchanged.
+At order 0 with empty options nothing is written.
+Empty options with `extrapolateWfnOrder` greater than 0 render
+`EXTRAPOLATE WFN ASPC`.
+Empty options at order 0, the schema default, render no `EXTRAPOLATE WFN` line.
+`STORE` alone renders `EXTRAPOLATE WFN STORE ASPC`.
+Options that already name one of those tokens are written unchanged.
 The order is the number of earlier converged orbital sets that the prediction
 combines.
 OpenCPMD still prints its warning, because
@@ -7362,7 +7383,7 @@ Its functions are not marked
 | `int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3)` | copy the coordinates, Bohr; `n3` must be `3 * ncoords` |
 | `int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3)` | copy the velocities, Bohr per atomic unit of time; same size rule |
 | `int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz, int n3)` | copy the initial geometry of section 6, Bohr; same size rule |
-| `int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)` | replace the coordinate records, Bohr; another `n3` returns -1 and leaves the image unchanged |
+| `int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)` | replace the coordinate records, Bohr; another `n3`, or a record that is not 24 bytes, returns -1 and leaves the image unchanged |
 | `int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz, int n3)` | replace the velocity records, Bohr per atomic unit of time; same rule |
 | `int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6])` | replace the six lattice parameters; -1 without a cell section |
 | `int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual, int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s)` | the section 7 cutoff, real dual factor `cdual`, logical `dual_flag` (0 or 1), `nel`, and grid sizes; each output may be `NULL`; -1 without the section |
@@ -8343,7 +8364,7 @@ state.
 | Layout | `xyz` is `n3` doubles, `ncoords * 3`, in CPMD species order and then atom order; `n3` must equal `ncoords * 3`. |
 | Ownership | `file` is modified in place; the caller owns `xyz`, which the image copies. |
 | Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
-| Returns and errors | Returns 0 on success and -1 for a NULL argument or another `n3`; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
+| Returns and errors | Returns 0 on success and -1 for a NULL argument, another `n3`, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -8355,7 +8376,7 @@ state.
 | Layout | `xyz` is `n3` doubles, `ncoords * 3`, in CPMD species order and then atom order; `n3` must equal `ncoords * 3`. |
 | Ownership | `file` is modified in place; the caller owns `xyz`, which the image copies. |
 | Threads and MPI | Thread-safe on distinct images; one image must not be used by two threads at once when either writes. MPI: none, the library never calls MPI. |
-| Returns and errors | Returns 0 on success and -1 for a NULL argument or another `n3`; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
+| Returns and errors | Returns 0 on success and -1 for a NULL argument, another `n3`, or a record that is not 24 bytes; the image is unchanged on -1. Every other record, the wavefunction included, is kept byte for byte. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -11092,8 +11113,8 @@ message and the check.
 
 | Part | In-process route |
 |------+------------------|
-| `ASPC`, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
-| `POLY` | polynomial coefficients |
+| `ASPC`, or no scheme token | ASPC coefficients. The renderer writes `ASPC` when the order is greater than 0 or the options are non-empty, and the options name none of `ASPC`, `POLY`, and `POLYNOMIAL`. At order 0 with empty options nothing is written |
+| `POLY` or `POLYNOMIAL` | polynomial coefficients |
 | order | number of earlier calls in the prediction |
 | `STORE` | no effect, with no `RESTART` file from a library call |
 | `CSTEPS` | no effect, with converged orbitals on every call |

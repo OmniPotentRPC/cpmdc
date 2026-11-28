@@ -1455,6 +1455,19 @@ if get_option('with_tests')
   )
 
   test(
+    'extrap-scheme-deck',
+    executable(
+      'test_extrap_scheme_deck',
+      'tests/test_extrap_scheme_deck.c',
+      dependencies: [math_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    suite: ['params'],
+  )
+
+  test(
     'session-socket',
     executable(
       'test_session_socket',
